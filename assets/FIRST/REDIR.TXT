@@ -1,0 +1,16 @@
+# Copyright (c) 2000 Worlds Inc.  All Rights Reserved.
+# By: jeremy 03/08/00 -- created.
+home:hansonworld/hansonworld.world=>home:hanson/hansonb.world
+home:hanson/hansonb.world=>home:hansonworld/hansonworld.world
+home:hwavatar/hwavatar.world=>home:hanson/hansona.world
+home:hanson/hansona.world=>home:hwavatar/hwavatar.world
+home:hwspace/hwspace.world=>home:hanson/hansonc.world
+home:hanson/hansonc.world=>home:hwspace/hwspace.world
+home:hwdesert/hwdesert.world=>home:hanson/hansond.world
+home:hanson/hansond.world=>home:hwdesert/hwdesert.world
+home:hwstore/hwstore.world=>home:hanson/hansone.world
+home:hanson/hansone.world=>home:hwstore/hwstore.world
+home:hwschool/hwschool.world=>home:hanson/hansonf.world
+home:hanson/hansonf.world=>home:hwschool/hwschool.world
+# end of redir.txt
+

@@ -1,0 +1,270 @@
+#
+# Renderware ASCII RWX file: D:\temp\groundzero\table_19june\rwx\umbrella.RWX
+#
+# Converted by the PolyTrans geometry converter from Okino Computer Graphics, Inc.
+# Date/time of export: 06/20/2001 11:00:54
+#
+# Bounding box of geometry = (-0.989421,0.64977,-1) to (0.824759,1.77591,0.900969).
+
+ModelBegin
+	ClumpBegin
+	TransformBegin
+	Identity
+	JointTransformBegin
+	IdentityJoint
+		ClumpBegin
+		TransformBegin
+		Identity
+		JointTransformBegin
+		IdentityJoint
+			ClumpBegin
+			TransformBegin
+			Identity
+			JointTransformBegin
+			IdentityJoint
+				AddHint Editable
+				Tag 1
+				VertexExt 0.015 0.64977 0 UV 1.750000 0.999501 Normal  0.990586 0 -0.136895
+				VertexExt 0.0106038 0.64977 -0.0106038 UV 1.875000 0.999501 Normal  0.603846 0 -0.797101
+				VertexExt 0 0.64977 -0.015 UV 1.000000 0.999501 Normal  -0.136895 0 -0.990586
+				VertexExt 0 0.64977 -0.015 UV 2.000000 0.999501 Normal  -0.136895 0 -0.990586
+				VertexExt -0.0106038 0.64977 -0.0106038 UV 1.125000 0.999501 Normal  -0.797101 0 -0.603845
+				VertexExt -0.015 0.64977 0 UV 1.250000 0.999501 Normal  -0.990586 0 0.136895
+				VertexExt -0.0106038 0.64977 0.0106038 UV 1.375000 0.999501 Normal  -0.603845 0 0.797101
+				VertexExt 0 0.64977 0.015 UV 1.500000 0.999501 Normal  0.136895 0 0.990586
+				VertexExt 0.0106038 0.64977 0.0106038 UV 1.625000 0.999501 Normal  0.797101 0 0.603846
+				VertexExt 0.015 1.64977 0 UV 1.750000 0.000499 Normal  0 1 0
+				VertexExt 0.015 1.64977 0 UV 1.750000 0.000499 Normal  0.990586 0 0.136895
+				VertexExt 0.0106038 1.64977 -0.0106038 UV 1.875000 0.000499 Normal  0 1 0
+				VertexExt 0.0106038 1.64977 -0.0106038 UV 1.875000 0.000499 Normal  0.797101 0 -0.603846
+				VertexExt 0 1.64977 -0.015 UV 1.000000 0.000499 Normal  0 1 0
+				VertexExt 0 1.64977 -0.015 UV 1.000000 0.000499 Normal  0.136895 0 -0.990586
+				VertexExt 0 1.64977 -0.015 UV 2.000000 0.000499 Normal  0.136895 0 -0.990586
+				VertexExt -0.0106038 1.64977 -0.0106038 UV 1.125000 0.000499 Normal  0 1 0
+				VertexExt -0.0106038 1.64977 -0.0106038 UV 1.125000 0.000499 Normal  -0.603846 0 -0.797101
+				VertexExt -0.015 1.64977 0 UV 1.250000 0.000499 Normal  0 1 0
+				VertexExt -0.015 1.64977 0 UV 1.250000 0.000499 Normal  -0.990586 0 -0.136895
+				VertexExt -0.0106038 1.64977 0.0106038 UV 1.375000 0.000499 Normal  0 1 0
+				VertexExt -0.0106038 1.64977 0.0106038 UV 1.375000 0.000499 Normal  -0.797101 0 0.603846
+				VertexExt 0 1.64977 0.015 UV 1.500000 0.000499 Normal  0 1 0
+				VertexExt 0 1.64977 0.015 UV 1.500000 0.000499 Normal  -0.136895 0 0.990586
+				VertexExt 0.0106038 1.64977 0.0106038 UV 1.625000 0.000499 Normal  0 1 0
+				VertexExt 0.0106038 1.64977 0.0106038 UV 1.625000 0.000499 Normal  0.603846 0 0.797101
+				Color 0.361702 1.000000 0.319149
+				Surface 0.184312 0.552941 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture grill_metal.cmp
+
+				Triangle 1 2 13 
+				Triangle 1 13 11 
+				Triangle 2 4 16 
+				Triangle 2 16 13 
+				Triangle 3 5 18 
+				Triangle 3 18 15 
+				Triangle 5 6 20 
+				Triangle 5 20 18 
+				Triangle 6 7 22 
+				Triangle 6 22 20 
+				Triangle 7 8 24 
+				Triangle 7 24 22 
+				Triangle 8 9 26 
+				Triangle 8 26 24 
+				Triangle 9 1 11 
+				Triangle 9 11 26 
+				Triangle 21 23 25 
+				Triangle 21 25 10 
+				Triangle 21 10 12 
+				Triangle 21 12 14 
+				Triangle 21 14 17 
+				Triangle 19 21 17 
+			JointTransformEnd
+			TransformEnd
+			ClumpEnd
+			ClumpBegin
+			TransformBegin
+			Identity
+			JointTransformBegin
+			IdentityJoint
+				AddHint Editable
+				Tag 2
+				VertexExt -0.0823314 1.4186 -1 UV 0.500000 0.000500 Normal  0.921629 -0.38273 -0.0641661
+				VertexExt -0.0823314 1.4186 -1 UV 0.098492 0.340302 Normal  0.921629 -0.38273 -0.0641661
+				VertexExt 0.0018325 1.63226 -0.0199999 UV 0.512125 0.505994 Normal  0.322544 0.918686 -0.227995
+				VertexExt 0 1.62761 -0.0199999 UV 0.500000 0.515511 Normal  -0.390356 -0.893177 0.223287
+				VertexExt 0.645098 1.13206 -0.62349 UV 0.900568 0.198364 Normal  0.618775 -0.263433 0.740082
+				VertexExt 0.645098 1.13206 -0.62349 UV 0.388141 0.072663 Normal  0.618775 -0.263433 0.740082
+				VertexExt 0.0163811 1.62653 -0.0124697 UV 0.517918 0.500641 Normal  0.501215 0.848305 -0.170767
+				VertexExt 0.0145486 1.62188 -0.0124697 UV 0.508011 0.519468 Normal  -0.540225 -0.834142 0.111194
+				VertexExt 0.824759 1.06129 0.222521 UV 0.999500 0.642961 Normal  -0.155086 0.0413996 0.987033
+				VertexExt 0.824759 1.06129 0.222521 UV 0.778053 0.132236 Normal  -0.155086 0.0413996 0.987033
+				VertexExt 0.0199743 1.62512 0.00445049 UV 0.525716 0.501832 Normal  0.570985 0.820822 0.0150524
+				VertexExt 0.0181418 1.62046 0.00445049 UV 0.509990 0.528360 Normal  -0.552127 -0.829454 -0.0846305
+				VertexExt 0.321362 1.25958 0.900969 UV 0.722299 0.999500 Normal  -0.81722 0.30222 0.490728
+				VertexExt 0.321362 1.25958 0.900969 UV 0.974617 0.474162 Normal  -0.81722 0.30222 0.490728
+				VertexExt 0.00990637 1.62908 0.0180194 UV 0.529647 0.508671 Normal  0.479316 0.856932 0.189537
+				VertexExt 0.00807386 1.62443 0.0180194 UV 0.504446 0.535491 Normal  -0.417099 -0.882642 -0.216727
+				VertexExt -0.486024 1.57762 0.900969 UV 0.277701 0.999500 Normal  -0.869027 0.322628 -0.375105
+				VertexExt -0.486024 1.57762 0.900969 UV 0.829816 0.840963 Normal  -0.869027 0.322628 -0.375105
+				VertexExt -0.00624135 1.63544 0.0180194 UV 0.526751 0.516007 Normal  0.295236 0.929443 0.221296
+				VertexExt -0.00807386 1.63079 0.0180194 UV 0.495554 0.535491 Normal  -0.23682 -0.953656 -0.185623
+				VertexExt -0.989421 1.77591 0.222521 UV 0.000500 0.642961 Normal  -0.271495 0.0872539 -0.958477
+				VertexExt -0.989421 1.77591 0.222521 UV 0.452687 0.956431 Normal  -0.271495 0.0872539 -0.958477
+				VertexExt -0.0163093 1.63941 0.00445049 UV 0.519209 0.518316 Normal  0.157362 0.983753 0.0864149
+				VertexExt -0.0181418 1.63476 0.00445049 UV 0.490010 0.528360 Normal  -0.147044 -0.98902 -0.0147416
+				VertexExt -0.809761 1.70514 -0.62349 UV 0.099432 0.198364 Normal  0.525422 -0.226661 -0.820096
+				VertexExt -0.809761 1.70514 -0.62349 UV 0.127218 0.733616 Normal  0.525422 -0.226661 -0.820096
+				VertexExt -0.0127161 1.63799 -0.0124697 UV 0.512699 0.513860 Normal  0.169515 0.978966 -0.113538
+				VertexExt -0.0145486 1.63334 -0.0124697 UV 0.491989 0.519468 Normal  -0.215373 -0.962104 0.167241
+				Color 1.000000 0.364964 0.364964
+				Surface 0.179083 0.537255 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_top.cmp
+
+				Triangle 2 7 6 
+				Triangle 2 3 7 
+				Color 1.000000 1.000000 1.000000
+				Surface 0.100000 0.500000 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_bottom.cmp
+
+				Triangle 4 5 8 
+				Triangle 4 1 5 
+				Color 1.000000 0.364964 0.364964
+				Surface 0.179083 0.537255 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_top.cmp
+
+				Triangle 6 11 10 
+				Triangle 6 7 11 
+				Color 1.000000 1.000000 1.000000
+				Surface 0.100000 0.500000 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_bottom.cmp
+
+				Triangle 8 9 12 
+				Triangle 8 5 9 
+				Color 1.000000 0.364964 0.364964
+				Surface 0.179083 0.537255 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_top.cmp
+
+				Triangle 10 15 14 
+				Triangle 10 11 15 
+				Color 1.000000 1.000000 1.000000
+				Surface 0.100000 0.500000 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_bottom.cmp
+
+				Triangle 12 13 16 
+				Triangle 12 9 13 
+				Color 1.000000 0.364964 0.364964
+				Surface 0.179083 0.537255 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_top.cmp
+
+				Triangle 14 19 18 
+				Triangle 14 15 19 
+				Color 1.000000 1.000000 1.000000
+				Surface 0.100000 0.500000 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_bottom.cmp
+
+				Triangle 16 17 20 
+				Triangle 16 13 17 
+				Color 1.000000 0.364964 0.364964
+				Surface 0.179083 0.537255 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_top.cmp
+
+				Triangle 18 23 22 
+				Triangle 18 19 23 
+				Color 1.000000 1.000000 1.000000
+				Surface 0.100000 0.500000 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_bottom.cmp
+
+				Triangle 20 21 24 
+				Triangle 20 17 21 
+				Color 1.000000 0.364964 0.364964
+				Surface 0.179083 0.537255 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_top.cmp
+
+				Triangle 22 27 26 
+				Triangle 22 23 27 
+				Color 1.000000 1.000000 1.000000
+				Surface 0.100000 0.500000 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_bottom.cmp
+
+				Triangle 24 25 28 
+				Triangle 24 21 25 
+				Color 1.000000 0.364964 0.364964
+				Surface 0.179083 0.537255 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_top.cmp
+
+				Triangle 26 3 2 
+				Triangle 26 27 3 
+				Color 1.000000 1.000000 1.000000
+				Surface 0.100000 0.500000 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture umbrella_bottom.cmp
+
+				Triangle 28 1 4 
+				Triangle 28 25 1 
+			JointTransformEnd
+			TransformEnd
+			ClumpEnd
+		JointTransformEnd
+		TransformEnd
+		ClumpEnd
+	JointTransformEnd
+	TransformEnd
+	ClumpEnd
+ModelEnd

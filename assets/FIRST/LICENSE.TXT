@@ -1,0 +1,197 @@
+END USER LICENSE AGREEMENT
+
+If you accept, Worlds.com  ("Worlds")
+grants you a nonexclusive,
+nontransferable license to use and copy
+(for your personal archival purposes
+only, and only if all of the Software's
+proprietary notices are included) the
+accompanying software product
+("Software"), subject to the following
+terms and conditions:
+
+PROHIBITED ACTS:  You may not sell or
+transfer this Software (through any
+means such as rent, lease, distribute).
+You may not modify, translate, reverse
+engineer, decompile, disassemble or
+create derivative works based on the
+Software (except to the extent
+applicable laws specifically prohibit
+such restriction).  Finally, you may not
+remove any proprietary notices or labels
+on the Software.
+
+EXPECTATIONS:  This license does not
+grant you any right to any enhancement
+or update to the Software or to
+continued access to the multi-user world
+accessible with this Software.  Worlds
+and its licensors expressly retain their
+right to discontinue or modify the
+multi-user world accessible with this
+software at any time, without notice.
+
+WARNING.  The 3D virtual world
+accessible with this Software exposes
+users to interactions, communication and
+content from many parties in a life-like
+"real time" experience.  In addition,
+links to other sites on the Internet may
+be accessible with or through this
+Software.  Such interactions,
+communications or content (whether
+within the 3D virtual world or
+accessible through the Software) is
+referred to generally as "Content."
+Worlds and its licensors do not exercise
+any screening, editorial or other
+control over Content.  Users are advised
+that some Content may be distasteful,
+misleading, inaccurate, offensive,
+pornographic or otherwise objectionable.
+In addition, Worlds and its licensors do
+not guarantee any privacy or
+confidentiality of any Content you make
+available through the Software.  In
+accepting this license, you specifically
+acknowledge and agree to the above, and
+you release Worlds and its licensors
+from any liability for claims related to
+Content or privacy.
+
+IMPORTANT DISCLAIMER.  This Software is
+provided on an "AS IS" basis, without
+warranty of any kind, including without
+limitation the warranties of
+merchantability, fitness for a
+particular purpose and non-infringement.
+This disclaimer of warranty is an
+essential part of the agreement.  SOME
+STATES DO NOT  ALLOW  EXCLUSIONS OF AN
+IMPLIED WARRANTY, SO THIS DISCLAIMER MAY
+NOT APPLY TO YOU  AND YOU MAY HAVE OTHER
+LEGAL RIGHTS THAT VARY FROM STATE TO
+STATE OR BY JURISDICTION.
+
+LIMITATION OF LIABILITY. UNDER NO
+CIRCUMSTANCES AND UNDER NO LEGAL THEORY,
+TORT, CONTRACT, OR OTHERWISE, SHALL
+WORLDS OR ITS LICENSORS, SUPPLIERS OR
+RESELLERS BE LIABLE TO YOU OR ANY OTHER
+PERSON FOR ANY INDIRECT, SPECIAL,
+INCIDENTAL, OR CONSEQUENTIAL DAMAGES OF
+ANY CHARACTER. THIS LIMITATION OF
+LIABILITY DOES NOT APPLY TO LIABILITY TO
+THE EXTENT APPLICABLE LAW PROHIBITS SUCH
+LIMITATION.
+
+OWNERSHIP.   Worlds, its suppliers and
+licensors retain all title, ownership
+and intellectual property rights in the
+Software.  This Software is protected by
+United States and international
+copyright laws and treaties.  You may
+encounter other property with (or
+through) the use of this Software (for
+example, via links to the Internet).
+Title, ownership and intellectual
+property rights in any content or
+software accessed with the Software may
+be protected by applicable copyright or
+other law.
+
+Worlds software is automatically updated 
+upon login, as new versions of the product become 
+available, to ensure that the user gets the 
+best and most current content and feature set.
+
+The Java Runtime Environment (JRE) is
+distributed under terms of Sun's
+JRE Binary Code License.  For the terms
+of that license, incorporated herein
+by reference, please see the JRE license
+file.
+
+Portions of this software are Copyright
+1993-1995 Criterion Software Ltd. and
+its Licensors.
+
+Aerosmith owns the copy rights to Aerosmith
+Imagery and content in Aerosmith World.
+
+TERMINATION.  If you fail to comply with
+the terms of this license, this license
+will terminate automatically and
+immediately.
+
+EXPORT CONTROLS.   None of the Software
+or underlying information or technology
+may be downloaded or otherwise exported
+or re-exported into any country in which
+the U.S. has embargoed goods, or to
+anyone on the U.S. Treasury Department's
+list of Specially Designated Nationals
+or the U.S. Commerce Department's Table
+of Deny Orders.  By downloading or using
+the Software, you are agreeing to the
+foregoing and you are representing and
+warranting that you are not located in,
+under the control of, or a national or
+resident of any such country or on any
+such list.
+
+U.S. GOVERNMENT RESTRICTED RIGHTS.  Use,
+duplication or disclosure by the
+Government is subject to restrictions
+set forth in subparagraphs (a) through
+(d) of the Commercial
+Computer-Restricted Rights clause at FAR
+52.227-19 when applicable, or in
+subparagraph (c)(1)(ii) of the Rights in
+Technical Data and Computer Software
+clause in DFARS 252.227-7013, and in
+similar clauses in the NASA FAR
+Supplement.
+
+MISCELLANEOUS. This end-user license
+represents the complete agreement
+concerning the Software between you,
+Worlds and its licensors and can only be
+amended with a signed agreement between
+the parties.  If any provision of this
+Agreement is held to be unenforceable
+for any reason, such provision shall be
+reformed only to the extent necessary to
+make it enforceable.  This Agreement is
+governed by California law.
+
+Worlds reserves the right to use the 
+registration Email to notify you of upgrades, 
+special offers, and Worlds community newsletters,
+in accordance with Worlds privacy policy as posted
+on the Worlds.com site. 
+
+To keep this a pleasant environment for all, 
+we ask that you treat your virtual neighbors 
+with respect, and refrain from using 
+offensive language and tactics. 
+Worlds Inc. reserves the right to
+discontinue service to anyone who fails
+to meet Worlds' standards for appropriate
+online behavior, in  Worlds sole opinion, and no
+refund will be issued. Worlds Terms of Service 
+and Community Guidelines are listed at
+http://www.worlds.net/help/worldsterms.html. 
+Breaching these terms may lead
+to temporary booting of user, 
+or permanent termination of account. Chat
+may be captured to substantiate incidents 
+of breach of terms. Worlds Inc. also
+reserves the right to take any 
+appropriate legal action against anyone
+who uses it's services for what Worlds
+deems inappropriate behavior.
+
+(c) 1995-2001 Worlds.com
+

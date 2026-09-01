@@ -1,0 +1,31 @@
+The below define property IDs, used by packets that use property lists:
+
+| ID | Source | Name | Description |
+| -- | ------ | ---- | ----------- |
+| 1 | SC? | APPNAME | *Unknown* |
+| 2 | S?C? | USERNAME | *Unknown* |
+| 3 | SC? | PROTOCOL | *Unknown* |
+| 4 | S?C? | ERROR | *Unknown* |
+| 5 | S?C? | CHANNEL | *Unknown* |
+| 5 | S?C? | BITMAP | *Unknown* |
+| 6 | S?C? | PASSWORD | *Unknown* |
+| 7 | S?C? | AVATARS | *Unknown* |
+| 8 | S?C? | UPDATETIME | *Unknown* |
+| 9 | S?C? | CLIENT | *Unknown* |
+| 10 | S?C? | SERIAL | *Unknown* |
+| 11 | S?C? | EMAIL | *Unknown* |
+| 12 | S?C? | LOGONOFF | *Unknown* |
+| 13 | S?C? | DURATION | *Unknown* |
+| 14 | S?C? | GUEST | *Unknown* |
+| 15 | SC? | SERVERTYPE | *Unknown* |
+| 16 | S?C? | BIZCARD | *Unknown* |
+| 20 | S?C? | NEW_PASSWD | *Unknown* |
+| 22 | S?C? | PRIV | *Unknown* |
+| 23 | S?C? | ASLEEP | *Unknown* |
+| 24 | SC? | EXTERNAL_HTTP_SERVER | *Unknown* |
+| 25 | SC? | SCRIPT_SERVER | *Unknown* |
+| 26 | SC? | SMTP_SERVER | *Unknown* |
+| 27 | SC? | MAIL_DOMAIN | *Unknown* |
+| 28 | S?C? | NEW_USERNAME | *Unknown* |
+| 29 | S?C? | INTERNAL_HTTP_SERVER | *Unknown* |
+| 32 | S?C? | INVENTORY | *Unknown* |

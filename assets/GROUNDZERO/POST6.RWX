@@ -1,0 +1,32 @@
+# Output from 3DSMax RenderWare File Export plug-in V1.0
+ModelBegin
+    # Box01
+    
+    TransformBegin
+        Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000
+        
+        ClumpBegin
+            Tag 1
+            Hints NULL
+            Vertex  0.000000  0.000000  0.500000 UV  0.999501  0.999501
+            Vertex  1.000000  0.000000  0.500000 UV  0.999500  0.999501
+            Vertex  0.000000  0.000000  0.000000 UV  0.000500  0.999501
+            Vertex  1.000000  0.000000  0.000000 UV  0.000500  0.999501
+            Vertex  0.000000  2.900000  0.000000 UV  0.000500  0.000499
+            Vertex  1.000000  2.900000  0.000000 UV  0.000500  0.000499
+            
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.179083  0.1  0.1
+            Color 0.537255 0.196078 0.196078
+            Diffuse 0.537255 0.196078 0.196078
+            Specular  0.9  0.9  0.9
+            TextureModes Foreshorten
+            Texture flrlite5a.cmp
+            
+            Triangle 2 4 6
+            Triangle 3 1 5
+            
+        ClumpEnd
+    TransformEnd
+ModelEnd

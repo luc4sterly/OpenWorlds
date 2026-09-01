@@ -1,0 +1,31 @@
+VERSION 2
+
+// This file defines global actions that may be performed
+// by avatars on other objects in the world.  Each line in
+// order is as follows:
+// -ACTION followed by the action name
+// -Name of avatar this action applies to, or "any"
+// -Name of object this action applies to (less file extension,
+// and can just match the end of the object URL.) This may be
+// any Shape or Shape-derived object, in addition to other avatars
+// -If this action applies to another avatar, does this action
+// require consent from the other avatar? consent/noconsent
+// -Relative x,y target position of avatar to object in world
+// units (cm)
+// -Relative yaw of avatar to target object orientation in degrees
+// -Action to perform prior to animation, can be "noAction", 
+// "addToInventory", "removeObject", "animateObject", "playSound" or
+// "moveObjectTo".  In client version 1636 only noAction, 
+// animateObject, and playSound are supported.
+// -Optional parameter for the action, required for animateObject
+// or moveObjectTo
+// -Animation to have avatar perform upon reaching target pos.
+// -Action to perform as animation starts
+// -Optional parameter for above action
+// -Action to perform after the animation is complete
+// -Optional parameter for above action
+// -An optional second animation to perform after everything else
+// or "none"
+
+// No actions currently defined externally
+

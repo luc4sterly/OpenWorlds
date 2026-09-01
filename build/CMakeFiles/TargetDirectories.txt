@@ -1,0 +1,3 @@
+C:/Users/lucas/Documents/freeworlds_src/build/CMakeFiles/WorldsChat.dir
+C:/Users/lucas/Documents/freeworlds_src/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/lucas/Documents/freeworlds_src/build/CMakeFiles/ZERO_CHECK.dir
