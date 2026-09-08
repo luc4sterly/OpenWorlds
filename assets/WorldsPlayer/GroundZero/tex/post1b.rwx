@@ -1,0 +1,91 @@
+# Output from 3DSMax RenderWare File Export plug-in V1.0
+ModelBegin
+    ClumpBegin
+        # Box01
+        
+        TransformBegin
+            Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 1
+                Hints NULL
+                Vertex  0.000000  0.000000  0.500000 UV  0.000499  0.999501
+                Vertex  1.000000  0.000000  0.500000 UV  0.999500  0.999501
+                Vertex  0.000000  2.900000  0.000000 UV  0.000500  0.000499
+                Vertex  1.000000  2.900000  0.000000 UV  0.999501  0.000499
+                
+                GeometrySampling Solid
+                LightSampling Vertex
+                Ambient 0.179083  0.1  0.1
+                Color 0.537255 0.196078 0.196078
+                Diffuse 0.537255 0.196078 0.196078
+                Specular  0.9  0.9  0.9
+                TextureModes Foreshorten
+                Texture flrlite5.cmp
+                
+                Triangle 1 2 4
+                Triangle 4 3 1
+                
+            ClumpEnd
+        TransformEnd
+        # side
+        
+        TransformBegin
+            Transform -0.000000 -0.000000  1.000000  0.000000 -1.000000  0.000000 -0.000000  0.000000  0.000000 -1.000000 -0.000000  0.000000  0.000000  0.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 2
+                Hints NULL
+                Vertex  0.000000 -0.000000 -2.900000 UV  0.000500  0.000499
+                Vertex  0.500000 -0.000000  0.000000 UV  0.999499  0.999500
+                Vertex  0.500000 -0.000000 -2.900000 UV  0.999501  0.000499
+                Vertex  0.000000 -0.000000 -2.900000 UV  0.000500  0.000499
+                Vertex  0.500000 -0.000000  0.000000 UV  0.999499  0.999500
+                Vertex  0.500000 -0.000000 -2.900000 UV  0.999501  0.000499
+                
+                GeometrySampling Solid
+                LightSampling Vertex
+                Ambient  0.1 0.158168 0.181698
+                Color 0.192157 0.47451 0.545098
+                Diffuse 0.192157 0.47451 0.545098
+                Specular  0.9  0.9  0.9
+                TextureModes Foreshorten
+                Texture flrlite5a.cmp
+                
+                Triangle 1 2 5
+                Triangle 1 5 4
+                Triangle 2 3 6
+                Triangle 2 6 5
+                Triangle 3 1 4
+                Triangle 3 4 6
+                Triangle 1 3 2
+                
+            ClumpEnd
+        TransformEnd
+        # side01
+        
+        TransformBegin
+            Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 3
+                Hints NULL
+                Vertex  1.000000  0.000000  0.500000 UV  0.999501  0.999501
+                Vertex  1.000000  0.000000  0.000000 UV  0.000500  0.999500
+                Vertex  1.000000  2.900000  0.000000 UV  0.000500  0.000499
+                
+                GeometrySampling Solid
+                LightSampling Vertex
+                Ambient  0.1 0.158168 0.181698
+                Color 0.192157 0.47451 0.545098
+                Diffuse 0.192157 0.47451 0.545098
+                Specular  0.9  0.9  0.9
+                TextureModes Foreshorten
+                Texture flrlite5a.cmp
+                
+                Triangle 1 2 3
+                
+            ClumpEnd
+        TransformEnd
+    ClumpEnd
+ModelEnd

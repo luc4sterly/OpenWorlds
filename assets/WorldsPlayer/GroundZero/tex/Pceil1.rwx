@@ -1,0 +1,34 @@
+# Output from 3DSMax RenderWare File Export plug-in V1.0
+ModelBegin
+    # NGon01
+    
+    TransformBegin
+        Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000
+        
+        ClumpBegin
+            Tag 1
+            Hints NULL
+            Vertex  28.658623  0.000000  16.545221 UV  9.995004  5.000001
+            Vertex  19.106136  0.000000 -0.000171 UV  7.497503  0.004996
+            Vertex  0.001163  0.000000 -0.000170 UV  2.502499  0.004995
+            Vertex -9.551322  0.000000  16.545223 UV  0.004996  5.000000
+            Vertex  0.001166  0.000000  33.090614 UV  2.502497  9.995004
+            Vertex  19.106140  0.000000  33.090611 UV  7.497502  9.995005
+            
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.179083  0.1  0.1
+            Color 0.537255 0.196078 0.196078
+            Diffuse 0.537255 0.196078 0.196078
+            Specular  0.9  0.9  0.9
+            TextureModes Foreshorten
+            Texture pceil3.cmp
+            
+            Triangle 4 6 5
+            Triangle 3 6 4
+            Triangle 2 6 3
+            Triangle 1 6 2
+            
+        ClumpEnd
+    TransformEnd
+ModelEnd

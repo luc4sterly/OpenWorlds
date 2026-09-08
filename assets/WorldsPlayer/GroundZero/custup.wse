@@ -1,0 +1,117 @@
+Document Type: WSE
+item: Global
+  Version=5.0
+  Flags=00000100
+  Split=1420
+  Languages=65 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  Japanese Font Name=MS Gothic
+  Japanese Font Size=10
+  Start Gradient=0 0 255
+  End Gradient=0 0 0
+  Windows Flags=00000000000000010010110000011000
+  Message Font=MS Sans Serif
+  Font Size=8
+  Disk Filename=SETUP
+  Patch Flags=0000000000000001
+  Patch Threshold=85
+  Patch Memory=4000
+  FTP Cluster Size=20
+end
+item: Remark
+  Text=jeremy 04/11/00 - created
+end
+item: Remark
+  Text=This should be put as custup.wse in the GroundZero directory.
+end
+item: Read INI Value
+  Variable=HOMEWORLD
+  Pathname=%MAINDIR%\worlds.ini
+  Section=InstalledWorlds
+  Item=InstalledWorld0
+end
+item: If/While Statement
+  Variable=HOMEWORLD
+  Value=Meteor
+  Flags=00000100
+end
+item: Remark
+  Text=Find slot to put GroundZero in.
+end
+item: Set Variable
+  Variable=WORLDNUM
+  Value=1
+  Flags=00000100
+end
+item: Read INI Value
+  Variable=CURRENTWORLD
+  Pathname=%MAINDIR%\worlds.ini
+  Section=InstalledWorlds
+  Item=InstalledWorld%WORLDNUM%
+end
+item: If/While Statement
+  Variable=CURRENTWORLD
+  Flags=00010001
+end
+item: If/While Statement
+  Variable=CURRENTWORLD
+  Value=GroundZero
+  Flags=00000100
+end
+item: Remark
+  Text=Break if we found GroundZero
+end
+item: Set Variable
+  Variable=CURRENTWORLD
+end
+item: Else Statement
+end
+item: Remark
+  Text=Increment and loop
+end
+item: Set Variable
+  Variable=WORLDNUM
+  Value=%WORLDNUM%
+  Flags=00000100
+end
+item: Read INI Value
+  Variable=CURRENTWORLD
+  Pathname=%MAINDIR%\worlds.ini
+  Section=InstalledWorlds
+  Item=InstalledWorld%WORLDNUM%
+end
+item: End Block
+end
+item: End Block
+end
+item: Read INI Value
+  Variable=MAXWORLDS
+  Pathname=%MAINDIR%\worlds.ini
+  Section=InstalledWorlds
+  Item=MaxInstalledWorlds
+end
+item: If/While Statement
+  Variable=WORLDNUM
+  Value=%MAXWORLDS%
+  Flags=00000110
+end
+item: Remark
+  Text=Record new maximum
+end
+item: Edit INI File
+  Pathname=%MAINDIR%\WORLDS.INI
+  Settings=[InstalledWorlds]
+  Settings=MaxInstalledWorlds=%WORLDNUM%
+  Settings=
+  Settings=
+end
+item: End Block
+end
+item: Edit INI File
+  Pathname=%MAINDIR%\WORLDS.INI
+  Settings=[InstalledWorlds]
+  Settings=InstalledWorld0=GroundZero
+  Settings=InstalledWorld%WORLDNUM%=Meteor
+  Settings=
+end
+item: End Block
+end

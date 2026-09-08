@@ -1,0 +1,78 @@
+Logfile of Sep 8, 2026 1:37:23 PM
+Gamma 1900, build 08/05/04 05:45:33 GMT (Rev 1900) of Aug 4, 2004 5:00:00 PM
+system info---------------------------------
+DISK REPORT:
+[1236] Windows SYSTEM path: C:\WINDOWS\system32
+[1236] 	Free disk space (C:): 524716 KB
+[1236] Current Working Directory: C:\DOCUME~1\ALLUSE~1\DOCUME~1
+[1236] 	Free disk space (C:): 524716 KB
+
+JAVA MEMORY:
+[1236] 	 Free memory: 1089824
+[1236] 	Total memory: 2031616
+
+WINDOWS MEMORY:
+[1236] 	Total Physical Memory: 2146709504
+[1236] 	Avail Physical Memory: 1761644544
+[1236] 	   Total Paged Memory: 2147483647
+[1236] 	   Avail Paged Memory: 2147483647
+
+[1236] Java Properties: {java.runtime.name=Java(TM) 2 Runtime Environment, Standard Edition, sun.boot.library.path=C:\DOCUME~1\ALLUSE~1\DOCUME~1\bin, java.vm.version=1.4.2_05-b04, java.vm.vendor=Sun Microsystems Inc., java.vendor.url=http://java.sun.com/, path.separator=;, java.vm.name=Java HotSpot(TM) Client VM, file.encoding.pkg=sun.io, user.country=US, sun.os.patch.level=Service Pack 2, java.vm.specification.name=Java Virtual Machine Specification, user.dir=C:\DOCUME~1\ALLUSE~1\DOCUME~1, java.runtime.version=1.4.2_05-b04, java.awt.graphicsenv=sun.awt.Win32GraphicsEnvironment, java.endorsed.dirs=C:\DOCUME~1\ALLUSE~1\DOCUME~1\lib\endorsed, os.arch=x86, java.io.tmpdir=C:\DOCUME~1\ADMINI~1\LOCALS~1\Temp\, line.separator=
+, java.vm.specification.vendor=Sun Microsystems Inc., user.variant=, os.name=Windows 2003, sun.java2d.fontpath=, java.library.path=C:\DOCUME~1\ALLUSE~1\DOCUME~1\bin;.;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem, java.specification.name=Java Platform API Specification, java.class.version=48.0, java.util.prefs.PreferencesFactory=java.util.prefs.WindowsPreferencesFactory, os.version=5.2, user.home=C:\Documents and Settings\Administrator, user.timezone=America/Los_Angeles, java.awt.printerjob=sun.awt.windows.WPrinterJob, file.encoding=Cp1252, java.specification.version=1.4, java.class.path=.;lib\gammacls.zip, user.name=Administrator, java.vm.specification.version=1.0, java.home=C:\DOCUME~1\ALLUSE~1\DOCUME~1, sun.arch.data.model=32, user.language=en, java.specification.vendor=Sun Microsystems Inc., awt.toolkit=sun.awt.windows.WToolkit, java.vm.info=mixed mode, java.version=1.4.2_05, java.ext.dirs=C:\DOCUME~1\ALLUSE~1\DOCUME~1\lib\ext, sun.boot.class.path=lib\i18ncls.zip;lib\rt.jar, java.vendor=Sun Microsystems Inc., file.separator=\, java.vendor.url.bug=http://java.sun.com/cgi-bin/bugreport.cgi, sun.io.unicode.encoding=UnicodeLittle, sun.cpu.endian=little, sun.cpu.isalist=pentium i486 i386}
+[1236] Number of CPUs: 2
+[1236] Processor Type: Intel Pentium (Generic - I/II/III/etc)
+[1236] Platform  Type: MS Windows NT version 5.2 Service Pack 2 (Build 3790)
+worlds.ini----------------------------------
+[Gamma]
+upgradeServer=http://us1.worlds.net/3DCDup
+LogFile=Gamma.Log
+Product_Name=WorldsPlayer
+[InstalledWorlds]
+MaxInstalledWorlds=0
+InstalledWorld0=GroundZero
+--------------------------------------------
+System Locale is en_US
+Loading action manager
+Initializing cache...
+Verifying cache was closed properly...
+Marking cache as open...
+java.io.FileNotFoundException: C:\DOCUME~1\ALLUSE~1\DOCUME~1\.\cachedir\cache.open (The system cannot find the path specified)
+Flushing cache index.
+Adding table actionAliases
+Adding table avatarAliases
+Adding table employeeAccounts
+Adding table faceList
+Adding table graphicList
+Adding table hiddenActions
+Adding table humanHoloList
+Adding table humanList
+Adding table invList
+Adding table permittedHoloList
+Adding table permittedList
+Adding table secretList
+Avatar dynamic LOD disabled.
+Got actions file 
+Warning: Material1 was not owned by any object.
+Warning: Material1 was not owned by any object.
+Warning: Material1 was not owned by any object.
+Warning: Material1 was not owned by any object.
+Warning: Material1 was not owned by any object.
+Warning: Material1355 was not owned by any object.
+Warning: Material1356 was not owned by any object.
+Warning: Material1 was not owned by any object.
+Warning: Material1 was not owned by any object.
+Warning: Material1 was not owned by any object.
+Warning: MoveCokeEggRESET was not owned by any object.
+Warning: WaitCokeEgg was not owned by any object.
+Warning: MoveCokeEgg3 was not owned by any object.
+Warning: MoveCokeEgg2 was not owned by any object.
+Warning: MoveCokeEgg1 was not owned by any object.
+Download error for http://us1.worlds.net/3DCDup/GroundZero/WorldScriptGroundZero.class
+	null
+Could not load script WorldScriptGroundZero.class java.lang.ClassNotFoundException: WorldScriptGroundZero.class
+Exception constructing world script: java.lang.NullPointerException
+System has 2146709504 bytes of physical RAM
+[17204] Frame rate report:0/6/1594
+Marking cache as closed...
+[17220] AutoServer(www.3dcd.com:6650): lastError=VarErrorException[#205 retry=false retryCount=1 isStatus=true]
+Logfile closed.

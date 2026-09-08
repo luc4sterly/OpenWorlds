@@ -1,150 +1,1754 @@
-diff --git i/NET/worlds/console/AvMenu.java w/NET/worlds/console/AvMenu.java
-index e406673..99d3484 100644
---- i/NET/worlds/console/AvMenu.java
-+++ w/NET/worlds/console/AvMenu.java
-@@ -371,7 +371,7 @@ public class AvMenu extends Menu implements AvatarDialogCallback {
-                result = findIndex(headTypes, bodyType);
-                return result < 0 ? 0 : result;
-             case 1:
--               int p = str.lastIndexOf("NS");
-+               p = str.lastIndexOf("NS");
-                if (p >= 0) {
-                   result = "qhd0DHQ".indexOf(str.charAt(p + 2));
-                }
-@@ -379,7 +379,7 @@ public class AvMenu extends Menu implements AvatarDialogCallback {
-                return result < 0 ? 3 : result;
-             case 2:
-                int head = str.lastIndexOf("NS");
--               int p = str.lastIndexOf("DgT");
-+               p = str.lastIndexOf("DgT");
-                if (p > head) {
-                   p += 3;
+diff --git a/NET/worlds/console/ActionsPart.java b/NET/worlds/console/ActionsPart.java
+index 888847c..32aa323 100644
+--- a/NET/worlds/console/ActionsPart.java
++++ b/NET/worlds/console/ActionsPart.java
+@@ -26,6 +26,10 @@ public class ActionsPart implements FramePart {
+       return var0 != null && var0.size() != 0;
+    }
  
-@@ -412,7 +412,7 @@ public class AvMenu extends Menu implements AvatarDialogCallback {
++   static ActionsPart access$000() {
++      return activePart;
++   }
++
+    public void activate(Console var1, Container var2, Console var3) {
+    }
  
-                return result < 0 ? 0 : result;
-             default:
--               int p = PosableShape.getMatPosition(str, "fabcdeOVKY".charAt(index - 3));
-+               p = PosableShape.getMatPosition(str, "fabcdeOVKY".charAt(index - 3));
-                if (p >= 0 && str.charAt(p) == 'C' && str.charAt(p + 1) == '_') {
-                   char letter = str.charAt(p + 2);
-                   if (letter >= 'A' && letter <= 'Z') {
-diff --git i/NET/worlds/console/ExpireDialog.java w/NET/worlds/console/ExpireDialog.java
-index 98552c6..e850333 100644
---- i/NET/worlds/console/ExpireDialog.java
-+++ w/NET/worlds/console/ExpireDialog.java
-@@ -16,7 +16,7 @@ class ExpireDialog extends Dialog {
-    private static Font font = new Font(Console.message("ButtonFont"), 0, 12);
+diff --git a/NET/worlds/console/AddHandler.java b/NET/worlds/console/AddHandler.java
+index 2056d8b..5e3dd21 100644
+--- a/NET/worlds/console/AddHandler.java
++++ b/NET/worlds/console/AddHandler.java
+@@ -28,7 +28,7 @@ public class AddHandler extends SuperRoot implements BumpHandler {
  
-    public ExpireDialog(Date expireDate) {
--      super(null, GammaFrame.getDefaultTitle(), false);
-+      super((Dialog)null, GammaFrame.getDefaultTitle(), false);
-       this.setLayout(new BorderLayout(15, 15));
-       this.add("Center", new MultiLineLabel(Console.message("beta-expired") + DateFormat.getDateTimeInstance().format(expireDate), 20, 20));
-       this.button = new Button(Console.message("OK"));
-diff --git i/NET/worlds/network/ServerInputStream.java w/NET/worlds/network/ServerInputStream.java
-index 83c0cb7..bf1dcf7 100644
---- i/NET/worlds/network/ServerInputStream.java
-+++ w/NET/worlds/network/ServerInputStream.java
-@@ -231,7 +231,7 @@ public class ServerInputStream extends FilterInputStream {
-                         throw new UTFDataFormatException();
+    public boolean handle(BumpEventTemp var1) {
+       Room var2 = ((Portal)var1.target).farSide().getRoom();
+-      Debug.assert(var2 instanceof Staircase || var2 instanceof Stair);
++      Debug.assert_(var2 instanceof Staircase || var2 instanceof Stair);
+       Enumeration var3 = this.handlers.elements();
+ 
+       while (var3.hasMoreElements()) {
+diff --git a/NET/worlds/console/AvMenu.java b/NET/worlds/console/AvMenu.java
+index 2770598..9a8b0fe 100644
+--- a/NET/worlds/console/AvMenu.java
++++ b/NET/worlds/console/AvMenu.java
+@@ -376,8 +376,8 @@ public class AvMenu extends Menu implements AvatarDialogCallback {
+          char var7;
+          if (var1 >= 3) {
+             var7 = "fabcdeOVKY".charAt(var1 - 3);
+-            Debug.assert(var2 >= 0);
+-            Debug.assert(var2 <= PosableShape.colorTable.length);
++            Debug.assert_(var2 >= 0);
++            Debug.assert_(var2 <= PosableShape.colorTable.length);
+             var6 = var2 == 0 ? null : "C_" + (char)(65 + var2 - 1);
+          } else if (var1 == 1) {
+             char var8 = "qhd0DHQ".charAt(var2);
+diff --git a/NET/worlds/console/BlockingDialog$1.java b/NET/worlds/console/BlockingDialog$1.java
+index 4ded7e2..1dd7a29 100644
+--- a/NET/worlds/console/BlockingDialog$1.java
++++ b/NET/worlds/console/BlockingDialog$1.java
+@@ -4,6 +4,8 @@ import java.awt.event.WindowAdapter;
+ import java.awt.event.WindowEvent;
+ 
+ class BlockingDialog$1 extends WindowAdapter {
++   BlockingDialog this$0;
++
+    BlockingDialog$1(BlockingDialog var1) {
+       this.this$0 = var1;
+    }
+diff --git a/NET/worlds/console/ClassicSharedTextArea.java b/NET/worlds/console/ClassicSharedTextArea.java
+index afee38e..7442bb1 100644
+--- a/NET/worlds/console/ClassicSharedTextArea.java
++++ b/NET/worlds/console/ClassicSharedTextArea.java
+@@ -180,7 +180,7 @@ class ClassicSharedTextArea extends TextArea implements SharedTextArea {
+    }
+ 
+    private String toHtml(String var1) {
+-      Debug.assert(var1 != null);
++      Debug.assert_(var1 != null);
+       String var2 = "";
+ 
+       for (int var3 = 0; var3 < var1.length(); var3++) {
+diff --git a/NET/worlds/console/Console.java b/NET/worlds/console/Console.java
+index bcfedf5..a2f6c72 100644
+--- a/NET/worlds/console/Console.java
++++ b/NET/worlds/console/Console.java
+@@ -223,7 +223,7 @@ public abstract class Console extends SuperRoot implements URLSelf, MainCallback
+ 
+       try {
+          var1 = DNSLookup.lookup(new java.net.URL(var0));
+-         var2 = var1.openConnection();
++         var2 = (HttpURLConnection) var1.openConnection();
+       } catch (Exception var5) {
+          return true;
+       }
+@@ -395,7 +395,7 @@ public abstract class Console extends SuperRoot implements URLSelf, MainCallback
+          freezeFrameEvents++;
+       } else {
+          freezeFrameEvents--;
+-         Debug.assert(freezeFrameEvents >= 0);
++         Debug.assert_(freezeFrameEvents >= 0);
+       }
+    }
+ 
+@@ -1247,7 +1247,7 @@ public abstract class Console extends SuperRoot implements URLSelf, MainCallback
+    }
+ 
+    public static URL makeServerURL(String var0) {
+-      Debug.assert(var0 != null && var0.length() > 0);
++      Debug.assert_(var0 != null && var0.length() > 0);
+       return URL.make("worldserver://" + var0 + "/");
+    }
+ 
+diff --git a/NET/worlds/console/DefaultConsole$1.java b/NET/worlds/console/DefaultConsole$1.java
+index 1fd32e2..36e1c18 100644
+--- a/NET/worlds/console/DefaultConsole$1.java
++++ b/NET/worlds/console/DefaultConsole$1.java
+@@ -3,6 +3,8 @@ package NET.worlds.console;
+ import java.awt.Component;
+ 
+ class DefaultConsole$1 implements ImageButtonsCallback {
++   DefaultConsole this$0;
++
+    DefaultConsole$1(DefaultConsole var1) {
+       this.this$0 = var1;
+    }
+diff --git a/NET/worlds/console/DefaultConsole$2.java b/NET/worlds/console/DefaultConsole$2.java
+index 078f8da..8e58218 100644
+--- a/NET/worlds/console/DefaultConsole$2.java
++++ b/NET/worlds/console/DefaultConsole$2.java
+@@ -5,6 +5,8 @@ import java.awt.event.ActionEvent;
+ import java.awt.event.ActionListener;
+ 
+ class DefaultConsole$2 implements ActionListener {
++   DefaultConsole this$0;
++
+    DefaultConsole$2(DefaultConsole var1) {
+       this.this$0 = var1;
+    }
+diff --git a/NET/worlds/console/DefaultConsole$3.java b/NET/worlds/console/DefaultConsole$3.java
+index 3b5242c..802bcc6 100644
+--- a/NET/worlds/console/DefaultConsole$3.java
++++ b/NET/worlds/console/DefaultConsole$3.java
+@@ -4,6 +4,8 @@ import java.io.File;
+ import java.io.FilenameFilter;
+ 
+ class DefaultConsole$3 implements FilenameFilter {
++   DefaultConsole this$0;
++
+    DefaultConsole$3(DefaultConsole var1) {
+       this.this$0 = var1;
+    }
+diff --git a/NET/worlds/console/DefaultConsole.java b/NET/worlds/console/DefaultConsole.java
+index 5ddf2d5..f62c823 100644
+--- a/NET/worlds/console/DefaultConsole.java
++++ b/NET/worlds/console/DefaultConsole.java
+@@ -323,7 +323,7 @@ public class DefaultConsole extends Console implements DialogReceiver, ImageButt
+       this.chat.listen.setBackground(Color.black);
+       this.chat.listen.setForeground(Color.white);
+       this.chat.listen.setFont(font);
+-      InsetPanel var10 = new Panel(new BorderLayout());
++      Panel var10 = new Panel(new BorderLayout());
+       new Panel(new BorderLayout());
+       Panel var12 = new Panel(new BorderLayout());
+       Panel var13 = new Panel(new BorderLayout());
+diff --git a/NET/worlds/console/FriendsListPart.java b/NET/worlds/console/FriendsListPart.java
+index fdc3e99..05b895c 100644
+--- a/NET/worlds/console/FriendsListPart.java
++++ b/NET/worlds/console/FriendsListPart.java
+@@ -392,7 +392,7 @@ public class FriendsListPart extends QuantizedCanvas implements FramePart, Dialo
                       }
- 
--                     int char2 = this.readUnsignedByte();
-+                     char2 = this.readUnsignedByte();
-                      int char3 = this.readUnsignedByte();
-                      if ((char2 & 192) != 128 || (char3 & 192) != 128) {
-                         throw new UTFDataFormatException();
-diff --git i/NET/worlds/network/URL.java w/NET/worlds/network/URL.java
-index b340792..348860f 100644
---- i/NET/worlds/network/URL.java
-+++ w/NET/worlds/network/URL.java
-@@ -76,7 +76,7 @@ public class URL implements Serializable {
-    }
- 
-    public URL(String urlstr) throws MalformedURLException {
--      this(null, urlstr);
-+      this((URL)null, urlstr);
-    }
- 
-    public static URL make(String s) {
-diff --git i/NET/worlds/network/netData.java w/NET/worlds/network/netData.java
-index c3375a3..79e8e7b 100644
---- i/NET/worlds/network/netData.java
-+++ w/NET/worlds/network/netData.java
-@@ -87,7 +87,7 @@ class netData {
-                      throw new UTFDataFormatException();
+                   } else if (this.clickedButton >= 0 && this.clickedButton < this.onlineFriends.size()) {
+                      this.activeFriendName = (String)this.onlineFriends.elementAt(this.clickedButton);
+-                     Debug.assert(this.activeFriendName != null);
++                     Debug.assert_(this.activeFriendName != null);
+                      this.showMenuY = (this.clickedButton + 1) * 11;
                    }
+                }
+@@ -932,7 +932,7 @@ public class FriendsListPart extends QuantizedCanvas implements FramePart, Dialo
  
--                  int char2 = this.getByte() & 255;
-+                  char2 = this.getByte() & 255;
-                   int char3 = this.getByte() & 255;
-                   if ((char2 & 192) != 128 || (char3 & 192) != 128) {
-                      throw new UTFDataFormatException();
-diff --git i/NET/worlds/scape/AnimatedAction.java w/NET/worlds/scape/AnimatedAction.java
-index c213847..6fbf5e4 100644
---- i/NET/worlds/scape/AnimatedAction.java
-+++ w/NET/worlds/scape/AnimatedAction.java
-@@ -146,7 +146,7 @@ public class AnimatedAction implements AnimatedActionCallback, TimerCallback {
-             this.motionComplete(0);
+    void moreFriendsAction(String var1, MenuItem var2) {
+       this.activeFriendName = var1;
+-      Debug.assert(this.activeFriendName != null);
++      Debug.assert_(this.activeFriendName != null);
+       this.maybeFriendAction(var2);
+    }
+ }
+diff --git a/NET/worlds/console/InternetConnectionDialog.java b/NET/worlds/console/InternetConnectionDialog.java
+index 143e9dc..4f74ecd 100644
+--- a/NET/worlds/console/InternetConnectionDialog.java
++++ b/NET/worlds/console/InternetConnectionDialog.java
+@@ -25,8 +25,8 @@ public class InternetConnectionDialog extends PolledDialog {
+    }
+ 
+    public InternetConnectionDialog(Galaxy var1, VarErrorException var2) {
+-      Console.getActive();
+       super(Console.getFrame(), var1, Console.message("Internet-Connection"), true);
++      Console.getActive();
+       this.okButton = new Button(Console.message("Retry"));
+       this.cancelButton = new Button(Console.message("Single-user"));
+       this.setAlignment(1);
+diff --git a/NET/worlds/console/LogFile$1.java b/NET/worlds/console/LogFile$1.java
+index f93bbc1..781a9a5 100644
+--- a/NET/worlds/console/LogFile$1.java
++++ b/NET/worlds/console/LogFile$1.java
+@@ -3,6 +3,8 @@ package NET.worlds.console;
+ import java.io.File;
+ 
+ class LogFile$1 implements DialogReceiver {
++   String val$server;
++
+    LogFile$1(String var1) {
+       this.val$server = var1;
+    }
+diff --git a/NET/worlds/console/LogFile.java b/NET/worlds/console/LogFile.java
+index 0420d18..72bc913 100644
+--- a/NET/worlds/console/LogFile.java
++++ b/NET/worlds/console/LogFile.java
+@@ -123,6 +123,18 @@ public class LogFile {
+       }
+    }
+ 
++   static String access$000() {
++      return baseName;
++   }
++
++   static String access$100() {
++      return mailReason;
++   }
++
++   static void access$200(String var0, File var1, String var2, String var3) {
++      sendCrashMail(var0, var1, var2, var3);
++   }
++
+    private static void sendCrashMail(String var0, File var1, String var2, String var3) {
+       LogFileMailMessage var4 = new LogFileMailMessage(var0, var1);
+ 
+diff --git a/NET/worlds/console/LoginWizard.java b/NET/worlds/console/LoginWizard.java
+index 94bb7ac..3ee5b15 100644
+--- a/NET/worlds/console/LoginWizard.java
++++ b/NET/worlds/console/LoginWizard.java
+@@ -234,7 +234,7 @@ public class LoginWizard extends PolledDialog implements DialogReceiver, DialogD
+       } else if (var1 != 3) {
+          this.done(true);
+       } else {
+-         Debug.assert(Main.isMainThread());
++         Debug.assert_(Main.isMainThread());
+          this.galaxy.dialogDone(this, true);
+          firstTimeDone = true;
+       }
+@@ -689,7 +689,7 @@ public class LoginWizard extends PolledDialog implements DialogReceiver, DialogD
+ 
+    private String getScriptServer() {
+       Enumeration var1 = this.galaxy.getConsoles();
+-      Debug.assert(var1.hasMoreElements());
++      Debug.assert_(var1.hasMoreElements());
+       this.queryingServer = true;
+       String var2 = ((Console)var1.nextElement()).getScriptServer();
+       this.queryingServer = false;
+diff --git a/NET/worlds/console/NewSharedTextArea.java b/NET/worlds/console/NewSharedTextArea.java
+index 802ed87..e53227c 100644
+--- a/NET/worlds/console/NewSharedTextArea.java
++++ b/NET/worlds/console/NewSharedTextArea.java
+@@ -140,7 +140,7 @@ class NewSharedTextArea extends GammaTextArea implements SharedTextArea {
+    }
+ 
+    private String toHtml(String var1) {
+-      Debug.assert(var1 != null);
++      Debug.assert_(var1 != null);
+       String var2 = "";
+ 
+       for (int var3 = 0; var3 < var1.length(); var3++) {
+diff --git a/NET/worlds/console/RemoveHandler.java b/NET/worlds/console/RemoveHandler.java
+index 1de1ba8..efdcb83 100644
+--- a/NET/worlds/console/RemoveHandler.java
++++ b/NET/worlds/console/RemoveHandler.java
+@@ -28,7 +28,7 @@ public class RemoveHandler extends SuperRoot implements BumpHandler {
+ 
+    public boolean handle(BumpEventTemp var1) {
+       Room var2 = ((Portal)var1.target).getRoom();
+-      Debug.assert(var2 instanceof Staircase || var2 instanceof Stair);
++      Debug.assert_(var2 instanceof Staircase || var2 instanceof Stair);
+       Enumeration var3 = this.handlers.elements();
+ 
+       while (var3.hasMoreElements()) {
+diff --git a/NET/worlds/console/RenderCanvas.java b/NET/worlds/console/RenderCanvas.java
+index f27cb32..f96c4a1 100644
+--- a/NET/worlds/console/RenderCanvas.java
++++ b/NET/worlds/console/RenderCanvas.java
+@@ -88,13 +88,13 @@ public class RenderCanvas extends Canvas implements FramePart, LibraryDropTarget
+    }
+ 
+    public void addOverlay(RenderCanvasOverlay var1) {
+-      Debug.assert(this.overlays != null);
++      Debug.assert_(this.overlays != null);
+       this.overlays.addElement(var1);
+       this.mayNeedToResize = true;
+    }
+ 
+    public void removeOverlay(RenderCanvasOverlay var1) {
+-      Debug.assert(this.overlays != null);
++      Debug.assert_(this.overlays != null);
+       this.overlays.removeElement(var1);
+       this.mayNeedToResize = true;
+    }
+diff --git a/NET/worlds/console/RenderCanvasOverlay.java b/NET/worlds/console/RenderCanvasOverlay.java
+index 6e56a65..f0d93a7 100644
+--- a/NET/worlds/console/RenderCanvasOverlay.java
++++ b/NET/worlds/console/RenderCanvasOverlay.java
+@@ -14,7 +14,7 @@ public abstract class RenderCanvasOverlay {
+    private boolean allowFocus;
+ 
+    public RenderCanvasOverlay(RenderCanvas var1, int var2, int var3, boolean var4, boolean var5) throws NoWebControlException {
+-      Debug.assert(var2 > 0 || var3 > 0);
++      Debug.assert_(var2 > 0 || var3 > 0);
+       if (var1 != null && var1.getWindow() != null) {
+          this.canvas = var1;
+          this.isFixed = var4;
+@@ -35,7 +35,7 @@ public abstract class RenderCanvasOverlay {
+    }
+ 
+    public RenderCanvasOverlay(RenderCanvas var1) {
+-      Debug.assert(var1 != null);
++      Debug.assert_(var1 != null);
+       this.canvas = var1;
+       this.xPercent = this.yPercent = 100;
+       this.isFixed = false;
+@@ -49,7 +49,7 @@ public abstract class RenderCanvasOverlay {
+    }
+ 
+    int getNativeWindowHandle() {
+-      Debug.assert(this.canvas.getWindow() != null);
++      Debug.assert_(this.canvas.getWindow() != null);
+       if (this.hwnd == 0) {
+          if (this.fullscreen) {
+             this.hwnd = this.canvas.getWindow().getHwnd();
+diff --git a/NET/worlds/console/RightMenu.java b/NET/worlds/console/RightMenu.java
+index fc13bc4..81a611f 100644
+--- a/NET/worlds/console/RightMenu.java
++++ b/NET/worlds/console/RightMenu.java
+@@ -28,7 +28,7 @@ public class RightMenu implements MainCallback {
+       }
+ 
+       int var2 = this._lastID++;
+-      Debug.assert(this._lastID < 200);
++      Debug.assert_(this._lastID < 200);
+       nativeAdd(var1, var2, this._pm);
+       return var2;
+    }
+diff --git a/NET/worlds/console/Stair.java b/NET/worlds/console/Stair.java
+index 58e4c52..aea166d 100644
+--- a/NET/worlds/console/Stair.java
++++ b/NET/worlds/console/Stair.java
+@@ -107,7 +107,7 @@ public class Stair extends Room {
+             var4 = this._length - var2;
              break;
-          case 8:
--            Console c = Console.getActive();
-+            c = Console.getActive();
-             if (c instanceof DefaultConsole) {
-                Pilot p = Pilot.getActive();
-                p.setOutsideCameraMode(this._oldMode, this._oldSpeed);
-diff --git i/NET/worlds/scape/BackgroundLoader.java w/NET/worlds/scape/BackgroundLoader.java
-index d38c257..573c854 100644
---- i/NET/worlds/scape/BackgroundLoader.java
-+++ w/NET/worlds/scape/BackgroundLoader.java
-@@ -45,7 +45,7 @@ public class BackgroundLoader implements MainCallback, Runnable {
+          default:
+-            Debug.assert(false);
++            Debug.assert_(false);
+       }
  
-    @Override
-    public void run() {
--      if ($assertionsDisabled || Thread.currentThread() == this.asyncLoaderThread) {
-+      if (Thread.currentThread() == this.asyncLoaderThread) {
-          while (true) {
-             BackgroundLoaderElement ele = this.asyncLoadQueue.getItem();
-             ele.asyncLoad();
-diff --git i/NET/worlds/scape/BooleanFieldEditorDialog.java w/NET/worlds/scape/BooleanFieldEditorDialog.java
-index 8585d44..8197b0d 100644
---- i/NET/worlds/scape/BooleanFieldEditorDialog.java
-+++ w/NET/worlds/scape/BooleanFieldEditorDialog.java
-@@ -12,7 +12,9 @@ class BooleanFieldEditorDialog extends CheckboxEditorDialog {
+       return var4 / this._length * this._rise;
+diff --git a/NET/worlds/console/Staircase.java b/NET/worlds/console/Staircase.java
+index a5b35e9..3cd1718 100644
+--- a/NET/worlds/console/Staircase.java
++++ b/NET/worlds/console/Staircase.java
+@@ -52,7 +52,7 @@ public class Staircase extends Room implements FrameHandler {
+       float var19 = (var8 - var5) / var10;
+       this.dzdx = var19 / var17;
+       this.dzdy = var19 / var18;
+-      Debug.assert(var19 >= 0.0F);
++      Debug.assert_(var19 >= 0.0F);
+       float var20 = var5 + var9 - var8;
+       RoomEnvironment var21 = this.getEnvironment();
+       var21.add(Rect.ceiling(var3, var4, var9, var6, var7, var16));
+@@ -177,12 +177,12 @@ public class Staircase extends Room implements FrameHandler {
  
-    @Override
+                this.dzdy = 0.0F;
+             } else {
+-               Debug.assert(false);
++               Debug.assert_(false);
+             }
+ 
+             this.seenStarts.addElement(new Point3(var5));
+             var4 = this.seenThings.size() - 1;
+-            Debug.assert(var4 == this.seenStarts.size() - 1);
++            Debug.assert_(var4 == this.seenStarts.size() - 1);
+          }
+ 
+          Point3Temp var9 = (Point3Temp)this.seenStarts.elementAt(var4);
+@@ -229,7 +229,7 @@ public class Staircase extends Room implements FrameHandler {
+             var2.setLength(var7.y - var6.y);
+          }
+       } else {
+-         Debug.assert(var5 == 0.0F);
++         Debug.assert_(var5 == 0.0F);
+          if (var4 > 0.0F) {
+             var2.setLengthwise(0);
+             var2.setLength(var6.x - var7.x);
+diff --git a/NET/worlds/console/TextImageButtons.java b/NET/worlds/console/TextImageButtons.java
+index 86e1d87..1c56abe 100644
+--- a/NET/worlds/console/TextImageButtons.java
++++ b/NET/worlds/console/TextImageButtons.java
+@@ -45,7 +45,7 @@ class TextImageButtons extends ImageButtons {
+    }
+ 
+    public void setTexts(String[] var1) {
+-      Debug.assert(var1.length == this.texts.length);
++      Debug.assert_(var1.length == this.texts.length);
+       this.texts = var1;
+       this.repaint();
+    }
+diff --git a/NET/worlds/console/TradeDialog$1.java b/NET/worlds/console/TradeDialog$1.java
+index 865e1f5..00c010c 100644
+--- a/NET/worlds/console/TradeDialog$1.java
++++ b/NET/worlds/console/TradeDialog$1.java
+@@ -3,6 +3,8 @@ package NET.worlds.console;
+ import NET.worlds.scape.Pilot;
+ 
+ class TradeDialog$1 implements MainCallback {
++   String val$msg;
++
+    TradeDialog$1(String var1) {
+       this.val$msg = var1;
+    }
+diff --git a/NET/worlds/console/TradeDialog$2.java b/NET/worlds/console/TradeDialog$2.java
+index e0ad246..f23487f 100644
+--- a/NET/worlds/console/TradeDialog$2.java
++++ b/NET/worlds/console/TradeDialog$2.java
+@@ -1,6 +1,8 @@
+ package NET.worlds.console;
+ 
+ class TradeDialog$2 implements MainCallback {
++   TradeDialog this$0;
++
+    TradeDialog$2(TradeDialog var1) {
+       this.this$0 = var1;
+    }
+diff --git a/NET/worlds/console/WhisperDialog$1.java b/NET/worlds/console/WhisperDialog$1.java
+index c2cd352..d4fe306 100644
+--- a/NET/worlds/console/WhisperDialog$1.java
++++ b/NET/worlds/console/WhisperDialog$1.java
+@@ -3,6 +3,8 @@ package NET.worlds.console;
+ import NET.worlds.scape.Pilot;
+ 
+ class WhisperDialog$1 implements MainCallback {
++   String val$msg;
++
+    WhisperDialog$1(String var1) {
+       this.val$msg = var1;
+    }
+diff --git a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
+index 3085ac4..10ecd51 100644
+--- a/NET/worlds/console/Window.java
++++ b/NET/worlds/console/Window.java
+@@ -46,7 +46,7 @@ public class Window {
+    }
+ 
+    public void hookChatLine(Component var1) throws WindowNotFoundException {
+-      Debug.assert(activeWindow == this);
++      Debug.assert_(activeWindow == this);
+       Dimension var2 = var1.size();
+ 
+       try {
+diff --git a/NET/worlds/core/ArchiveMaker.java b/NET/worlds/core/ArchiveMaker.java
+index b7b18ae..c9ddcb8 100644
+--- a/NET/worlds/core/ArchiveMaker.java
++++ b/NET/worlds/core/ArchiveMaker.java
+@@ -151,7 +151,7 @@ public class ArchiveMaker extends PolledDialog {
+       if (this.stop) {
+          this.cancelled();
+       } else {
+-         Object var2 = "";
++         String var2 = "";
+          int var3 = var1.size();
+ 
+          for (int var4 = 0; var4 < var3; var4++) {
+diff --git a/NET/worlds/core/Debug.java b/NET/worlds/core/Debug.java
+index 7dbb23f..e797afb 100644
+--- a/NET/worlds/core/Debug.java
++++ b/NET/worlds/core/Debug.java
+@@ -3,13 +3,13 @@ package NET.worlds.core;
+ public class Debug {
+    public static final boolean ON = true;
+ 
+-   public static void assert(boolean var0) throws AssertionException {
++   public static void assert_(boolean var0) throws AssertionException {
+       if (!var0) {
+          throw new AssertionException();
+       }
+    }
+ 
+-   public static void assert(boolean var0, String var1) throws AssertionException {
++   public static void assert_(boolean var0, String var1) throws AssertionException {
+       if (!var0) {
+          throw new AssertionException(var1);
+       }
+diff --git a/NET/worlds/core/FastDataInput.java b/NET/worlds/core/FastDataInput.java
+index 8649977..78548d9 100644
+--- a/NET/worlds/core/FastDataInput.java
++++ b/NET/worlds/core/FastDataInput.java
+@@ -44,7 +44,7 @@ public class FastDataInput implements DataInput {
+    public native double readDouble() throws IOException;
+ 
+    public String readLine() throws IOException {
+-      Debug.assert(false);
++      Debug.assert_(false);
+       return null;
+    }
+ 
+diff --git a/NET/worlds/core/Std.java b/NET/worlds/core/Std.java
+index 10be7f3..08dbebc 100644
+--- a/NET/worlds/core/Std.java
++++ b/NET/worlds/core/Std.java
+@@ -42,12 +42,12 @@ public class Std {
+    }
+ 
+    public static String getProductName() {
+-      Debug.assert(productName != null);
++      Debug.assert_(productName != null);
+       return productName;
+    }
+ 
+    public static void initProductName() {
+-      Debug.assert(productName == null);
++      Debug.assert_(productName == null);
+       productName = IniFile.gamma().getIniString("PRODUCT_NAME", "Worlds.com - The 3D Entertainment Portal");
+       productName = IniFile.override().getIniString("productName", productName);
+    }
+diff --git a/NET/worlds/network/DNSLookup.java b/NET/worlds/network/DNSLookup.java
+index 9361e07..7dee88d 100644
+--- a/NET/worlds/network/DNSLookup.java
++++ b/NET/worlds/network/DNSLookup.java
+@@ -27,7 +27,7 @@ public class DNSLookup implements Runnable {
+          return var0;
+       }
+ 
+-      Debug.assert(var0.getRef() == null);
++      Debug.assert_(var0.getRef() == null);
+       return new java.net.URL(var0.getProtocol(), lookup(var2, var1), var0.getPort(), var0.getFile());
+    }
+ 
+@@ -37,7 +37,7 @@ public class DNSLookup implements Runnable {
+          return var0;
+       }
+ 
+-      Debug.assert(var0.getRef() == null);
++      Debug.assert_(var0.getRef() == null);
+       String[] var3 = lookupAll(var2, var1);
+       String var4 = "";
+ 
+diff --git a/NET/worlds/network/DirTimeStamp.java b/NET/worlds/network/DirTimeStamp.java
+index f14139e..578d698 100644
+--- a/NET/worlds/network/DirTimeStamp.java
++++ b/NET/worlds/network/DirTimeStamp.java
+@@ -15,7 +15,7 @@ public class DirTimeStamp {
+ 
+    private DirTimeStamp(URL var1) {
+       this._name = var1;
+-      Debug.assert(var1.isRemote());
++      Debug.assert_(var1.isRemote());
+    }
+ 
+    private static synchronized DirTimeStamp lookup(URL var0) {
+diff --git a/NET/worlds/network/NetUpdate.java b/NET/worlds/network/NetUpdate.java
+index 7ec81c3..dd7fb00 100644
+--- a/NET/worlds/network/NetUpdate.java
++++ b/NET/worlds/network/NetUpdate.java
+@@ -596,7 +596,7 @@ public class NetUpdate implements Runnable, RemoteFileConst {
+                var7 = new FileInputStream(var6);
+                byte[] var9 = new byte[4];
+                int var10 = var7.read(var9);
+-               Debug.assert(var10 == var9.length);
++               Debug.assert_(var10 == var9.length);
+                var8 = var9[0] == 37 && var9[1] == 88 && var9[2] == 68 && var9[3] == 90;
+             } catch (IOException var22) {
+             } finally {
+@@ -667,7 +667,7 @@ public class NetUpdate implements Runnable, RemoteFileConst {
+             var11 = true;
+          }
+ 
+-         var9 += var2.elementAt(var12);
++         var9 += (Integer)var2.elementAt(var12);
+          if (var3.elementAt(var12) != null) {
+             var10 += var9;
+             var21.addElement(new Integer(var9));
+@@ -676,7 +676,7 @@ public class NetUpdate implements Runnable, RemoteFileConst {
+          }
+       }
+ 
+-      Debug.assert(var9 == 0);
++      Debug.assert_(var9 == 0);
+       if (var10 == 0) {
+          return true;
+       }
+@@ -697,10 +697,10 @@ public class NetUpdate implements Runnable, RemoteFileConst {
+                }
+             }
+ 
+-            Debug.assert(var16 >= 0);
++            Debug.assert_(var16 >= 0);
+ 
+             do {
+-               var10 -= var2.elementAt(var16);
++               var10 -= (Integer)var2.elementAt(var16);
+                var0.removeElementAt(var16);
+                var20.removeElementAt(var16);
+                var2.removeElementAt(var16);
+diff --git a/NET/worlds/network/OldPropertyList.java b/NET/worlds/network/OldPropertyList.java
+index 9474cfe..7f7eff3 100644
+--- a/NET/worlds/network/OldPropertyList.java
++++ b/NET/worlds/network/OldPropertyList.java
+@@ -61,7 +61,7 @@ public class OldPropertyList {
+    }
+ 
+    public String toString() {
+-      Object var1 = "(";
++      String var1 = "(";
+       int var2 = this._propList.size();
+ 
+       for (int var4 = 0; var4 < var2; var4++) {
+diff --git a/NET/worlds/network/PropertyList.java b/NET/worlds/network/PropertyList.java
+index 094b123..a4a42a6 100644
+--- a/NET/worlds/network/PropertyList.java
++++ b/NET/worlds/network/PropertyList.java
+@@ -69,7 +69,7 @@ public class PropertyList {
+    }
+ 
+    public String toString() {
+-      Object var1 = "(";
++      String var1 = "(";
+       int var2 = this._propList.size();
+ 
+       for (int var4 = 0; var4 < var2; var4++) {
+diff --git a/NET/worlds/network/URL.java b/NET/worlds/network/URL.java
+index 7d0ba12..e824269 100644
+--- a/NET/worlds/network/URL.java
++++ b/NET/worlds/network/URL.java
+@@ -288,7 +288,7 @@ public class URL implements Serializable {
+          psConversion.put("avatar", new URL(new URL(var1).unalias()));
+       } catch (MalformedURLException var3) {
+          System.out.println("Avatar protocol is invalid.");
+-         Debug.assert(false);
++         Debug.assert_(false);
+       }
+    }
+ 
+diff --git a/NET/worlds/network/UpgradeDialog.java b/NET/worlds/network/UpgradeDialog.java
+index 1588b90..938c07b 100644
+--- a/NET/worlds/network/UpgradeDialog.java
++++ b/NET/worlds/network/UpgradeDialog.java
+@@ -120,7 +120,7 @@ public class UpgradeDialog extends PolledDialog {
+       if (this.bytes != null) {
+          for (int var2 = 0; var2 < this.bytes.size(); var2++) {
+             if (((Checkbox)this.checkboxes.elementAt(var2)).getState()) {
+-               var1 += this.bytes.elementAt(var2);
++               var1 += (Integer)this.bytes.elementAt(var2);
+             }
+          }
+       }
+diff --git a/NET/worlds/network/WorldServer.java b/NET/worlds/network/WorldServer.java
+index f0da461..f9e4200 100644
+--- a/NET/worlds/network/WorldServer.java
++++ b/NET/worlds/network/WorldServer.java
+@@ -751,7 +751,7 @@ public class WorldServer implements MainCallback, MainTerminalCallback, NetworkO
+       this._connectThread = null;
+       if (this._state.getState() == 4) {
+          if (var1 == null) {
+-            Debug.assert(var2 != null);
++            Debug.assert_(var2 != null);
+             if (this._lastError == null) {
+                this._lastError = var2;
+             }
+diff --git a/NET/worlds/network/netData.java b/NET/worlds/network/netData.java
+index 5d6dae4..f1d15f7 100644
+--- a/NET/worlds/network/netData.java
++++ b/NET/worlds/network/netData.java
+@@ -103,7 +103,7 @@ class netData {
+       } catch (IOException var8) {
+          System.err.println("Exception: " + var8.getMessage());
+          var8.printStackTrace();
+-         Debug.assert(false);
++         Debug.assert_(false);
+       }
+ 
+       return new String(var2, 0, var4);
+diff --git a/NET/worlds/network/netPacketReader.java b/NET/worlds/network/netPacketReader.java
+index ef29430..472366f 100644
+--- a/NET/worlds/network/netPacketReader.java
++++ b/NET/worlds/network/netPacketReader.java
+@@ -80,7 +80,7 @@ public class netPacketReader extends Thread {
+                var11 = (receivedNetPacket)msgTable[var6].newInstance();
+             } catch (Exception var8) {
+                System.out.println(var8 + ": " + var8.getMessage());
+-               Debug.assert(false);
++               Debug.assert_(false);
+             }
+ 
+             var11.init(var12);
+@@ -129,7 +129,7 @@ public class netPacketReader extends Thread {
+                var15.printStackTrace(System.out);
+             }
+ 
+-            Debug.assert(false);
++            Debug.assert_(false);
+          } catch (Exception var14) {
+             Exception var7 = var14;
+             synchronized (System.out) {
+@@ -138,7 +138,7 @@ public class netPacketReader extends Thread {
+                var7.printStackTrace(System.out);
+             }
+ 
+-            Debug.assert(false);
++            Debug.assert_(false);
+          }
+       }
+    }
+diff --git a/NET/worlds/scape/Action_Animation.java b/NET/worlds/scape/Action_Animation.java
+index 6c3afa2..2f4ee15 100644
+--- a/NET/worlds/scape/Action_Animation.java
++++ b/NET/worlds/scape/Action_Animation.java
+@@ -9,7 +9,7 @@ public class Action_Animation extends Action {
+    }
+ 
+    public void saveState(Saver var1) throws IOException {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ 
+    public void restoreState(Restorer var1) throws IOException {
+diff --git a/NET/worlds/scape/Action_Motion.java b/NET/worlds/scape/Action_Motion.java
+index ad3e322..82b432f 100644
+--- a/NET/worlds/scape/Action_Motion.java
++++ b/NET/worlds/scape/Action_Motion.java
+@@ -9,7 +9,7 @@ public class Action_Motion extends Action {
+    }
+ 
+    public void saveState(Saver var1) throws IOException {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ 
+    public void restoreState(Restorer var1) throws IOException {
+diff --git a/NET/worlds/scape/Action_Toggle.java b/NET/worlds/scape/Action_Toggle.java
+index c1619e3..175d8e4 100644
+--- a/NET/worlds/scape/Action_Toggle.java
++++ b/NET/worlds/scape/Action_Toggle.java
+@@ -9,7 +9,7 @@ class Action_Toggle extends Action {
+    }
+ 
+    public void saveState(Saver var1) throws IOException {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ 
+    public void restoreState(Restorer var1) throws IOException {
+diff --git a/NET/worlds/scape/AddObjectAction.java b/NET/worlds/scape/AddObjectAction.java
+index 714d8b3..35816d5 100644
+--- a/NET/worlds/scape/AddObjectAction.java
++++ b/NET/worlds/scape/AddObjectAction.java
+@@ -9,7 +9,7 @@ public class AddObjectAction extends SetPropertyAction {
+    private static Object classCookie = new Object();
+ 
+    public Persister trigger(Event var1, Persister var2) {
+-      Debug.assert(!this.useParam());
++      Debug.assert_(!this.useParam());
+       this.add((Object)this._value);
+       return null;
+    }
+@@ -30,10 +30,10 @@ public class AddObjectAction extends SetPropertyAction {
+                   ((Vector)var5).addElement(this._value);
+                }
+             } else if (var3 == 4) {
+-               Debug.assert(var4 == this._value);
++               Debug.assert_(var4 == this._value);
+                this._value = null;
+             } else if (var3 == 3) {
+-               Debug.assert(this._value == null);
++               Debug.assert_(this._value == null);
+                this._value = (SuperRoot)var4;
+             }
+             break;
+diff --git a/NET/worlds/scape/BooleanFieldEditorDialog.java b/NET/worlds/scape/BooleanFieldEditorDialog.java
+index 67674e0..ba3ff79 100644
+--- a/NET/worlds/scape/BooleanFieldEditorDialog.java
++++ b/NET/worlds/scape/BooleanFieldEditorDialog.java
+@@ -10,7 +10,7 @@ class BooleanFieldEditorDialog extends CheckboxEditorDialog {
+    }
+ 
     protected int getValue() {
 -      return this.property.get() ? 1 : 0;
-+      Boolean value = (Boolean) this.property.get();
-+
-+      return (value != null && value) ? 1 : 0;
++      return (Boolean)this.property.get() ? 1 : 0;
     }
  
-    @Override
-diff --git i/NET/worlds/scape/PosableShape.java w/NET/worlds/scape/PosableShape.java
-index 042f4b2..ad7ca6a 100644
---- i/NET/worlds/scape/PosableShape.java
-+++ w/NET/worlds/scape/PosableShape.java
-@@ -63,7 +63,7 @@ public class PosableShape extends Shape implements FrameHandler, Prerenderable,
-       new Color(255, 255, 153)
-    };
-    private int scanPos;
--   private static Material origMat = new Material(null);
-+   private static Material origMat = new Material((Texture)null);
-    public static String base64 = "-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+";
-    private static String[] permittedList = ServerTableManager.instance().getTable("permittedList");
-    private static String[] faceList = ServerTableManager.instance().getTable("faceList");
-diff --git i/NET/worlds/scape/Transform.java w/NET/worlds/scape/Transform.java
-index 8b7bc26..f19c5be 100644
---- i/NET/worlds/scape/Transform.java
-+++ w/NET/worlds/scape/Transform.java
-@@ -289,7 +289,7 @@ public class Transform extends SuperRoot {
-             this.xScale = r.restoreFloat();
-             this.yScale = r.restoreFloat();
-             this.zScale = r.restoreFloat();
--            float[] guts = new float[16];
-+            guts = new float[16];
+    protected void setValue(int var1) {
+diff --git a/NET/worlds/scape/Camera.java b/NET/worlds/scape/Camera.java
+index 5795cd2..9596bdf 100644
+--- a/NET/worlds/scape/Camera.java
++++ b/NET/worlds/scape/Camera.java
+@@ -112,7 +112,7 @@ public class Camera extends WObject implements MouseButtonHandler, MouseEnterHan
+    }
  
-             for (int i = 0; i < 16; i++) {
-                guts[i] = r.restoreFloat();
+    public void renderToCanvas() {
+-      Debug.assert(this.cameraID == 0);
++      Debug.assert_(this.cameraID == 0);
+       if (this.isActive()) {
+          Window var1 = this.getWindow();
+          if (var1 != null) {
+@@ -334,11 +334,11 @@ public class Camera extends WObject implements MouseButtonHandler, MouseEnterHan
+    }
+ 
+    public void incRef() {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ 
+    public void decRef() {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ 
+    static {
+diff --git a/NET/worlds/scape/ClickSensor.java b/NET/worlds/scape/ClickSensor.java
+index 4b8cfd7..ecd0b4d 100644
+--- a/NET/worlds/scape/ClickSensor.java
++++ b/NET/worlds/scape/ClickSensor.java
+@@ -52,7 +52,7 @@ public class ClickSensor extends Sensor implements MouseDownHandler, MouseUpHand
+    }
+ 
+    public void setWhichButton(int var1) {
+-      Debug.assert(0 <= var1 && var1 <= 7);
++      Debug.assert_(0 <= var1 && var1 <= 7);
+       this.keyToCheck = var1;
+    }
+ 
+diff --git a/NET/worlds/scape/DynamicForwardAttribute.java b/NET/worlds/scape/DynamicForwardAttribute.java
+index e14f8c7..a923f13 100644
+--- a/NET/worlds/scape/DynamicForwardAttribute.java
++++ b/NET/worlds/scape/DynamicForwardAttribute.java
+@@ -159,6 +159,6 @@ public class DynamicForwardAttribute extends Attribute implements NonPersister,
+    }
+ 
+    public void restoreState(Restorer var1) throws IOException, TooNewException {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ }
+diff --git a/NET/worlds/scape/ForwardAttribute.java b/NET/worlds/scape/ForwardAttribute.java
+index 04014e3..5ae8c12 100644
+--- a/NET/worlds/scape/ForwardAttribute.java
++++ b/NET/worlds/scape/ForwardAttribute.java
+@@ -49,6 +49,6 @@ public class ForwardAttribute extends Attribute implements NonPersister {
+    }
+ 
+    public void restoreState(Restorer var1) throws IOException, TooNewException {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ }
+diff --git a/NET/worlds/scape/Hologram.java b/NET/worlds/scape/Hologram.java
+index ad4aa62..b5c9494 100644
+--- a/NET/worlds/scape/Hologram.java
++++ b/NET/worlds/scape/Hologram.java
+@@ -66,7 +66,7 @@ public class Hologram extends Surface implements Prerenderable, BGLoaded, Postre
+    public static native void nativeInit();
+ 
+    private void load(URL var1, HoloCallback var2) {
+-      Debug.assert(this.getMaterial() != null);
++      Debug.assert_(this.getMaterial() != null);
+       this.callback = var2;
+       this.movieName = var1;
+       if (this.callback != null || this.hasClump()) {
+@@ -314,7 +314,7 @@ public class Hologram extends Surface implements Prerenderable, BGLoaded, Postre
+                var1.saveBoolean(true);
+                var1.saveArray(this.images);
+             } else {
+-               Debug.assert(this.materials == null);
++               Debug.assert_(this.materials == null);
+                var1.saveBoolean(false);
+             }
+          }
+diff --git a/NET/worlds/scape/HorizontalRect.java b/NET/worlds/scape/HorizontalRect.java
+index fb328e6..908a04a 100644
+--- a/NET/worlds/scape/HorizontalRect.java
++++ b/NET/worlds/scape/HorizontalRect.java
+@@ -7,7 +7,7 @@ public class HorizontalRect extends Surface {
+    private static Object classCookie = new Object();
+ 
+    public void saveState(Saver var1) throws IOException {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ 
+    public void restoreState(Restorer var1) throws IOException, TooNewException {
+diff --git a/NET/worlds/scape/MCISoundPlayer$1.java b/NET/worlds/scape/MCISoundPlayer$1.java
+index 6fb3645..d496f5e 100644
+--- a/NET/worlds/scape/MCISoundPlayer$1.java
++++ b/NET/worlds/scape/MCISoundPlayer$1.java
+@@ -1,6 +1,8 @@
+ package NET.worlds.scape;
+ 
+ class MCISoundPlayer$1 extends MCISoundCommand {
++   MCISoundPlayer this$0;
++
+    MCISoundPlayer$1(MCISoundPlayer var1) {
+       this.this$0 = var1;
+    }
+diff --git a/NET/worlds/scape/MCISoundPlayer$2.java b/NET/worlds/scape/MCISoundPlayer$2.java
+index 9724967..695a59c 100644
+--- a/NET/worlds/scape/MCISoundPlayer$2.java
++++ b/NET/worlds/scape/MCISoundPlayer$2.java
+@@ -1,6 +1,8 @@
+ package NET.worlds.scape;
+ 
+ class MCISoundPlayer$2 extends MCISoundCommand {
++   MCISoundPlayer this$0;
++
+    MCISoundPlayer$2(MCISoundPlayer var1) {
+       this.this$0 = var1;
+    }
+diff --git a/NET/worlds/scape/MCISoundPlayer$3.java b/NET/worlds/scape/MCISoundPlayer$3.java
+index 9848cd8..9876d54 100644
+--- a/NET/worlds/scape/MCISoundPlayer$3.java
++++ b/NET/worlds/scape/MCISoundPlayer$3.java
+@@ -1,6 +1,8 @@
+ package NET.worlds.scape;
+ 
+ class MCISoundPlayer$3 extends MCISoundCommand {
++   MCISoundPlayer this$0;
++
+    MCISoundPlayer$3(MCISoundPlayer var1) {
+       this.this$0 = var1;
+    }
+diff --git a/NET/worlds/scape/MCISoundPlayer$4.java b/NET/worlds/scape/MCISoundPlayer$4.java
+index 7d4e245..6555d6e 100644
+--- a/NET/worlds/scape/MCISoundPlayer$4.java
++++ b/NET/worlds/scape/MCISoundPlayer$4.java
+@@ -1,6 +1,8 @@
+ package NET.worlds.scape;
+ 
+ class MCISoundPlayer$4 extends MCISoundCommand {
++   MCISoundPlayer this$0;
++
+    MCISoundPlayer$4(MCISoundPlayer var1) {
+       this.this$0 = var1;
+    }
+diff --git a/NET/worlds/scape/MCISoundPlayer.java b/NET/worlds/scape/MCISoundPlayer.java
+index 5150db3..65bffb2 100644
+--- a/NET/worlds/scape/MCISoundPlayer.java
++++ b/NET/worlds/scape/MCISoundPlayer.java
+@@ -115,6 +115,26 @@ public class MCISoundPlayer extends SoundPlayer {
+       }
+    }
+ 
++   static boolean access$000(MCISoundPlayer var0) {
++      return var0.nativeIsFinished();
++   }
++
++   static MCISoundCommand access$100() {
++      return activeStopCmd;
++   }
++
++   static void access$102(MCISoundCommand var0) {
++      activeStopCmd = var0;
++   }
++
++   static void access$200(MCISoundPlayer var0) {
++      var0.nativeStop();
++   }
++
++   static void access$300(MCISoundPlayer var0, float var1, float var2) {
++      var0.nativeVolume(var1, var2);
++   }
++
+    private native void nativeVolume(float var1, float var2);
+ 
+    private native boolean nativeStart(String var1);
+diff --git a/NET/worlds/scape/NamedPortal.java b/NET/worlds/scape/NamedPortal.java
+index a8169f7..2bd7411 100644
+--- a/NET/worlds/scape/NamedPortal.java
++++ b/NET/worlds/scape/NamedPortal.java
+@@ -7,7 +7,7 @@ public class NamedPortal implements Persister {
+    private static Object classCookie = new Object();
+ 
+    public void saveState(Saver var1) throws IOException {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ 
+    public void restoreState(Restorer var1) throws IOException, TooNewException {
+@@ -26,6 +26,6 @@ public class NamedPortal implements Persister {
+    }
+ 
+    public void postRestore(int var1) {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ }
+diff --git a/NET/worlds/scape/ObjPropertyEditor.java b/NET/worlds/scape/ObjPropertyEditor.java
+index 9cbf091..e1aa10b 100644
+--- a/NET/worlds/scape/ObjPropertyEditor.java
++++ b/NET/worlds/scape/ObjPropertyEditor.java
+@@ -28,7 +28,7 @@ public class ObjPropertyEditor extends PropEditor {
+          var3 = Class.forName(var2);
+       } catch (ClassNotFoundException var5) {
+          System.out.println("Couldn't find " + var2);
+-         Debug.assert(false);
++         Debug.assert_(false);
+       }
+ 
+       return var0.setEditor(new ObjPropertyEditor(var0, var1, var3));
+diff --git a/NET/worlds/scape/ObjectPropertyAdder.java b/NET/worlds/scape/ObjectPropertyAdder.java
+index 896e077..f1c7857 100644
+--- a/NET/worlds/scape/ObjectPropertyAdder.java
++++ b/NET/worlds/scape/ObjectPropertyAdder.java
+@@ -32,7 +32,7 @@ public class ObjectPropertyAdder extends PropAdder {
+          var3 = Class.forName(var2);
+       } catch (ClassNotFoundException var5) {
+          System.out.println("Couldn't find " + var2);
+-         Debug.assert(false);
++         Debug.assert_(false);
+       }
+ 
+       return var0.setAdder(new ObjectPropertyAdder(var0, var1, var3));
+diff --git a/NET/worlds/scape/PathMoveAction.java b/NET/worlds/scape/PathMoveAction.java
+index 898bfd4..7a46f54 100644
+--- a/NET/worlds/scape/PathMoveAction.java
++++ b/NET/worlds/scape/PathMoveAction.java
+@@ -11,7 +11,7 @@ public class PathMoveAction extends Action {
+    }
+ 
+    public void saveState(Saver var1) throws IOException {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ 
+    public void restoreState(Restorer var1) throws IOException, TooNewException {
+diff --git a/NET/worlds/scape/PendingDrone.java b/NET/worlds/scape/PendingDrone.java
+index f4ad958..e641bd7 100644
+--- a/NET/worlds/scape/PendingDrone.java
++++ b/NET/worlds/scape/PendingDrone.java
+@@ -60,7 +60,7 @@ public class PendingDrone {
+             }
+ 
+             String var2 = PosableDroneLoader.getAvatarBaseName(var1);
+-            Debug.assert(var2 != null);
++            Debug.assert_(var2 != null);
+             var2 = var2.toLowerCase();
+             URL var3 = URL.make(NetUpdate.getUpgradeServerURL() + "AvatarUpgrades/" + var2 + ".zip");
+             CacheFile var4 = Cache.getFile(var3);
+diff --git a/NET/worlds/scape/Portal$1.java b/NET/worlds/scape/Portal$1.java
+index a986825..c9e5d6e 100644
+--- a/NET/worlds/scape/Portal$1.java
++++ b/NET/worlds/scape/Portal$1.java
+@@ -4,6 +4,8 @@ import NET.worlds.console.Main;
+ import NET.worlds.console.MainCallback;
+ 
+ class Portal$1 implements MainCallback {
++   Portal this$0;
++
+    Portal$1(Portal var1) {
+       this.this$0 = var1;
+    }
+diff --git a/NET/worlds/scape/Portal.java b/NET/worlds/scape/Portal.java
+index 571092a..7f49733 100644
+--- a/NET/worlds/scape/Portal.java
++++ b/NET/worlds/scape/Portal.java
+@@ -69,7 +69,7 @@ public class Portal extends Rect implements BumpHandler, Prerenderable, Postrend
+    }
+ 
+    public Portal connectTo(Portal var1) {
+-      Debug.assert(this._state == -1);
++      Debug.assert_(this._state == -1);
+       this._farSideIsPortal = true;
+       this._farSidePortal = var1;
+       this.newFarSide();
+@@ -83,7 +83,7 @@ public class Portal extends Rect implements BumpHandler, Prerenderable, Postrend
+    public Portal connectTo(Room var1, Point3Temp var2, Point3Temp var3) {
+       System.out.println("Warning! Old style Portal.connectTo called!");
+       Thread.dumpStack();
+-      Debug.assert(this._state == -1);
++      Debug.assert_(this._state == -1);
+       this._farSideWorld = var1.getWorld().getSourceURL();
+       this._farSideRoomName = var1.getName();
+       this.setFarSideRoom(var1);
+@@ -105,7 +105,7 @@ public class Portal extends Rect implements BumpHandler, Prerenderable, Postrend
+    }
+ 
+    public Portal connectTo(URL var1, String var2, float var3, float var4, float var5, float var6) {
+-      Debug.assert(this._state == -1);
++      Debug.assert_(this._state == -1);
+       this._farSideWorld = var1;
+       this._farSideRoomName = var2;
+       this._farx = this._userFarx = var3;
+diff --git a/NET/worlds/scape/PosableShape.java b/NET/worlds/scape/PosableShape.java
+index fd11c8d..2e2d859 100644
+--- a/NET/worlds/scape/PosableShape.java
++++ b/NET/worlds/scape/PosableShape.java
+@@ -394,7 +394,7 @@ public class PosableShape extends Shape implements FrameHandler, Prerenderable,
+                   var10.scale(this.getScale(var23), this.getScale(var19), this.getScale(var20));
+                } else if (var17 != 'Q') {
+                   if (var17 == 'C') {
+-                     Debug.assert(false);
++                     Debug.assert_(false);
+                   } else if (var17 == 'D') {
+                      var13 += (int)(1000.0 * (Math.pow(1.0932, scanBase64(var1.charAt(this.scanPos++))) - 0.9F));
+                   } else if (var17 == 'A') {
+diff --git a/NET/worlds/scape/PropPropEditorDialog.java b/NET/worlds/scape/PropPropEditorDialog.java
+index a105260..8c5e9da 100644
+--- a/NET/worlds/scape/PropPropEditorDialog.java
++++ b/NET/worlds/scape/PropPropEditorDialog.java
+@@ -45,7 +45,7 @@ class PropPropEditorDialog extends ListChooserDialog {
+       try {
+          var3 = this._target.properties(var2, 0, 0, null);
+       } catch (NoSuchPropertyException var5) {
+-         Debug.assert(false);
++         Debug.assert_(false);
+       }
+ 
+       this._parent.addUndoableSet(this._property, var3);
+diff --git a/NET/worlds/scape/Property.java b/NET/worlds/scape/Property.java
+index 7d75980..167b980 100644
+--- a/NET/worlds/scape/Property.java
++++ b/NET/worlds/scape/Property.java
+@@ -95,7 +95,7 @@ public class Property {
+ 
+          return var3;
+       } catch (NoSuchPropertyException var4) {
+-         Debug.assert(false);
++         Debug.assert_(false);
+          return null;
+       }
+    }
+diff --git a/NET/worlds/scape/RemotePortal.java b/NET/worlds/scape/RemotePortal.java
+index 24e5d3c..67814d8 100644
+--- a/NET/worlds/scape/RemotePortal.java
++++ b/NET/worlds/scape/RemotePortal.java
+@@ -12,7 +12,7 @@ public class RemotePortal extends WObject {
+    }
+ 
+    public void saveState(Saver var1) throws IOException {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ 
+    public void restoreState(Restorer var1) throws IOException, TooNewException {
+@@ -35,13 +35,13 @@ public class RemotePortal extends WObject {
+          case 0:
+             var1.setOldFlag();
+             var1.restoreBoolean();
+-            var4 = (WObject)var1.restoreMaybeNull();
+-            var5 = (WObject)var1.restoreMaybeNull();
++            var4 = (Surface)var1.restoreMaybeNull();
++            var5 = (Surface)var1.restoreMaybeNull();
+             var1.restoreMaybeNull();
+             break;
+          case 1:
+-            var4 = (WObject)var1.restoreMaybeNull();
+-            var5 = (WObject)var1.restoreMaybeNull();
++            var4 = (Surface)var1.restoreMaybeNull();
++            var5 = (Surface)var1.restoreMaybeNull();
+             break;
+          default:
+             throw new TooNewException();
+diff --git a/NET/worlds/scape/RemoveObjectAction.java b/NET/worlds/scape/RemoveObjectAction.java
+index 3c40284..fe152e3 100644
+--- a/NET/worlds/scape/RemoveObjectAction.java
++++ b/NET/worlds/scape/RemoveObjectAction.java
+@@ -9,7 +9,7 @@ public class RemoveObjectAction extends SetPropertyAction {
+    private static Object classCookie = new Object();
+ 
+    public Persister trigger(Event var1, Persister var2) {
+-      Debug.assert(!this.useParam());
++      Debug.assert_(!this.useParam());
+       this.remove(this._value);
+       return null;
+    }
+@@ -33,10 +33,10 @@ public class RemoveObjectAction extends SetPropertyAction {
+                   ((Vector)var5).addElement(this._value);
+                }
+             } else if (var3 == 4) {
+-               Debug.assert(var4 == this._value);
++               Debug.assert_(var4 == this._value);
+                this._value = null;
+             } else if (var3 == 3) {
+-               Debug.assert(this._value == null);
++               Debug.assert_(this._value == null);
+                this._value = (SuperRoot)var4;
+             }
+             break;
+diff --git a/NET/worlds/scape/Restorer.java b/NET/worlds/scape/Restorer.java
+index 415bbd3..cb3614a 100644
+--- a/NET/worlds/scape/Restorer.java
++++ b/NET/worlds/scape/Restorer.java
+@@ -134,10 +134,10 @@ public class Restorer {
+             }
+          } catch (InstantiationException var8) {
+             var8.printStackTrace(System.out);
+-            Debug.assert(false);
++            Debug.assert_(false);
+          } catch (IllegalAccessException var9) {
+             var9.printStackTrace(System.out);
+-            Debug.assert(false);
++            Debug.assert_(false);
+          }
+ 
+          this.objectTable.put(var3, var4);
+@@ -229,7 +229,7 @@ public class Restorer {
+       }
+ 
+       int var2 = this.restoreInt();
+-      Persister var3 = null;
++      Persister[] var3 = null;
+       if (var1 == null) {
+          if (this._dblevel > 0) {
+             System.out.println("Array of " + Integer.toString(var2, 16) + " items {");
+@@ -238,8 +238,8 @@ public class Restorer {
+          var3 = new Persister[var2];
+       } else {
+          String var4 = var1.getName();
+-         Debug.assert(var4.startsWith("[L"));
+-         Debug.assert(var4.endsWith(";"));
++         Debug.assert_(var4.startsWith("[L"));
++         Debug.assert_(var4.endsWith(";"));
+          var4 = var4.substring(2);
+          var4 = var4.substring(0, var4.length() - 1);
+          if (this._dblevel > 0) {
+@@ -385,6 +385,6 @@ public class Restorer {
+          }
+       }
+ 
+-      Debug.assert(var3);
++      Debug.assert_(var3);
+    }
+ }
+diff --git a/NET/worlds/scape/Room.java b/NET/worlds/scape/Room.java
+index 12952eb..bcc613a 100644
+--- a/NET/worlds/scape/Room.java
++++ b/NET/worlds/scape/Room.java
+@@ -412,21 +412,21 @@ public class Room extends WObject implements TeleportStatus {
+    }
+ 
+    public void addPrerenderHandler(Prerenderable var1) {
+-      Debug.assert((this.flags & isRendering) == 0);
++      Debug.assert_((this.flags & isRendering) == 0);
+       if (!this.prerenderHandlers.contains(var1)) {
+          this.prerenderHandlers.addElement(var1);
+       }
+    }
+ 
+    public void prependPrerenderHandler(Prerenderable var1) {
+-      Debug.assert((this.flags & isRendering) == 0);
++      Debug.assert_((this.flags & isRendering) == 0);
+       if (!this.prerenderHandlers.contains(var1)) {
+          this.prerenderHandlers.insertElementAt(var1, 0);
+       }
+    }
+ 
+    public void removePrerenderHandler(Prerenderable var1) {
+-      Debug.assert((this.flags & isRendering) == 0);
++      Debug.assert_((this.flags & isRendering) == 0);
+       this.prerenderHandlers.removeElement(var1);
+    }
+ 
+@@ -443,21 +443,21 @@ public class Room extends WObject implements TeleportStatus {
+    }
+ 
+    public void addPostrenderHandler(Postrenderable var1) {
+-      Debug.assert((this.flags & isRendering) == 0);
++      Debug.assert_((this.flags & isRendering) == 0);
+       if (!this.postrenderHandlers.contains(var1)) {
+          this.postrenderHandlers.addElement(var1);
+       }
+    }
+ 
+    public void prependPostrenderHandler(Postrenderable var1) {
+-      Debug.assert((this.flags & isRendering) == 0);
++      Debug.assert_((this.flags & isRendering) == 0);
+       if (!this.postrenderHandlers.contains(var1)) {
+          this.postrenderHandlers.insertElementAt(var1, 0);
+       }
+    }
+ 
+    public void removePostrenderHandler(Postrenderable var1) {
+-      Debug.assert((this.flags & isRendering) == 0);
++      Debug.assert_((this.flags & isRendering) == 0);
+       this.postrenderHandlers.removeElement(var1);
+    }
+ 
+diff --git a/NET/worlds/scape/RoomEnvironment.java b/NET/worlds/scape/RoomEnvironment.java
+index 680f2dc..ef6cc6c 100644
+--- a/NET/worlds/scape/RoomEnvironment.java
++++ b/NET/worlds/scape/RoomEnvironment.java
+@@ -30,7 +30,7 @@ public class RoomEnvironment extends WObject {
+    }
+ 
+    private void addLight(Point3Temp var1, Color var2) {
+-      Debug.assert(this.lightid == 0);
++      Debug.assert_(this.lightid == 0);
+       float var3 = var2.getRed() / 256.0F;
+       float var4 = var2.getGreen() / 256.0F;
+       float var5 = var2.getBlue() / 256.0F;
+diff --git a/NET/worlds/scape/Saver.java b/NET/worlds/scape/Saver.java
+index 28f80e9..d10c762 100644
+--- a/NET/worlds/scape/Saver.java
++++ b/NET/worlds/scape/Saver.java
+@@ -51,12 +51,12 @@ public class Saver {
+          this.saveInt(var1);
+          this.cookieTable.put(var2, new Integer(var1));
+       } else {
+-         Debug.assert(var3 == var1);
++         Debug.assert_(var3 == var1);
+       }
+    }
+ 
+    public void save(Persister var1) throws IOException {
+-      Debug.assert(!(var1 instanceof NonPersister));
++      Debug.assert_(!(var1 instanceof NonPersister));
+       int var2 = UniqueHasher.uh().hash(var1);
+       this.saveInt(var2);
+       if (!this.objectTable.containsKey(var1)) {
+diff --git a/NET/worlds/scape/SendURLAction.java b/NET/worlds/scape/SendURLAction.java
+index 257fa8a..8bf3391 100644
+--- a/NET/worlds/scape/SendURLAction.java
++++ b/NET/worlds/scape/SendURLAction.java
+@@ -15,7 +15,7 @@ import java.io.IOException;
+ import java.net.MalformedURLException;
+ import java.text.MessageFormat;
+ import java.util.Hashtable;
+-import sun.misc.BASE64Encoder;
++
+ 
+ public class SendURLAction extends DialogAction implements MainCallback, RemoteFileConst {
+    URL destination;
+@@ -210,7 +210,7 @@ public class SendURLAction extends DialogAction implements MainCallback, RemoteF
+                   String var10 = var9.getGalaxy().getUsernameU();
+                   String var11 = var9.getGalaxy().getPassword();
+                   String var12 = var10 + ":" + var11;
+-                  this.postData = new BASE64Encoder().encode(var12.getBytes());
++                  this.postData = java.util.Base64.getEncoder().encodeToString(var12.getBytes());
+                }
+             }
+ 
+diff --git a/NET/worlds/scape/SensorFrameHandler.java b/NET/worlds/scape/SensorFrameHandler.java
+index acd7b68..135468b 100644
+--- a/NET/worlds/scape/SensorFrameHandler.java
++++ b/NET/worlds/scape/SensorFrameHandler.java
+@@ -5,7 +5,7 @@ import java.io.IOException;
+ 
+ class SensorFrameHandler extends SuperRoot {
+    public void saveState(Saver var1) throws IOException {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ 
+    public void restoreState(Restorer var1) throws IOException, TooNewException {
+diff --git a/NET/worlds/scape/SetColorAction.java b/NET/worlds/scape/SetColorAction.java
+index 6c598f3..94bf7e1 100644
+--- a/NET/worlds/scape/SetColorAction.java
++++ b/NET/worlds/scape/SetColorAction.java
+@@ -22,7 +22,7 @@ public class SetColorAction extends SlidePropertyAction {
+       }
+ 
+       if (this._value == null) {
+-         Debug.assert(!this.slide());
++         Debug.assert_(!this.slide());
+       } else {
+          if (this.slide()) {
+             if (var2 == null) {
+diff --git a/NET/worlds/scape/SetPoint2Action.java b/NET/worlds/scape/SetPoint2Action.java
+index c7a30ae..930097f 100644
+--- a/NET/worlds/scape/SetPoint2Action.java
++++ b/NET/worlds/scape/SetPoint2Action.java
+@@ -43,7 +43,7 @@ public class SetPoint2Action extends SlidePropertyAction {
+       }
+ 
+       if (this._value == null) {
+-         Debug.assert(!this.slide());
++         Debug.assert_(!this.slide());
+       } else {
+          if (this.slide()) {
+             if (var2 == null) {
+diff --git a/NET/worlds/scape/SetPoint3Action.java b/NET/worlds/scape/SetPoint3Action.java
+index 1766ef4..6b49ca9 100644
+--- a/NET/worlds/scape/SetPoint3Action.java
++++ b/NET/worlds/scape/SetPoint3Action.java
+@@ -52,7 +52,7 @@ public class SetPoint3Action extends SlidePropertyAction {
+       }
+ 
+       if (this._value == null) {
+-         Debug.assert(!this.slide());
++         Debug.assert_(!this.slide());
+       } else {
+          if (this.slide()) {
+             if (var2 == null) {
+diff --git a/NET/worlds/scape/SetPropertyAction.java b/NET/worlds/scape/SetPropertyAction.java
+index 6c49529..0652909 100644
+--- a/NET/worlds/scape/SetPropertyAction.java
++++ b/NET/worlds/scape/SetPropertyAction.java
+@@ -85,7 +85,7 @@ public abstract class SetPropertyAction extends Action {
+          try {
+             var4 = var3.properties(this._propIndex, 0, var1, var2);
+          } catch (NoSuchPropertyException var6) {
+-            Debug.assert(false);
++            Debug.assert_(false);
+          }
+       } else if (var3 == null) {
+          Console.println(this.getName() + Console.message("null-target"));
+@@ -116,7 +116,7 @@ public abstract class SetPropertyAction extends Action {
+       this.propHelper(4, var1);
+    }
+ 
+-   protected final Property enum() {
++   protected final Property enum_() {
+       return (Property)this.propHelper(0, null);
+    }
+ 
+@@ -170,7 +170,7 @@ public abstract class SetPropertyAction extends Action {
+             } else if (var3 == 1) {
+                SuperRoot var6 = this.getTarget();
+                if ((this._propIndex = index(this._propIndex, this._propName, var6)) != -1 && var6 != null) {
+-                  var5 = this.enum();
++                  var5 = this.enum_();
+                } else {
+                   var5 = null;
+                }
+diff --git a/NET/worlds/scape/Sound$1.java b/NET/worlds/scape/Sound$1.java
+index cb09fc6..1909b25 100644
+--- a/NET/worlds/scape/Sound$1.java
++++ b/NET/worlds/scape/Sound$1.java
+@@ -4,6 +4,8 @@ import NET.worlds.console.Main;
+ import NET.worlds.console.MainCallback;
+ 
+ class Sound$1 implements MainCallback {
++   Sound this$0;
++
+    Sound$1(Sound var1) {
+       this.this$0 = var1;
+    }
+diff --git a/NET/worlds/scape/Surface.java b/NET/worlds/scape/Surface.java
+index c9fa936..82419e0 100644
+--- a/NET/worlds/scape/Surface.java
++++ b/NET/worlds/scape/Surface.java
+@@ -41,7 +41,7 @@ public class Surface extends WObject implements Animatable {
+       int var3 = this.material.getVRes();
+       int var4 = this.getNumVerts();
+       if (var4 != 4 || !this.material.getHiRes() && !this.uvOutOfRange()) {
+-         Debug.assert(var4 > 0);
++         Debug.assert_(var4 > 0);
+          int[] var7 = new int[var4];
+ 
+          for (int var8 = 0; var8 < var4; var8++) {
+diff --git a/NET/worlds/scape/TeleportAction.java b/NET/worlds/scape/TeleportAction.java
+index 51aa239..a57ba7d 100644
+--- a/NET/worlds/scape/TeleportAction.java
++++ b/NET/worlds/scape/TeleportAction.java
+@@ -235,7 +235,7 @@ public class TeleportAction extends Action implements LoadedURLSelf, MainCallbac
+    }
+ 
+    private Room stopTeleport(String var1) {
+-      Debug.assert(this == activeTeleport);
++      Debug.assert_(this == activeTeleport);
+       this.done = true;
+       activeTeleport = null;
+       Console.setFreezeFrameEvents(false);
+diff --git a/NET/worlds/scape/TradeAction$1.java b/NET/worlds/scape/TradeAction$1.java
+index fcb9d39..5ab3d0c 100644
+--- a/NET/worlds/scape/TradeAction$1.java
++++ b/NET/worlds/scape/TradeAction$1.java
+@@ -4,6 +4,9 @@ import NET.worlds.console.Main;
+ import NET.worlds.console.MainCallback;
+ 
+ class TradeAction$1 implements MainCallback {
++   TradeAction this$0;
++   String val$dealStr;
++
+    TradeAction$1(TradeAction var1, String var2) {
+       this.this$0 = var1;
+       this.val$dealStr = var2;
+diff --git a/NET/worlds/scape/URLSelfLoader.java b/NET/worlds/scape/URLSelfLoader.java
+index 9a0965a..cf7a841 100644
+--- a/NET/worlds/scape/URLSelfLoader.java
++++ b/NET/worlds/scape/URLSelfLoader.java
+@@ -58,7 +58,7 @@ public class URLSelfLoader implements BGLoaded {
+             this.state = var1.incRestore(this.state, var2, this);
+          } catch (Exception var4) {
+             var4.printStackTrace(System.out);
+-            Debug.assert(false);
++            Debug.assert_(false);
+          }
+       }
+    }
+@@ -99,7 +99,7 @@ public class URLSelfLoader implements BGLoaded {
+ 
+          try {
+             this.restorer = new Restorer(this.inFile, this.url);
+-            var3 = this.restorer.restore(false);
++            var3 = (URLSelf)this.restorer.restore(false);
+             this.loadedObj = var3;
+             this.loadedObj.setSourceURL(this.getURL());
+             if (!(this.loadedObj instanceof IncrementalRestorer)) {
+diff --git a/NET/worlds/scape/VehicleDriver.java b/NET/worlds/scape/VehicleDriver.java
+index ebf6097..b2bee1b 100644
+--- a/NET/worlds/scape/VehicleDriver.java
++++ b/NET/worlds/scape/VehicleDriver.java
+@@ -225,7 +225,7 @@ public class VehicleDriver extends SwitchableBehavior implements MouseDeltaHandl
+    protected void DoPhysics(float var1) {
+       System.out.println("-----------------------------");
+       float var2 = this.vehicle.maxEngineTorque * this.acceleratorDepression * this.getTorque(this.engineRPM);
+-      Debug.assert(this.vehicle.wheelDiameter != 0.0F);
++      Debug.assert_(this.vehicle.wheelDiameter != 0.0F);
+       float var3 = this.getGearRatio(this.currentGear);
+       float var4 = var2 * this.vehicle.rearEndRatio * var3 / (this.vehicle.wheelDiameter * 0.5F);
+       if (Math.abs(this.velocityVectorCarFrame.y) > 2.0) {
+@@ -290,7 +290,7 @@ public class VehicleDriver extends SwitchableBehavior implements MouseDeltaHandl
+       Point3Temp var24 = Point3Temp.make(this.velocityVectorCarFrame);
+       var24.negate();
+       var24.normalize();
+-      Debug.assert(true);
++      Debug.assert_(true);
+       float var10 = 0.15F * this.vehicle.frontalArea * 0.0801F * this.velocity * this.velocity / 32.1F;
+       var24.times(var10);
+       var7.plus(var24);
+@@ -386,7 +386,7 @@ public class VehicleDriver extends SwitchableBehavior implements MouseDeltaHandl
+          var17.cross(var7);
+          double var18 = var17.length();
+          double var20 = var18 * this.vehicle.mass + var15;
+-         Debug.assert(var20 != 0.0);
++         Debug.assert_(var20 != 0.0);
+          double var22 = this.vehicle.mass * 0.25;
+          double var24 = var15 * var22 / var20;
+          if (var24 < 0.0) {
+@@ -397,7 +397,7 @@ public class VehicleDriver extends SwitchableBehavior implements MouseDeltaHandl
+             var24 = var22;
+          }
+ 
+-         Debug.assert(this.vehicle.shockLength != 0.0F);
++         Debug.assert_(this.vehicle.shockLength != 0.0F);
+          double var26 = var24 * 32.1F / this.vehicle.shockLength;
+          double var28 = var4.z - (var5 + this.vehicle.shockLength);
+          if (var28 < -this.vehicle.shockLength) {
+@@ -411,7 +411,7 @@ public class VehicleDriver extends SwitchableBehavior implements MouseDeltaHandl
+          double var30 = var28;
+          double var32 = -var26 * var30;
+          double var34 = var26 * var24;
+-         Debug.assert(var34 >= 0.0);
++         Debug.assert_(var34 >= 0.0);
+          double var36 = -Math.sqrt(var34) * var11 * this.vehicle.shockDampingCoeff;
+          var32 += var36;
+          Point3Temp var38 = Point3Temp.make(var13);
+diff --git a/NET/worlds/scape/WObject.java b/NET/worlds/scape/WObject.java
+index 9208505..71f5a3a 100644
+--- a/NET/worlds/scape/WObject.java
++++ b/NET/worlds/scape/WObject.java
+@@ -232,11 +232,11 @@ public class WObject extends Transform implements Prerenderable {
+ 
+    public void reclump() {
+       if (this.clumpID != 0) {
+-         Debug.assert((this.flags & 2097152) == 0);
++         Debug.assert_((this.flags & 2097152) == 0);
+          this.flags |= 2097152;
+          this.markVoid();
+          this.recursiveAddRwChildren((WObject)this.getOwner());
+-         Debug.assert((this.flags & 2097152) != 0);
++         Debug.assert_((this.flags & 2097152) != 0);
+          this.flags &= -2097153;
+       }
+    }
+@@ -304,7 +304,7 @@ public class WObject extends Transform implements Prerenderable {
+    }
+ 
+    protected final void addNewRwChild(WObject var1) {
+-      Debug.assert(this.clumpID == 0);
++      Debug.assert_(this.clumpID == 0);
+       this.createClump();
+       this.newRwClumpChildHelper(var1);
+    }
+@@ -1186,7 +1186,7 @@ public class WObject extends Transform implements Prerenderable {
+ 
+       if (replaceWithMontyDoor
+          && this.getClass()
+-            == (class$NET$worlds$scape$WObject == null ? (class$NET$worlds$scape$WObject = class$("NET.worlds.scape.WObject")) : class$NET$worlds$scape$WObject)
++            == (NET.worlds.scape.WObject.class)
+          )
+        {
+          this.replaceMonty();
+@@ -1226,15 +1226,11 @@ public class WObject extends Transform implements Prerenderable {
+                            && this.contents.size() <= 3
+                            && this.contents.elementAt(0).getClass()
+                               == (
+-                                 class$NET$worlds$scape$Rect == null
+-                                    ? (class$NET$worlds$scape$Rect = class$("NET.worlds.scape.Rect"))
+-                                    : class$NET$worlds$scape$Rect
++                                 NET.worlds.scape.Rect.class
+                               )
+                            && this.contents.elementAt(1).getClass()
+                               == (
+-                                 class$NET$worlds$scape$Portal == null
+-                                    ? (class$NET$worlds$scape$Portal = class$("NET.worlds.scape.Portal"))
+-                                    : class$NET$worlds$scape$Portal
++                                 NET.worlds.scape.Portal.class
+                               )) {
+                            var1 = 4;
+                            boolean var5 = this.contents.size() == 3;
+@@ -1244,9 +1240,7 @@ public class WObject extends Transform implements Prerenderable {
+                            if (var5) {
+                               if (this.contents.elementAt(2).getClass()
+                                  != (
+-                                    class$NET$worlds$scape$Rect == null
+-                                       ? (class$NET$worlds$scape$Rect = class$("NET.worlds.scape.Rect"))
+-                                       : class$NET$worlds$scape$Rect
++                                    NET.worlds.scape.Rect.class
+                                  )) {
+                                  return;
+                               }
+@@ -1259,9 +1253,7 @@ public class WObject extends Transform implements Prerenderable {
+                               && var6.eventHandlers.size() == 1
+                               && var6.eventHandlers.elementAt(0).getClass()
+                                  == (
+-                                    class$NET$worlds$scape$ClickSensor == null
+-                                       ? (class$NET$worlds$scape$ClickSensor = class$("NET.worlds.scape.ClickSensor"))
+-                                       : class$NET$worlds$scape$ClickSensor
++                                    NET.worlds.scape.ClickSensor.class
+                                  )) {
+                               var1 = 6;
+                               ClickSensor var9 = (ClickSensor)var6.eventHandlers.elementAt(0);
+@@ -1271,9 +1263,7 @@ public class WObject extends Transform implements Prerenderable {
+                                     && var6.actions.size() == 3
+                                     && var6.actions.elementAt(2).getClass()
+                                        == (
+-                                          class$NET$worlds$scape$SequenceAction == null
+-                                             ? (class$NET$worlds$scape$SequenceAction = class$("NET.worlds.scape.SequenceAction"))
+-                                             : class$NET$worlds$scape$SequenceAction
++                                          NET.worlds.scape.SequenceAction.class
+                                        )) {
+                                     var1 = 8;
+                                     SequenceAction var10 = (SequenceAction)var6.actions.elementAt(2);
+diff --git a/NET/worlds/scape/WavSoundPlayer.java b/NET/worlds/scape/WavSoundPlayer.java
+index 9f52057..36a37d9 100644
+--- a/NET/worlds/scape/WavSoundPlayer.java
++++ b/NET/worlds/scape/WavSoundPlayer.java
+@@ -106,7 +106,7 @@ public class WavSoundPlayer extends SoundPlayer implements Runnable {
+    public void start(int var1) {
+       synchronized (soundStack) {
+          WavSoundPlayer var3 = getActive();
+-         Debug.assert(this.repeatsLeft == 0 && var3 != this);
++         Debug.assert_(this.repeatsLeft == 0 && var3 != this);
+          if (this.owner != null) {
+             this.url = this.owner.getURL();
+          }
+@@ -150,7 +150,7 @@ public class WavSoundPlayer extends SoundPlayer implements Runnable {
+ 
+       synchronized (soundStack) {
+          if (activeThread == Thread.currentThread()) {
+-            Debug.assert(getActive() == this);
++            Debug.assert_(getActive() == this);
+             soundStack.removeElement(this);
+             activeThread = null;
+             WavSoundPlayer var2 = getActive();
+@@ -167,7 +167,7 @@ public class WavSoundPlayer extends SoundPlayer implements Runnable {
+    private void stop(boolean var1) {
+       if (getActive() == this) {
+          boolean var2 = activeThread == null;
+-         Debug.assert(this.repeatsLeft < 0 && var2 || !var1);
++         Debug.assert_(this.repeatsLeft < 0 && var2 || !var1);
+          this.repeatsLeft = 0;
+          if (!var1 && var2 && systemPaused == 0) {
+             this.nativeStop();
+diff --git a/NET/worlds/scape/WobClassLoader.java b/NET/worlds/scape/WobClassLoader.java
+index 6195e4b..81c78b9 100644
+--- a/NET/worlds/scape/WobClassLoader.java
++++ b/NET/worlds/scape/WobClassLoader.java
+@@ -60,7 +60,7 @@ public class WobClassLoader extends ClassLoader {
+    }
+ 
+    private byte[] loadData(String var1) {
+-      B var2 = null;
++      byte[] var2 = null;
+       FileInputStream var3 = null;
+ 
+       try {
+diff --git a/NET/worlds/scape/World.java b/NET/worlds/scape/World.java
+index 6ff5ced..613b462 100644
+--- a/NET/worlds/scape/World.java
++++ b/NET/worlds/scape/World.java
+@@ -291,15 +291,15 @@ public class World extends SuperRoot implements URLSelf, LoadedURLSelf, Incremen
+ 
+    public void renameRoom(String var1, String var2, Room var3) {
+       if (var1 != null) {
+-         Debug.assert(this.roomHash.get(var1) == var3);
++         Debug.assert_(this.roomHash.get(var1) == var3);
+          this.roomHash.remove(var1);
+       } else {
+-         Debug.assert(!this.roomList.removeElement(var3));
++         Debug.assert_(!this.roomList.removeElement(var3));
+          this.roomList.addElement(var3);
+       }
+ 
+-      Debug.assert(var2 != null);
+-      Debug.assert(var3.getName().equals(var2));
++      Debug.assert_(var2 != null);
++      Debug.assert_(var3.getName().equals(var2));
+       this.roomHash.put(var2, var3);
+    }
+ 
+@@ -489,7 +489,7 @@ public class World extends SuperRoot implements URLSelf, LoadedURLSelf, Incremen
+          }
+       }
+ 
+-      Debug.assert(this.eventHandlers == null);
++      Debug.assert_(this.eventHandlers == null);
+       this.discardRooms();
+       if (this.console != null) {
+          this.console.decRef();
+@@ -947,7 +947,7 @@ public class World extends SuperRoot implements URLSelf, LoadedURLSelf, Incremen
+          case 3:
+             return this.finishRestore(var1, var2.version() != Saver.version() || var2.oldFlag(), var3.getURL());
+          default:
+-            Debug.assert(false);
++            Debug.assert_(false);
+             return -1;
+       }
+    }
+@@ -978,7 +978,7 @@ public class World extends SuperRoot implements URLSelf, LoadedURLSelf, Incremen
+                return -1;
+             }
+          default:
+-            Debug.assert(false);
++            Debug.assert_(false);
+             return -1;
+       }
+    }
+@@ -993,7 +993,7 @@ public class World extends SuperRoot implements URLSelf, LoadedURLSelf, Incremen
+             }
+          } catch (Exception var4) {
+             var4.printStackTrace(System.out);
+-            Debug.assert(false);
++            Debug.assert_(false);
+          }
+       }
+    }
+diff --git a/NET/worlds/scape/WrRectPatch.java b/NET/worlds/scape/WrRectPatch.java
+index c6dd31d..aac5df2 100644
+--- a/NET/worlds/scape/WrRectPatch.java
++++ b/NET/worlds/scape/WrRectPatch.java
+@@ -7,7 +7,7 @@ class WrRectPatch extends RectPatch {
+    private static Object classCookie = new Object();
+ 
+    public void saveState(Saver var1) throws IOException {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ 
+    public void restoreState(Restorer var1) throws IOException, TooNewException {
+diff --git a/NET/worlds/scape/WrVisiRectPatch.java b/NET/worlds/scape/WrVisiRectPatch.java
+index f717017..acf14af 100644
+--- a/NET/worlds/scape/WrVisiRectPatch.java
++++ b/NET/worlds/scape/WrVisiRectPatch.java
+@@ -7,7 +7,7 @@ class WrVisiRectPatch extends RectPatch {
+    private static Object classCookie = new Object();
+ 
+    public void saveState(Saver var1) throws IOException {
+-      Debug.assert(false);
++      Debug.assert_(false);
+    }
+ 
+    public void restoreState(Restorer var1) throws IOException, TooNewException {

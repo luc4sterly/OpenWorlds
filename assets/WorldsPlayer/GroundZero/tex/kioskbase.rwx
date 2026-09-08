@@ -1,0 +1,117 @@
+# Output from 3DSMax RenderWare File Export plug-in V1.0
+ModelBegin
+    ClumpBegin
+        # Pyramid01
+        
+        TransformBegin
+            Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  1.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 1
+                Hints NULL
+                
+                
+            ClumpEnd
+        TransformEnd
+        # 01
+        
+        TransformBegin
+            Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  1.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 2
+                Hints NULL
+                Vertex  0.000000 -1.000000  0.000000 UV  0.500000  0.999501
+                Vertex -0.600000  0.000000  0.600000 UV  0.000499  0.000499
+                Vertex  0.600000  0.000000  0.600000 UV  0.999501  0.000500
+                
+                GeometrySampling Solid
+                LightSampling Vertex
+                Ambient 0.179083  0.1  0.1
+                Color 0.537255 0.196078 0.196078
+                Diffuse 0.537255 0.196078 0.196078
+                Specular  0.9  0.9  0.9
+                TextureModes Foreshorten
+                Texture kiwl1a.cmp
+                
+                Triangle 3 2 1
+                
+            ClumpEnd
+        TransformEnd
+        # 02
+        
+        TransformBegin
+            Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  1.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 3
+                Hints NULL
+                Vertex  0.000000 -1.000000  0.000000 UV  0.500000  0.999500
+                Vertex -0.600000  0.000000  0.600000 UV  0.999501  0.000500
+                Vertex -0.600000  0.000000 -0.600000 UV  0.000499  0.000500
+                
+                GeometrySampling Solid
+                LightSampling Vertex
+                Ambient  0.1 0.184312  0.1
+                Color  0.2 0.552941 0.176471
+                Diffuse  0.2 0.552941 0.176471
+                Specular  0.9  0.9  0.9
+                TextureModes Foreshorten
+                Texture kiwl1b.cmp
+                
+                Triangle 2 3 1
+                
+            ClumpEnd
+        TransformEnd
+        # 03
+        
+        TransformBegin
+            Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  1.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 4
+                Hints NULL
+                Vertex  0.000000 -1.000000  0.000000 UV  0.500000  0.999501
+                Vertex  0.600000  0.000000 -0.600000 UV  0.999501  0.000500
+                Vertex -0.600000  0.000000 -0.600000 UV  0.000499  0.000499
+                
+                GeometrySampling Solid
+                LightSampling Vertex
+                Ambient 0.179083  0.1  0.1
+                Color 0.537255 0.196078 0.196078
+                Diffuse 0.537255 0.196078 0.196078
+                Specular  0.9  0.9  0.9
+                TextureModes Foreshorten
+                Texture kiwl1a.cmp
+                
+                Triangle 3 2 1
+                
+            ClumpEnd
+        TransformEnd
+        # 04
+        
+        TransformBegin
+            Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  1.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 5
+                Hints NULL
+                Vertex  0.000000 -1.000000  0.000000 UV  0.500000  0.999501
+                Vertex  0.600000  0.000000  0.600000 UV  0.999501  0.000500
+                Vertex  0.600000  0.000000 -0.600000 UV  0.000499  0.000499
+                
+                GeometrySampling Solid
+                LightSampling Vertex
+                Ambient  0.1 0.184312  0.1
+                Color  0.2 0.552941 0.176471
+                Diffuse  0.2 0.552941 0.176471
+                Specular  0.9  0.9  0.9
+                TextureModes Foreshorten
+                Texture kiwl1b.cmp
+                
+                Triangle 3 2 1
+                
+            ClumpEnd
+        TransformEnd
+    ClumpEnd
+ModelEnd

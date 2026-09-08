@@ -1,0 +1,3720 @@
+# Output from 3DSMax RenderWare File Export plug-in V2.0
+ModelBegin
+    # pelvis
+    
+    TransformBegin
+        Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.020662  0.049240  1.000000
+        
+        ClumpBegin
+            Tag 1
+            Hints NULL
+            Vertex  0.001480  0.030275 -0.075486
+            Vertex -0.000001  0.056391 -0.079918
+            Vertex -0.000001  0.066493 -0.071172
+            Vertex  0.001928  0.039058 -0.067396
+            Vertex -0.000001  0.071549 -0.058600
+            Vertex  0.001771  0.056374 -0.026106
+            Vertex -0.000001  0.079157 -0.027033
+            Vertex -0.000001  0.078361 -0.004922
+            Vertex -0.002001  0.057587 -0.006704
+            Vertex -0.001865  0.051158  0.015652
+            Vertex -0.000001  0.072214  0.012855
+            Vertex  0.001763  0.035885  0.038025
+            Vertex -0.000001  0.063565  0.030019
+            Vertex -0.000001  0.039717  0.046234
+            Vertex -0.001764  0.035885  0.038025
+            Vertex -0.000001  0.021702  0.055512
+            Vertex -0.001482  0.030274 -0.075486
+            Vertex  0.004219  0.037241 -0.088357
+            Vertex -0.001929  0.039058 -0.067396
+            Vertex -0.002401  0.047527 -0.056838
+            Vertex -0.002353  0.055231 -0.041490
+            Vertex -0.001772  0.056374 -0.026106
+            Vertex -0.003100  0.022987 -0.004004
+            Vertex -0.002760  0.023300  0.014330
+            Vertex  0.002540  0.019444  0.039724
+            Vertex  0.002760  0.023300  0.014330
+            Vertex  0.001864  0.051158  0.015652
+            Vertex  0.002177  0.007920 -0.065333
+            Vertex  0.003265  0.013061 -0.055410
+            Vertex  0.002400  0.047527 -0.056838
+            Vertex  0.002352  0.055231 -0.041490
+            Vertex  0.003083  0.021097 -0.022080
+            Vertex  0.001999  0.057587 -0.006704
+            Vertex -0.002177  0.007919 -0.065333
+            Vertex  0.004220  0.018344 -0.095095
+            Vertex -0.002449  0.009978 -0.061944
+            Vertex -0.003265  0.013061 -0.055410
+            Vertex -0.003106  0.019952 -0.034780
+            Vertex -0.003083  0.021097 -0.022080
+            Vertex -0.014718 -0.000076 -0.064520
+            Vertex -0.018544  0.005213 -0.054588
+            Vertex -0.018991  0.008696 -0.019830
+            Vertex  0.000000  0.011550  0.063340
+            Vertex -0.002540  0.019444  0.039724
+            Vertex -0.018693  0.007044  0.040086
+            Vertex  0.013053 -0.034765 -0.006530
+            Vertex  0.022748 -0.007196 -0.016673
+            Vertex  0.013409 -0.027085 -0.007509
+            Vertex  0.009134 -0.031900 -0.049968
+            Vertex  0.023024 -0.011620 -0.051709
+            Vertex  0.007520 -0.040224 -0.023406
+            Vertex  0.008714 -0.034044 -0.023661
+            Vertex  0.015986  0.001333 -0.061107
+            Vertex  0.018544  0.005213 -0.054588
+            Vertex  0.011585 -0.027366  0.059585
+            Vertex  0.010016 -0.029086  0.059641
+            Vertex  0.014870 -0.016686  0.059127
+            Vertex  0.014872  0.001920  0.061654
+            Vertex  0.018693  0.007044  0.040086
+            Vertex  0.000000 -0.035600  0.063640
+            Vertex  0.020034 -0.026955  0.021580
+            Vertex  0.020037  0.011267  0.015780
+            Vertex  0.018690 -0.020278  0.043504
+            Vertex  0.000000 -0.040517  0.010993
+            Vertex  0.017729 -0.027323  0.006709
+            Vertex  0.000000 -0.041215  0.024479
+            Vertex  0.017732  0.009845 -0.001861
+            Vertex  0.014716 -0.000075 -0.064521
+            Vertex  0.011515 -0.026366 -0.062256
+            Vertex  0.000000 -0.037495 -0.049659
+            Vertex  0.009416 -0.030379 -0.057615
+            Vertex  0.000000 -0.049362 -0.035838
+            Vertex  0.006426 -0.038493 -0.039223
+            Vertex  0.000000 -0.051431 -0.024517
+            Vertex  0.000000 -0.045726 -0.006333
+            Vertex  0.026444 -0.002938 -0.036248
+            Vertex  0.018991  0.008696 -0.019830
+            Vertex  0.003100  0.022987 -0.004004
+            Vertex -0.013065 -0.034648 -0.005902
+            Vertex -0.013409 -0.027085 -0.007509
+            Vertex -0.022470 -0.011620 -0.051709
+            Vertex -0.006426 -0.038493 -0.039223
+            Vertex -0.008714 -0.034044 -0.023661
+            Vertex -0.007334 -0.040302 -0.023381
+            Vertex -0.022194 -0.007196 -0.016673
+            Vertex -0.025891 -0.002938 -0.036248
+            Vertex -0.017729 -0.027323  0.006709
+            Vertex -0.011306 -0.027640  0.059585
+            Vertex -0.014870 -0.016686  0.059127
+            Vertex -0.010016 -0.029086  0.059641
+            Vertex  0.000000 -0.038626  0.044254
+            Vertex -0.018690 -0.020278  0.043504
+            Vertex -0.014872  0.001920  0.061654
+            Vertex -0.020037  0.011267  0.015780
+            Vertex  0.004224 -0.027227 -0.105269
+            Vertex -0.008260 -0.021275 -0.105685
+            Vertex -0.008262 -0.005013 -0.106646
+            Vertex  0.000000 -0.032264 -0.061067
+            Vertex -0.011516 -0.026366 -0.062256
+            Vertex  0.004220  0.003420 -0.107239
+            Vertex -0.015986  0.001333 -0.061107
+            Vertex -0.009416 -0.030379 -0.057615
+            Vertex -0.017732  0.009845 -0.001861
+            Vertex -0.009134 -0.031900 -0.049968
+            Vertex  0.000000 -0.036031 -0.056678
+            Vertex -0.020034 -0.026955  0.021580
+            Vertex  0.003106  0.019952 -0.034780
+            Vertex  0.017454  0.012978 -0.037367
+            Vertex  0.002449  0.009978 -0.061944
+            Vertex -0.017454  0.012978 -0.037367
+            Vertex -0.000001  0.076129 -0.042136
+            Vertex  0.016707 -0.021272 -0.105685
+            Vertex  0.016705 -0.005011 -0.106646
+            Vertex -0.018722 -0.024125 -0.026951
+            Vertex -0.018895 -0.023733 -0.027131
+            Vertex -0.018968 -0.023649 -0.027517
+            Vertex -0.018602 -0.024386 -0.027264
+            Vertex -0.018715 -0.024274 -0.026919
+            Vertex -0.018638 -0.024220 -0.027787
+            Vertex -0.018901 -0.023820 -0.027822
+            Vertex  0.018779 -0.023941 -0.026976
+            Vertex  0.018658 -0.024061 -0.027346
+            Vertex  0.019073 -0.023243 -0.027628
+            Vertex  0.018992 -0.023337 -0.027199
+            Vertex  0.018693 -0.023878 -0.027929
+            Vertex  0.018998 -0.023434 -0.027967
+            Vertex  0.018787 -0.023773 -0.026998
+            Vertex  0.004222 -0.014281 -0.114342
+            Vertex  0.004002 -0.014176 -0.114350
+            Vertex  0.004002 -0.013889 -0.114367
+            Vertex  0.004222 -0.013741 -0.114377
+            Vertex  0.004442 -0.013889 -0.114367
+            Vertex  0.004442 -0.014176 -0.114350
+            Vertex  0.000134  0.002871  0.068708
+            Vertex -0.010189 -0.011268  0.069290
+            Vertex  0.011554 -0.011268  0.069290
+            Vertex  0.005433 -0.025621  0.068977
+            Vertex -0.006078 -0.024708  0.068977
+            Vertex  0.000043 -0.011926  0.074500
+            
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 1 2 3
+            Triangle 4 3 5
+            Triangle 6 7 8
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 9 10 11
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 12 13 14
+            Triangle 15 16 14
+            Triangle 17 2 18
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 19 20 5
+            Triangle 21 22 7
+            Triangle 23 24 10
+            Triangle 25 12 16
+            Triangle 26 27 12
+            Triangle 28 1 4
+            Triangle 29 30 31
+            Triangle 32 6 33
+            Triangle 34 17 35
+            Triangle 36 37 20
+            Triangle 38 39 22
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 36 34 40
+            Triangle 38 37 41
+            Triangle 23 39 42
+            Triangle 43 44 45
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 51 46 52
+            Triangle 50 53 54
+            Triangle 58 57 59
+            Triangle 61 62 63
+            Triangle 64 65 66
+            Triangle 65 67 61
+            Triangle 68 53 69
+            Triangle 49 70 71
+            Triangle 54 53 29
+            Triangle 72 73 74
+            Triangle 48 75 52
+            Triangle 47 76 77
+            Triangle 67 77 78
+            Triangle 82 83 84
+            Triangle 87 85 80
+            Triangle 60 90 91
+            Triangle 89 45 92
+            Triangle 92 45 94
+            Triangle 87 64 66
+            Triangle 96 95 98
+            Triangle 96 99 40
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 34 100 97
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 101 40 99
+            Triangle 81 101 102
+            Triangle 74 83 82
+            Triangle 86 85 42
+            Triangle 103 42 85
+            Triangle 64 80 75
+            Triangle 83 74 75
+            Triangle 104 70 72
+            Triangle 102 105 70
+            Triangle 99 98 105
+            Triangle 40 97 96
+            Triangle 98 99 96
+            Triangle 103 94 24
+            Triangle 94 106 92
+            Triangle 89 93 45
+            Triangle 101 81 41
+            Triangle 79 84 83
+            Triangle 47 67 65
+            Triangle 48 64 75
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 107 32 108
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 52 74 73
+            Triangle 70 49 72
+            Triangle 49 71 50
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 28 109 68
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 98 69 105
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 78 26 67
+            Triangle 26 25 62
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 63 91 61
+            Triangle 59 43 58
+            Triangle 91 63 56
+            Triangle 56 57 55
+            Triangle 76 50 54
+            Triangle 48 52 46
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 25 43 59
+            Triangle 24 23 103
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 41 110 38
+            Triangle 101 36 40
+            Triangle 9 22 39
+            Triangle 21 20 37
+            Triangle 19 17 34
+            Triangle 28 100 35
+            Triangle 6 32 107
+            Triangle 30 29 109
+            Triangle 27 26 78
+            Triangle 16 15 44
+            Triangle 15 10 24
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 8 7 22
+            Triangle 111 5 20
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 2 17 19
+            Triangle 111 31 30
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 13 11 10
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 13 12 27
+            Triangle 11 27 33
+            Triangle 7 6 31
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 18 2 1
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 3 4 1
+            Triangle 5 30 4
+            Triangle 8 33 6
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 11 8 9
+            Triangle 14 16 12
+            Triangle 14 13 15
+            Triangle 18 35 17
+            Triangle 5 3 19
+            Triangle 7 111 21
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 10 9 23
+            Triangle 16 43 25
+            Triangle 12 25 26
+            Triangle 4 109 28
+            Triangle 31 107 29
+            Triangle 33 78 32
+            Triangle 35 100 34
+            Triangle 20 19 36
+            Triangle 22 21 38
+            Triangle 40 34 97
+            Triangle 41 37 101
+            Triangle 42 39 110
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 44 24 94
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 52 73 51
+            Triangle 47 65 48
+            Triangle 56 60 91
+            Triangle 59 57 63
+            Triangle 59 63 62
+            Triangle 61 66 65
+            Triangle 62 61 67
+            Triangle 71 69 53
+            Triangle 105 71 70
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 109 29 53
+            Triangle 29 107 54
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 74 52 75
+            Triangle 77 76 108
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 78 77 32
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 104 82 84
+            Triangle 41 86 110
+            Triangle 90 89 92
+            Triangle 106 66 91
+            Triangle 66 106 87
+            Triangle 103 87 106
+            Triangle 69 98 95
+            Triangle 68 69 112
+            Triangle 28 68 113
+            Triangle 99 102 101
+            Triangle 102 104 81
+            Triangle 82 72 74
+            Triangle 86 42 110
+            Triangle 103 85 87
+            Triangle 64 87 80
+            Triangle 75 80 83
+            Triangle 72 82 104
+            Triangle 70 104 102
+            Triangle 105 102 99
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 28 113 100
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 112 113 68
+            Triangle 95 112 69
+            Triangle 106 94 103
+            Triangle 94 45 44
+            Triangle 91 92 106
+            Triangle 43 45 93
+            Triangle 92 91 90
+            Triangle 89 90 88
+            Triangle 81 86 41
+            Triangle 83 80 79
+            Triangle 77 67 47
+            Triangle 65 64 48
+            Triangle 77 108 32
+            Triangle 108 54 107
+            Triangle 73 72 49
+            Triangle 53 50 71
+            Triangle 53 68 109
+            Triangle 71 105 69
+            Triangle 62 67 26
+            Triangle 59 62 25
+            Triangle 66 61 91
+            Triangle 57 56 63
+            Triangle 76 54 108
+            Triangle 73 49 51
+            Triangle 103 23 42
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 39 38 110
+            Triangle 37 36 101
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 39 23 9
+            Triangle 37 38 21
+            Triangle 34 36 19
+            Triangle 35 1 28
+            Triangle 107 31 6
+            Triangle 109 4 30
+            Triangle 78 33 27
+            Triangle 44 43 16
+            Triangle 24 44 15
+            Triangle 22 9 8
+            Triangle 20 21 111
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 19 3 2
+            Triangle 30 5 111
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 10 15 13
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient  0.1  0.1  0.1
+            Color 0.243137 0.192157 0.0941177
+            Diffuse 0.243137 0.192157 0.0941177
+            Specular  0.9  0.9  0.9
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 27 11 13
+            Triangle 33 8 11
+            Triangle 31 111 7
+            GeometrySampling Solid
+            LightSampling Vertex
+            Ambient 0.101961  0.1  0.1
+            Color 0.886275 0.643137 0.356863
+            Diffuse 0.886275 0.643137 0.356863
+            Specular 0.886275 0.643137 0.356863
+            TextureModes Lit
+            Texture NULL
+            
+            Triangle 1 35 18
+            Triangle 80 85 115
+            Triangle 115 114 80
+            Triangle 85 86 116
+            Triangle 116 115 85
+            Triangle 84 79 118
+            Triangle 118 117 84
+            Triangle 104 84 117
+            Triangle 117 119 104
+            Triangle 81 104 119
+            Triangle 119 120 81
+            Triangle 86 81 120
+            Triangle 120 116 86
+            Triangle 79 80 114
+            Triangle 114 118 79
+            Triangle 46 51 122
+            Triangle 122 121 46
+            Triangle 76 47 124
+            Triangle 124 123 76
+            Triangle 49 50 126
+            Triangle 126 125 49
+            Triangle 50 76 123
+            Triangle 123 126 50
+            Triangle 48 46 121
+            Triangle 121 127 48
+            Triangle 47 48 127
+            Triangle 127 124 47
+            Triangle 51 49 125
+            Triangle 125 122 51
+            Triangle 95 96 129
+            Triangle 129 128 95
+            Triangle 97 100 131
+            Triangle 131 130 97
+            Triangle 96 97 130
+            Triangle 130 129 96
+            Triangle 100 113 132
+            Triangle 132 131 100
+            Triangle 113 112 133
+            Triangle 133 132 113
+            Triangle 112 95 128
+            Triangle 128 133 112
+            Triangle 43 134 58
+            Triangle 43 93 134
+            Triangle 134 93 135
+            Triangle 134 136 58
+            Triangle 136 57 58
+            Triangle 93 89 135
+            Triangle 135 89 88
+            Triangle 135 88 90
+            Triangle 136 55 57
+            Triangle 136 56 55
+            Triangle 138 90 60
+            Triangle 137 60 56
+            Triangle 137 138 60
+            Triangle 139 135 138
+            Triangle 134 135 139
+            Triangle 134 139 136
+            Triangle 139 138 137
+            Triangle 139 137 136
+            Triangle 136 137 56
+            Triangle 135 90 138
+            
+            # lfhip
+            
+            TransformBegin
+                Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.016271 -0.019482 -0.031044  1.000000
+                
+                ClumpBegin
+                    Tag 2
+                    Hints NULL
+                    Vertex  0.013958 -0.033895  0.018439
+                    Vertex  0.008414 -0.034958  0.029944
+                    Vertex  0.001767 -0.035837  0.030331
+                    Vertex  0.002200 -0.035201  0.006170
+                    Vertex  0.011415 -0.035088  0.008175
+                    Vertex  0.014338 -0.016135  0.004726
+                    Vertex  0.006354 -0.013376  0.023297
+                    Vertex -0.003217 -0.015283  0.024514
+                    Vertex -0.002595 -0.023727 -0.010145
+                    Vertex  0.010675 -0.019394 -0.005032
+                    Vertex  0.006477  0.012286  0.014371
+                    Vertex -0.002862 -0.007603  0.023534
+                    Vertex -0.007136 -0.012418 -0.018924
+                    Vertex  0.006753  0.007862 -0.020665
+                    Vertex -0.008750 -0.020742  0.007638
+                    Vertex  0.010173  0.016544 -0.005204
+                    Vertex -0.002075 -0.036016  0.019358
+                    Vertex  0.006034 -0.038256  0.022606
+                    Vertex  0.006074 -0.038237  0.022769
+                    Vertex  0.005819 -0.038271  0.022784
+                    Vertex  0.005887 -0.038258  0.022574
+                    Vertex  0.005880 -0.038268  0.022959
+                    Vertex  0.005986 -0.038254  0.022952
+                    Vertex -0.004190 -0.001262  0.003886
+                    Vertex -0.004061 -0.000986  0.003758
+                    Vertex -0.004057 -0.001047  0.003272
+                    Vertex -0.004250 -0.001329  0.003296
+                    Vertex -0.004272 -0.001444  0.003665
+                    Vertex -0.004195 -0.001369  0.003899
+                    Vertex -0.004009 -0.000927  0.003487
+                    
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 6 7 1
+                    Triangle 7 8 2
+                    Triangle 9 10 4
+                    Triangle 11 12 7
+                    Triangle 13 14 9
+                    Triangle 6 10 16
+                    Triangle 9 15 13
+                    Triangle 1 5 6
+                    Triangle 4 17 9
+                    Triangle 17 3 15
+                    Triangle 2 1 7
+                    Triangle 3 2 8
+                    Triangle 5 4 10
+                    Triangle 8 7 12
+                    Triangle 10 9 14
+                    Triangle 16 11 6
+                    Triangle 7 6 11
+                    Triangle 14 16 10
+                    Triangle 10 6 5
+                    Triangle 15 9 17
+                    Triangle 8 15 3
+                    Triangle 5 1 19
+                    Triangle 19 18 5
+                    Triangle 17 4 21
+                    Triangle 21 20 17
+                    Triangle 3 17 20
+                    Triangle 20 22 3
+                    Triangle 1 2 23
+                    Triangle 23 19 1
+                    Triangle 2 3 22
+                    Triangle 22 23 2
+                    Triangle 4 5 18
+                    Triangle 18 21 4
+                    Triangle 12 11 25
+                    Triangle 25 24 12
+                    Triangle 14 13 27
+                    Triangle 27 26 14
+                    Triangle 13 15 28
+                    Triangle 28 27 13
+                    Triangle 8 12 24
+                    Triangle 24 29 8
+                    Triangle 11 16 30
+                    Triangle 30 25 11
+                    Triangle 16 14 26
+                    Triangle 26 30 16
+                    Triangle 15 8 29
+                    Triangle 29 28 15
+                    
+                    # lfknee
+                    
+                    TransformBegin
+                        Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.006113 -0.035641  0.020254  1.000000
+                        
+                        ClumpBegin
+                            Tag 3
+                            Hints NULL
+                            Vertex  0.002659 -0.029868 -0.031123
+                            Vertex -0.000191 -0.029066 -0.037037
+                            Vertex  0.007223 -0.028178 -0.042160
+                            Vertex  0.010187 -0.010015 -0.011173
+                            Vertex  0.004310 -0.016247 -0.004727
+                            Vertex  0.008252 -0.028909 -0.036850
+                            Vertex -0.002735 -0.017130 -0.004930
+                            Vertex  0.006159 -0.029803 -0.031049
+                            Vertex  0.002394 -0.028211 -0.042667
+                            Vertex -0.002277 -0.004429 -0.024197
+                            Vertex  0.007845  0.001745 -0.001815
+                            Vertex  0.002301  0.000683  0.009691
+                            Vertex -0.004346 -0.000196  0.010078
+                            Vertex -0.003913  0.000440 -0.014083
+                            Vertex  0.005302  0.000552 -0.012079
+                            Vertex -0.008188 -0.000376 -0.000896
+                            Vertex  0.007491 -0.003665 -0.023381
+                            Vertex -0.006808 -0.012137 -0.011674
+                            Vertex  0.004378 -0.033392 -0.035722
+                            Vertex  0.004468 -0.033391 -0.035712
+                            Vertex  0.004487 -0.033404 -0.035614
+                            Vertex  0.004330 -0.033407 -0.035617
+                            Vertex  0.004383 -0.033422 -0.035507
+                            Vertex  0.004448 -0.033421 -0.035506
+                            Vertex -0.000129  0.003619  0.005399
+                            Vertex -0.000046  0.003635  0.005226
+                            Vertex -0.000229  0.003606  0.005405
+                            Vertex -0.000084  0.003617  0.005071
+                            Vertex -0.000223  0.003616  0.005041
+                            Vertex -0.000287  0.003603  0.005240
+                            
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 4 5 6
+                            Triangle 5 7 8
+                            Triangle 9 10 3
+                            Triangle 11 12 4
+                            Triangle 12 13 5
+                            Triangle 14 15 10
+                            Triangle 4 17 11
+                            Triangle 10 18 14
+                            Triangle 18 7 16
+                            Triangle 6 3 4
+                            Triangle 9 2 10
+                            Triangle 2 1 18
+                            Triangle 8 6 5
+                            Triangle 1 8 7
+                            Triangle 17 3 10
+                            Triangle 5 4 12
+                            Triangle 7 5 13
+                            Triangle 17 10 15
+                            Triangle 15 11 17
+                            Triangle 16 14 18
+                            Triangle 13 16 7
+                            Triangle 17 4 3
+                            Triangle 18 10 2
+                            Triangle 7 18 1
+                            Triangle 9 3 20
+                            Triangle 20 19 9
+                            Triangle 3 6 21
+                            Triangle 21 20 3
+                            Triangle 2 9 19
+                            Triangle 19 22 2
+                            Triangle 1 2 22
+                            Triangle 22 23 1
+                            Triangle 6 8 24
+                            Triangle 24 21 6
+                            Triangle 8 1 23
+                            Triangle 23 24 8
+                            Triangle 12 11 26
+                            Triangle 26 25 12
+                            Triangle 13 12 25
+                            Triangle 25 27 13
+                            Triangle 15 14 29
+                            Triangle 29 28 15
+                            Triangle 11 15 28
+                            Triangle 28 26 11
+                            Triangle 14 16 30
+                            Triangle 30 29 14
+                            Triangle 16 13 27
+                            Triangle 27 30 16
+                            
+                            # lfankle
+                            
+                            TransformBegin
+                                Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.004517 -0.029011 -0.037234  1.000000
+                                
+                                ClumpBegin
+                                    Tag 4
+                                    Hints NULL
+                                    Vertex  0.007068 -0.032693  0.013512
+                                    Vertex  0.005800 -0.026238  0.023535
+                                    Vertex -0.001704 -0.026233  0.023936
+                                    Vertex -0.001858 -0.000857  0.006111
+                                    Vertex -0.004708 -0.000054  0.000197
+                                    Vertex -0.002812 -0.032580  0.014203
+                                    Vertex  0.002706  0.000833 -0.004926
+                                    Vertex  0.003735  0.000103  0.000383
+                                    Vertex  0.001642 -0.000791  0.006185
+                                    Vertex -0.002123  0.000800 -0.005433
+                                    Vertex  0.001962 -0.031897  0.020648
+                                    Vertex  0.002216 -0.031900  0.020631
+                                    Vertex  0.002183 -0.031734  0.020887
+                                    Vertex  0.001991 -0.031734  0.020898
+                                    Vertex -0.000163  0.003143  0.002868
+                                    Vertex -0.000124  0.003132  0.002947
+                                    Vertex -0.000063  0.003155  0.002799
+                                    Vertex -0.000128  0.003154  0.002792
+                                    Vertex -0.000078  0.003133  0.002948
+                                    Vertex -0.000050  0.003145  0.002870
+                                    Vertex -0.010492 -0.032326  0.044322
+                                    Vertex -0.012223 -0.036347  0.043635
+                                    Vertex -0.012783 -0.036346  0.051886
+                                    Vertex  0.020537 -0.036347  0.041892
+                                    Vertex  0.018513 -0.032449  0.042583
+                                    Vertex  0.020922 -0.036347  0.051006
+                                    Vertex  0.007160 -0.032595  0.050059
+                                    Vertex  0.002760 -0.032471  0.050640
+                                    Vertex  0.005917 -0.036347  0.059511
+                                    Vertex  0.006430 -0.036346  0.021044
+                                    Vertex  0.011850 -0.036346  0.021044
+                                    Vertex  0.015585 -0.036347  0.044096
+                                    Vertex  0.009720 -0.030351  0.030514
+                                    Vertex  0.000585 -0.036346  0.021723
+                                    Vertex  0.001241 -0.030309  0.030913
+                                    Vertex -0.007261 -0.036347  0.045589
+                                    Vertex -0.002886 -0.030309  0.030913
+                                    Vertex -0.004748 -0.036346  0.021723
+                                    Vertex  0.005680 -0.030351  0.030514
+                                    Vertex  0.007904 -0.036347  0.049961
+                                    Vertex  0.007068 -0.032693  0.013512
+                                    Vertex  0.005800 -0.026238  0.023535
+                                    Vertex -0.001704 -0.026233  0.023936
+                                    Vertex -0.002812 -0.032580  0.014203
+                                    Vertex  0.002110 -0.036346  0.050726
+                                    Vertex -0.006652 -0.032326  0.045833
+                                    Vertex  0.014822 -0.032449  0.044225
+                                    Vertex  0.002154 -0.026300  0.016394
+                                    Vertex  0.002177 -0.026415  0.016215
+                                    Vertex  0.002020 -0.026300  0.016401
+                                    Vertex  0.002001 -0.026413  0.016227
+                                    
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 4 5 3
+                                    Triangle 1 6 7
+                                    Triangle 10 7 6
+                                    Triangle 3 2 4
+                                    Triangle 9 2 8
+                                    Triangle 6 3 5
+                                    Triangle 5 10 6
+                                    Triangle 7 8 1
+                                    Triangle 9 4 2
+                                    Triangle 1 8 2
+                                    Triangle 6 1 12
+                                    Triangle 12 11 6
+                                    Triangle 2 3 14
+                                    Triangle 14 13 2
+                                    Triangle 3 6 11
+                                    Triangle 11 14 3
+                                    Triangle 1 2 13
+                                    Triangle 13 12 1
+                                    Triangle 5 4 16
+                                    Triangle 16 15 5
+                                    Triangle 7 10 18
+                                    Triangle 18 17 7
+                                    Triangle 9 8 20
+                                    Triangle 20 19 9
+                                    Triangle 10 5 15
+                                    Triangle 15 18 10
+                                    Triangle 8 7 17
+                                    Triangle 17 20 8
+                                    Triangle 4 9 19
+                                    Triangle 19 16 4
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 21 22 23
+                                    Triangle 24 25 26
+                                    Triangle 27 28 29
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 30 31 32
+                                    Triangle 31 33 24
+                                    Triangle 34 35 36
+                                    Triangle 37 38 21
+                                    Triangle 30 39 40
+                                    Triangle 39 35 27
+                                    Triangle 33 37 39
+                                    Triangle 41 42 31
+                                    Triangle 42 43 33
+                                    Triangle 38 37 44
+                                    Triangle 31 38 41
+                                    Triangle 30 34 31
+                                    Triangle 45 28 34
+                                    Triangle 40 45 30
+                                    Triangle 21 46 37
+                                    Triangle 36 22 34
+                                    Triangle 47 25 39
+                                    Triangle 32 47 30
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 45 40 29
+                                    Triangle 25 47 26
+                                    Triangle 22 36 23
+                                    Triangle 46 21 23
+                                    Triangle 32 24 26
+                                    Triangle 28 45 29
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 24 32 31
+                                    Triangle 25 24 33
+                                    Triangle 46 36 35
+                                    Triangle 22 21 38
+                                    Triangle 27 40 39
+                                    Triangle 28 27 35
+                                    Triangle 35 39 37
+                                    Triangle 33 31 42
+                                    Triangle 37 33 43
+                                    Triangle 43 44 37
+                                    Triangle 44 41 38
+                                    Triangle 38 31 34
+                                    Triangle 35 34 28
+                                    Triangle 34 30 45
+                                    Triangle 35 37 46
+                                    Triangle 38 34 22
+                                    Triangle 33 39 25
+                                    Triangle 39 30 47
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 40 27 29
+                                    Triangle 47 32 26
+                                    Triangle 36 46 23
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 42 41 49
+                                    Triangle 49 48 42
+                                    Triangle 43 42 48
+                                    Triangle 48 50 43
+                                    Triangle 44 43 50
+                                    Triangle 50 51 44
+                                    Triangle 41 44 51
+                                    Triangle 51 49 41
+                                    
+                                ClumpEnd
+                            TransformEnd
+                        ClumpEnd
+                    TransformEnd
+                ClumpEnd
+            TransformEnd
+            # rthip
+            
+            TransformBegin
+                Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000 -0.016300 -0.019490 -0.031076  1.000000
+                
+                ClumpBegin
+                    Tag 5
+                    Hints NULL
+                    Vertex -0.008395 -0.034874  0.030095
+                    Vertex -0.001693 -0.035761  0.030486
+                    Vertex -0.011422 -0.034996  0.008146
+                    Vertex -0.013986 -0.033803  0.018493
+                    Vertex -0.006368 -0.013183  0.023913
+                    Vertex  0.003235 -0.015158  0.025173
+                    Vertex -0.002129 -0.035118  0.006139
+                    Vertex -0.011154 -0.019466 -0.005627
+                    Vertex  0.002891 -0.007595  0.023566
+                    Vertex  0.002590 -0.023904 -0.010724
+                    Vertex -0.006170  0.007870 -0.020633
+                    Vertex  0.008966 -0.020812  0.007695
+                    Vertex -0.005894  0.012295  0.014402
+                    Vertex -0.009591  0.016552 -0.005172
+                    Vertex -0.014637 -0.016041  0.004679
+                    Vertex  0.007166 -0.012410 -0.018892
+                    Vertex  0.002182 -0.035942  0.019420
+                    Vertex -0.005948 -0.038600  0.023097
+                    Vertex -0.006039 -0.038583  0.022907
+                    Vertex -0.005838 -0.038615  0.023103
+                    Vertex -0.005997 -0.038602  0.022737
+                    Vertex -0.005845 -0.038604  0.022704
+                    Vertex -0.005775 -0.038618  0.022922
+                    Vertex  0.003987 -0.001243  0.003988
+                    Vertex  0.003992 -0.001340  0.004009
+                    Vertex  0.003827 -0.000934  0.003620
+                    Vertex  0.003875 -0.000988  0.003871
+                    Vertex  0.004042 -0.001305  0.003444
+                    Vertex  0.003871 -0.001045  0.003422
+                    Vertex  0.004065 -0.001412  0.003785
+                    
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 4 1 5
+                    Triangle 1 2 6
+                    Triangle 7 3 8
+                    Triangle 5 6 9
+                    Triangle 10 8 11
+                    Triangle 13 14 15
+                    Triangle 11 16 10
+                    Triangle 9 13 5
+                    Triangle 8 10 7
+                    Triangle 6 5 1
+                    Triangle 5 15 4
+                    Triangle 12 6 2
+                    Triangle 10 12 17
+                    Triangle 15 8 3
+                    Triangle 14 11 8
+                    Triangle 15 5 13
+                    Triangle 8 15 14
+                    Triangle 12 10 16
+                    Triangle 3 4 15
+                    Triangle 17 7 10
+                    Triangle 2 17 12
+                    Triangle 1 4 19
+                    Triangle 19 18 1
+                    Triangle 2 1 18
+                    Triangle 18 20 2
+                    Triangle 3 7 22
+                    Triangle 22 21 3
+                    Triangle 4 3 21
+                    Triangle 21 19 4
+                    Triangle 7 17 23
+                    Triangle 23 22 7
+                    Triangle 17 2 20
+                    Triangle 20 23 17
+                    Triangle 9 6 25
+                    Triangle 25 24 9
+                    Triangle 14 13 27
+                    Triangle 27 26 14
+                    Triangle 16 11 29
+                    Triangle 29 28 16
+                    Triangle 13 9 24
+                    Triangle 24 27 13
+                    Triangle 6 12 30
+                    Triangle 30 25 6
+                    Triangle 11 14 26
+                    Triangle 26 29 11
+                    Triangle 12 16 28
+                    Triangle 28 30 12
+                    
+                    # rtknee
+                    
+                    TransformBegin
+                        Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000 -0.006100 -0.035600  0.020300  1.000000
+                        
+                        ClumpBegin
+                            Tag 6
+                            Hints NULL
+                            Vertex  0.000502 -0.029091 -0.042057
+                            Vertex -0.002263 -0.028177 -0.048079
+                            Vertex -0.006290 -0.029879 -0.035653
+                            Vertex -0.004321 -0.016356 -0.004734
+                            Vertex -0.010248 -0.010062 -0.011244
+                            Vertex -0.002547 -0.029949 -0.035732
+                            Vertex  0.002783 -0.017247 -0.004939
+                            Vertex -0.007428 -0.028142 -0.047536
+                            Vertex -0.007529 -0.003665 -0.023511
+                            Vertex  0.002321 -0.004435 -0.024334
+                            Vertex -0.002295  0.000726  0.009795
+                            Vertex  0.004407 -0.000161  0.010186
+                            Vertex -0.005322  0.000604 -0.012154
+                            Vertex -0.007886  0.001797 -0.001807
+                            Vertex  0.003971  0.000482 -0.014161
+                            Vertex -0.008529 -0.028924 -0.041858
+                            Vertex  0.006890 -0.012202 -0.011749
+                            Vertex  0.008282 -0.000342 -0.000880
+                            Vertex -0.004399 -0.033052 -0.039640
+                            Vertex -0.004452 -0.033051 -0.039639
+                            Vertex -0.004468 -0.033027 -0.039806
+                            Vertex -0.004396 -0.033027 -0.039813
+                            Vertex -0.004484 -0.033038 -0.039726
+                            Vertex -0.004357 -0.033040 -0.039729
+                            Vertex  0.000241  0.003127  0.004498
+                            Vertex  0.000123  0.003129  0.004523
+                            Vertex  0.000161  0.003130  0.004803
+                            Vertex  0.000247  0.003119  0.004808
+                            Vertex  0.000090  0.003144  0.004655
+                            Vertex  0.000296  0.003116  0.004667
+                            
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 3 4 5
+                            Triangle 3 6 7
+                            Triangle 8 9 10
+                            Triangle 5 4 11
+                            Triangle 4 7 12
+                            Triangle 10 9 13
+                            Triangle 13 15 10
+                            Triangle 12 11 4
+                            Triangle 11 14 5
+                            Triangle 10 2 8
+                            Triangle 7 4 3
+                            Triangle 5 16 3
+                            Triangle 17 7 6
+                            Triangle 10 17 1
+                            Triangle 9 8 16
+                            Triangle 18 12 7
+                            Triangle 15 18 17
+                            Triangle 14 13 9
+                            Triangle 9 5 14
+                            Triangle 17 10 15
+                            Triangle 7 17 18
+                            Triangle 16 5 9
+                            Triangle 1 2 10
+                            Triangle 6 1 17
+                            Triangle 6 3 20
+                            Triangle 20 19 6
+                            Triangle 8 2 22
+                            Triangle 22 21 8
+                            Triangle 3 16 23
+                            Triangle 23 20 3
+                            Triangle 16 8 21
+                            Triangle 21 23 16
+                            Triangle 2 1 24
+                            Triangle 24 22 2
+                            Triangle 1 6 19
+                            Triangle 19 24 1
+                            Triangle 15 13 26
+                            Triangle 26 25 15
+                            Triangle 11 12 28
+                            Triangle 28 27 11
+                            Triangle 14 11 27
+                            Triangle 27 29 14
+                            Triangle 12 18 30
+                            Triangle 30 28 12
+                            Triangle 18 15 25
+                            Triangle 25 30 18
+                            Triangle 13 14 29
+                            Triangle 29 26 13
+                            
+                            # rtankle
+                            
+                            TransformBegin
+                                Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000 -0.004500 -0.029000 -0.041200  1.000000
+                                
+                                ClumpBegin
+                                    Tag 7
+                                    Hints NULL
+                                    Vertex -0.005800 -0.026282  0.027486
+                                    Vertex  0.001704 -0.026277  0.027888
+                                    Vertex  0.002812 -0.032623  0.018155
+                                    Vertex  0.005002 -0.000091 -0.000857
+                                    Vertex  0.002237  0.000823 -0.006879
+                                    Vertex -0.001790 -0.000879  0.005547
+                                    Vertex  0.001953 -0.000949  0.005468
+                                    Vertex -0.002928  0.000858 -0.006336
+                                    Vertex -0.004029  0.000076 -0.000658
+                                    Vertex -0.007068 -0.032736  0.017464
+                                    Vertex -0.002019 -0.031996  0.024886
+                                    Vertex -0.002035 -0.031907  0.025022
+                                    Vertex -0.002158 -0.031998  0.024876
+                                    Vertex -0.002140 -0.031908  0.025017
+                                    Vertex  0.000240  0.003051  0.003313
+                                    Vertex  0.000147  0.003082  0.003110
+                                    Vertex  0.000138  0.003022  0.003526
+                                    Vertex  0.000011  0.003025  0.003529
+                                    Vertex -0.000027  0.003083  0.003128
+                                    Vertex -0.000064  0.003057  0.003320
+                                    Vertex  0.010492 -0.032370  0.048273
+                                    Vertex  0.006652 -0.032370  0.049785
+                                    Vertex  0.012783 -0.036390  0.055837
+                                    Vertex -0.020537 -0.036390  0.045844
+                                    Vertex -0.015585 -0.036390  0.048048
+                                    Vertex -0.020922 -0.036390  0.054958
+                                    Vertex -0.002110 -0.036390  0.054678
+                                    Vertex -0.002760 -0.032515  0.054591
+                                    Vertex -0.005917 -0.036390  0.063463
+                                    Vertex -0.011850 -0.036390  0.024996
+                                    Vertex -0.018513 -0.032492  0.046534
+                                    Vertex -0.009720 -0.030395  0.034465
+                                    Vertex  0.007261 -0.036390  0.049541
+                                    Vertex -0.001241 -0.030352  0.034864
+                                    Vertex  0.012223 -0.036390  0.047587
+                                    Vertex  0.004748 -0.036390  0.025675
+                                    Vertex -0.007904 -0.036390  0.053913
+                                    Vertex -0.007160 -0.032639  0.054011
+                                    Vertex -0.005680 -0.030395  0.034465
+                                    Vertex  0.002886 -0.030352  0.034864
+                                    Vertex -0.005800 -0.026282  0.027486
+                                    Vertex  0.001704 -0.026277  0.027888
+                                    Vertex  0.002812 -0.032623  0.018155
+                                    Vertex -0.007068 -0.032736  0.017464
+                                    Vertex -0.006430 -0.036390  0.024996
+                                    Vertex -0.000586 -0.036390  0.025675
+                                    Vertex -0.014822 -0.032492  0.048177
+                                    Vertex -0.002141 -0.025994  0.020558
+                                    Vertex -0.002033 -0.025993  0.020564
+                                    Vertex -0.002160 -0.026086  0.020414
+                                    Vertex -0.002017 -0.026085  0.020424
+                                    
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 2 3 4
+                                    Triangle 5 4 3
+                                    Triangle 3 10 8
+                                    Triangle 4 7 2
+                                    Triangle 9 10 1
+                                    Triangle 7 6 1
+                                    Triangle 9 8 10
+                                    Triangle 8 5 3
+                                    Triangle 1 2 7
+                                    Triangle 1 6 9
+                                    Triangle 3 2 12
+                                    Triangle 12 11 3
+                                    Triangle 10 3 11
+                                    Triangle 11 13 10
+                                    Triangle 1 10 13
+                                    Triangle 13 14 1
+                                    Triangle 2 1 14
+                                    Triangle 14 12 2
+                                    Triangle 4 5 16
+                                    Triangle 16 15 4
+                                    Triangle 7 4 15
+                                    Triangle 15 17 7
+                                    Triangle 6 7 17
+                                    Triangle 17 18 6
+                                    Triangle 8 9 20
+                                    Triangle 20 19 8
+                                    Triangle 5 8 19
+                                    Triangle 19 16 5
+                                    Triangle 9 6 18
+                                    Triangle 18 20 9
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 21 22 23
+                                    Triangle 24 25 26
+                                    Triangle 27 28 29
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 25 24 30
+                                    Triangle 24 31 32
+                                    Triangle 33 22 34
+                                    Triangle 21 35 36
+                                    Triangle 37 38 39
+                                    Triangle 38 28 34
+                                    Triangle 39 34 40
+                                    Triangle 30 32 41
+                                    Triangle 32 40 42
+                                    Triangle 42 41 32
+                                    Triangle 41 44 30
+                                    Triangle 40 32 39
+                                    Triangle 34 39 38
+                                    Triangle 39 45 37
+                                    Triangle 36 40 21
+                                    Triangle 34 46 33
+                                    Triangle 32 30 24
+                                    Triangle 30 45 25
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 28 38 29
+                                    Triangle 31 24 26
+                                    Triangle 35 21 23
+                                    Triangle 22 33 23
+                                    Triangle 25 47 26
+                                    Triangle 38 37 29
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 45 39 47
+                                    Triangle 39 32 31
+                                    Triangle 46 36 35
+                                    Triangle 40 34 22
+                                    Triangle 45 46 27
+                                    Triangle 46 34 28
+                                    Triangle 30 36 46
+                                    Triangle 44 43 36
+                                    Triangle 43 42 40
+                                    Triangle 40 36 43
+                                    Triangle 36 30 44
+                                    Triangle 46 45 30
+                                    Triangle 28 27 46
+                                    Triangle 27 37 45
+                                    Triangle 22 21 40
+                                    Triangle 35 33 46
+                                    Triangle 31 47 39
+                                    Triangle 47 25 45
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 37 27 29
+                                    Triangle 47 31 26
+                                    Triangle 33 35 23
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 41 42 49
+                                    Triangle 49 48 41
+                                    Triangle 44 41 48
+                                    Triangle 48 50 44
+                                    Triangle 43 44 50
+                                    Triangle 50 51 43
+                                    Triangle 42 43 51
+                                    Triangle 51 49 42
+                                    
+                                ClumpEnd
+                            TransformEnd
+                        ClumpEnd
+                    TransformEnd
+                ClumpEnd
+            TransformEnd
+            # lffingers
+            
+            TransformBegin
+                Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000 -0.012029 -0.106251  1.000000
+                
+                ClumpBegin
+                    Tag 8
+                    Hints NULL
+                    Vertex -0.008714  0.007906 -0.091940
+                    Vertex -0.014665  0.010273 -0.092188
+                    Vertex -0.014666  0.014584 -0.092762
+                    Vertex -0.002888  0.002551 -0.065257
+                    Vertex -0.010029  0.005557 -0.065572
+                    Vertex -0.008716  0.017938 -0.093115
+                    Vertex -0.010030  0.011032 -0.066300
+                    Vertex  0.002774 -0.008558 -0.032413
+                    Vertex -0.007294 -0.004049 -0.032728
+                    Vertex -0.002891  0.015291 -0.066749
+                    Vertex -0.007295  0.006674 -0.033456
+                    Vertex  0.004224 -0.015198  0.000982
+                    Vertex -0.008260 -0.009246  0.000566
+                    Vertex  0.002771  0.013063 -0.033905
+                    Vertex -0.008262  0.007016 -0.000395
+                    Vertex  0.004220  0.015449 -0.000988
+                    Vertex -0.002765  0.010274 -0.092188
+                    Vertex -0.002766  0.014585 -0.092762
+                    Vertex  0.004251  0.005558 -0.065572
+                    Vertex  0.004250  0.011033 -0.066300
+                    Vertex  0.012841 -0.004047 -0.032728
+                    Vertex  0.012840  0.006676 -0.033456
+                    Vertex  0.016707 -0.009243  0.000566
+                    Vertex  0.016705  0.007018 -0.000395
+                    Vertex  0.004222 -0.000176  0.008877
+                    Vertex  0.004042 -0.000298  0.008885
+                    Vertex  0.004042 -0.000533  0.008899
+                    Vertex  0.004222 -0.000618  0.008905
+                    Vertex  0.004402 -0.000533  0.008899
+                    Vertex  0.004402 -0.000298  0.008885
+                    Vertex -0.008715  0.012960 -0.096942
+                    Vertex -0.008842  0.013011 -0.096947
+                    Vertex -0.008842  0.013102 -0.096959
+                    Vertex -0.008715  0.013174 -0.096967
+                    Vertex -0.008588  0.013103 -0.096959
+                    Vertex -0.008588  0.013011 -0.096947
+                    
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 2 1 4
+                    Triangle 3 2 5
+                    Triangle 6 3 7
+                    Triangle 5 4 8
+                    Triangle 7 5 9
+                    Triangle 10 7 11
+                    Triangle 9 8 12
+                    Triangle 11 9 13
+                    Triangle 14 11 15
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient  0.1  0.1  0.1
+                    Color 0.243137 0.192157 0.0941177
+                    Diffuse 0.243137 0.192157 0.0941177
+                    Specular  0.9  0.9  0.9
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 15 16 14
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 13 15 11
+                    Triangle 12 13 9
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient  0.1  0.1  0.1
+                    Color 0.243137 0.192157 0.0941177
+                    Diffuse 0.243137 0.192157 0.0941177
+                    Specular  0.9  0.9  0.9
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 11 14 10
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 9 11 7
+                    Triangle 8 9 5
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient  0.1  0.1  0.1
+                    Color 0.243137 0.192157 0.0941177
+                    Diffuse 0.243137 0.192157 0.0941177
+                    Specular  0.9  0.9  0.9
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 7 10 6
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 5 7 3
+                    Triangle 4 5 2
+                    Triangle 19 4 1
+                    Triangle 20 19 17
+                    Triangle 10 20 18
+                    Triangle 21 8 4
+                    Triangle 22 21 19
+                    Triangle 14 22 20
+                    Triangle 23 12 8
+                    Triangle 24 23 21
+                    Triangle 16 24 22
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient  0.1  0.1  0.1
+                    Color 0.243137 0.192157 0.0941177
+                    Diffuse 0.243137 0.192157 0.0941177
+                    Specular  0.9  0.9  0.9
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 22 14 16
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 21 22 24
+                    Triangle 8 21 23
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient  0.1  0.1  0.1
+                    Color 0.243137 0.192157 0.0941177
+                    Diffuse 0.243137 0.192157 0.0941177
+                    Specular  0.9  0.9  0.9
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 20 10 14
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 19 20 22
+                    Triangle 4 19 21
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient  0.1  0.1  0.1
+                    Color 0.243137 0.192157 0.0941177
+                    Diffuse 0.243137 0.192157 0.0941177
+                    Specular  0.9  0.9  0.9
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 18 6 10
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 17 18 20
+                    Triangle 1 17 19
+                    Triangle 16 15 26
+                    Triangle 26 25 16
+                    Triangle 15 13 27
+                    Triangle 27 26 15
+                    Triangle 13 12 28
+                    Triangle 28 27 13
+                    Triangle 12 23 29
+                    Triangle 29 28 12
+                    Triangle 23 24 30
+                    Triangle 30 29 23
+                    Triangle 24 16 25
+                    Triangle 25 30 24
+                    Triangle 1 2 32
+                    Triangle 32 31 1
+                    Triangle 2 3 33
+                    Triangle 33 32 2
+                    Triangle 3 6 34
+                    Triangle 34 33 3
+                    Triangle 6 18 35
+                    Triangle 35 34 6
+                    Triangle 18 17 36
+                    Triangle 36 35 18
+                    Triangle 17 1 31
+                    Triangle 31 36 17
+                    
+                    # rtfingers
+                    
+                    TransformBegin
+                        Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.013150 -0.091760  1.000000
+                        
+                        ClumpBegin
+                            Tag 9
+                            Hints NULL
+                            Vertex -0.005087  0.000949 -0.042719
+                            Vertex -0.008714 -0.000588 -0.042558
+                            Vertex -0.000240 -0.001453 -0.074977
+                            Vertex -0.008716  0.005926 -0.043321
+                            Vertex -0.005087  0.003749 -0.043091
+                            Vertex -0.012343  0.000949 -0.042719
+                            Vertex -0.008714 -0.005244 -0.000180
+                            Vertex -0.012343  0.003748 -0.043091
+                            Vertex -0.014665 -0.002877 -0.000428
+                            Vertex -0.014666  0.001434 -0.001001
+                            Vertex -0.008716  0.004788 -0.001355
+                            Vertex -0.002765 -0.002876 -0.000428
+                            Vertex -0.002766  0.001435 -0.001001
+                            Vertex -0.008715 -0.001453  0.005831
+                            Vertex -0.008835 -0.001520  0.005838
+                            Vertex -0.008835 -0.001607  0.005849
+                            Vertex -0.008715 -0.001655  0.005854
+                            Vertex -0.008595 -0.001607  0.005849
+                            Vertex -0.008595 -0.001520  0.005838
+                            
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 1 2 3
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 4 5 3
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 6 2 7
+                            Triangle 8 6 9
+                            Triangle 4 8 10
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 10 11 4
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 9 10 8
+                            Triangle 7 9 6
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 8 4 3
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 2 6 3
+                            Triangle 6 8 3
+                            Triangle 12 7 2
+                            Triangle 13 12 1
+                            Triangle 11 13 5
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 5 4 11
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 1 5 13
+                            Triangle 2 1 12
+                            Triangle 5 1 3
+                            Triangle 11 10 15
+                            Triangle 15 14 11
+                            Triangle 10 9 16
+                            Triangle 16 15 10
+                            Triangle 9 7 17
+                            Triangle 17 16 9
+                            Triangle 7 12 18
+                            Triangle 18 17 7
+                            Triangle 12 13 19
+                            Triangle 19 18 12
+                            Triangle 13 11 14
+                            Triangle 14 19 13
+                            
+                        ClumpEnd
+                    TransformEnd
+                ClumpEnd
+            TransformEnd
+            # back
+            
+            TransformBegin
+                Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000 -0.011994  0.055270  1.000000
+                
+                ClumpBegin
+                    Tag 10
+                    Hints NULL
+                    Vertex -0.000000  0.023544  0.008069
+                    Vertex  0.010945 -0.014308  0.003889
+                    Vertex  0.010016 -0.017093  0.004371
+                    Vertex  0.014870 -0.004693  0.003857
+                    Vertex  0.010016 -0.013520  0.020469
+                    Vertex  0.014870 -0.002235  0.018510
+                    Vertex  0.009783 -0.007554  0.036082
+                    Vertex  0.014872  0.013914  0.006384
+                    Vertex -0.000000  0.011062  0.033468
+                    Vertex  0.009784  0.004856  0.034339
+                    Vertex  0.014872  0.011098  0.019810
+                    Vertex -0.000000 -0.018266  0.027755
+                    Vertex -0.000000 -0.023606  0.008370
+                    Vertex -0.000000  0.016616  0.021828
+                    Vertex -0.011291 -0.014371  0.003889
+                    Vertex -0.010016 -0.013520  0.020469
+                    Vertex -0.014870 -0.002235  0.018510
+                    Vertex -0.014870 -0.004693  0.003857
+                    Vertex -0.010016 -0.017093  0.004371
+                    Vertex -0.009784  0.004856  0.034339
+                    Vertex -0.009783 -0.007554  0.036082
+                    Vertex -0.000000 -0.013758  0.036953
+                    Vertex -0.014872  0.011098  0.019810
+                    Vertex -0.014872  0.013914  0.006384
+                    Vertex -0.012684 -0.012087  0.010726
+                    Vertex -0.012837 -0.011733  0.010665
+                    Vertex -0.012684 -0.012199  0.010221
+                    Vertex -0.012837 -0.011810  0.010205
+                    Vertex -0.012685 -0.012155  0.010236
+                    Vertex  0.012743 -0.010712  0.010597
+                    Vertex  0.012631 -0.010973  0.010643
+                    Vertex  0.012631 -0.011023  0.010282
+                    Vertex  0.012743 -0.010769  0.010259
+                    Vertex  0.012631 -0.011055  0.010271
+                    Vertex  0.000201  0.001458  0.042006
+                    Vertex  0.000201  0.001713  0.041970
+                    Vertex -0.000201  0.001713  0.041970
+                    Vertex -0.000201  0.001458  0.042006
+                    Vertex -0.000000  0.001331  0.042024
+                    Vertex -0.000000  0.001840  0.041952
+                    Vertex  0.000134  0.021558 -0.005273
+                    Vertex -0.006953  0.000765 -0.008527
+                    Vertex -0.005970 -0.020798 -0.006411
+                    Vertex  0.006618 -0.020818 -0.006411
+                    Vertex  0.008692  0.000583 -0.008527
+                    Vertex  0.000137  0.000815 -0.015655
+                    
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 5 6 7
+                    Triangle 10 7 11
+                    Triangle 12 13 3
+                    Triangle 11 8 14
+                    Triangle 16 12 22
+                    Triangle 14 23 20
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient  0.1  0.1  0.1
+                    Color 0.243137 0.192157 0.0941177
+                    Diffuse 0.243137 0.192157 0.0941177
+                    Specular  0.9  0.9  0.9
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 14 1 24
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 24 23 14
+                    Triangle 13 12 19
+                    Triangle 21 20 23
+                    Triangle 17 16 21
+                    Triangle 8 11 4
+                    Triangle 6 11 7
+                    Triangle 12 5 22
+                    Triangle 11 14 10
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient  0.1  0.1  0.1
+                    Color 0.243137 0.192157 0.0941177
+                    Diffuse 0.243137 0.192157 0.0941177
+                    Specular  0.9  0.9  0.9
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 1 14 8
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 12 16 19
+                    Triangle 16 22 21
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient  0.1  0.1  0.1
+                    Color 0.243137 0.192157 0.0941177
+                    Diffuse 0.243137 0.192157 0.0941177
+                    Specular  0.9  0.9  0.9
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 20 9 14
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 18 17 23
+                    Triangle 23 24 18
+                    Triangle 23 17 21
+                    Triangle 6 4 11
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient  0.1  0.1  0.1
+                    Color 0.243137 0.192157 0.0941177
+                    Diffuse 0.243137 0.192157 0.0941177
+                    Specular  0.9  0.9  0.9
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 9 10 14
+                    GeometrySampling Solid
+                    LightSampling Vertex
+                    Ambient 0.101961  0.1  0.1
+                    Color 0.886275 0.643137 0.356863
+                    Diffuse 0.886275 0.643137 0.356863
+                    Specular 0.886275 0.643137 0.356863
+                    TextureModes Lit
+                    Texture NULL
+                    
+                    Triangle 22 5 7
+                    Triangle 5 12 3
+                    Triangle 16 17 26
+                    Triangle 26 25 16
+                    Triangle 19 16 25
+                    Triangle 25 27 19
+                    Triangle 17 18 28
+                    Triangle 28 26 17
+                    Triangle 15 19 27
+                    Triangle 27 29 15
+                    Triangle 18 15 29
+                    Triangle 29 28 18
+                    Triangle 6 5 31
+                    Triangle 31 30 6
+                    Triangle 2 4 33
+                    Triangle 33 32 2
+                    Triangle 3 2 32
+                    Triangle 32 34 3
+                    Triangle 4 6 30
+                    Triangle 30 33 4
+                    Triangle 5 3 34
+                    Triangle 34 31 5
+                    Triangle 7 10 36
+                    Triangle 36 35 7
+                    Triangle 20 21 38
+                    Triangle 38 37 20
+                    Triangle 21 22 39
+                    Triangle 39 38 21
+                    Triangle 9 20 37
+                    Triangle 37 40 9
+                    Triangle 10 9 40
+                    Triangle 40 36 10
+                    Triangle 22 7 35
+                    Triangle 35 39 22
+                    Triangle 41 1 8
+                    Triangle 45 41 8
+                    Triangle 42 41 24
+                    Triangle 24 1 41
+                    Triangle 18 24 42
+                    Triangle 4 45 8
+                    Triangle 2 45 4
+                    Triangle 13 44 3
+                    Triangle 19 43 13
+                    Triangle 15 43 19
+                    Triangle 44 2 3
+                    Triangle 13 43 44
+                    Triangle 15 18 43
+                    Triangle 44 4 2
+                    Triangle 18 42 43
+                    Triangle 44 45 4
+                    Triangle 46 45 44
+                    Triangle 43 46 44
+                    Triangle 42 46 43
+                    Triangle 42 41 46
+                    Triangle 46 41 45
+                    Triangle 41 45 24
+                    
+                    # neck
+                    
+                    TransformBegin
+                        Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000 -0.000000 -0.000139  0.034851  1.000000
+                        
+                        ClumpBegin
+                            Tag 11
+                            Hints NULL
+                            Vertex  0.009068  0.038320  0.038975
+                            Vertex  0.000000  0.043244  0.040538
+                            Vertex  0.009783 -0.007415  0.001231
+                            Vertex  0.009884  0.036082  0.030669
+                            Vertex  0.009883  0.024231  0.037127
+                            Vertex  0.009884  0.026625  0.019468
+                            Vertex  0.009883  0.017254  0.027206
+                            Vertex  0.000000  0.012569  0.031074
+                            Vertex  0.008240  0.007676  0.019944
+                            Vertex  0.000000  0.031312  0.015598
+                            Vertex  0.000000  0.018388  0.009241
+                            Vertex  0.008242  0.014817  0.012809
+                            Vertex  0.008242  0.007813  0.007900
+                            Vertex  0.008240 -0.001004  0.013000
+                            Vertex  0.000000 -0.006367  0.015158
+                            Vertex  0.000000  0.012908  0.004900
+                            Vertex  0.000000  0.011201 -0.001383
+                            Vertex  0.009784  0.004995 -0.000512
+                            Vertex -0.009067  0.026468  0.041051
+                            Vertex  0.000000  0.023961  0.047398
+                            Vertex -0.009883  0.024231  0.037127
+                            Vertex  0.000000  0.020636  0.040208
+                            Vertex -0.009883  0.017254  0.027206
+                            Vertex -0.009885  0.026625  0.019468
+                            Vertex -0.009885  0.036082  0.030669
+                            Vertex -0.008242  0.014817  0.012809
+                            Vertex -0.008240  0.007676  0.019944
+                            Vertex -0.008240 -0.001004  0.013000
+                            Vertex  0.000000  0.002953  0.024554
+                            Vertex -0.008242  0.007813  0.007900
+                            Vertex -0.009784  0.004995 -0.000512
+                            Vertex -0.009783 -0.007415  0.001231
+                            Vertex  0.000000 -0.013618  0.002102
+                            Vertex -0.009068  0.038320  0.038975
+                            Vertex  0.009067  0.026468  0.041051
+                            Vertex  0.000000  0.041552  0.026526
+                            Vertex -0.000201 -0.000990 -0.006102
+                            Vertex -0.000201 -0.000734 -0.006138
+                            Vertex  0.000000 -0.000607 -0.006156
+                            Vertex  0.000201 -0.000734 -0.006138
+                            Vertex  0.000201 -0.000990 -0.006102
+                            Vertex  0.000000 -0.001117 -0.006085
+                            Vertex  0.000203  0.036124  0.052013
+                            Vertex  0.000203  0.036390  0.051966
+                            Vertex -0.000000  0.036500  0.052001
+                            Vertex -0.000203  0.036124  0.052013
+                            Vertex -0.000000  0.036068  0.052155
+                            Vertex -0.000203  0.036390  0.051966
+                            
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 4 1 5
+                            Triangle 4 5 6
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 7 8 9
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 10 6 11
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 12 9 13
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 14 15 3
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 16 13 17
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 21 22 20
+                            Triangle 23 8 22
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 10 24 25
+                            Triangle 26 27 23
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 28 15 29
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 16 30 26
+                            Triangle 31 32 28
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 30 16 17
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 15 28 32
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 27 26 30
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 24 10 11
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 8 23 27
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 21 25 24
+                            Triangle 34 25 21
+                            Triangle 18 17 13
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 33 3 15
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 14 13 9
+                            Triangle 12 11 6
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 29 9 8
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 7 6 5
+                            Triangle 35 5 1
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 36 2 1
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 22 5 20
+                            Triangle 8 7 22
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 6 10 4
+                            Triangle 9 12 7
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 15 14 29
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 13 16 12
+                            Triangle 3 18 14
+                            Triangle 25 34 36
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 20 19 21
+                            Triangle 22 21 23
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 25 36 10
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 23 24 26
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 29 27 28
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 26 11 16
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 28 30 31
+                            Triangle 17 31 30
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 32 33 15
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 30 28 27
+                            Triangle 11 26 24
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 27 29 8
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 24 23 21
+                            Triangle 21 19 34
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 2 36 34
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 13 14 18
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 11 12 16
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 9 29 14
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 6 7 12
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 36 4 10
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.968628 0.901961 0.823529
+                            Color 0.968628 0.901961 0.823529
+                            Diffuse 0.968628 0.901961 0.823529
+                            Specular 0.968628 0.901961 0.823529
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 5 22 7
+                            Triangle 35 20 5
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 1 4 36
+                            Triangle 32 31 38
+                            Triangle 38 37 32
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 17 18 40
+                            Triangle 40 39 17
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 3 33 42
+                            Triangle 42 41 3
+                            Triangle 18 3 41
+                            Triangle 41 40 18
+                            Triangle 31 17 39
+                            Triangle 39 38 31
+                            Triangle 33 32 37
+                            Triangle 37 42 33
+                            Triangle 35 1 44
+                            Triangle 44 43 35
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 1 2 45
+                            Triangle 45 44 1
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 19 20 47
+                            Triangle 47 46 19
+                            Triangle 34 19 46
+                            Triangle 46 48 34
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient  0.1  0.1  0.1
+                            Color 0.243137 0.192157 0.0941177
+                            Diffuse 0.243137 0.192157 0.0941177
+                            Specular  0.9  0.9  0.9
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 2 34 48
+                            Triangle 48 45 2
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 20 35 43
+                            Triangle 43 47 20
+                            
+                            # head
+                            
+                            TransformBegin
+                                Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.033319  0.041078  1.000000
+                                
+                                ClumpBegin
+                                    Tag 12
+                                    Hints NULL
+                                    Vertex  0.008714  0.004819  0.015027
+                                    Vertex  0.000000  0.009794  0.016542
+                                    Vertex  0.007067  0.004243  0.020472
+                                    Vertex  0.009068  0.005002 -0.002103
+                                    Vertex  0.000000  0.009925 -0.000540
+                                    Vertex  0.008720  0.005597  0.012577
+                                    Vertex  0.000000  0.006928  0.030836
+                                    Vertex  0.005391  0.004244  0.030914
+                                    Vertex  0.000000  0.008489  0.020464
+                                    Vertex  0.000000 -0.003918  0.041707
+                                    Vertex  0.001684 -0.002492  0.041928
+                                    Vertex  0.000000 -0.001234  0.043308
+                                    Vertex  0.000000 -0.005261  0.038660
+                                    Vertex  0.003719 -0.003155  0.038653
+                                    Vertex  0.003719  0.002974  0.038638
+                                    Vertex  0.000000  0.005081  0.038631
+                                    Vertex  0.001685  0.000360  0.042369
+                                    Vertex  0.005390 -0.003830  0.030929
+                                    Vertex  0.007849 -0.004846  0.017722
+                                    Vertex  0.008718 -0.005231  0.012592
+                                    Vertex -0.007067  0.004243  0.020472
+                                    Vertex  0.000000  0.009970  0.012569
+                                    Vertex -0.008720  0.005597  0.012577
+                                    Vertex -0.003719  0.002974  0.038638
+                                    Vertex -0.005391  0.004244  0.030914
+                                    Vertex -0.001684 -0.002492  0.041928
+                                    Vertex -0.003719 -0.003155  0.038653
+                                    Vertex -0.001685  0.000360  0.042369
+                                    Vertex  0.000000  0.001787  0.042590
+                                    Vertex -0.007066 -0.004139  0.020486
+                                    Vertex  0.000000 -0.008383  0.020494
+                                    Vertex  0.000000 -0.006428  0.030937
+                                    Vertex -0.007849 -0.004846  0.017722
+                                    Vertex  0.000000 -0.009599  0.017730
+                                    Vertex -0.008718 -0.005231  0.012592
+                                    Vertex  0.000000 -0.010365  0.012599
+                                    Vertex -0.009067 -0.006851 -0.000027
+                                    Vertex  0.000000 -0.009357  0.006320
+                                    Vertex -0.009068  0.005002 -0.002103
+                                    Vertex -0.008714  0.004819  0.015027
+                                    Vertex -0.005390 -0.003830  0.030929
+                                    Vertex  0.009067 -0.006851 -0.000027
+                                    Vertex  0.007066 -0.004139  0.020486
+                                    Vertex  0.000000 -0.002664 -0.006768
+                                    Vertex  0.000164 -0.002753 -0.006796
+                                    Vertex  0.000000 -0.003012 -0.006644
+                                    Vertex -0.000163 -0.002967 -0.006758
+                                    Vertex -0.000164 -0.002753 -0.006796
+                                    Vertex  0.000163 -0.002967 -0.006758
+                                    Vertex -0.008724  0.008471  0.014148
+                                    Vertex -0.009108  0.007762  0.012512
+                                    Vertex -0.007472  0.007762  0.016462
+                                    Vertex -0.005334  0.007762  0.013263
+                                    Vertex -0.010265  0.006700  0.015305
+                                    Vertex -0.006315  0.006700  0.011355
+                                    Vertex -0.008724  0.005448  0.011125
+                                    Vertex -0.010744  0.005448  0.014148
+                                    Vertex -0.007472  0.005448  0.017420
+                                    Vertex -0.005158  0.005448  0.011834
+                                    Vertex -0.009108  0.003134  0.012512
+                                    Vertex -0.009610  0.003134  0.015034
+                                    Vertex -0.005836  0.003134  0.015784
+                                    Vertex -0.006993  0.002425  0.012991
+                                    Vertex  0.005356  0.008430  0.014105
+                                    Vertex  0.005000  0.007773  0.012590
+                                    Vertex  0.006515  0.007773  0.016246
+                                    Vertex  0.008493  0.007773  0.013285
+                                    Vertex  0.003930  0.006791  0.015176
+                                    Vertex  0.007586  0.006791  0.011520
+                                    Vertex  0.005356  0.005632  0.011307
+                                    Vertex  0.003486  0.005632  0.014105
+                                    Vertex  0.006515  0.005632  0.017134
+                                    Vertex  0.008656  0.005632  0.011963
+                                    Vertex  0.005000  0.003490  0.012590
+                                    Vertex  0.004536  0.003490  0.014924
+                                    Vertex  0.008029  0.003490  0.015619
+                                    Vertex  0.006958  0.002833  0.013034
+                                    
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 1 2 3
+                                    Triangle 4 5 6
+                                    Triangle 7 8 9
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 10 11 12
+                                    Triangle 13 14 10
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 15 16 17
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 18 8 14
+                                    Triangle 8 18 3
+                                    Triangle 1 3 19
+                                    Triangle 6 1 20
+                                    Triangle 6 20 4
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 9 2 21
+                                    Triangle 22 5 23
+                                    Triangle 24 7 25
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 10 26 27
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 28 29 16
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 27 24 25
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.968628 0.901961 0.823529
+                                    Color 0.968628 0.901961 0.823529
+                                    Diffuse 0.968628 0.901961 0.823529
+                                    Specular 0.968628 0.901961 0.823529
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 30 31 32
+                                    Triangle 33 34 31
+                                    Triangle 35 36 34
+                                    Triangle 37 38 36
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 35 23 39
+                                    Triangle 40 23 35
+                                    Triangle 21 40 33
+                                    Triangle 41 25 21
+                                    Triangle 25 41 27
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 16 24 28
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 27 13 10
+                                    Triangle 26 10 12
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 25 7 9
+                                    Triangle 5 39 23
+                                    Triangle 2 40 21
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 42 4 20
+                                    Triangle 19 20 1
+                                    Triangle 43 19 3
+                                    Triangle 43 3 18
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 15 7 16
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 14 13 18
+                                    Triangle 17 11 15
+                                    Triangle 11 17 12
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 22 2 1
+                                    Triangle 2 9 3
+                                    Triangle 5 22 6
+                                    Triangle 7 15 8
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 11 10 14
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 29 17 16
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 15 14 8
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.968628 0.901961 0.823529
+                                    Color 0.968628 0.901961 0.823529
+                                    Diffuse 0.968628 0.901961 0.823529
+                                    Specular 0.968628 0.901961 0.823529
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 31 43 32
+                                    Triangle 34 19 31
+                                    Triangle 36 20 34
+                                    Triangle 38 42 36
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 25 9 21
+                                    Triangle 22 23 40
+                                    Triangle 29 28 12
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 24 27 26
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.968628 0.901961 0.823529
+                                    Color 0.968628 0.901961 0.823529
+                                    Diffuse 0.968628 0.901961 0.823529
+                                    Specular 0.968628 0.901961 0.823529
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 41 32 13
+                                    Triangle 32 41 30
+                                    Triangle 31 30 33
+                                    Triangle 34 33 35
+                                    Triangle 36 35 37
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 39 37 35
+                                    Triangle 35 33 40
+                                    Triangle 33 30 21
+                                    Triangle 21 30 41
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 7 24 16
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 13 27 41
+                                    Triangle 26 28 24
+                                    Triangle 28 26 12
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 2 22 40
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.968628 0.901961 0.823529
+                                    Color 0.968628 0.901961 0.823529
+                                    Diffuse 0.968628 0.901961 0.823529
+                                    Specular 0.968628 0.901961 0.823529
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 20 36 42
+                                    Triangle 19 34 20
+                                    Triangle 43 31 19
+                                    Triangle 18 32 43
+                                    Triangle 32 18 13
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 14 15 11
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 17 29 12
+                                    Triangle 6 22 1
+                                    Triangle 9 8 3
+                                    Triangle 5 4 45
+                                    Triangle 45 44 5
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 38 37 47
+                                    Triangle 47 46 38
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 39 5 44
+                                    Triangle 44 48 39
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 4 42 49
+                                    Triangle 49 45 4
+                                    Triangle 42 38 46
+                                    Triangle 46 49 42
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color 0.243137 0.192157 0.0941177
+                                    Diffuse 0.243137 0.192157 0.0941177
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 37 39 48
+                                    Triangle 48 47 37
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient  0.1  0.1  0.1
+                                    Color  0.7  0.7  0.7
+                                    Diffuse  0.7  0.7  0.7
+                                    Specular  0.9  0.9  0.9
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 50 51 54
+                                    Triangle 50 54 52
+                                    Triangle 50 52 53
+                                    Triangle 50 53 51
+                                    Triangle 52 62 53
+                                    Triangle 53 55 51
+                                    Triangle 55 56 51
+                                    Triangle 51 56 57
+                                    Triangle 51 57 54
+                                    Triangle 54 58 52
+                                    Triangle 52 58 62
+                                    Triangle 62 59 53
+                                    Triangle 53 59 55
+                                    Triangle 55 59 56
+                                    Triangle 57 61 54
+                                    Triangle 54 61 58
+                                    Triangle 59 63 56
+                                    Triangle 63 60 56
+                                    Triangle 56 60 57
+                                    Triangle 57 60 61
+                                    Triangle 61 62 58
+                                    Triangle 62 63 59
+                                    Triangle 61 63 62
+                                    Triangle 61 60 63
+                                    Triangle 64 65 68
+                                    Triangle 64 68 66
+                                    Triangle 64 66 67
+                                    Triangle 64 67 65
+                                    Triangle 66 76 67
+                                    Triangle 67 69 65
+                                    Triangle 69 70 65
+                                    Triangle 65 70 71
+                                    Triangle 65 71 68
+                                    Triangle 68 72 66
+                                    Triangle 66 72 76
+                                    Triangle 76 73 67
+                                    Triangle 67 73 69
+                                    Triangle 69 73 70
+                                    Triangle 71 75 68
+                                    Triangle 68 75 72
+                                    Triangle 73 77 70
+                                    Triangle 77 74 70
+                                    Triangle 70 74 71
+                                    Triangle 71 74 75
+                                    Triangle 75 76 72
+                                    Triangle 76 77 73
+                                    Triangle 75 77 76
+                                    Triangle 75 74 77
+                                    
+                                ClumpEnd
+                            TransformEnd
+                        ClumpEnd
+                    TransformEnd
+                    # lfshoulder
+                    
+                    TransformBegin
+                        Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.012792 -0.009038  0.011896  1.000000
+                        
+                        ClumpBegin
+                            Tag 13
+                            Hints NULL
+                            Vertex  0.005878 -0.019942  0.001488
+                            Vertex  0.009257 -0.022762 -0.005406
+                            Vertex  0.009834 -0.019448  0.000063
+                            Vertex  0.005537 -0.019083  0.001365
+                            Vertex  0.005041 -0.023694 -0.004438
+                            Vertex  0.008916 -0.019571 -0.006067
+                            Vertex  0.009492 -0.018163  0.000171
+                            Vertex -0.001239 -0.007772  0.004937
+                            Vertex  0.004699 -0.020762 -0.005445
+                            Vertex  0.004860 -0.003674 -0.006836
+                            Vertex -0.002751 -0.006655 -0.007053
+                            Vertex -0.002776 -0.008055 -0.007526
+                            Vertex  0.002078  0.004345 -0.008039
+                            Vertex -0.002776 -0.004482  0.008573
+                            Vertex  0.002078  0.006803  0.006614
+                            Vertex  0.005900 -0.004973  0.004020
+                            Vertex  0.007540 -0.022750 -0.000993
+                            Vertex  0.007476 -0.022758 -0.000970
+                            Vertex  0.007463 -0.022818 -0.001066
+                            Vertex  0.007531 -0.022803 -0.001082
+                            Vertex -0.003883 -0.001696 -0.001621
+                            Vertex -0.003884 -0.001730 -0.001632
+                            Vertex -0.003766 -0.001430 -0.001644
+                            Vertex -0.003884 -0.001643 -0.001243
+                            Vertex -0.003766 -0.001371 -0.001291
+                            Vertex  0.004496 -0.022747 -0.001027
+                            Vertex  0.004495 -0.022747 -0.001027
+                            Vertex  0.004495 -0.022748 -0.001029
+                            Vertex  0.004496 -0.022748 -0.001029
+                            
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 1 3 4
+                            Triangle 2 5 6
+                            Triangle 4 7 8
+                            Triangle 6 9 10
+                            Triangle 11 8 12
+                            Triangle 10 11 13
+                            Triangle 14 12 8
+                            Triangle 11 10 9
+                            Triangle 16 8 7
+                            Triangle 9 6 5
+                            Triangle 7 4 3
+                            Triangle 4 9 1
+                            Triangle 6 7 2
+                            Triangle 8 11 4
+                            Triangle 10 16 6
+                            Triangle 15 14 16
+                            Triangle 13 15 10
+                            Triangle 16 10 15
+                            Triangle 8 16 14
+                            Triangle 7 6 16
+                            Triangle 9 4 11
+                            Triangle 3 2 7
+                            Triangle 5 1 9
+                            Triangle 3 1 18
+                            Triangle 18 17 3
+                            Triangle 5 2 20
+                            Triangle 20 19 5
+                            Triangle 2 3 17
+                            Triangle 17 20 2
+                            Triangle 1 5 19
+                            Triangle 19 18 1
+                            Triangle 11 12 22
+                            Triangle 22 21 11
+                            Triangle 13 11 21
+                            Triangle 21 23 13
+                            Triangle 12 14 24
+                            Triangle 24 22 12
+                            Triangle 14 15 25
+                            Triangle 25 24 14
+                            Triangle 15 13 23
+                            Triangle 23 25 15
+                            Triangle 17 18 27
+                            Triangle 27 26 17
+                            Triangle 19 20 29
+                            Triangle 29 28 19
+                            Triangle 20 17 26
+                            Triangle 26 29 20
+                            Triangle 18 19 28
+                            Triangle 28 27 18
+                            
+                            # lfelbow
+                            
+                            TransformBegin
+                                Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.007570 -0.021609 -0.002448  1.000000
+                                
+                                ClumpBegin
+                                    Tag 14
+                                    Hints NULL
+                                    Vertex  0.001654 -0.020389  0.003050
+                                    Vertex  0.004711 -0.019304  0.000669
+                                    Vertex  0.004934 -0.020414  0.003188
+                                    Vertex -0.000851 -0.008006  0.004026
+                                    Vertex  0.001230 -0.019188  0.000254
+                                    Vertex  0.003613 -0.005709 -0.002837
+                                    Vertex  0.004194 -0.007339  0.003745
+                                    Vertex -0.001692 -0.001298  0.004067
+                                    Vertex -0.001765 -0.006325 -0.003265
+                                    Vertex  0.001687  0.001520 -0.002828
+                                    Vertex  0.002263  0.000053  0.003396
+                                    Vertex -0.002530  0.000177 -0.002790
+                                    Vertex -0.000068  0.002197  0.002046
+                                    Vertex  0.003133 -0.021487  0.001753
+                                    
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 1 3 4
+                                    Triangle 2 5 6
+                                    Triangle 4 7 8
+                                    Triangle 6 9 10
+                                    Triangle 12 10 9
+                                    Triangle 11 8 7
+                                    Triangle 9 6 5
+                                    Triangle 7 4 3
+                                    Triangle 4 9 1
+                                    Triangle 6 7 2
+                                    Triangle 8 12 4
+                                    Triangle 10 11 6
+                                    Triangle 7 6 11
+                                    Triangle 9 4 12
+                                    Triangle 3 2 7
+                                    Triangle 5 1 9
+                                    Triangle 10 12 13
+                                    Triangle 8 11 13
+                                    Triangle 12 8 13
+                                    Triangle 11 10 13
+                                    Triangle 3 1 14
+                                    Triangle 5 2 14
+                                    Triangle 2 3 14
+                                    Triangle 1 5 14
+                                    
+                                    # lfwrist
+                                    
+                                    TransformBegin
+                                        Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.003216 -0.019300  0.001457  1.000000
+                                        
+                                        ClumpBegin
+                                            Tag 15
+                                            Hints NULL
+                                            Vertex  0.003400 -0.003785  0.001412
+                                            Vertex -0.001562 -0.001089  0.001593
+                                            Vertex  0.001718 -0.001114  0.001731
+                                            Vertex  0.005610 -0.014587  0.000218
+                                            Vertex -0.001456 -0.014471 -0.001238
+                                            Vertex  0.003651 -0.017511 -0.006765
+                                            Vertex -0.001761 -0.004044  0.000944
+                                            Vertex  0.005736 -0.013494 -0.001599
+                                            Vertex -0.001691 -0.013282 -0.003350
+                                            Vertex  0.003209 -0.003248 -0.002928
+                                            Vertex -0.002248 -0.003515 -0.003892
+                                            Vertex  0.001496 -0.000004 -0.000788
+                                            Vertex -0.001986  0.000112 -0.001204
+                                            Vertex -0.000129  0.001351  0.000332
+                                            
+                                            GeometrySampling Solid
+                                            LightSampling Vertex
+                                            Ambient 0.101961  0.1  0.1
+                                            Color 0.886275 0.643137 0.356863
+                                            Diffuse 0.886275 0.643137 0.356863
+                                            Specular 0.886275 0.643137 0.356863
+                                            TextureModes Lit
+                                            Texture NULL
+                                            
+                                            Triangle 3 2 1
+                                            Triangle 4 5 6
+                                            Triangle 5 4 7
+                                            Triangle 8 9 10
+                                            Triangle 7 1 2
+                                            Triangle 10 11 12
+                                            Triangle 13 12 11
+                                            Triangle 11 10 9
+                                            Triangle 1 7 4
+                                            Triangle 5 9 6
+                                            Triangle 8 4 6
+                                            Triangle 7 11 5
+                                            Triangle 10 1 8
+                                            Triangle 2 13 7
+                                            Triangle 12 3 10
+                                            Triangle 1 10 3
+                                            Triangle 11 7 13
+                                            Triangle 4 8 1
+                                            Triangle 9 5 11
+                                            Triangle 9 8 6
+                                            Triangle 2 3 14
+                                            Triangle 12 13 14
+                                            Triangle 13 2 14
+                                            Triangle 3 12 14
+                                            
+                                        ClumpEnd
+                                    TransformEnd
+                                ClumpEnd
+                            TransformEnd
+                        ClumpEnd
+                    TransformEnd
+                    # rtshoulder
+                    
+                    TransformBegin
+                        Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000 -0.012800 -0.008996  0.011854  1.000000
+                        
+                        ClumpBegin
+                            Tag 16
+                            Hints NULL
+                            Vertex -0.004899 -0.023210 -0.004497
+                            Vertex -0.005757 -0.019368  0.001572
+                            Vertex -0.009808 -0.018862  0.000114
+                            Vertex -0.009217 -0.022256 -0.005487
+                            Vertex -0.004550 -0.020207 -0.005528
+                            Vertex -0.005408 -0.018489  0.001447
+                            Vertex -0.009458 -0.017546  0.000223
+                            Vertex -0.008868 -0.018989 -0.006164
+                            Vertex  0.002758 -0.006696 -0.007010
+                            Vertex  0.001247 -0.007813  0.004980
+                            Vertex -0.005892 -0.005014  0.004062
+                            Vertex -0.004852 -0.003715 -0.006794
+                            Vertex  0.002784 -0.004524  0.008615
+                            Vertex -0.002070  0.006762  0.006656
+                            Vertex -0.002070  0.004304 -0.007997
+                            Vertex  0.002784 -0.008096 -0.007483
+                            Vertex -0.007449 -0.022672 -0.000559
+                            Vertex -0.007381 -0.022687 -0.000544
+                            Vertex -0.007394 -0.022627 -0.000448
+                            Vertex -0.007458 -0.022619 -0.000471
+                            Vertex  0.003084 -0.001450 -0.002203
+                            Vertex  0.003156 -0.001616 -0.002174
+                            Vertex  0.003084 -0.001486 -0.002419
+                            Vertex  0.003043 -0.001604 -0.002401
+                            Vertex  0.003156 -0.001669 -0.002411
+                            Vertex  0.003155 -0.001648 -0.002404
+                            
+                            GeometrySampling Solid
+                            LightSampling Vertex
+                            Ambient 0.101961  0.1  0.1
+                            Color 0.886275 0.643137 0.356863
+                            Diffuse 0.886275 0.643137 0.356863
+                            Specular 0.886275 0.643137 0.356863
+                            TextureModes Lit
+                            Texture NULL
+                            
+                            Triangle 5 6 2
+                            Triangle 7 8 4
+                            Triangle 9 10 6
+                            Triangle 11 12 8
+                            Triangle 13 14 11
+                            Triangle 14 15 12
+                            Triangle 10 9 16
+                            Triangle 5 8 12
+                            Triangle 7 6 10
+                            Triangle 1 4 8
+                            Triangle 3 2 6
+                            Triangle 2 1 5
+                            Triangle 4 3 7
+                            Triangle 6 5 9
+                            Triangle 8 7 11
+                            Triangle 11 10 13
+                            Triangle 12 11 14
+                            Triangle 16 13 10
+                            Triangle 12 9 5
+                            Triangle 10 11 7
+                            Triangle 8 5 1
+                            Triangle 6 7 3
+                            Triangle 4 1 18
+                            Triangle 18 17 4
+                            Triangle 2 3 20
+                            Triangle 20 19 2
+                            Triangle 1 2 19
+                            Triangle 19 18 1
+                            Triangle 3 4 17
+                            Triangle 17 20 3
+                            Triangle 14 13 22
+                            Triangle 22 21 14
+                            Triangle 15 14 21
+                            Triangle 21 23 15
+                            Triangle 12 15 23
+                            Triangle 23 24 12
+                            Triangle 16 9 26
+                            Triangle 26 25 16
+                            Triangle 13 16 25
+                            Triangle 25 22 13
+                            Triangle 9 12 24
+                            Triangle 24 26 9
+                            
+                            # rtelbow
+                            
+                            TransformBegin
+                                Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000 -0.007600 -0.021700 -0.002400  1.000000
+                                
+                                ClumpBegin
+                                    Tag 17
+                                    Hints NULL
+                                    Vertex -0.001150 -0.019498 -0.000264
+                                    Vertex -0.001584 -0.020702  0.002610
+                                    Vertex -0.004943 -0.020726  0.002752
+                                    Vertex -0.004714 -0.019613  0.000162
+                                    Vertex  0.001918 -0.006357 -0.003982
+                                    Vertex  0.000981 -0.008014  0.003498
+                                    Vertex -0.004185 -0.007333  0.003205
+                                    Vertex -0.003589 -0.005723 -0.003549
+                                    Vertex  0.002701  0.000305 -0.003554
+                                    Vertex  0.001843 -0.001145  0.003481
+                                    Vertex -0.002208  0.000232  0.002782
+                                    Vertex -0.001617  0.001679 -0.003605
+                                    Vertex  0.000180  0.002136  0.001195
+                                    Vertex -0.003098 -0.021859  0.000920
+                                    
+                                    GeometrySampling Solid
+                                    LightSampling Vertex
+                                    Ambient 0.101961  0.1  0.1
+                                    Color 0.886275 0.643137 0.356863
+                                    Diffuse 0.886275 0.643137 0.356863
+                                    Specular 0.886275 0.643137 0.356863
+                                    TextureModes Lit
+                                    Texture NULL
+                                    
+                                    Triangle 5 6 2
+                                    Triangle 7 8 4
+                                    Triangle 9 10 6
+                                    Triangle 11 12 8
+                                    Triangle 5 8 12
+                                    Triangle 7 6 10
+                                    Triangle 1 4 8
+                                    Triangle 3 2 6
+                                    Triangle 2 1 5
+                                    Triangle 4 3 7
+                                    Triangle 6 5 9
+                                    Triangle 8 7 11
+                                    Triangle 12 9 5
+                                    Triangle 10 11 7
+                                    Triangle 8 5 1
+                                    Triangle 6 7 3
+                                    Triangle 10 9 13
+                                    Triangle 12 11 13
+                                    Triangle 9 12 13
+                                    Triangle 11 10 13
+                                    Triangle 4 1 14
+                                    Triangle 2 3 14
+                                    Triangle 1 2 14
+                                    Triangle 3 4 14
+                                    
+                                    # rtwrist
+                                    
+                                    TransformBegin
+                                        Transform  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000 -0.003200 -0.019300  0.001500  1.000000
+                                        
+                                        ClumpBegin
+                                            Tag 18
+                                            Hints NULL
+                                            Vertex  0.001821 -0.004434  0.000472
+                                            Vertex -0.003464 -0.004164  0.000949
+                                            Vertex  0.002050 -0.000198 -0.001764
+                                            Vertex  0.001616 -0.001402  0.001110
+                                            Vertex -0.001743 -0.001426  0.001252
+                                            Vertex  0.000008  0.001032 -0.000314
+                                            Vertex -0.005727 -0.015236 -0.000177
+                                            Vertex -0.005857 -0.014133 -0.002048
+                                            Vertex -0.003826 -0.018389 -0.007280
+                                            Vertex  0.002319 -0.003936 -0.004485
+                                            Vertex  0.001508 -0.015130 -0.001668
+                                            Vertex -0.003269 -0.003653 -0.003500
+                                            Vertex -0.001514 -0.000313 -0.001338
+                                            Vertex  0.001749 -0.013931 -0.003842
+                                            
+                                            GeometrySampling Solid
+                                            LightSampling Vertex
+                                            Ambient 0.101961  0.1  0.1
+                                            Color 0.886275 0.643137 0.356863
+                                            Diffuse 0.886275 0.643137 0.356863
+                                            Specular 0.886275 0.643137 0.356863
+                                            TextureModes Lit
+                                            Texture NULL
+                                            
+                                            Triangle 3 4 1
+                                            Triangle 2 1 4
+                                            Triangle 4 5 2
+                                            Triangle 7 8 9
+                                            Triangle 10 1 11
+                                            Triangle 2 12 8
+                                            Triangle 5 13 12
+                                            Triangle 10 12 13
+                                            Triangle 14 8 12
+                                            Triangle 7 11 1
+                                            Triangle 11 7 9
+                                            Triangle 8 14 9
+                                            Triangle 11 14 10
+                                            Triangle 8 7 2
+                                            Triangle 1 10 3
+                                            Triangle 12 2 5
+                                            Triangle 13 3 10
+                                            Triangle 12 10 14
+                                            Triangle 1 2 7
+                                            Triangle 14 11 9
+                                            Triangle 4 3 6
+                                            Triangle 5 4 6
+                                            Triangle 13 5 6
+                                            Triangle 3 13 6
+                                            
+                                        ClumpEnd
+                                    TransformEnd
+                                ClumpEnd
+                            TransformEnd
+                        ClumpEnd
+                    TransformEnd
+                ClumpEnd
+            TransformEnd
+        ClumpEnd
+    TransformEnd
+ModelEnd

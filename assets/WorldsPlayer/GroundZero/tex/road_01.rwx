@@ -1,0 +1,167 @@
+# Output from 3DSMax RenderWare File Export plug-in V1.0
+ModelBegin
+    ClumpBegin
+        # left03
+        
+        TransformBegin
+            Transform -1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000 -0.000000  0.000000 -1.000000  0.000000  60.000000  0.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 1
+                Hints NULL
+                Vertex  35.000000  0.000000  70.000000 UV  0.995541  29.000000
+                Vertex  40.000000  0.000000  70.000000 UV  0.004461  29.000000
+                Vertex  35.500000  0.000000  0.000000 UV  0.896431  1.000000
+                Vertex  35.000000  0.000000  0.000000 UV  0.995539  1.000000
+                
+                GeometrySampling Solid
+                LightSampling Vertex
+                Ambient  0.1  0.1 0.181698
+                Color 0.266667 0.192157 0.545098
+                Diffuse 0.266667 0.192157 0.545098
+                Specular  0.9  0.9  0.9
+                TextureModes Foreshorten
+                Texture rd2.cmp
+                
+                Triangle 1 3 4
+                Triangle 2 3 1
+                
+            ClumpEnd
+        TransformEnd
+        # left01
+        
+        TransformBegin
+            Transform -1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000 -0.000000  0.000000 -1.000000  0.000000  60.000000  0.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 2
+                Hints NULL
+                Vertex  42.500000  0.000000  70.000000 UV  0.003497  29.000000
+                Vertex  60.000000  0.000000  70.000000 UV  6.996499  29.000000
+                Vertex  60.000000  0.000000  0.000000 UV  6.996504  1.000000
+                Vertex  42.500000  0.000000  0.000000 UV  0.003502  1.000000
+                
+                GeometrySampling Solid
+                LightSampling Vertex
+                Ambient 0.179083  0.1  0.1
+                Color 0.537255 0.196078 0.196078
+                Diffuse 0.537255 0.196078 0.196078
+                Specular  0.9  0.9  0.9
+                TextureModes Foreshorten
+                Texture grnd1.cmp
+                
+                Triangle 1 3 4
+                Triangle 1 2 3
+                
+            ClumpEnd
+        TransformEnd
+        # left02
+        
+        TransformBegin
+            Transform -1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000 -0.000000  0.000000 -1.000000  0.000000  60.000000  0.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 3
+                Hints NULL
+                Vertex  40.000000  0.000000  70.000000 UV  0.000500  27.986013
+                Vertex  42.500000  0.000000  70.000000 UV  1.000000  27.986013
+                Vertex  42.500000  0.000000  0.000000 UV  0.999501  1.000000
+                Vertex  35.500000  0.000000  0.000000 UV  0.000000  1.000000
+                
+                GeometrySampling Solid
+                LightSampling Vertex
+                Ambient  0.1 0.103267 0.181698
+                Color 0.192157 0.309804 0.545098
+                Diffuse 0.192157 0.309804 0.545098
+                Specular  0.9  0.9  0.9
+                TextureModes Foreshorten
+                Texture rd4.cmp
+                
+                Triangle 1 3 4
+                Triangle 2 3 1
+                
+            ClumpEnd
+        TransformEnd
+        # left06
+        
+        TransformBegin
+            Transform -1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000 -0.000000  0.000000 -1.000000  0.000000  60.000000  0.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 4
+                Hints NULL
+                Vertex  27.500000  0.000000  70.000000 UV  11.999997  29.000002
+                Vertex  27.500000  0.000000  0.000000 UV  12.000003  1.000000
+                Vertex  0.000000  0.000000  0.000000 UV  1.000002  1.000000
+                Vertex  0.000000  0.000000  70.000000 UV  0.999997  29.000000
+                
+                GeometrySampling Solid
+                LightSampling Vertex
+                Ambient 0.179083  0.1  0.1
+                Color 0.537255 0.196078 0.196078
+                Diffuse 0.537255 0.196078 0.196078
+                Specular  0.9  0.9  0.9
+                TextureModes Foreshorten
+                Texture grnd1.cmp
+                
+                Triangle 1 3 4
+                Triangle 1 2 3
+                
+            ClumpEnd
+        TransformEnd
+        # left05
+        
+        TransformBegin
+            Transform -1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000 -0.000000  0.000000 -1.000000  0.000000  60.000000  0.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 5
+                Hints NULL
+                Vertex  27.500000  0.000000  70.000000 UV  0.000500  27.986013
+                Vertex  30.000000  0.000000  70.000000 UV  1.000000  27.986013
+                Vertex  34.500000  0.000000  0.000000 UV  1.000000  1.000000
+                Vertex  27.500000  0.000000  0.000000 UV  0.000000  1.000000
+                
+                GeometrySampling Solid
+                LightSampling Vertex
+                Ambient  0.1 0.184312  0.1
+                Color  0.2 0.552941 0.176471
+                Diffuse  0.2 0.552941 0.176471
+                Specular  0.9  0.9  0.9
+                TextureModes Foreshorten
+                Texture rd1.cmp
+                
+                Triangle 1 3 4
+                Triangle 2 3 1
+                
+            ClumpEnd
+        TransformEnd
+        # left04
+        
+        TransformBegin
+            Transform -1.000000  0.000000  0.000000  0.000000  0.000000  1.000000  0.000000  0.000000 -0.000000  0.000000 -1.000000  0.000000  60.000000  0.000000  0.000000  1.000000
+            
+            ClumpBegin
+                Tag 6
+                Hints NULL
+                Vertex  30.000000  0.000000  70.000000 UV  0.995541  29.000000
+                Vertex  35.000000  0.000000  70.000000 UV  0.004461  29.000000
+                Vertex  35.000000  0.000000  0.000000 UV  0.004459  1.000000
+                Vertex  34.500000  0.000000  0.000000 UV  0.103567  1.000000
+                
+                GeometrySampling Solid
+                LightSampling Vertex
+                Ambient  0.1 0.223527 0.216991
+                Color 0.105882 0.670588 0.65098
+                Diffuse 0.105882 0.670588 0.65098
+                Specular  0.9  0.9  0.9
+                TextureModes Foreshorten
+                Texture rd3.cmp
+                
+                Triangle 1 3 4
+                Triangle 2 3 1
+                
+            ClumpEnd
+        TransformEnd
+    ClumpEnd
+ModelEnd

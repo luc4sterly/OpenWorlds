@@ -1,0 +1,182 @@
+#
+# Renderware ASCII RWX file: D:\temp\groundzero\grill_18June\rwx\steak.RWX
+#
+# Converted by the PolyTrans geometry converter from Okino Computer Graphics, Inc.
+# Date/time of export: 06/20/2001 10:54:37
+#
+# Bounding box of geometry = (-0.103735,0.964684,-0.191774) to (0.0621556,0.984684,0.149715).
+
+ModelBegin
+	ClumpBegin
+	TransformBegin
+	Identity
+	JointTransformBegin
+	IdentityJoint
+		ClumpBegin
+		TransformBegin
+		Identity
+		JointTransformBegin
+		IdentityJoint
+			ClumpBegin
+			TransformBegin
+			Identity
+			JointTransformBegin
+			IdentityJoint
+				AddHint Editable
+				Tag 1
+				VertexExt -0.0703247 0.964684 -0.163697 UV 1.082807 0.999900 Normal  -0.737832 0 -0.674985
+				VertexExt -0.0890052 0.964684 -0.139489 UV 1.120941 0.999900 Normal  -0.88498 0 -0.465629
+				VertexExt -0.0995906 0.964684 -0.114328 UV 1.150947 0.999900 Normal  -0.970846 0 -0.239703
+				VertexExt -0.103735 0.964684 -0.0893154 UV 1.176349 0.999900 Normal  -0.999328 0 -0.036662
+				VertexExt -0.103094 0.964684 -0.0655554 UV 1.199580 0.999900 Normal  -0.992156 0 0.125003
+				VertexExt -0.0993221 0.964684 -0.0441514 UV 1.221899 0.999900 Normal  -0.969436 0 0.245344
+				VertexExt -0.0940733 0.964684 -0.0262066 UV 1.243191 0.999900 Normal  -0.957803 0 0.287426
+				VertexExt -0.0787109 0.964684 0.024345 UV 1.320542 0.999900 Normal  -0.967345 0 0.253463
+				VertexExt -0.0682978 0.964684 0.0674792 UV 1.384631 0.999900 Normal  -0.975851 0 0.218437
+				VertexExt -0.0607883 0.964684 0.10239 UV 1.421840 0.999900 Normal  -0.97173 0 0.236095
+				VertexExt -0.0541365 0.964684 0.12827 UV 1.443799 0.999900 Normal  -0.926054 0 0.377392
+				VertexExt -0.0462967 0.964684 0.144314 UV 1.460327 0.999900 Normal  -0.621684 0 0.783268
+				VertexExt -0.0352231 0.964684 0.149715 UV 1.477942 0.999900 Normal  0.0916615 0 0.99579
+				VertexExt -0.01887 0.964684 0.143667 UV 1.503061 0.999900 Normal  0.739038 0 0.673664
+				VertexExt -0.01887 0.964684 0.143667 UV 1.503061 0.999900 Normal  0.346887 0 0.937907
+				VertexExt 0.0202369 0.964684 0.100765 UV 1.580745 0.999900 Normal  0.868254 0 0.49612
+				VertexExt 0.0477539 0.964684 0.0374147 UV 1.674095 0.999900 Normal  0.96445 0 0.264264
+				VertexExt 0.0621556 0.964684 -0.0349485 UV 1.766129 0.999900 Normal  0.998009 0 0.0630682
+				VertexExt 0.0619169 0.964684 -0.104891 UV 1.837691 0.999900 Normal  0.981794 0 -0.18995
+				VertexExt 0.0455125 0.964684 -0.160977 UV 1.894394 0.999900 Normal  0.793393 0 -0.608709
+				VertexExt 0.0114172 0.964684 -0.191774 UV 0.951973 0.999900 Normal  0.162395 0 -0.986726
+				VertexExt 0.0114172 0.964684 -0.191774 UV 1.951973 0.999900 Normal  0.162395 0 -0.986726
+				VertexExt -0.0418942 0.964684 -0.185846 UV 1.033142 0.999900 Normal  -0.614579 0 -0.788855
+				VertexExt -0.0418942 0.964684 -0.185846 UV 1.033142 0.999900 Normal  -0.11051 0 -0.993875
+				VertexExt -0.0703247 0.984684 -0.163697 UV 1.270733 0.147935 Normal  0 1 0
+				VertexExt -0.0703247 0.984684 -0.163697 UV 1.082807 0.800100 Normal  -0.67838 0 -0.734711
+				VertexExt -0.0890052 0.984684 -0.139489 UV 1.184272 0.211333 Normal  0 1 0
+				VertexExt -0.0890052 0.984684 -0.139489 UV 1.120941 0.800100 Normal  -0.841298 0 -0.540572
+				VertexExt -0.0995906 0.984684 -0.114328 UV 1.135278 0.277230 Normal  0 1 0
+				VertexExt -0.0995906 0.984684 -0.114328 UV 1.150947 0.800100 Normal  -0.949116 0 -0.314926
+				VertexExt -0.103735 0.984684 -0.0893154 UV 1.116094 0.342737 Normal  0 1 0
+				VertexExt -0.103735 0.984684 -0.0893154 UV 1.176349 0.800100 Normal  -0.994947 0 -0.100404
+				VertexExt -0.103094 0.984684 -0.0655554 UV 1.119061 0.404964 Normal  0 1 0
+				VertexExt -0.103094 0.984684 -0.0655554 UV 1.199580 0.800100 Normal  -0.997106 0 0.0760195
+				VertexExt -0.0993221 0.984684 -0.0441514 UV 1.136521 0.461020 Normal  0 1 0
+				VertexExt -0.0993221 0.984684 -0.0441514 UV 1.221899 0.800100 Normal  -0.977793 0 0.209573
+				VertexExt -0.0940733 0.984684 -0.0262066 UV 1.160815 0.508017 Normal  0 1 0
+				VertexExt -0.0940733 0.984684 -0.0262066 UV 1.243191 0.800100 Normal  -0.9588 0 0.284083
+				VertexExt -0.0787109 0.984684 0.024345 UV 1.231918 0.640410 Normal  0 1 0
+				VertexExt -0.0787109 0.984684 0.024345 UV 1.320542 0.800100 Normal  -0.96225 0 0.272168
+				VertexExt -0.0682978 0.984684 0.0674792 UV 1.280114 0.753377 Normal  0 1 0
+				VertexExt -0.0682978 0.984684 0.0674792 UV 1.384631 0.800100 Normal  -0.973997 0 0.226562
+				VertexExt -0.0607883 0.984684 0.10239 UV 1.314871 0.844806 Normal  0 1 0
+				VertexExt -0.0607883 0.984684 0.10239 UV 1.421840 0.800100 Normal  -0.974769 0 0.223215
+				VertexExt -0.0541365 0.984684 0.12827 UV 1.345658 0.912585 Normal  0 1 0
+				VertexExt -0.0541365 0.984684 0.12827 UV 1.443799 0.800100 Normal  -0.949511 0 0.313733
+				VertexExt -0.0462967 0.984684 0.144314 UV 1.381944 0.954604 Normal  0 1 0
+				VertexExt -0.0462967 0.984684 0.144314 UV 1.460327 0.800100 Normal  -0.782811 0 0.62226
+				VertexExt -0.0352231 0.984684 0.149715 UV 1.433197 0.968749 Normal  0 1 0
+				VertexExt -0.0352231 0.984684 0.149715 UV 1.477942 0.800100 Normal  -0.190164 0 0.981752
+				VertexExt -0.01887 0.984684 0.143667 UV 1.508886 0.952909 Normal  0 1 0
+				VertexExt -0.01887 0.984684 0.143667 UV 1.503061 0.800100 Normal  0.739038 0 0.673664
+				VertexExt -0.01887 0.984684 0.143667 UV 1.503061 0.800100 Normal  0.346887 0 0.937907
+				VertexExt 0.0202369 0.984684 0.100765 UV 1.689889 0.840550 Normal  0 1 0
+				VertexExt 0.0202369 0.984684 0.100765 UV 1.580745 0.800100 Normal  0.808141 0 0.588989
+				VertexExt 0.0477539 0.984684 0.0374147 UV 1.817248 0.674639 Normal  0 1 0
+				VertexExt 0.0477539 0.984684 0.0374147 UV 1.674095 0.800100 Normal  0.943158 0 0.332345
+				VertexExt 0.0621556 0.984684 -0.0349485 UV 1.883906 0.485122 Normal  0 1 0
+				VertexExt 0.0621556 0.984684 -0.0349485 UV 1.766129 0.800100 Normal  0.991571 0 0.129565
+				VertexExt 0.0619169 0.984684 -0.104891 UV 1.882801 0.301946 Normal  0 1 0
+				VertexExt 0.0619169 0.984684 -0.104891 UV 1.837691 0.800100 Normal  0.995314 0 -0.0966967
+				VertexExt 0.0455125 0.984684 -0.160977 UV 1.806875 0.155057 Normal  0 1 0
+				VertexExt 0.0455125 0.984684 -0.160977 UV 1.894394 0.800100 Normal  0.893238 0 -0.449584
+				VertexExt 0.0114172 0.984684 -0.191774 UV 1.649068 0.074402 Normal  0 1 0
+				VertexExt 0.0114172 0.984684 -0.191774 UV 0.951973 0.800100 Normal  0.444625 0 -0.895717
+				VertexExt 0.0114172 0.984684 -0.191774 UV 1.951973 0.800100 Normal  0.444625 0 -0.895717
+				VertexExt -0.0418942 0.984684 -0.185846 UV 1.402321 0.089926 Normal  0 1 0
+				VertexExt -0.0418942 0.984684 -0.185846 UV 1.033142 0.800100 Normal  -0.614579 0 -0.788855
+				VertexExt -0.0418942 0.984684 -0.185846 UV 1.033142 0.800100 Normal  -0.11051 0 -0.993875
+				Color 1.000000 1.000000 1.000000
+				Surface 0.100000 0.500000 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture steak_side.cmp
+
+				Triangle 1 2 28 
+				Triangle 1 28 26 
+				Triangle 2 3 30 
+				Triangle 2 30 28 
+				Triangle 3 4 32 
+				Triangle 3 32 30 
+				Triangle 4 5 34 
+				Triangle 4 34 32 
+				Triangle 5 6 36 
+				Triangle 5 36 34 
+				Triangle 6 7 38 
+				Triangle 6 38 36 
+				Triangle 7 8 40 
+				Triangle 7 40 38 
+				Triangle 8 9 42 
+				Triangle 8 42 40 
+				Triangle 9 10 44 
+				Triangle 9 44 42 
+				Triangle 10 11 46 
+				Triangle 10 46 44 
+				Triangle 11 12 48 
+				Triangle 11 48 46 
+				Triangle 12 13 50 
+				Triangle 12 50 48 
+				Triangle 13 15 53 
+				Triangle 13 53 50 
+				Triangle 14 16 55 
+				Triangle 14 55 52 
+				Triangle 16 17 57 
+				Triangle 16 57 55 
+				Triangle 17 18 59 
+				Triangle 17 59 57 
+				Triangle 18 19 61 
+				Triangle 18 61 59 
+				Triangle 19 20 63 
+				Triangle 19 63 61 
+				Triangle 20 22 66 
+				Triangle 20 66 63 
+				Triangle 21 24 69 
+				Triangle 21 69 65 
+				Triangle 23 1 26 
+				Triangle 23 26 68 
+				Color 0.352518 0.568345 1.000000
+				Surface 0.181698 0.545098 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture steak_top.cmp
+
+				Triangle 62 64 67 
+				Triangle 60 62 67 
+				Triangle 60 67 25 
+				Triangle 60 25 27 
+				Triangle 60 27 29 
+				Triangle 58 60 29 
+				Triangle 58 29 31 
+				Triangle 58 31 33 
+				Triangle 58 33 35 
+				Triangle 58 35 37 
+				Triangle 56 58 37 
+				Triangle 56 37 39 
+				Triangle 56 39 41 
+				Triangle 54 56 41 
+				Triangle 54 41 43 
+				Triangle 51 54 43 
+				Triangle 51 43 45 
+				Triangle 51 45 47 
+				Triangle 49 51 47 
+			JointTransformEnd
+			TransformEnd
+			ClumpEnd
+		JointTransformEnd
+		TransformEnd
+		ClumpEnd
+	JointTransformEnd
+	TransformEnd
+	ClumpEnd
+ModelEnd

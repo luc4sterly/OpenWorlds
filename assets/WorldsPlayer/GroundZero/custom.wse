@@ -1,0 +1,176 @@
+Document Type: WSE
+item: Global
+  Version=5.0
+  Flags=00000100
+  Split=1420
+  Languages=65 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  Japanese Font Name=MS Gothic
+  Japanese Font Size=10
+  Start Gradient=0 0 255
+  End Gradient=0 0 0
+  Windows Flags=00000000000000010010110000011000
+  Message Font=MS Sans Serif
+  Font Size=8
+  Disk Filename=SETUP
+  Patch Flags=0000000000000001
+  Patch Threshold=85
+  Patch Memory=4000
+  FTP Cluster Size=20
+end
+item: Remark
+  Text=jeremy 04/11/00 - created
+end
+item: Remark
+  Text=This should be put as custom.wse in the GroundZero directory.
+end
+item: Read INI Value
+  Variable=HOMEWORLD
+  Pathname=%MAINDIR%\worlds.ini
+  Section=InstalledWorlds
+  Item=InstalledWorld0
+end
+item: Remark
+end
+item: Remark
+  Text=HOMEWORLD ends up set to the new home world, which may be the same as it was,
+end
+item: Remark
+  Text=LASTWORLD ends up set to the world to move to the end.
+end
+item: If/While Statement
+  Variable=HOMEWORLD
+  Value=Meteor
+  Flags=00000100
+end
+item: Set Variable
+  Variable=LASTWORLD
+  Value=Meteor
+end
+item: Set Variable
+  Variable=HOMEWORLD
+  Value=GroundZero
+end
+item: Remark
+  Text=Skip past world 0, which we know is meteor
+end
+item: Set Variable
+  Variable=WORLDNUM
+  Value=1
+end
+item: Else Statement
+end
+item: Set Variable
+  Variable=WORLDNUM
+  Value=0
+end
+item: Set Variable
+  Variable=LASTWORLD
+  Value=GroundZero
+end
+item: End Block
+end
+item: Remark
+end
+item: Remark
+  Text=Find next available world slot
+end
+item: Read INI Value
+  Variable=CURRENTWORLD
+  Pathname=%MAINDIR%\worlds.ini
+  Section=InstalledWorlds
+  Item=InstalledWorld%WORLDNUM%
+end
+item: If/While Statement
+  Variable=CURRENTWORLD
+  Flags=00010001
+end
+item: If/While Statement
+  Variable=CURRENTWORLD
+  Value=%LASTWORLD%
+  Flags=00000100
+end
+item: Remark
+  Text=Break if we found LASTWORLD
+end
+item: Set Variable
+  Variable=CURRENTWORLD
+end
+item: Else Statement
+end
+item: If/While Statement
+  Variable=CURRENTWORLD
+  Value=%HOMEWORLD%
+  Flags=00000100
+end
+item: If/While Statement
+  Variable=WORLDNUM
+  Value=0
+  Flags=00000001
+end
+item: Remark
+  Text=Break if we found HOMEWORLD other than at the beginning
+end
+item: Set Variable
+  Variable=CURRENTWORLD
+end
+item: End Block
+end
+item: End Block
+end
+item: End Block
+end
+item: If/While Statement
+  Variable=CURRENTWORLD
+  Flags=00000001
+end
+item: Remark
+  Text=Increment and loop
+end
+item: Set Variable
+  Variable=WORLDNUM
+  Value=%WORLDNUM%
+  Flags=00000100
+end
+item: Read INI Value
+  Variable=CURRENTWORLD
+  Pathname=%MAINDIR%\worlds.ini
+  Section=InstalledWorlds
+  Item=InstalledWorld%WORLDNUM%
+end
+item: End Block
+end
+item: End Block
+end
+item: Remark
+  Text=Register new world in worlds.ini
+end
+item: Read INI Value
+  Variable=MAXWORLDS
+  Pathname=%MAINDIR%\worlds.ini
+  Section=InstalledWorlds
+  Item=MaxInstalledWorlds
+end
+item: If/While Statement
+  Variable=WORLDNUM
+  Value=%MAXWORLDS%
+  Flags=00000110
+end
+item: Remark
+  Text=Record new maximum
+end
+item: Edit INI File
+  Pathname=%MAINDIR%\WORLDS.INI
+  Settings=[InstalledWorlds]
+  Settings=MaxInstalledWorlds=%WORLDNUM%
+  Settings=
+  Settings=
+end
+item: End Block
+end
+item: Edit INI File
+  Pathname=%MAINDIR%\WORLDS.INI
+  Settings=[InstalledWorlds]
+  Settings=InstalledWorld0=%HOMEWORLD%
+  Settings=InstalledWorld%WORLDNUM%=%LASTWORLD%
+  Settings=
+end

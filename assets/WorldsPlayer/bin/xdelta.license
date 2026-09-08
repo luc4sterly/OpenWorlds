@@ -1,0 +1,26 @@
+>From http://scam.xcf.berkeley.edu/~jmacd/xdelta.html
+
+	       XDelta -- A binary delta generator
+
+Announcing version 1.0 of XDelta.  XDelta is a library interface and
+application program designed to compute changes between files.  These
+changes (deltas) are similar to the output of the "diff" program in
+that they may be used to store and transmit only the changes between
+files.  However, unlike diff, the output of XDelta is not expressed in
+a human-readable format--XDelta can also also apply these deltas to a
+copy of the original file(s).  XDelta uses a fast, linear algorithm
+and performs well on both binary and text files.  XDelta typically
+outperforms GNU diff in both time and generated-delta-size, even for
+plain text files.  XDelta also includes a simple implementation of the
+Rsync algorithm and several advanced features for implementing
+RCS-like file-archival upon.
+
+This release, version 1.0, and future releases of XDelta can be found
+at ftp://ftp.XCF.Berkeley.EDU/pub/xdelta.  HTML documentation and recent
+developments are available online at
+
+   http://www.XCF.Berkeley.EDU/~jmacd/xdelta.html.
+
+XDelta is released under the GNU Library Public License (GPL).
+
+

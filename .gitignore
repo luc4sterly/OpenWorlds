@@ -1,0 +1,11 @@
+# Ghidra installation (external tool, ~1.4GB) - reinstall from ghidra-sre.org
+/ghidra_*_PUBLIC*/
+/ghidra_*_PUBLIC*.zip
+
+# Ghidra headless analysis project cache (regenerable from move/bin/*.dll,
+# see docs/gamma-dll-exports.txt and docs/renderware21-api-exports.txt for
+# the extracted results that ARE kept under version control)
+/analysis/
+
+# WorldsPlayer editor build output
+editor/worldsplayer_source_editor-main/out/

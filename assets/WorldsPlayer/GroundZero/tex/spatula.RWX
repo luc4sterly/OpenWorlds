@@ -1,0 +1,110 @@
+#
+# Renderware ASCII RWX file: D:\temp\groundzero\grill_18June\rwx\spatula.RWX
+#
+# Converted by the PolyTrans geometry converter from Okino Computer Graphics, Inc.
+# Date/time of export: 06/20/2001 10:34:17
+#
+# Bounding box of geometry = (-0.00475612,0.260006,-0.0356796) to (0.0152439,0.879662,0.0340819).
+
+ModelBegin
+	ClumpBegin
+	TransformBegin
+	Identity
+	JointTransformBegin
+	IdentityJoint
+		ClumpBegin
+		TransformBegin
+		Identity
+		JointTransformBegin
+		IdentityJoint
+			ClumpBegin
+			TransformBegin
+			Identity
+			JointTransformBegin
+			IdentityJoint
+				AddHint Editable
+				Tag 1
+				VertexExt 0.00955424 0.400006 -0.00788951 UV 0.601540 0.773794 Normal  0.999982 -0.00593064 0
+				VertexExt 0.00955424 0.400006 -0.00788951 UV 0.773794 0.715302 Normal  0 -0.0193145 -0.999813
+				VertexExt 0.00955424 0.400006 -0.00788951 UV 0.773794 0.715302 Normal  0 0.570565 -0.821252
+				VertexExt 0.00955424 0.360006 -0.0356796 UV 0.999499 0.838282 Normal  0.999897 -0.0143574 0
+				VertexExt 0.00955424 0.360006 -0.0356796 UV 0.838282 0.715302 Normal  0 -0.120463 -0.992718
+				VertexExt 0.00955424 0.360006 -0.0356796 UV 0.838282 0.715302 Normal  0 0.570565 -0.821252
+				VertexExt 0.0052439 0.260006 -0.0235449 UV 0.174271 0.999500 Normal  0 -1 0
+				VertexExt 0.0052439 0.260006 -0.0235449 UV 0.825729 0.999500 Normal  0 -1 0
+				VertexExt 0.0052439 0.260006 -0.0235449 UV 0.999500 0.500000 Normal  0 -0.120463 -0.992718
+				VertexExt 0.0052439 0.260006 0.024983 UV 0.869200 0.999501 Normal  0 -1 0
+				VertexExt 0.0052439 0.260006 0.024983 UV 0.130800 0.999501 Normal  0 -1 0
+				VertexExt 0.0052439 0.260006 0.024983 UV 0.000500 0.500000 Normal  0 -0.0906151 0.995886
+				VertexExt 0.00955424 0.360006 0.0340819 UV 0.000501 0.838282 Normal  0.999588 -0.0287149 0
+				VertexExt 0.00955424 0.360006 0.0340819 UV 0.161718 0.715302 Normal  0 0.624355 0.781141
+				VertexExt 0.00955424 0.360006 0.0340819 UV 0.161718 0.715302 Normal  0 -0.0906151 0.995886
+				VertexExt 0.00955424 0.400006 0.00211049 UV 0.458338 0.773794 Normal  0.999982 -0.00593064 0
+				VertexExt 0.00955424 0.400006 0.00211049 UV 0.226206 0.715302 Normal  0 -0.0262564 0.999655
+				VertexExt 0.00955424 0.400006 0.00211049 UV 0.226206 0.715302 Normal  0 0.624355 0.781141
+				VertexExt 0.0152439 0.879662 0.0147089 UV 0.277925 0.000500 Normal  0.99993 -0.0118611 0
+				VertexExt 0.0152439 0.879662 0.0147089 UV 0.277925 0.999500 Normal  0 1 0
+				VertexExt 0.0152439 0.879662 0.0147089 UV 0.999500 0.999500 Normal  0 -0.0262564 0.999655
+				VertexExt 0.0152439 0.879662 -0.0171556 UV 0.734230 0.000500 Normal  0.99993 -0.0118611 0
+				VertexExt 0.0152439 0.879662 -0.0171556 UV 0.000500 0.999500 Normal  0 -0.0193145 -0.999813
+				VertexExt 0.0152439 0.879662 -0.0171556 UV 0.734230 0.999500 Normal  0 1 0
+				VertexExt 0.00093355 0.400006 -0.00788951 UV 0.398460 0.773794 Normal  -0.999982 -0.00593068 0
+				VertexExt 0.00093355 0.400006 -0.00788951 UV 0.773794 0.284698 Normal  0 -0.0193145 -0.999813
+				VertexExt 0.00093355 0.400006 -0.00788951 UV 0.773794 0.284698 Normal  0 0.570565 -0.821252
+				VertexExt 0.000933551 0.360006 -0.0356796 UV 0.000501 0.838282 Normal  -0.999897 -0.0143575 0
+				VertexExt 0.000933551 0.360006 -0.0356796 UV 0.838282 0.284698 Normal  0 -0.120463 -0.992718
+				VertexExt 0.000933551 0.360006 -0.0356796 UV 0.838282 0.284698 Normal  0 0.570565 -0.821252
+				VertexExt 0.00093355 0.360006 0.0340819 UV 0.999499 0.838282 Normal  -0.999588 -0.0287149 0
+				VertexExt 0.00093355 0.360006 0.0340819 UV 0.161718 0.284698 Normal  0 0.624355 0.781141
+				VertexExt 0.00093355 0.360006 0.0340819 UV 0.161718 0.284698 Normal  0 -0.0906151 0.995886
+				VertexExt 0.00093355 0.400006 0.00211049 UV 0.541662 0.773794 Normal  -0.999982 -0.00593068 0
+				VertexExt 0.00093355 0.400006 0.00211049 UV 0.226206 0.284698 Normal  0 -0.0262564 0.999655
+				VertexExt 0.00093355 0.400006 0.00211049 UV 0.226206 0.284698 Normal  0 0.624355 0.781141
+				VertexExt -0.00475612 0.879662 0.0147089 UV 0.722075 0.000500 Normal  -0.99993 -0.0118611 0
+				VertexExt -0.00475612 0.879662 0.0147089 UV 0.277925 0.000500 Normal  0 1 0
+				VertexExt -0.00475612 0.879662 0.0147089 UV 0.999500 0.000500 Normal  0 -0.0262564 0.999655
+				VertexExt -0.00475612 0.879662 -0.0171556 UV 0.265770 0.000500 Normal  -0.99993 -0.0118611 0
+				VertexExt -0.00475612 0.879662 -0.0171556 UV 0.000500 0.000500 Normal  0 -0.0193145 -0.999813
+				VertexExt -0.00475612 0.879662 -0.0171556 UV 0.734230 0.000500 Normal  0 1 0
+				Color 0.489209 0.352518 1.000000
+				Surface 0.181698 0.545098 0.000000
+				Opacity 1.000000
+				LightSampling Vertex
+				GeometrySampling Solid
+				TextureModes ForeShorten
+				Texture grill_metal.cmp
+
+				Triangle 3 6 30 
+				Triangle 3 30 27 
+				Triangle 5 9 29 
+				Triangle 12 15 33 
+				Triangle 14 18 36 
+				Triangle 14 36 32 
+				Triangle 17 21 39 
+				Triangle 17 39 35 
+				Triangle 20 24 42 
+				Triangle 20 42 38 
+				Triangle 23 2 26 
+				Triangle 23 26 41 
+				Triangle 16 22 19 
+				Triangle 16 1 22 
+				Triangle 8 13 11 
+				Triangle 4 13 8 
+				Triangle 4 16 13 
+				Triangle 1 16 4 
+				Triangle 34 37 40 
+				Triangle 34 40 25 
+				Triangle 7 10 31 
+				Triangle 28 7 31 
+				Triangle 28 31 34 
+				Triangle 25 28 34 
+			JointTransformEnd
+			TransformEnd
+			ClumpEnd
+		JointTransformEnd
+		TransformEnd
+		ClumpEnd
+	JointTransformEnd
+	TransformEnd
+	ClumpEnd
+ModelEnd

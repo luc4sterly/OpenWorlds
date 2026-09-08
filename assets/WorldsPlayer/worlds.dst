@@ -1,0 +1,4 @@
+[Gamma]
+upgradeServer=http://us1.worlds.net/3DCDup
+LogFile=Gamma.Log
+Product_Name=WorldsPlayer

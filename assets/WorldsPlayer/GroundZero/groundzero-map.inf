@@ -1,0 +1,9 @@
+8
+120 0 38 34 Home -world:
+120 80 38 35 Worlds_Club -home:AnimalHouse/AHclub.world#CLUB@507.0,699.0,150.0,49.0,0.0,0.0,-1.0
+52 0 56 21 Worlds_Center -home:WorldsChat/hub22.world#hub_center@1837.0,1838.0,150.0,0.0,0.0,0.0,-1.0
+0 0 42 33 Avatar_Gallery -home:AvatarGallery/avatar.world#AVATARgallery@114.0,110.0,150.0,86.0,0.0,0.0,-1.0
+120 38 38 38 Hang -home:lets/lets.world#Hub@-88.0,712.0,150.0,138.0,0.0,0.0,-1.0
+0 75 31 36 Chat_Deck -home:WorldsChat/hubtoo.world#hupns@22.0,-39.0,150.0,321.0,0.0,0.0,-1.0
+47 99 68 25 Animal_House -home:/AnimalHouse/AnimalHouse.world#FrontYard@191.0,173.0,150.0,45.0,0.0,0.0,-1.0
+0 37 39 24 Meteor -home:Meteor/meteor.world#meteor01@1001.0,2659.0,150.0,165.0,0.0,0.0,-1.0
