@@ -1,0 +1,49 @@
+User running java version 25.0.4.1 from vendor Red Hat, Inc.
+Loading: /home/lucas/FreeWorlds/editor/worldsplayer_source_editor-main/gamma.dll
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by NET.worlds.console.Gamma in an unnamed module (file:/home/lucas/FreeWorlds/editor/worldsplayer_source_editor-main/out/worlds-mock.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+[NATIVE-MOCK] gamma.dll not loaded (java.lang.UnsatisfiedLinkError: Can't load library: /home/lucas/FreeWorlds/editor/worldsplayer_source_editor-main/gamma.dll) - every native method now runs as a logging stub, see NET.worlds.core.NativeMock
+[NATIVE-MOCK] IniFile.nativeInit()
+[NATIVE-MOCK] IniFile.getIniInt(MULTIRUN, 0)
+[NATIVE-MOCK] Startup.synchronizeStartup(null, false)
+[NATIVE-MOCK] skipping System.loadLibrary("net") - collides with the JDK's own libnet.so on modern JDKs and crashes Swing later
+[NATIVE-MOCK] Window.hookWinAPIs(winawt)
+[NATIVE-MOCK] IniFile.getIniString(PRODUCT_NAME, Worlds.com - The 3D Entertainment Portal)
+[NATIVE-MOCK] IniFile.getIniString(productName, Worlds.com - The 3D Entertainment Portal)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+MRE: MessagesBundle_es_ES 
+NO MESSAGE for MenuFont
+[NATIVE-MOCK] IniFile.getIniInt(tieredVIP, 0)
+[NATIVE-MOCK] IniFile.getIniString(ProductName, )
+[NATIVE-MOCK] IniFile.getIniInt(VIP, 0)
+[NATIVE-MOCK] IniFile.getIniInt(SPGUEST, 0)
+[NATIVE-MOCK] IniFile.getIniString(DEFAULTCONSOLE, NET.worlds.console.DefaultConsole)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+MRE: MessagesBundle_es_ES 
+NO MESSAGE for Opnscrnc.gif
+[NATIVE-MOCK] IniFile.getIniString(splashgif, Opnscrnc.gif)
+[NATIVE-MOCK] IniFile.getIniString(Proxy Server IP, )
+[NATIVE-MOCK] IniFile.getIniString(Proxy Server Port, )
+[NATIVE-MOCK] Startup.computeVolumeInfo(null)
+[NATIVE-MOCK] IniFile.getIniString(logfile, )
+[NATIVE-MOCK] IniFile.getIniInt(Profile, 0)
+[NATIVE-MOCK] IniFile.getIniInt(upgradeTimeout, 7)
+[NATIVE-MOCK] IniFile.getIniInt(testautoupgrade, 0)
+[NATIVE-MOCK] IniFile.getIniInt(testworldautoupgrade, 0)
+[NATIVE-MOCK] IniFile.getIniString(upgradeServer, )
+[NATIVE-MOCK] IniFile.getIniString(WorldServer, )
+[NATIVE-MOCK] IniFile.getIniInt(DISABLESHAPER, 1)
+[NATIVE-MOCK] IniFile.getIniString(upgradeServer, )
+java.lang.ExceptionInInitializerError
+	at NET.worlds.network.NetUpdate.<clinit>(NetUpdate.java:904)
+	at NET.worlds.console.Gamma.mainCallback(Gamma.java:444)
+	at NET.worlds.console.Main.mainLoop(Main.java:31)
+	at NET.worlds.console.Gamma.run(Gamma.java:436)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: NET.worlds.core.AssertionException
+	at NET.worlds.core.Debug.dAssert(Debug.java:20)
+	at NET.worlds.network.URL.<clinit>(URL.java:557)
+	... 5 more

@@ -400,9 +400,69 @@ ninguna DLL de Windows** — pasa el check de instancia única
 hasta la construcción de la `MenuBar` real de Swing/AWT en
 `Console.<clinit>`, donde revienta con `java.awt.HeadlessException`. **Este
 ya no es un problema de mocking de nativos — es que no hay servidor X en
-esta máquina.** Con Xvfb (no instalado, no se instaló sin permiso) muy
-probablemente seguiría hasta login/networking real. Es el siguiente paso
-lógico y barato antes de meterse con el renderer de verdad.
+esta máquina.**
+
+### ✅ Probado con Xvfb (2026-09-09) — dos hallazgos más, ninguno del bridge JNI
+
+Con Xvfb (`Xvfb :99 -screen 0 1024x768x24`, `DISPLAY=:99`) el cliente pasó el
+punto de `HeadlessException` y llegó bastante más lejos, hasta topar con dos
+problemas reales — ninguno de los dos es un hueco del mock, los dos están
+aislados y confirmados con evidencia, no supuestos:
+
+1. **Colisión de `libnet.so`** — `Gamma.main()` llama a
+   `System.loadLibrary("net")` (pensado para cargar el `net.dll` legacy del
+   JRE de 2004, ver `assets/WorldsPlayer/bin/net.dll`). En cualquier JDK
+   moderno, "net" colisiona con el `libnet.so` **propio del JDK** (su
+   librería de networking interna): la carga inicial "tiene éxito" pero
+   queda registrada bajo el classloader de la app; más tarde, cuando Swing
+   necesita la misma librería vía NIO para leer la config de fuentes, la
+   pide el *bootstrap* classloader y el JVM revienta con
+   `UnsatisfiedLinkError: ... already loaded in another classloader`.
+   **Aislado con un reproducer mínimo de 10 líneas** (`System.loadLibrary
+   ("net")` + tocar un `JPasswordField`, sin nada del cliente real) — el
+   error es idéntico byte a byte. Arreglado: `apply_mock.sh` ahora salta esa
+   llamada específica (no hacía nada útil fuera de Windows real de todos
+   modos).
+2. **Asunción de ruta estilo Windows en `NET.worlds.network.URL`** —
+   `currentDir = System.getProperty("user.dir").replace('\\', '/')` seguido
+   de `Debug.dAssert(currentDir.charAt(1) == ':' || currentDir.startsWith
+   ("//"))` en el bloque `static {}` de `URL.java:557`. En Windows
+   `user.dir` es del tipo `C:\...` (pasa el assert); en Linux es
+   `/home/...` y la aserción falla siempre. **Esto es lógica real del
+   cliente, no un método `native`** — está fuera del alcance de la
+   herramienta #4 (que solo mockea `native`s) y entra de lleno en el
+   trabajo de portabilidad de la fase 4 del roadmap (sección 5). No se
+   parcheó esta vez — es la primera pared de portabilidad real encontrada,
+   y merece su propio análisis (¿cuántos otros sitios asumen rutas
+   Windows?) antes de tocarla.
+
+**La excepción ocurre dentro de `NET.worlds.network.NetUpdate.<clinit>`**,
+justo cuando el cliente está calculando la URL del servidor de upgrade —
+o sea, llegamos literalmente al borde de la lógica de conexión de red antes
+de morir. Log completo en `docs/xvfb-runtime-trace.log`.
+
+### Direcciones de servidor por defecto (pregunta 4)
+
+Sin necesitar que el cliente llegue más lejos, esto ya se puede sacar por
+análisis estático + la config real que aportó el usuario:
+
+- **`assets/WorldsPlayer/worlds.ini`** (la instalación real de 2026, tal
+  como la dejó el usuario): `upgradeServer=http://us1.worlds.net/3DCDup`
+  — el dominio oficial, muerto desde octubre 2025 (sección 1).
+- **Hardcodeado en el `.java` decompilado** (`Galaxy.java:678-679`): si el
+  host del server resuelto es literalmente `www.3dcd.com:6650`, el cliente
+  tiene un fallback a la IP fija `209.67.68.214:6650` (probablemente un
+  workaround de Worlds Inc. para cuando el DNS de 3dcd.com fallaba). También
+  aparecen `www.3dcd.com:25` (SMTP, no es el juego) y `time.worlds.net`
+  (sync de hora, tampoco es el juego). Esto coincide exactamente con lo que
+  ya se había visto en un log real de ejecución (`Gamma.Log`, sesión
+  anterior): `AutoServer(www.3dcd.com:6650): lastError=VarErrorException`.
+- **Para probar contra `whirl` o WorlioWorlds**: hay que editar
+  `upgradeServer` en `worlds.ini` (y probablemente `WorldServer`/
+  `ScriptServer` en `override.ini`, como ya hace WorlioWorlds según la
+  sección 3.5) para que apunten al servidor de prueba en vez de a
+  `worlds.net`/`3dcd.com`. El puerto por defecto observado (`6650`) es un
+  buen punto de partida para comparar contra el puerto que escucha `whirl`.
 
 ---
 
@@ -639,9 +699,11 @@ lento que hacerlo directo.
 - Decidir con más información real (tras la fase 0) si el camino de
   renderizado será Java+LWJGL puro, o si compensa más seguir el modelo de
   `WideWorlds` (cliente web con three.js) en vez de un cliente nativo.
-- **Nuevo (2026-09-09)**: instalar `Xvfb` (no disponible en esta máquina, no
-  se instaló sin permiso) para correr `out/worlds-mock.jar` con un display
-  virtual en vez de `-Djava.awt.headless=true` — el cliente mockeado llegó
-  hasta la construcción de la UI real (`Console.<clinit>` → `MenuBar`) y
-  ahí murió por falta de X11, no por falta de nativos. Con Xvfb debería
-  seguir hasta login/networking real (herramienta #4 lista, ver sección 4).
+- ✅ **RESUELTO (2026-09-09)**: probado con Xvfb (el usuario lo instaló).
+  Pasó de largo el punto de `HeadlessException` y llegó hasta
+  `NetUpdate.<clinit>` (cálculo de la URL del servidor de upgrade) antes de
+  morir por una aserción de ruta estilo Windows en `URL.java` — ver el
+  detalle completo en la sección 4 ("Probado con Xvfb"). **Siguiente paso
+  real**: portar esa asunción de ruta (y buscar cuántas más hay del mismo
+  tipo) para que el cliente llegue de verdad a intentar una conexión de red
+  contra un servidor configurado a mano (`whirl` / WorlioWorlds).
