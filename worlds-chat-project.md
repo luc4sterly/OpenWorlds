@@ -324,13 +324,12 @@ Java 25 del sistema — el mínimo que pide Ghidra es Java 21). Con eso:
    real de guiones bajos `_` → `_1`) y lo cruza contra los exports reales →
    **`docs/native-methods-map.md`**.
 
-**Resultado: 360 declaraciones `native` encontradas, 358 (99.4%) casan con un
-export real de `gamma.dll`.** Los 2 que no casan (`IUnknown.true_Release`,
-`PendingCacheDrone.nativeDestroy`) están marcados ⚠️ VERIFICAR — probablemente
-código muerto o cubierto por otra ruta, pendiente de confirmar a mano (no
-asumir, principio de la sección 6). Esto confirma con evidencia dura que
-`gamma.dll` es *el* puente JNI del cliente — no hay que buscar la
-implementación nativa en ningún otro sitio.
+**Resultado inicial de esta sesión: 360 declaraciones `native` encontradas,
+358 casan con un export real de `gamma.dll`.** (Números corregidos al día
+siguiente — ver el bloque de 2026-09-09 más abajo: la regex tenía un bug de
+modificadores y se saltaba 5 declaraciones reales; el total correcto es 365.)
+Esto confirma con evidencia dura que `gamma.dll` es *el* puente JNI del
+cliente — no hay que buscar la implementación nativa en ningún otro sitio.
 
 **Reorganización de archivos de esta sesión:**
 - `move/` (aportado por el usuario) → `assets/WorldsPlayer/`.
@@ -338,6 +337,72 @@ implementación nativa en ningún otro sitio.
   release 1.12.0) — hace falta para repetir `make decompile`.
 - `.gitignore` nuevo: excluye la instalación de Ghidra (~1.4GB, herramienta
   externa reinstalable) y `analysis/` (proyecto Ghidra, regenerable).
+
+### ✅ Los 2 métodos sin mapear investigados + Bridge JNI mock construido (2026-09-09)
+
+**1) Investigación de los 2 `native` sin export en `gamma.dll`** (con
+evidencia real, no suposición — ver `docs/native-methods-map.md` para el
+detalle completo):
+
+- De paso se encontró un bug en la regex del mapeador: solo aceptaba
+  `static` en una posición fija antes de `native`, y se saltaba
+  declaraciones con orden distinto (`public static final native`, `public
+  static synchronized native`). Corregido → el total real de declaraciones
+  `native` es **365**, no 360.
+- **`sendURL.silent_get`** — ✅ resuelto, era un falso negativo del script:
+  el export existe (`?Java_NET_worlds_scape_sendURL_silent_get@@YGJ...`)
+  pero con mangling **C++ de MSVC**, no el `_Java_...@N` estándar con escape
+  `_`→`_1` que usa la mayoría. El mapeador ya prueba ambas formas.
+- **`PendingCacheDrone.nativeDestroy`** — ⚠️ confirmado código muerto: 0
+  exports posibles en `gamma.dll` bajo ningún mangling, y 0 llamadas en los
+  722 archivos decompilados (comparar con `nativeInit()`, que sí se llama
+  desde el `static {}` de la misma clase).
+- **`Console.getVolumeInfo`** — ⚠️ mismo patrón: existe un gemelo
+  `Startup.getVolumeInfo()` que sí está exportado y sí se usa desde
+  `LoginWizard.java:702`; la versión de `Console` es un duplicado obsoleto,
+  0 llamadas, sin export propio.
+- **Resultado final: 365 declaraciones, 363 (99.5%) mapeadas contra
+  `gamma.dll`, 2 confirmadas como código muerto** (no bloquean nada).
+
+**2) Bridge JNI mock (herramienta #4, sección 7)** — implementado con
+`tools/jni_mock.py`:
+- Reemplaza cada método `native` por un cuerpo que llama a
+  `NET.worlds.core.NativeMock.log(clase, método, args)` (clase nueva) y
+  devuelve un valor por defecto. Política de defaults (documentada en el
+  propio script, no es "la verdad", es una elección para maximizar cuánto
+  avanza el cliente): `boolean`→`true` (para pasar los guards `if
+  (!check()) exit/bail` de arranque en vez de cortar en el primero),
+  numéricos→`0`, referencias→`null` **salvo** que el último parámetro sea
+  del mismo tipo que el retorno (patrón `getIniString(key, default)`), en
+  cuyo caso se devuelve ese parámetro — evita `NullPointerException` en
+  cascada por defaults que en realidad el propio cliente ya sabía resolver.
+- También se envolvieron en `try/catch` los 2 `System.load(...)` de
+  `Gamma.java` (arranque principal + `dllLoad()`), que si no abortarían el
+  proceso entero al no encontrar la DLL de Windows.
+- Genera además `docs/native-methods-callers.md`: qué clase llama a cada
+  `native`, útil para saber qué ruta de código dispara cada stub. ⚠️
+  **Limitación documentada en el propio archivo**: es grep por texto, no
+  entiende polimorfismo/reflection — 167/365 salen como "sin llamadas
+  encontradas" y **eso no significa código muerto**, salvo los 2 casos de
+  arriba que sí se verificaron aparte cruzando contra `gamma.dll`.
+- Todo el flujo (regenerar `source/` limpio → aplicar el mock → recompilar)
+  quedó en `editor/worldsplayer_source_editor-main/apply_mock.sh`, para no
+  tener que rehacerlo a mano cada vez (el `source/` decompilado no se
+  versiona — ver `.gitignore` — así que hay que re-generarlo y re-mockear en
+  cada sesión nueva antes de poder correr el cliente).
+
+**Resultado en runtime** (headless, `java -cp out/worlds-mock.jar
+NET.worlds.console.Gamma`, log completo en
+`docs/jni-mock-runtime-trace.log`): el cliente **arranca de verdad sin
+ninguna DLL de Windows** — pasa el check de instancia única
+(`Startup.synchronizeStartup`), carga `worlds.ini`, resuelve el
+`ResourceBundle` de mensajes (detectó locale `es_ES` del sistema) — y llega
+hasta la construcción de la `MenuBar` real de Swing/AWT en
+`Console.<clinit>`, donde revienta con `java.awt.HeadlessException`. **Este
+ya no es un problema de mocking de nativos — es que no hay servidor X en
+esta máquina.** Con Xvfb (no instalado, no se instaló sin permiso) muy
+probablemente seguiría hasta login/networking real. Es el siguiente paso
+lógico y barato antes de meterse con el renderer de verdad.
 
 ---
 
@@ -402,9 +467,11 @@ Orden de prioridad recomendado:
    automáticamente.
 
 ### Prioridad media
-4. **Bridge JNI "mock"** — stub que implementa los métodos `native` con
-   logging en vez de lógica real, para poder arrancar el cliente y probar
-   networking/UI sin esperar a tener el renderizador completo.
+4. ✅ **HECHO (2026-09-09)** — **Bridge JNI "mock"** — stub que implementa
+   los métodos `native` con logging en vez de lógica real, para poder
+   arrancar el cliente y probar networking/UI sin esperar a tener el
+   renderizador completo. Ver sección 4 para el resultado y el hallazgo del
+   límite real (headless/AWT, no las DLLs).
 5. **Comparador de versiones del `.jar`** — diff automatizado entre distintas
    builds decompiladas (si se consiguen), para distinguir bugs de
    comportamiento intencional a lo largo del tiempo.
@@ -572,3 +639,9 @@ lento que hacerlo directo.
 - Decidir con más información real (tras la fase 0) si el camino de
   renderizado será Java+LWJGL puro, o si compensa más seguir el modelo de
   `WideWorlds` (cliente web con three.js) en vez de un cliente nativo.
+- **Nuevo (2026-09-09)**: instalar `Xvfb` (no disponible en esta máquina, no
+  se instaló sin permiso) para correr `out/worlds-mock.jar` con un display
+  virtual en vez de `-Djava.awt.headless=true` — el cliente mockeado llegó
+  hasta la construcción de la UI real (`Console.<clinit>` → `MenuBar`) y
+  ahí murió por falta de X11, no por falta de nativos. Con Xvfb debería
+  seguir hasta login/networking real (herramienta #4 lista, ver sección 4).

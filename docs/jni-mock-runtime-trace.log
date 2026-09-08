@@ -1,0 +1,25 @@
+User running java version 25.0.4.1 from vendor Red Hat, Inc.
+Loading: /home/lucas/FreeWorlds/editor/worldsplayer_source_editor-main/gamma.dll
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by NET.worlds.console.Gamma in an unnamed module (file:/home/lucas/FreeWorlds/editor/worldsplayer_source_editor-main/out/worlds-mock.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+[NATIVE-MOCK] gamma.dll not loaded (java.lang.UnsatisfiedLinkError: Can't load library: /home/lucas/FreeWorlds/editor/worldsplayer_source_editor-main/gamma.dll) - every native method now runs as a logging stub, see NET.worlds.core.NativeMock
+[NATIVE-MOCK] IniFile.nativeInit()
+[NATIVE-MOCK] IniFile.getIniInt(MULTIRUN, 0)
+[NATIVE-MOCK] Startup.synchronizeStartup(null, false)
+[NATIVE-MOCK] Window.hookWinAPIs(winawt)
+[NATIVE-MOCK] IniFile.getIniString(PRODUCT_NAME, Worlds.com - The 3D Entertainment Portal)
+[NATIVE-MOCK] IniFile.getIniString(productName, Worlds.com - The 3D Entertainment Portal)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+MRE: MessagesBundle_es_ES 
+NO MESSAGE for MenuFont
+Exception in thread "main" java.lang.ExceptionInInitializerError
+	at NET.worlds.console.Gamma.main(Gamma.java:161)
+Caused by: java.awt.HeadlessException
+	at java.desktop/java.awt.GraphicsEnvironment.checkHeadless(GraphicsEnvironment.java:158)
+	at java.desktop/java.awt.MenuComponent.<init>(MenuComponent.java:156)
+	at java.desktop/java.awt.MenuBar.<init>(MenuBar.java:134)
+	at NET.worlds.console.Console.<clinit>(Console.java:87)
+	... 1 more
