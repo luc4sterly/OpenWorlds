@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Reapplies the JNI mock bridge on top of a freshly `make decompile`d +
 # patched source/ tree: NativeMock.java, the native->stub rewrite
-# (tools/jni_mock.py), and the two System.load() call sites in Gamma.java
-# that would otherwise abort startup when no native DLL is present.
+# (tools/jni_mock.py), the System.load()/loadLibrary() call sites in
+# Gamma.java that would otherwise abort startup or crash on a modern JDK,
+# and a small portability fix in NET.worlds.network.URL (real 2004 client
+# logic, not a native method - see worlds-chat-project.md sec. 4 for the
+# full investigation of why this one was safe to patch this way).
 set -euo pipefail
 cd "$(dirname "$0")"
 ROOT=../..
@@ -109,6 +112,49 @@ text = text.replace(old3, new3)
 
 open(path, "w").write(text)
 print("Patched Gamma.java System.load call sites")
+PYEOF
+
+python3 - << 'PYEOF'
+# NET.worlds.network.URL's file: URL scheme structurally assumes a
+# single-character drive letter followed by a colon (x:/...) because on
+# Windows System.getProperty("user.dir") always looks like "C:/...". On
+# Unix it's "/home/user/..." instead, which fails the class's own asserts
+# (currentDir.charAt(1)==':' in the static {} block, plus two more in
+# normalize()) before the client gets anywhere near real networking.
+# Investigated first (see worlds-chat-project.md sec. 4): the only other
+# place in the class touching separators already normalizes '\'->'/' at
+# declaration time, and the class's one real java.io.File construction
+# (searchPath()) uses File.separator on a completely separate code path
+# that never touches _url/currentDir - so this is safe to patch by
+# synthesizing a fake single-character "drive" ('u', for Unix) rather than
+# by loosening the asserts themselves, which would have left the rest of
+# the class's x:/... parsing inconsistent.
+path = "source/NET/worlds/network/URL.java"
+text = open(path).read()
+
+old = '''   private static String currentDir = System.getProperty("user.dir").replace('\\\\', '/');
+   private static URL home;
+   private static URL file;
+   private static boolean useCachedFiles;
+   private static URL avatar;'''
+new = '''   private static String currentDir = normalizeCurrentDir(System.getProperty("user.dir").replace('\\\\', '/'));
+   private static URL home;
+   private static URL file;
+   private static boolean useCachedFiles;
+   private static URL avatar;
+
+   private static String normalizeCurrentDir(String var0) {
+      if (var0.length() > 1 && var0.charAt(1) == ':' || var0.startsWith("//")) {
+         return var0;
+      } else {
+         return "u:" + var0;
+      }
+   }'''
+assert old in text, "URL.java currentDir declaration pattern not found"
+text = text.replace(old, new)
+
+open(path, "w").write(text)
+print("Patched URL.java currentDir (Windows drive-letter assumption)")
 PYEOF
 
 echo "Mock applied."

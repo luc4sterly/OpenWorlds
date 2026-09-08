@@ -431,15 +431,97 @@ aislados y confirmados con evidencia, no supuestos:
    `/home/...` y la aserción falla siempre. **Esto es lógica real del
    cliente, no un método `native`** — está fuera del alcance de la
    herramienta #4 (que solo mockea `native`s) y entra de lleno en el
-   trabajo de portabilidad de la fase 4 del roadmap (sección 5). No se
-   parcheó esta vez — es la primera pared de portabilidad real encontrada,
-   y merece su propio análisis (¿cuántos otros sitios asumen rutas
-   Windows?) antes de tocarla.
+   trabajo de portabilidad de la fase 4 del roadmap (sección 5). ✅
+   **Investigado y parcheado (2026-09-09)** — ver el bloque siguiente.
 
 **La excepción ocurre dentro de `NET.worlds.network.NetUpdate.<clinit>`**,
 justo cuando el cliente está calculando la URL del servidor de upgrade —
 o sea, llegamos literalmente al borde de la lógica de conexión de red antes
-de morir. Log completo en `docs/xvfb-runtime-trace.log`.
+de morir.
+
+### ✅ Asunción de ruta Windows investigada y portada (2026-09-09)
+
+Antes de tocar nada: `currentDir` solo se usa en **3 sitios** de
+`URL.java`, los tres con la misma estructura `<letra-de-unidad>:/...`:
+
+1. El propio assert de la sección 4 (`static {}`, línea 557).
+2. `validateFile()` — usa `currentDir.substring(0, 2)` (los 2 primeros
+   caracteres, "unidad + `:`") como prefijo por defecto cuando resuelve una
+   ruta absoluta (`/algo`) o relativa sin unidad explícita.
+3. `normalize()` — tiene dos asserts más (`var0.indexOf(58, 5) == 6` y
+   `var0.charAt(7) == '/'`) que dependen de que el resultado de
+   `validateFile()` tenga exactamente ese formato de 1 carácter + `:` + `/`.
+
+**No hay separadores `\` reales en ningún otro punto de la clase** (el
+único `.replace('\\', '/')` es la normalización de entrada, ya hecha antes
+de todo esto). El único `new File(...)` real de la clase, en
+`searchPath()`, construye la ruta con `File.separator` (ya portable) por un
+camino que **no** toca `_url`/`currentDir` para nada — o sea, el problema
+está genuinamente contenido a estos 3 sitios.
+
+**Parche mínimo aplicado**: en vez de tocar los asserts o la lógica de
+`validateFile()`/`normalize()` (usada en todos lados), se sintetiza una
+"unidad" falsa de un solo carácter (`u:`, de "Unix") cuando `user.dir` no
+tiene ya forma de ruta Windows — `normalizeCurrentDir()` en `URL.java`,
+reaplicado automáticamente por `apply_mock.sh`. Con esto,
+`/home/lucas/FreeWorlds/...` se convierte en `u:/home/lucas/FreeWorlds/...`,
+que cumple exactamente la misma forma `<1 char>:/...` que el código ya
+espera en los 3 sitios — cero cambios en la lógica de parseo. **No afecta
+Windows real**: si `user.dir` ya tiene pinta de ruta Windows, la función
+lo devuelve sin tocar.
+
+**Resultado**: el cliente pasó de largo `NetUpdate.<clinit>`/`URL.<clinit>`
+sin más caídas de portabilidad, completó un **ciclo entero de arranque y
+apagado limpio** (exit code 0, sin colgarse, log de 184 líneas en
+`docs/xvfb-runtime-trace.log` — antes eran 49). Config real cargada
+(`worlds.ini` simulado por el mock), locale detectado (`es_ES`), intentó
+leer `redir.txt` (no existe, manejado con gracia), inicializó la caché,
+intentó cargar el mundo por defecto `newworld.world`...
+
+**Hallazgo relacionado, NO parcheado (fuera de alcance esta vez)**: al
+inicializar la caché, `Cache.java:23` hace exactamente el problema inverso
+— `Gamma.earlyURLUnalias("home:cachedir/").replace('/', '\\')` — convierte
+la ruta YA correcta de vuelta a backslashes antes de abrir el archivo con
+`FileInputStream`, lo que en Linux produce un nombre de archivo literal
+absurdo (`\home\lucas\...\cachedir\cache.index`, con barras invertidas como
+caracteres normales, no separadores). No es fatal — el cliente lo captura y
+sigue ("Flushing cache index.") — pero hay **4 sitios más** con el mismo
+patrón `.replace('/', '\\')`: `EditMusicDialog.java:39`, `ASFThread.java:26`,
+`Shaper.java:141`, y el propio `Cache.java:23`. Ninguno bloqueó esta
+ejecución, así que se documentan como ⚠️ VERIFICAR para una pasada de
+portabilidad futura, no se tocaron (no era lo que se pidió esta vez).
+
+### ⚠️ Todavía NO llegó a intentar una conexión de red real
+
+Con evidencia del log completo (`docs/xvfb-runtime-trace.log`): el cliente
+**no llegó a conectar a ningún servidor**. La razón, con evidencia:
+`FastDataInput` (el lector binario de archivos `.world`/persistidos) está
+completamente mockeado — sus métodos `native` (`nativeInit`, `readBoolean`,
+`read`, etc.) solo loguean y devuelven valores por defecto, nunca leen
+bytes reales del disco. Por eso `Restorer.<init>` revienta con
+`NullPointerException` al validar la cabecera del archivo (`"PERSISTER
+Worlds, Inc."` esperado, `null` recibido) — no importa si el archivo existe
+de verdad o no, el mock nunca lo lee. El cliente **atrapa ese error**
+(muestra el mensaje `cant-teleport`, reintenta un par de veces con el mismo
+resultado) y luego, en vez de caer a un intento de conexión de red, termina
+limpiamente el hilo principal (`System.exit(0)` normal, no un crash).
+
+**Conclusión**: con el mock actual (defaults genéricos, sin I/O real), la
+carga del mundo local por defecto es un paso previo obligatorio que nunca
+puede tener éxito, y el cliente no tiene una ruta alternativa de "si falla
+lo local, prueba la red" en este punto del arranque — la conexión de red
+real (`Galaxy`/`NetUpdate`/`AutoServer`) se dispara desde otro punto del
+flujo que esta ejecución no llegó a alcanzar. **Siguiente paso lógico**:
+hacer que `FastDataInput` lea bytes reales de disco (mock "inteligente",
+no genérico — ver sección 7, quedaría como extensión de la herramienta #4)
+para que la carga del mundo por defecto pueda tener éxito de verdad, o
+investigar si hay una forma de forzar el flujo de conexión a un
+`WorldServer` sin depender de que cargue un mundo local primero.
+
+No se editó `worlds.ini`/`override.ini` para apuntar a `whirl` ni a
+WorlioWorlds esta vez — no tenía sentido hacerlo hasta resolver el punto de
+arriba, ya que el cliente ni siquiera llega al código que leería esos
+valores para intentar conectar.
 
 ### Direcciones de servidor por defecto (pregunta 4)
 
@@ -699,11 +781,13 @@ lento que hacerlo directo.
 - Decidir con más información real (tras la fase 0) si el camino de
   renderizado será Java+LWJGL puro, o si compensa más seguir el modelo de
   `WideWorlds` (cliente web con three.js) en vez de un cliente nativo.
-- ✅ **RESUELTO (2026-09-09)**: probado con Xvfb (el usuario lo instaló).
-  Pasó de largo el punto de `HeadlessException` y llegó hasta
-  `NetUpdate.<clinit>` (cálculo de la URL del servidor de upgrade) antes de
-  morir por una aserción de ruta estilo Windows en `URL.java` — ver el
-  detalle completo en la sección 4 ("Probado con Xvfb"). **Siguiente paso
-  real**: portar esa asunción de ruta (y buscar cuántas más hay del mismo
-  tipo) para que el cliente llegue de verdad a intentar una conexión de red
-  contra un servidor configurado a mano (`whirl` / WorlioWorlds).
+- ✅ **RESUELTO (2026-09-09)**: probado con Xvfb (el usuario lo instaló), y
+  la asunción de ruta Windows de `URL.java` que lo frenaba ya está portada
+  (sección 4). Con eso el cliente completa un ciclo entero de arranque y
+  apagado limpio, sin crashear. **Sigue sin llegar a una conexión de red
+  real** — no por portabilidad, sino porque `FastDataInput` (mock genérico,
+  sin I/O real) hace fallar la carga del mundo local por defecto antes de
+  que el flujo llegue al código de conexión. Ver la sección 4
+  ("Todavía NO llegó a intentar una conexión de red real") para el detalle
+  completo y el siguiente paso propuesto (mock "inteligente" de
+  `FastDataInput` con lectura real de disco).

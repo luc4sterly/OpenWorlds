@@ -37,13 +37,148 @@ NO MESSAGE for Opnscrnc.gif
 [NATIVE-MOCK] IniFile.getIniString(WorldServer, )
 [NATIVE-MOCK] IniFile.getIniInt(DISABLESHAPER, 1)
 [NATIVE-MOCK] IniFile.getIniString(upgradeServer, )
-java.lang.ExceptionInInitializerError
-	at NET.worlds.network.NetUpdate.<clinit>(NetUpdate.java:904)
-	at NET.worlds.console.Gamma.mainCallback(Gamma.java:444)
+[NATIVE-MOCK] IniFile.getIniInt(useNetworkAvatars, 1)
+[NATIVE-MOCK] IniFile.getIniInt(useNetworkAvatars, -1)
+[NATIVE-MOCK] IniFile.getIniString(avatarDir, avatar/)
+[NATIVE-MOCK] IniFile.getIniString(avatar, home:avatars/)
+[NATIVE-MOCK] IniFile.getIniInt(maxupgradeversion, 999999999)
+[NATIVE-MOCK] IniFile.getIniString(RunUpgrade, )
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+MRE: MessagesBundle_es_ES 
+NO MESSAGE for ButtonFont
+[NATIVE-MOCK] IniFile.getIniInt(CheckUpgrades, 1)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+MRE: MessagesBundle_es_ES 
+NO MESSAGE for Check-for-up-opt
+[NATIVE-MOCK] IniFile.getIniInt(DISABLESHAPER, 1)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+MRE: MessagesBundle_es_ES 
+NO MESSAGE for Pwc.gif
+[NATIVE-MOCK] IniFile.getIniString(splashover, Pwc.gif)
+[NATIVE-MOCK] IniFile.getIniInt(splashxover, 141)
+[NATIVE-MOCK] IniFile.getIniInt(splashyover, 140)
+[NATIVE-MOCK] Point3Temp.nativeInit()
+System Locale is es_ES
+[NATIVE-MOCK] IniFile.getIniString(DEFAULTLANGUAGE, )
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+MRE: MessagesBundle_es_ES 
+NO MESSAGE for MenuFont
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+MRE: MessagesBundle_es_ES 
+NO MESSAGE for end-of-last
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld0, )
+[NATIVE-MOCK] IniFile.getIniInt(MaxInstalledWorlds, 0)
+[NATIVE-MOCK] IniFile.setIniInt(MaxInstalledWorlds, 0)
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld0, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld1, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld2, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld3, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld4, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld5, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld6, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld7, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld8, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld9, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld10, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld11, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld12, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld13, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld14, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld15, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld16, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld17, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld18, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld19, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld20, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld21, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld22, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld23, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld24, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld25, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld26, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld27, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld28, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld29, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld30, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld31, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld32, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld33, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld34, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld35, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld36, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld37, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld38, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld39, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld40, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld41, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld42, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld43, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld44, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld45, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld46, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld47, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld48, )
+[NATIVE-MOCK] IniFile.getIniString(InstalledWorld49, )
+[NATIVE-MOCK] IniFile.getIniString(file, )
+Reading file:u:/home/lucas/freeworlds/editor/worldsplayer_source_editor-main/redir.txt got java.io.FileNotFoundException: u:/home/lucas/freeworlds/editor/worldsplayer_source_editor-main/redir.txt (No existe el fichero o el directorio)
+[NATIVE-MOCK] IniFile.getIniInt(FreeFreeFree, 1)
+[NATIVE-MOCK] IniFile.getIniString(lastchatname, Fred)
+Initializing cache...
+Verifying cache was closed properly...
+Marking cache as open...
+Restoring cache...
+java.io.FileNotFoundException: \home\lucas\FreeWorlds\editor\worldsplayer_source_editor-main\cachedir\cache.index (No existe el fichero o el directorio)
+Flushing cache index.
+[NATIVE-MOCK] IniFile.getIniInt(Offline, 0)
+[NATIVE-MOCK] IniFile.getIniInt(Offline, 0)
+[NATIVE-MOCK] IniFile.getIniInt(StopOnHttpFault, 0)
+[NATIVE-MOCK] IniFile.getIniInt(NetCacheEntries, 1000)
+[NATIVE-MOCK] IniFile.getIniInt(NetCacheThreads, 2)
+[NATIVE-MOCK] IniFile.getIniInt(NetCacheModifiedCheck, 8)
+[NATIVE-MOCK] IniFile.getIniInt(BackgroundLoadLocalFiles, 0)
+[NATIVE-MOCK] FastDataInput.nativeInit()
+[NATIVE-MOCK] FastDataInput.read(u:/home/lucas/freeworlds/editor/worldsplayer_source_editor-main/newworld.world)
+[NATIVE-MOCK] IniFile.getIniInt(RESTORE_DEBUG, 0)
+[NATIVE-MOCK] FastDataInput.readBoolean()
+java.lang.NullPointerException: Cannot invoke "String.equals(Object)" because "<local2>" is null
+	at NET.worlds.scape.Restorer.<init>(Restorer.java:57)
+	at NET.worlds.scape.Restorer.<init>(Restorer.java:80)
+	at NET.worlds.scape.URLSelfLoader.syncBackgroundLoad(URLSelfLoader.java:101)
+	at NET.worlds.scape.BackgroundLoaderElement.syncLoad(BackgroundLoaderElement.java:63)
+	at NET.worlds.scape.BackgroundLoaderElement.read(BackgroundLoaderElement.java:41)
+	at NET.worlds.scape.BackgroundLoaderElement.<init>(BackgroundLoaderElement.java:30)
+	at NET.worlds.scape.BackgroundLoader.get(BackgroundLoader.java:22)
+	at NET.worlds.scape.URLSelfLoader.<init>(URLSelfLoader.java:74)
+	at NET.worlds.scape.URLSelfLoader.load(URLSelfLoader.java:40)
+	at NET.worlds.scape.World.load(World.java:104)
+	at NET.worlds.scape.TeleportAction.startTeleport(TeleportAction.java:224)
+	at NET.worlds.scape.TeleportAction.teleport(TeleportAction.java:73)
+	at NET.worlds.console.Gamma.mainCallback(Gamma.java:491)
 	at NET.worlds.console.Main.mainLoop(Main.java:31)
 	at NET.worlds.console.Gamma.run(Gamma.java:436)
 	at java.base/java.lang.Thread.run(Thread.java:1474)
-Caused by: NET.worlds.core.AssertionException
-	at NET.worlds.core.Debug.dAssert(Debug.java:20)
-	at NET.worlds.network.URL.<clinit>(URL.java:557)
-	... 5 more
+[NATIVE-MOCK] FastDataInput.close()
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+MRE: MessagesBundle_es_ES 
+NO MESSAGE for cant-teleport
+cant-teleport
+[NATIVE-MOCK] IniFile.getIniInt(FreeFreeFree, 1)
+[NATIVE-MOCK] IniFile.getIniString(lastchatname, Fred)
+Validating home:newworld.world
+false
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+MRE: MessagesBundle_es_ES 
+NO MESSAGE for cant-teleport
+[NATIVE-MOCK] IniFile.getIniInt(FreeFreeFree, 1)
+[NATIVE-MOCK] IniFile.getIniString(lastchatname, Fred)
+Validating home:newworld.world
+false
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+MRE: MessagesBundle_es_ES 
+NO MESSAGE for cant-teleport
+[NATIVE-MOCK] Transform.nativeInit()
+[NATIVE-MOCK] IniFile.getIniInt(shadows, 0)
+[NATIVE-MOCK] IniFile.getIniInt(replaceWithMontyDoor, 0)
+[NATIVE-MOCK] WObject.nativeInit()
+[NATIVE-MOCK] Pilot.nativeInit()
+Marking cache as closed...
