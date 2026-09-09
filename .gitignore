@@ -24,3 +24,26 @@ editor/worldsplayer_source_editor-main/out/
 
 # New Java client (RWX parser, later the renderer) build output
 /client/out/
+
+# Third-party documentation (Worlds Inc.'s official GammaDocs, provided
+# directly by the user, mirrored via HTTrack from dev.worlds.net/private/
+# GammaDocs) - kept locally for reference, not versioned: it's not our
+# content and most of it (interface mockups, unrelated HTML pages) was
+# never actually used. The specific facts cited from it are paraphrased
+# with attribution in docs/rwg-bod-format-reference.md instead. The 4
+# real .rwg/.rwx binary format samples it contained (genuine test
+# corpus, not documentation) were moved out to
+# assets/gammatutorial-samples/ before this rule was added, so they
+# stay versioned.
+/GammaDocs/
+GammaDocs.zip
+
+# Download-log bookkeeping inside the real WorldsPlayer install's cache
+# dir (assets/WorldsPlayer/cachedir/) - timestamps/URLs of what was
+# fetched from where, not format/geometry data. The actual downloaded
+# content in that same directory (.bod/.seq/.mov/.cmp - real avatar
+# assets used as verified test corpus, see docs/rwg-bod-format-reference.md)
+# stays versioned; only this bookkeeping is excluded.
+assets/WorldsPlayer/cachedir/*.LOG
+assets/WorldsPlayer/cachedir/cache.index
+assets/WorldsPlayer/cachedir/*.lst
