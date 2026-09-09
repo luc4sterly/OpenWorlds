@@ -9,3 +9,18 @@
 
 # WorldsPlayer editor build output
 editor/worldsplayer_source_editor-main/out/
+
+# Portable Node.js runtime (external tool, downloaded fresh from
+# nodejs.org - see tools/rwx-harness/README or worlds-chat-project.md)
+/tools/node/
+
+# npm-installed deps for the RWX comparison harness (regenerate with
+# `npm install` in tools/rwx-harness - see package.json there)
+/tools/rwx-harness/node_modules/
+
+# LWJGL jars (external tool, downloaded fresh from Maven Central - see
+# worlds-chat-project.md sec. 4/5 for exact version + module list)
+/tools/lwjgl/
+
+# New Java client (RWX parser, later the renderer) build output
+/client/out/

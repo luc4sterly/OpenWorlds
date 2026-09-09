@@ -1,0 +1,18 @@
+{
+  "name": "rwx-harness",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "jsdom": "^30.0.1",
+    "three": "^0.186.0",
+    "three-rwx-loader": "^0.14.0"
+  }
+}
