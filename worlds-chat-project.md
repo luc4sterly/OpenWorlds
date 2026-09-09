@@ -841,6 +841,100 @@ más de un joint en otras copias del cliente o en la comunidad
 
 ---
 
+### 🟡 Higiene de repo (2026-09-09, entre sesiones): commits separados + push
+
+Antes de continuar con el motor, se limpió el estado del repo (pedido
+explícito del usuario, ver hallazgos completos en el bloque de "higiene
+de repo" más arriba de esta misma sección): `cachedir/{.LOG,.lst,
+cache.index}` dejados de trackear (ruido de bookkeeping de descargas, no
+geometría — los `.bod`/`.seq`/`.mov`/`.cmp` reales SÍ siguen
+versionados), `GammaDocs/` completo sacado del repo (127 archivos,
+5.8MB, la mayoría nunca citados — solo se necesitaban 4 archivos de
+corpus binario real, movidos a `assets/gammatutorial-samples/`, y el
+texto de `Gamma_Advanced.html` ya estaba parafraseado con atribución en
+`docs/`), y el commit original de la sesión RWG se separó en 3 piezas
+revisables (parser / renderer+capturas / docs+corpus). Con `origin/main`
+14 commits por detrás, se hizo push de todo (autenticación SSH
+configurada por el usuario a mitad de sesión).
+
+### 🟡 Motor de renderizado — texturas investigadas, iluminación y
+### materiales implementados y verificados, escena multi-objeto (2026-09-09)
+
+Regla de alcance reafirmada al empezar esta sesión, permanente para el
+resto del proyecto: réplica fiel del pipeline fijo de RenderWare 2 — sin
+shaders modernos, sin PBR, sin mejoras gráficas de ningún tipo. Todo lo
+de abajo usa `glLight`/`glMaterial`/`glBegin`-`glEnd` (pipeline de
+función fija real, no una reinterpretación moderna).
+
+**1. Texturas `.cmp`/`.mov` ("ScapePic") — investigadas a fondo,
+NO resueltas del todo, documentado el límite real**
+(`docs/cmp-texture-format-reference.md`). Desensamblado real con Ghidra
+(mismo binario `gamma.dll` de sesiones anteriores) hasta identificar que
+el núcleo de compresión (función interna llamada literalmente
+`huffdcod`) es estructuralmente idéntico, variable por variable, al
+algoritmo público y bien documentado `make_table()` de la familia LHA/LZH
+de Okumura/Yoshizaki — pero el bucle real que consume el bitstream
+comprimido (la pieza que convertiría las tablas Huffman ya construidas
+en píxeles reales) no se llegó a ubicar. Corroborado con investigación
+externa: `github.com/vanjac/zoomscape-info` documenta el mismo header
+`LzH2` y también lo marca como "unknown compression scheme" — nadie más
+lo ha resuelto públicamente tampoco. Decisión de alcance: no forzar el
+resto del desensamblado (esfuerzo del mismo orden que `.bod`) a costa del
+resto de la sesión; el pipeline de materiales usa el color/opacidad de
+material YA verificado, sin renderizar ninguna textura ni inventar
+píxeles.
+
+**2. Iluminación — modelo real encontrado en Java puro, sin necesitar
+Ghidra**: `NET.worlds.scape.Room.java` tiene los valores por defecto
+reales (`lightPosition = (-1,1,-1)`, `lightColor = blanco`) y
+`RoomEnvironment.addLight()` confirma **exactamente 2 luces por sala**
+— una "clave" y una "de relleno" en la dirección opuesta a mitad de
+intensidad. Implementado en `GlLighting.java`, verificado con captura +
+histograma de color: el color plano único de `BASKET.RWX` (sesión
+anterior) ahora muestra ≥6 tonos reales según la orientación de cada
+faceta (`docs/renders/basket_lit.png`).
+
+**3. Pipeline de materiales — verificado con 2 archivos reales
+distintos**: opacidad conectada a alpha blending real; `MaterialModes
+Double` (hallazgo nuevo, uso real confirmado en
+`assets/GROUNDZERO/YARD_TABLE.RWX`) conectado a culling de doble cara —
+verificado visualmente: el envés de la mesa es visible desde abajo, algo
+imposible sin doble cara activa (`docs/renders/table_lit.png`).
+
+**4. RWG con iluminación**: usa la normal real por vértice ya parseada
+del formato (no recalculada). Se encontró y corrigió un problema real de
+datos (`cube.rwg`: los 8 vértices "planos" sin UV tienen normal
+`(0,0,0)`, un valor de relleno que rompe `GL_NORMALIZE` — se añadió un
+fallback a la normal de cara calculada). Queda ⚠️ un artefacto sin
+resolver: 2 de las 6 caras del cubo muestran un patrón tipo z-fighting;
+se probó activar backface culling como diagnóstico y empeoró (huecos),
+confirmando que el sentido de bobinado no es consistente entre caras en
+los datos reales — documentado, no forzado (`docs/render-pipeline-reference.md`).
+
+**5. Escena multi-objeto** (paso 4, "si el tiempo lo permite" — sí
+alcanzó): `RwxSceneViewer.java` carga y renderiza juntos 6 objetos reales
+de `assets/GROUNDZERO/` (cesta, lata, botella, pinzas, cactus, parrilla),
+en una rejilla dimensionada por sus propias cajas delimitadoras reales
+— verificado por captura, los 6 se ven correctamente iluminados,
+posicionados y sin solaparse (`docs/renders/scene_multi_object.png`).
+
+**Commits de esta sesión**: `a3d801d` (investigación `.cmp`), `bcabf31`
+(iluminación + materiales), `2aa35c0` (escena multi-objeto), más 4
+commits de higiene de repo antes de empezar (`f66f9dc`, `de059b0`,
+`7066c30`, `b3c4608`). Todo empujado a `origin/main`.
+
+**Siguiente paso lógico**: dos caminos razonables — (a) retomar RWG/BOD
+multi-joint o el resto del descompresor `.cmp` (ambos necesitan
+desensamblado dedicado con Ghidra, mismo orden de esfuerzo), o (b)
+seguir profundizando el motor: sustituir el pipeline de función fija por
+VBOs/shaders **que repliquen exactamente** el mismo resultado visual (una
+optimización de rendimiento, no una mejora gráfica — dentro de alcance
+si se hace con cuidado), resolver el artefacto de winding de RWG, o
+intentar cargar una escena desde un `.world` real en vez de archivos
+`.rwx` sueltos.
+
+---
+
 ## 5. Roadmap por fases
 
 **Orden de módulos: networking → renderer → UI**
@@ -849,7 +943,7 @@ más de un joint en otras copias del cliente o en la comunidad
 |---|---|---|---|
 | 0 — Reconocimiento | Decompilar con `worldsplayer_source_editor`, `grep -r "native"` para mapear todos los métodos nativos, identificar DLLs cargadas | 🟢 Baja-media | 1–3 semanas |
 | 1 — Parsers de formato | ✅ **RWX (estático) HECHO (2026-09-09)** — 118/118 archivos reales verificados contra `three-rwx-loader`, ver sección 4. 🟡 **RWG parcial (2026-09-09)** — parser Java del contenedor de chunks y de un único ATOM (posición/UV de vértices + polígonos) verificado contra los 2 únicos `.rwg` reales disponibles y renderizado; jerarquía real de múltiples joints **NO verificada** (el corpus real no la demuestra) y `.bod` (formato binario de red, usado por los 26 avatares reales en caché) sigue sin descifrar — ver `docs/rwg-bod-format-reference.md` | 🟡 RWX fácil / RWG-BOD medio-alto (sin corpus real suficiente) | 2–6 semanas |
-| 2 — Renderizador | ✅ **Esqueleto arrancado (2026-09-09)** — ventana LWJGL pintando geometría real parseada, pipeline de función fija, sin texturas/luz todavía. Sustituir por un pipeline moderno (shaders, texturas RenderWare) sigue pendiente | 🔴 Alta (sin SDK de RW2 al que recurrir) | 2–6 meses |
+| 2 — Renderizador | 🟡 **Profundizado (2026-09-09)** — iluminación (2 luces, verificada en Java real) y pipeline de materiales (opacidad, doble cara) implementados y verificados por píxel/histograma sobre pipeline de función fija; escena multi-objeto probada. Texturas `.cmp` investigadas a fondo (algoritmo identificado: variante de LHA/LZH) pero el decoder de píxeles sigue sin completarse — ver `docs/cmp-texture-format-reference.md` y `docs/render-pipeline-reference.md` | 🔴 Alta (sin SDK de RW2 al que recurrir; `.cmp` requiere desensamblado dedicado) | 2–6 meses |
 | 3 — Red | Ya resuelto en gran parte — protocolo documentado por LibreWorlds/Xyem, implementado en `whirl` (Rust) y `munch` (Go) como referencias cruzadas | 🟢 Baja | Incluido en fase 0-1 |
 | 4 — Integración y UI | Chat, lista de amigos, mapa, menús, compatibilidad de comportamiento con el original | 🟡 Media (sin atajos, trabajo de descubrimiento línea a línea) | 1–3 meses |
 | 5 — Porteo a OpenBSD | Una vez quitadas las dependencias nativas de Windows, evaluar viabilidad real en OpenBSD (Wine no está soportado oficialmente ahí — Mesa/OpenGL nativo es el camino) | 🔴 Alta | Posterior al resto |
