@@ -152,3 +152,90 @@ parsean correctamente para mantener el stream sincronizado, pero sus
 campos no se modelan específicamente en `WNode` — no hace falta para
 renderizar la escena, solo para la interactividad (teleports, clicks,
 animaciones), que está fuera del alcance de esta sesión.
+
+---
+
+## Conexión con el motor de renderizado: `WorldViewer.java`
+
+`client/src/net/freeworlds/render/WorldViewer.java` carga un `.world`
+real, resuelve cada URL de geometría contra archivos reales en disco
+(relativos al directorio del propio `.world`, con búsqueda insensible a
+mayúsculas porque las URLs del archivo no siempre coinciden con el
+nombre real — ej. `"tex/frame.rwx"` en el archivo vs `Frame.rwx` real en
+disco), y dibuja el árbol completo de una sala con el pipeline de
+iluminación/materiales ya existente (`GlLighting`, verificado en
+sesiones anteriores).
+
+### Hallazgo real, crítico: la matriz de transformación de 16 floats no
+### es una matriz afín válida tal cual viene en el archivo
+
+Al intentar dibujar la primera sala real (`Reception`, `groundzero.world`
+real), la pantalla salía **completamente negra** — 96 triángulos reales
+enviados a OpenGL, sin ningún error de GL, pero nada visible. Diagnosticado
+paso a paso, sin asumir nada:
+
+1. Se descartó iluminación (probado con `GL_LIGHTING` desactivado y color
+   blanco fijo — seguía en negro).
+2. Se descartó culling de caras traseras (probado con
+   `glDisable(GL_CULL_FACE)` global — seguía en negro).
+3. Se descartó precisión de profundidad (el near/far plane se ajustó al
+   tamaño real de la escena — seguía en negro).
+4. **Proyectando a mano, en Python, un vértice real a través de la
+   cámara+proyección exacta usada**, se encontró que la coordenada Z en
+   espacio de recorte (NDC) caía en `0.9999991` — pegada al plano
+   lejano, consistente con que la componente homogénea "w" de la matriz
+   estuviera colapsando a 0 en vez de mantenerse en 1.
+5. Volcando la matriz completa de 16 floats de un objeto real (no solo
+   la traslación), se confirmó: **el float número 16 (el que en toda
+   matriz afín válida debe ser 1.0) vale literalmente `0.0` en TODOS los
+   objetos reales inspeccionados** — no es ruido aleatorio, es
+   consistente. La traslación (floats 13-15) siempre tenía valores
+   reales y coherentes con la posición esperada del objeto.
+
+**Conclusión (⚠️ VERIFICAR el motivo exacto, pero el arreglo está
+verificado empíricamente)**: la representación nativa "guts" de
+`Transform` de RenderWare aparentemente no se molesta en escribir ese
+valor redundante — dejarlo en 0 colapsa el cálculo homogéneo de
+cualquier consumidor OpenGL estándar. Forzar el float 16 a `1.0` al leer
+la matriz (`WorldRestorer.fixMatrix()`) resolvió por completo la
+pantalla en negro — de 0 objetos visibles a geometría real reconocible.
+
+### Estado de verificación por sala (evidencia honesta, no todo funciona
+### igual de bien)
+
+- **`Reception`** (`docs/renders/world_reception.png`): con el arreglo
+  del float 16, se ve un hexágono limpio y reconocible (la geometría
+  real `ShapeCeiling`/`hubceil1c.rwx`, un panel de techo hexagonal —
+  nombre y forma coinciden) más varias líneas finas correspondientes a
+  objetos `frame.rwx` — que YA se había verificado por separado
+  (`RwxViewer` en solitario) que son geometría genuinamente delgada
+  (bordes de marco), no un error de renderizado.
+- **`IconViewRoom1`** (`docs/renders/world_iconviewroom1.png`, 16
+  objetos, caja delimitadora real de 1000×500×435 unidades — coherente
+  con una sala pequeña): se ve una **fila de postes evenly-spaced**,
+  colores alternos, tamaños similares — exactamente la disposición
+  esperada de una fila decorativa de postes (`post1a`/`post1b`/`post1c`
+  RWX ya conocidos), sin superposiciones absurdas.
+- ⚠️ **`ReceptionView1`** (`docs/renders/world_receptionview1_anomaly.png`,
+  56 objetos): la caja delimitadora real sale desproporcionadamente
+  grande (~38.600 × 42.300 unidades, 10-40x más grande que las otras
+  salas comparables) y el render muestra triángulos gigantes,
+  degenerados, radiando desde un punto — **evidencia clara de que el
+  arreglo del float 16 no es suficiente para todos los casos**. Se probó
+  además transponer el bloque 3×3 de rotación/escala de la matriz (otra
+  hipótesis razonable dado que el float 16 sugiere una posible
+  convención row-major vs column-major) — el resultado fue **peor**
+  (`Reception` pasó de mostrar un hexágono reconocible a líneas
+  degeneradas), así que esa hipótesis se descartó explícitamente en el
+  código, no se dejó a medias.
+
+**Conclusión honesta**: el pipeline `.world` → geometría real
+posicionada → render funciona y está verificado para casos con
+transformaciones simples (ejes alineados, sin rotación compleja) — dos
+salas reales completas lo confirman con evidencia visual coherente. Para
+objetos con rotaciones más complejas (aparentes en `ReceptionView1`) la
+convención exacta del bloque 3×3 de la matriz de RenderWare sigue sin
+resolverse — marcado ⚠️ VERIFICAR, no forzado con una solución sin
+evidencia. Siguiente paso lógico: conseguir un objeto de prueba con una
+rotación simple y conocida (ej. 90° en un solo eje) para aislar la
+convención exacta sin la complejidad de una sala real completa.

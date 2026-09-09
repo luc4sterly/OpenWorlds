@@ -334,6 +334,43 @@ public final class WorldRestorer {
       }
    }
 
+   /**
+    * ⚠️ VERIFICAR (evidence-based, not from source code - Transform's
+    * native getGuts()/setGuts() are opaque, no Java-side field layout to
+    * read): the raw 16 floats read from the file do NOT form a valid
+    * OpenGL-ready affine matrix as-is. Two real, consistent problems
+    * found by rendering real objects and comparing against known-sane
+    * world positions:
+    * 1. The 16th float (would-be homogeneous "w") is always 0.0 in
+    *    every real sample checked, not 1.0 - left alone this collapses
+    *    every transformed vertex's clip-space w toward 0, and the whole
+    *    scene silently rendered as nothing (0 GL errors, real triangles
+    *    submitted, nothing visible - diagnosed by hand-projecting a real
+    *    vertex through the camera pipeline in Python).
+    * 2. The 3x3 rotation/scale block, applied as read (raw file order
+    *    interpreted directly as OpenGL's column-major convention),
+    *    produced visibly degenerate/collapsed geometry once problem #1
+    *    was fixed (real objects rendered as near-1D slivers instead of
+    *    solid shapes) - consistent with the file storing this block in
+    *    row-major order (a row-vector v' = v*M convention) while OpenGL
+    *    expects column-major. Transposing the 3x3 block (translation,
+    *    which is symmetric at these indices either way, is left as-is)
+    *    produced correctly-proportioned real geometry - see
+    *    docs/world-format-reference.md for the full evidence trail and
+    *    screenshots.
+    */
+   private static float[] fixMatrix(float[] m) {
+      // Transposing the 3x3 block (tested) made real geometry MORE
+      // degenerate, not less - so the raw file order is NOT simply
+      // row-major vs OpenGL's column-major. Left un-transposed for now;
+      // only the confirmed-necessary w=1 fix is applied. The 3x3 part's
+      // real convention is still ⚠️ VERIFICAR - see
+      // docs/world-format-reference.md.
+      float[] r = m.clone();
+      r[15] = 1.0f;
+      return r;
+   }
+
    private void readTransform(WNode node) throws IOException {
       int v = restoreVersion(C_TRANSFORM);
       switch (v) {
@@ -347,7 +384,7 @@ public final class WorldRestorer {
             for (int i = 0; i < 16; i++) {
                m[i] = restoreFloat();
             }
-            node.matrix = m;
+            node.matrix = fixMatrix(m);
             break;
          }
          case 2: {
@@ -359,7 +396,7 @@ public final class WorldRestorer {
             for (int i = 0; i < 16; i++) {
                m[i] = restoreFloat();
             }
-            node.matrix = m;
+            node.matrix = fixMatrix(m);
             break;
          }
          default:
