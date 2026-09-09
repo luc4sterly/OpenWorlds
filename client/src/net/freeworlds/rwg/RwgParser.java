@@ -200,38 +200,44 @@ public final class RwgParser {
          return out;
       }
 
-      // Verified against a real 6-face cube (assets/gammatutorial-samples/
-      // cube.rwg) and IDLE.RWG's single quad: each polygon record is
-      // [flag=1][vertexCount][vertexCount x 1-based vertex index][trailing
-      // ints - the first 3 of which are consistently a face normal
-      // (nx,ny,nz), one axis near +-1.0 matching the face's real
-      // orientation, confirmed for all 6 cube faces]. Record size is NOT
-      // fixed across files (12 ints in cube.rwg, 13 in IDLE.RWG) - the
-      // trailing field count varies. Every real PLST seen so far has a
-      // uniform vertexCount across all its polygons, so total record size
-      // (in ints) can be derived as totalPayloadInts / polyCount and used
-      // to size each record's trailing data - NOT verified against a PLST
-      // with mixed vertex counts per polygon (no such sample exists in
-      // the real corpus), which would break this assumption.
-      int totalInts = (plstEnd - pos) / 4;
-      if ((plstEnd - pos) % 4 != 0 || totalInts % polyCount != 0) {
-         throw new IllegalArgumentException(
-            "PLST payload (" + (plstEnd - pos) + " bytes) doesn't divide evenly across " + polyCount
-               + " polygons - the uniform-record-size assumption doesn't hold for this file");
-      }
-      int intsPerRecord = totalInts / polyCount;
+      // Each polygon record is [id/flag][vertexCount][vertexCount x
+      // 1-based vertex index][trailing ints - the first 3 of which are
+      // consistently a face normal (nx,ny,nz), verified against a real
+      // 6-face cube (assets/gammatutorial-samples/cube.rwg: one axis near
+      // +-1.0 per face, all 6 axes present exactly once) and IDLE.RWG's
+      // single quad. That leading field was previously assumed to be a
+      // constant "flag=1" (true in AVATAR/IDLE/cube), but re-checking it
+      // against ball.rwg's real bytes this session disproved that: there
+      // it counts up 1..512, one per polygon - so it's some kind of
+      // per-record id/tag, not a boolean flag, and is NOT validated here.
+      // `vertexCount` IS read directly per record - not assumed - so a
+      // mixed triangle/quad PLST (assets/gammatutorial-samples/table.rwg)
+      // poses no problem there. The only unknown is how many trailing ints
+      // follow each record's indices; every file inspected so far
+      // (cube.rwg, ball.rwg, IDLE.RWG) has this constant PER FILE (6, 6,
+      // and 7 respectively) even though vertexCount can legitimately vary
+      // (ball.rwg is all triangles, cube/IDLE all quads) - so instead of
+      // deriving record size from totalPayloadInts/polyCount (which
+      // silently assumes a uniform vertexCount and breaks the moment a
+      // file mixes 3- and 4-vertex polygons), solve for the per-file
+      // trailing-ints constant directly: try each small candidate and keep
+      // the one where reading polyCount records with that constant
+      // trailing size, one at a time, using each record's own real
+      // vertexCount field, lands exactly on plstEnd after the last record.
+      // Verified this reproduces the exact same per-record byte layout as
+      // the old division-based approach on cube.rwg/ball.rwg/IDLE.RWG
+      // (same trailingCount resolved: 6/6/7), and additionally resolves
+      // table.rwg's real mixed-polygon PLST (see
+      // docs/rwg-bod-format-reference.md) - trailingCount=6, same constant
+      // as cube.rwg/ball.rwg.
+      int trailingCount = resolvePlstTrailingCount(pos, plstEnd, polyCount);
 
       for (int i = 0; i < polyCount; i++) {
-         int flag = readI32(); // ⚠️ VERIFICAR - always 1 in every sample seen.
+         readI32(); // id/flag - see note above; not constant, not validated.
          int vertCount = readI32();
          int[] indices = new int[vertCount];
          for (int j = 0; j < vertCount; j++) {
             indices[j] = readI32() - 1; // file uses 1-based indices (RWX convention)
-         }
-         int trailingCount = intsPerRecord - 2 - vertCount;
-         if (trailingCount < 0) {
-            throw new IllegalArgumentException("PLST record " + i + ": vertexCount " + vertCount
-               + " leaves no room for the derived record size " + intsPerRecord + " ints");
          }
          int[] trailing = new int[trailingCount];
          for (int j = 0; j < trailingCount; j++) {
@@ -239,8 +245,51 @@ public final class RwgParser {
          }
          out.add(new RwgPolygon(indices, trailing));
       }
-      pos = plstEnd;
+      if (pos != plstEnd) {
+         throw new IllegalArgumentException("PLST payload size mismatch after parsing " + polyCount
+            + " records with resolved trailingCount=" + trailingCount + ": at " + pos + ", expected " + plstEnd);
+      }
       return out;
+   }
+
+   // Max plausible polygon vertex count, used only as a sanity bound while
+   // searching for trailingCount - real files seen so far never exceed 4
+   // (triangles/quads); generous margin in case a real n-gon shows up.
+   private static final int MAX_PLAUSIBLE_POLY_VERTS = 32;
+
+   private int resolvePlstTrailingCount(int plstStart, int plstEnd, int polyCount) {
+      for (int candidate = 0; candidate <= 16; candidate++) {
+         int p = plstStart;
+         boolean ok = true;
+         for (int i = 0; i < polyCount && ok; i++) {
+            if (p + 8 > plstEnd) {
+               ok = false;
+               break;
+            }
+            int vertCount = peekI32(p + 4);
+            if (vertCount < 1 || vertCount > MAX_PLAUSIBLE_POLY_VERTS) {
+               ok = false;
+               break;
+            }
+            long recordBytes = 8L + 4L * vertCount + 4L * candidate;
+            if (p + recordBytes > plstEnd) {
+               ok = false;
+               break;
+            }
+            p += recordBytes;
+         }
+         if (ok && p == plstEnd) {
+            return candidate;
+         }
+      }
+      throw new IllegalArgumentException(
+         "PLST: could not resolve a per-file trailing-ints record size for " + polyCount
+            + " polygons in [" + plstStart + "," + plstEnd + ") - format assumption may not hold");
+   }
+
+   private int peekI32(int at) {
+      return ((data[at] & 0xFF) << 24) | ((data[at + 1] & 0xFF) << 16)
+         | ((data[at + 2] & 0xFF) << 8) | (data[at + 3] & 0xFF);
    }
 
    private void expectTag(String expected) {

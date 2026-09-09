@@ -45,12 +45,11 @@ en vez de mantenerse. Resultado, con el `PLST` corregido:
 - **`ball.rwg`** (55108 bytes, 512 triángulos, ~258 vértices) — también
   **parsea limpio** con la misma estructura (vertCount=3 en vez de 4,
   generalizando correctamente el algoritmo).
-- **`table.rwg`** (49692 bytes, 546 polígonos) — **NO parsea**: mezcla
-  triángulos y cuadriláteros dentro del mismo `PLST`, lo cual rompe la
-  asunción de "tamaño de registro uniforme derivado por división" que sí
-  funciona en los otros 4 archivos (ver detalle en la sección de `PLST`
-  más abajo). Documentado como límite conocido, no resuelto — no se
-  forzó una solución sin evidencia sólida.
+- **`table.rwg`** (49692 bytes, 546 polígonos, mezcla real de triángulos y
+  cuadriláteros) — inicialmente **no parseaba** (rompía la asunción de
+  "tamaño de registro uniforme derivado por división"); **resuelto** en
+  la sesión de avatares articulados (2026-09-09) sin necesitar esa
+  asunción — ver detalle en la sección de `PLST` más abajo.
 
 ## ⚠️ Hallazgo central de esta sesión: el corpus real es degenerado para
 ## el objetivo de "articulación"
@@ -273,21 +272,25 @@ confirmar**, ver nota arriba.
        (posiblemente reservado, o un campo de skinning que ningún archivo
        de prueba real ejercita porque ninguno tiene más de un joint).
 4. **`PLST`** (lista de polígonos) — ✅ **estructura general resuelta y
-   verificada contra 4 de los 5 archivos reales** (`AVATAR.RWG` con 0
+   verificada contra los 5 archivos reales** (`AVATAR.RWG` con 0
    polígonos, `IDLE.RWG` con 1 quad, `cube.rwg` con 6 quads, `ball.rwg`
-   con 512 triángulos); `table.rwg` queda como caso sin resolver (ver
-   abajo):
+   con 512 triángulos, y `table.rwg` con 546 polígonos de tipo mixto):
    - `STRT` propio de 12 bytes = 3 enteros: `[cuenta_de_polígonos,
-     campo2, 23]`. `campo2` **NO es constante entre archivos** (36 en
-     AVATAR/IDLE, 32 en cube.rwg) — inicialmente se pensó constante con
-     solo 2 archivos, corregido al ver el tercero. ⚠️ VERIFICAR su
-     significado exacto (podría relacionarse con el tamaño de registro,
-     pero no coincide limpiamente con los bytes reales de ningún
-     archivo).
-   - **Cada registro de polígono = `[flag=1][vertexCount][vertexCount
-     índices 1-based][campos finales]`.** El `flag` inicial vale `1` en
-     los ~519 registros de polígono inspeccionados en total (AVATAR+IDLE+
-     cube+ball) — nunca otro valor, sentido aún sin determinar.
+     campo2, campo3]`. Ninguno de los dos últimos es constante entre
+     archivos: `campo2` es 36 en AVATAR/IDLE pero 32 en cube/ball/table;
+     `campo3` es 23 en AVATAR/IDLE pero **7** en cube/ball/table (se
+     documentó antes como "siempre 23" con solo 2 archivos de evidencia —
+     corregido al re-verificar contra los 3 restantes esta sesión). ⚠️
+     VERIFICAR su significado exacto (podría relacionarse con el tamaño
+     de registro, pero no coincide limpiamente con los bytes reales de
+     ningún archivo).
+   - **Cada registro de polígono = `[id/flag][vertexCount][vertexCount
+     índices 1-based][campos finales]`.** El primer campo se documentó
+     inicialmente como "flag, siempre 1" (cierto en AVATAR/IDLE/cube, que
+     solo tienen 0/1/6 registros) pero **no es constante**: en
+     `ball.rwg` (512 registros) cuenta 1..512, uno por polígono — es
+     algún tipo de id/contador por registro, no un booleano. El parser
+     (`RwgParser.parsePlst`) ya no lo valida, solo lo descarta.
    - **Los primeros 3 campos finales = normal de cara (nx, ny, nz)** — ✅
      confirmado con altísima confianza en `cube.rwg`: sus 6 registros
      (uno por cara) tienen cada uno un único eje en `~±1.0000863` (no
@@ -303,16 +306,33 @@ confirmar**, ver nota arriba.
      calculando el tamaño de registro dividiendo el payload total entre
      el número de polígonos — funciona porque cada `PLST` observado hasta
      ahora tiene un `vertexCount` uniforme para todos sus registros.
-   - ⚠️ **`table.rwg` NO resuelto**: sus 546 polígonos mezclan
-     triángulos y cuadriláteros en el mismo `PLST`, así que el payload no
-     se divide exacto entre el número de polígonos (el parser lo detecta
-     y lanza un error explícito en vez de producir datos basura). No se
-     encontró evidencia suficiente para determinar cómo se codifica el
-     tamaño de cada registro individual en el caso mixto — necesitaría
-     más ingeniería inversa dedicada (posible candidato: un campo dentro
-     del propio registro que codifique su tamaño o el `vertexCount`,
-     leído de a uno en vez de asumir uniformidad, pero no se pudo
-     verificar cuál sin arriesgar una hipótesis sin evidencia).
+   - ✅ **`table.rwg` RESUELTO (sesión de avatares articulados,
+     2026-09-09)**: la asunción de "tamaño de registro uniforme derivado
+     por división" nunca hacía falta — cada registro YA declara su propio
+     `vertexCount` en el segundo campo, que se lee directamente sin
+     asumir nada. Lo único que hacía falta resolver era la cantidad de
+     ints finales ("trailing") tras los índices, que SÍ es constante,
+     pero por archivo, no por registro (6 en `cube.rwg`, 6 en `ball.rwg`,
+     7 en `IDLE.RWG`). `RwgParser.resolvePlstTrailingCount()` ahora prueba
+     candidatos pequeños (0..16) y se queda con el que hace que leer los
+     `polyCount` registros — usando el `vertexCount` real de cada uno,
+     sin asumir uniformidad — cierre exactamente en el byte final del
+     `PLST`. Con esto, `table.rwg` (546 polígonos, mezcla real de
+     triángulos y cuadriláteros confirmada byte a byte, p.ej. los
+     registros 541-544 tienen 4 índices y el 545 tiene 3) resuelve
+     `trailingCount=6` y parsea limpio — verificado además
+     renderizando el resultado (`RwgViewer`, ver
+     `docs/renders/rwg_table_fixed.png`): una mesa coherente (tapa
+     circular + patas cruzadas), no basura geométrica.
+   - **Efecto colateral, corrección importante**: el primer campo de cada
+     registro de `PLST`, hasta ahora documentado como "`flag`, siempre
+     1", **NO es constante** — al re-verificar contra los bytes reales de
+     `ball.rwg` (512 registros) resultó ser un contador 1..512, uno por
+     polígono, no un booleano. `cube.rwg`/`IDLE.RWG` sí lo tienen fijo en
+     1 (con solo 6 y 1 registros respectivamente no bastaba para notar el
+     patrón). El parser ya no valida ni depende de este campo — lo lee y
+     lo descarta. Significado real: desconocido (¿id de polígono?
+     ¿smoothing group?) — no se inventó una interpretación sin evidencia.
    - ✅ **Verificado por renderizado real** (`RwgViewer.java` +
      inspección de píxeles): los 4 índices `[0,1,2,3]` del quad de
      IDLE.RWG están en **orden de rejilla** (0=arriba-izq, 1=arriba-der,
