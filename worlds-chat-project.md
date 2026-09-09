@@ -735,6 +735,112 @@ iluminación básica difusa/ambiente/especular ya parseada y disponible en
 
 ---
 
+### 🟡 Regla de alcance permanente fijada (2026-09-09): réplica fiel, no mejora
+
+El usuario fijó explícitamente, "de ahora en adelante y para siempre en
+este proyecto" (ver sección 1): el objetivo es el juego ORIGINAL
+decompilado y porteado — una réplica fiel, nada nuevo, nada mejorado.
+RWG/BOD (avatares) SÍ están en alcance (eran parte del cliente original).
+Texturas e iluminación deben verse EXACTAMENTE como el RenderWare 2
+original (simple, sin filtrado moderno) — nunca shaders modernos, PBR, ni
+ninguna mejora gráfica. **Regla dura permanente**: si en algún momento hay
+duda entre "fidelidad necesaria" y "mejora fuera de alcance", PARAR y
+preguntar al usuario — nunca decidir unilateralmente a favor de "más
+bonito".
+
+### 🟡 Parser RWG (avatares) — investigación desde bytes reales + implementación parcial (2026-09-09)
+
+**Corpus real usado (no inventado)**: al empezar solo había 2 archivos
+`.rwg` reales (`assets/FIRST/{AVATAR,IDLE}.RWG`, ambos degenerados —
+AVATAR.RWG es una caja placeholder vacía con centinelas `Float.MAX_VALUE`,
+IDLE.RWG un solo quad plano); a mitad de sesión aparecieron 3 más dentro
+de `GammaDocs.zip` (aportado por el usuario, carpeta `GammaTutorial/tex/`
+— movidos a `assets/gammatutorial-samples/` porque son datos binarios de
+formato real, no documentación, así que sí están versionados a
+diferencia del resto de GammaDocs): `cube.rwg` — un cubo real de 6 caras,
+`ball.rwg` — una pelota de 512 triángulos, y `table.rwg` — una mesa de
+546 polígonos mixtos. **Los 5 `.rwg` reales
+tienen exactamente un solo joint/`ATOM` cada uno** (verificado
+programáticamente) — ninguno es un avatar articulado de verdad, son
+props/placeholders de un solo clump. La jerarquía real de huesos de un
+avatar articulado (pelvis→torso→cuello→cabeza...) **sigue sin poder
+verificarse con evidencia real** — límite honesto del corpus disponible,
+documentado explícitamente en vez de inventado. Además hay 26 `.bod`
+reales en `assets/WorldsPlayer/cachedir/` (avatares de verdad descargados
+por red en una sesión anterior, confirmado vía `PendingDrone.java`) pero
+usan una codificación binaria totalmente distinta (sin tags ASCII) que
+**no se logró descifrar** esta sesión.
+
+Con los 3 archivos nuevos, la hipótesis inicial de `PLST` (basada en un
+único polígono de IDLE.RWG) **se rompió y se corrigió con evidencia
+real**: `cube.rwg` reveló que cada polígono lleva una normal de cara
+`(nx,ny,nz)` (los 6 ejes ±X/±Y/±Z aparecen exactamente una vez en las 6
+caras del cubo — imposible que sea casualidad) y que los campos de
+vértice antes marcados "sin determinar" son en realidad la normal por
+vértice. El cubo y la pelota se renderizaron con éxito y se ven
+correctos a simple vista (`docs/renders/{cube,ball}_rwg_3d.png`);
+`table.rwg` quedó sin resolver porque mezcla triángulos y cuadriláteros
+en el mismo `PLST`, rompiendo la asunción de tamaño de registro uniforme
+— documentado como límite conocido, no forzado.
+
+**Investigación externa**: confirmado que no existe ninguna biblioteca ni
+documentación pública que describa este formato binario exacto —
+`aw-sequence-parser` (Active Worlds) es un formato no relacionado (`.seq`
+de animación, magic bytes distintos), y el "RenderWare Binary Stream"
+estándar documentado (usado por GTA) es little-endian con IDs numéricos,
+estructuralmente distinto del esquema de tags ASCII big-endian real
+observado aquí. La fuente más valiosa fue `Gamma_Advanced.html`
+(documentación oficial de Worlds Inc. aportada por el usuario esta
+sesión como parte de `GammaDocs.zip` — ver sección 3.4 para los mirrors
+públicos; el zip completo NO se versionó en el repo, ver nota de higiene
+más abajo), que confirma la lista de nombres/números de tag de joints y
+la convención de que las matrices de joint deben ser siempre identidad —
+esto último coincide EXACTO con lo observado en bytes reales.
+
+**Nota de higiene de repo (2026-09-09, post-sesión)**: el commit inicial
+de esta sub-sesión (`e591395`) había copiado el `GammaDocs.zip` completo
+al repo (127 archivos, 5.8MB) en vez de quedarse solo con lo citado
+arriba. Se corrigió: el HTML completo se sacó del repo (queda solo local,
+no versionado — los hechos citados aquí ya están parafraseados con
+atribución, así que no hace falta el HTML para verificarlos; los mirrors
+públicos de la sección 3.4 son la referencia si hiciera falta consultarlo
+de nuevo), y los 4 archivos de corpus binario real que sí hacían falta
+(`cube.rwg`, `ball.rwg`, `table.rwg`, `table.rwx`) se movieron a
+`assets/gammatutorial-samples/`. El commit se separó en piezas más
+pequeñas y revisables (parser / renderer+capturas / docs+corpus) — ver
+`git log` para el detalle exacto en vez de duplicarlo aquí.
+
+**Lo verificado e implementado** (`client/src/net/freeworlds/rwg/`,
+`docs/rwg-bod-format-reference.md`): contenedor de chunks
+`[tag ASCII][longitud big-endian=tamaño de payload][payload]` verificado
+byte-exacto contra los 2 archivos reales; estructura `CLUM`→`ATOM`→
+`MATX`(x2, identidad)+`VLST`(vértices)+`PLST`(polígonos); layout de
+vértice de 44 bytes/11 floats con posición (alta confianza) y UV
+(confianza media) identificados; un polígono real decodificado y
+**renderizado con éxito** (`RwgViewer.java`, captura de pantalla real
+verificada por píxeles) — en el proceso se descubrió que el orden de
+índices de un quad es de rejilla (TL,TR,BL,BR), no de lazo perimetral (un
+fan-triangulation ingenuo dio una forma cóncava incorrecta, corregido).
+
+**Lo que queda ⚠️ VERIFICAR / sin resolver**: la mayoría de campos del
+header de 52 bytes de `ATOM`; el propósito exacto de `RALT`/`TELT`/`MALT`
+(aunque se encontró que `TELT` contiene un sub-chunk `STNG` con el nombre
+del objeto como string); los campos 3-5 y 8-10 del vértice de 44 bytes;
+si la jerarquía de múltiples joints anida `ATOM` dentro de `ATOM` o los
+enumera como hermanos (sin evidencia real de ningún tipo); y el formato
+`.bod` completo (solo se confirmó un prefijo mágico constante de 6 bytes).
+
+**Siguiente paso lógico**: para desbloquear la jerarquía de joints y
+`.bod` de verdad haría falta desensamblar con Ghidra la función de
+`gamma.dll` que lee `.bod` (mismo nivel de esfuerzo que el mapeo de
+métodos `native` de sesiones anteriores) — no es "seguir leyendo bytes
+con más paciencia", el corpus real disponible se agotó. Alternativa más
+barata: seguir buscando si existe algún archivo `.rwg`/`.bod` real con
+más de un joint en otras copias del cliente o en la comunidad
+(LibreWorlds/kangworlds) antes de invertir en desensamblado.
+
+---
+
 ## 5. Roadmap por fases
 
 **Orden de módulos: networking → renderer → UI**
@@ -742,7 +848,7 @@ iluminación básica difusa/ambiente/especular ya parseada y disponible en
 | Fase | Contenido | Dificultad | Tiempo estimado |
 |---|---|---|---|
 | 0 — Reconocimiento | Decompilar con `worldsplayer_source_editor`, `grep -r "native"` para mapear todos los métodos nativos, identificar DLLs cargadas | 🟢 Baja-media | 1–3 semanas |
-| 1 — Parsers de formato | ✅ **RWX (estático) HECHO (2026-09-09)** — 118/118 archivos reales verificados contra `three-rwx-loader`, ver sección 4. RWG/BOD (binario, avatares articulados) sigue pendiente | 🟡 RWX fácil / RWG-BOD medio | 2–6 semanas |
+| 1 — Parsers de formato | ✅ **RWX (estático) HECHO (2026-09-09)** — 118/118 archivos reales verificados contra `three-rwx-loader`, ver sección 4. 🟡 **RWG parcial (2026-09-09)** — parser Java del contenedor de chunks y de un único ATOM (posición/UV de vértices + polígonos) verificado contra los 2 únicos `.rwg` reales disponibles y renderizado; jerarquía real de múltiples joints **NO verificada** (el corpus real no la demuestra) y `.bod` (formato binario de red, usado por los 26 avatares reales en caché) sigue sin descifrar — ver `docs/rwg-bod-format-reference.md` | 🟡 RWX fácil / RWG-BOD medio-alto (sin corpus real suficiente) | 2–6 semanas |
 | 2 — Renderizador | ✅ **Esqueleto arrancado (2026-09-09)** — ventana LWJGL pintando geometría real parseada, pipeline de función fija, sin texturas/luz todavía. Sustituir por un pipeline moderno (shaders, texturas RenderWare) sigue pendiente | 🔴 Alta (sin SDK de RW2 al que recurrir) | 2–6 meses |
 | 3 — Red | Ya resuelto en gran parte — protocolo documentado por LibreWorlds/Xyem, implementado en `whirl` (Rust) y `munch` (Go) como referencias cruzadas | 🟢 Baja | Incluido en fase 0-1 |
 | 4 — Integración y UI | Chat, lista de amigos, mapa, menús, compatibilidad de comportamiento con el original | 🟡 Media (sin atajos, trabajo de descubrimiento línea a línea) | 1–3 meses |
