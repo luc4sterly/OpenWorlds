@@ -935,6 +935,61 @@ intentar cargar una escena desde un `.world` real en vez de archivos
 
 ---
 
+### 🟡 `.cmp`/`.mov` — bucle de descompresión localizado con precisión,
+### aún sin claridad suficiente para implementar (2026-09-09, sesión 2)
+
+Retomada exactamente donde quedó la sesión anterior (regla de alcance
+reafirmada: los píxeles descomprimidos deben verse EXACTAMENTE como el
+original, sin filtrado/upscaling — no aplica todavía porque no hay
+píxeles reales que mostrar, ver abajo). Se volvió a `gamma.dll` con
+Ghidra y se llegó mucho más lejos que la sesión anterior:
+
+- **Función exacta localizada**: `FUN_00442bc0` (= `getScanline(fila,
+  bufferDestino, stride)`) llama a `FUN_00426af0` (decodificador Huffman
+  a nivel de bit, patrón clásico `decode_c()` de LHA) y luego a
+  `FUN_00457d88` — esta última SÍ es la función que reconstruye píxeles
+  de verdad, la pieza que faltaba la sesión anterior.
+- **Formato de píxel confirmado con evidencia real**: 8 bits por píxel,
+  paleta indexada, filas alineadas a 4 bytes, escritura con stride
+  negativo (bottom-up, típico de un `HBITMAP`/DIB de Windows — coincide
+  con el uso real de `CreateCompatibleDC`/`HBITMAP` ya visto en sesiones
+  anteriores).
+- **Tabla de predictores 2D extraída directamente del binario**
+  (`docs/gamma-dll-cmp-evidence/predictor-offset-tables.txt`, ~50 pares
+  reales `(desplazamiento_fila, desplazamiento_columna)`): revela que el
+  algoritmo es un **predictor causal 2D** (cada símbolo Huffman
+  selecciona un vecino ya decodificado y copia su valor — más parecido a
+  los filtros de PNG/JPEG-LS) y NO LZSS de ventana genérica como se había
+  supuesto la sesión anterior — corrección real basada en evidencia, no
+  solo una hipótesis inicial confirmada.
+- **Los 256 punteros de función indirectos que parecían sugerir 256
+  rutinas complejas distintas resultaron ser triviales** una vez
+  desensamblados: cada uno solo reordena/replica un byte en distintas
+  posiciones de registro — el truco manual de los 90 para rellenar
+  tramos de píxeles repetidos 4 bytes a la vez. Sin complejidad
+  algorítmica real ahí.
+
+**No se implementó el decoder**: la aritmética de acarreo exacta
+(`CARRY4`) y el propósito de la escritura simultánea de dos filas dentro
+de `FUN_00457d88` no se terminaron de entender con la claridad necesaria
+para traducir bit a bit con confianza. Siguiendo la instrucción explícita
+del usuario de no forzar una implementación a medias ni arriesgar píxeles
+inventados con apariencia plausible pero incorrecta, se paró aquí y se
+documentó todo con evidencia real (`docs/cmp-texture-format-reference.md`,
+sección "Sesión 2"). Los pasos 3-5 del plan de esta sesión (implementar,
+verificar contra un `.cmp` real, conectar con el pipeline de materiales)
+no se alcanzaron como consecuencia directa de esta decisión honesta, no
+por falta de esfuerzo — se hicieron 3 rondas de desensamblado con Ghidra
+esta sesión (bucle final, tabla de predictores, tabla de 256 punteros).
+
+**Siguiente paso lógico**: trazar la ejecución de `FUN_00457d88` paso a
+paso con un depurador contra `gamma.dll` corriendo bajo Wine (en vez de
+solo leer pseudocódigo estático de Ghidra) para resolver la ambigüedad
+de bits/doble fila; una vez claro, la implementación en Java del
+predictor causal 2D ya identificado debería ser relativamente directa.
+
+---
+
 ## 5. Roadmap por fases
 
 **Orden de módulos: networking → renderer → UI**
@@ -943,7 +998,7 @@ intentar cargar una escena desde un `.world` real en vez de archivos
 |---|---|---|---|
 | 0 — Reconocimiento | Decompilar con `worldsplayer_source_editor`, `grep -r "native"` para mapear todos los métodos nativos, identificar DLLs cargadas | 🟢 Baja-media | 1–3 semanas |
 | 1 — Parsers de formato | ✅ **RWX (estático) HECHO (2026-09-09)** — 118/118 archivos reales verificados contra `three-rwx-loader`, ver sección 4. 🟡 **RWG parcial (2026-09-09)** — parser Java del contenedor de chunks y de un único ATOM (posición/UV de vértices + polígonos) verificado contra los 2 únicos `.rwg` reales disponibles y renderizado; jerarquía real de múltiples joints **NO verificada** (el corpus real no la demuestra) y `.bod` (formato binario de red, usado por los 26 avatares reales en caché) sigue sin descifrar — ver `docs/rwg-bod-format-reference.md` | 🟡 RWX fácil / RWG-BOD medio-alto (sin corpus real suficiente) | 2–6 semanas |
-| 2 — Renderizador | 🟡 **Profundizado (2026-09-09)** — iluminación (2 luces, verificada en Java real) y pipeline de materiales (opacidad, doble cara) implementados y verificados por píxel/histograma sobre pipeline de función fija; escena multi-objeto probada. Texturas `.cmp` investigadas a fondo (algoritmo identificado: variante de LHA/LZH) pero el decoder de píxeles sigue sin completarse — ver `docs/cmp-texture-format-reference.md` y `docs/render-pipeline-reference.md` | 🔴 Alta (sin SDK de RW2 al que recurrir; `.cmp` requiere desensamblado dedicado) | 2–6 meses |
+| 2 — Renderizador | 🟡 **Profundizado (2026-09-09)** — iluminación (2 luces, verificada en Java real) y pipeline de materiales (opacidad, doble cara) implementados y verificados por píxel/histograma sobre pipeline de función fija; escena multi-objeto probada. Texturas `.cmp`: bucle de descompresión localizado con precisión (función exacta, formato de píxel, tabla de predictores 2D reales extraída del binario) pero el decoder de píxeles sigue sin completarse — requiere depuración paso a paso, no solo lectura estática — ver `docs/cmp-texture-format-reference.md` y `docs/render-pipeline-reference.md` | 🔴 Alta (sin SDK de RW2 al que recurrir; `.cmp` requiere depuración dedicada) | 2–6 meses |
 | 3 — Red | Ya resuelto en gran parte — protocolo documentado por LibreWorlds/Xyem, implementado en `whirl` (Rust) y `munch` (Go) como referencias cruzadas | 🟢 Baja | Incluido en fase 0-1 |
 | 4 — Integración y UI | Chat, lista de amigos, mapa, menús, compatibilidad de comportamiento con el original | 🟡 Media (sin atajos, trabajo de descubrimiento línea a línea) | 1–3 meses |
 | 5 — Porteo a OpenBSD | Una vez quitadas las dependencias nativas de Windows, evaluar viabilidad real en OpenBSD (Wine no está soportado oficialmente ahí — Mesa/OpenGL nativo es el camino) | 🔴 Alta | Posterior al resto |
