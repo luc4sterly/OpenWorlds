@@ -330,4 +330,43 @@ open(path, "w").write(text)
 print("Patched URL.java currentDir (Windows drive-letter assumption)")
 PYEOF
 
+python3 - << 'PYEOF'
+# NET.worlds.console.Cursor.<clinit> asserts Debug.dAssert(defaultCursor
+# != 0) - defaultCursor comes from loadSystemCursor("IDC_ARROW"), a native
+# Win32-handle-returning method. This is NOT a Windows-path-style
+# portability wall like URL.java/Cache.java - it's the generic native mock
+# policy (int natives default to 0) colliding with this codebase's
+# Win32 convention that a 0 handle means "failed to load". loadCursor()
+# has the exact same shape (checked with `!= 0` at Cursor.java:145) so both
+# get the same treatment: return a non-zero placeholder handle instead of
+# the generic 0 default, consistent with the existing "push the client
+# further" mock philosophy (booleans already default to true for the same
+# reason - see tools/jni_mock.py).
+path = "source/NET/worlds/console/Cursor.java"
+text = open(path).read()
+
+old1 = '''   private static int loadSystemCursor(String var0) {
+      NET.worlds.core.NativeMock.log("Cursor", "loadSystemCursor", new Object[]{var0});
+      return 0;
+   }'''
+new1 = '''   private static int loadSystemCursor(String var0) {
+      NET.worlds.core.NativeMock.log("Cursor", "loadSystemCursor", new Object[]{var0});
+      return 1;
+   }'''
+assert old1 in text, "Cursor.java loadSystemCursor pattern not found"
+text = text.replace(old1, new1)
+
+old2 = '''      NET.worlds.core.NativeMock.log("Cursor", "loadCursor", new Object[]{var0});
+      return 0;
+   }'''
+new2 = '''      NET.worlds.core.NativeMock.log("Cursor", "loadCursor", new Object[]{var0});
+      return 1;
+   }'''
+assert old2 in text, "Cursor.java loadCursor pattern not found"
+text = text.replace(old2, new2)
+
+open(path, "w").write(text)
+print("Patched Cursor.java loadCursor/loadSystemCursor (native handle default)")
+PYEOF
+
 echo "Mock applied."
