@@ -1097,6 +1097,76 @@ dos arreglos de matriz.
 
 ---
 
+### 🟢 Avatares articulados: encontrado y verificado un rig real de 18
+### joints (RWX, no RWG) + arreglado `table.rwg` de paso (2026-09-09)
+
+Objetivo de la sesión: avanzar en avatares multi-joint reales. Primer
+paso obligatorio por instrucción explícita: buscar más corpus real de
+`.rwg`/`.bod` antes de seguir. **Búsqueda exhaustiva confirmada negativa**
+— siguen siendo los mismos 5 `.rwg` (todos con un único `ATOM`) y 26
+`.bod` sin descifrar de sesiones anteriores; no apareció nada nuevo en
+`assets/WorldsPlayer/`, cachedir, ni `GammaDocs/` en disco. Un subagente
+confirmó además que el cliente Java decompilado no expone ninguna
+estructura de huesos (`PosableShape.java` solo tiene tablas de permisos de
+apariencia/ropa, no esqueleto — lo articulado vive enteramente en
+`gamma.dll` nativo).
+
+**Pivote productivo, no el fallback previsto**: releer
+`assets/WorldsPlayer/cachedir/45.dat` (el registro de animaciones real,
+encontrado en una sesión muy anterior) recordó que los avatares de red
+reales declaran `geometry=<nombre>.rwx` — el formato FUENTE de un avatar
+es RWX texto (via la herramienta oficial `rwxtobod`), no `.rwg`. Buscando
+nombres de joints de la convención oficial de GammaDocs
+(`pelvis`/`lfshoulder`/`rthip`/`lfelbow`...) en los 119 `.rwx` reales del
+proyecto apareció **`assets/GROUNDZERO/SPIN.RWX`** — ya presente en el
+proyecto, usado en una sesión anterior como prop decorativo sin saber que
+era un rig articulado real. Es un **rig de 18 clumps nombrados con
+jerarquía real de padre/hijo**, verificado con evidencia byte a byte
+(números de línea de `ClumpBegin`/`ClumpEnd`/comentarios `# nombre`) y con
+los 18 nombres coincidiendo exactamente con la tabla oficial de GammaDocs.
+Detalle real interesante, no "corregido": `rtfingers` anida como hijo de
+`lffingers` en los bytes reales (anatómicamente raro, pero es lo que dice
+el archivo). Ver `docs/rwx-avatar-hierarchy-reference.md` para el árbol
+completo y toda la evidencia.
+
+Se implementó `RwxSkeletonParser`/`RwxJoint` (nuevos, **sin tocar**
+`RwxParser.java` — el parser aplanado 118/118 verificado queda intacto) —
+reutilizan exactamente las mismas reglas de transform/clump ya verificadas,
+pero preservan el árbol en vez de aplanarlo. Verificación en tres capas:
+(1) estructura — reproduce exacto el árbol de 18 nodos reconstruido a
+mano; (2) geometría — comparado contra los 119 `.rwx` reales del
+proyecto, el conjunto de puntos en espacio mundo que produce recorrer el
+árbol (`padre.world × joint.localTransform`) es **idéntico** al que
+produce el parser aplanado ya verificado, en los 119/119 archivos, no solo
+`SPIN.RWX`; (3) visual — `SPIN.RWX` renderizado con `RwxViewer` da una
+figura coherente (piernas, cadera, torso, cabeza reconocibles, sin
+basura geométrica) — `docs/renders/rwx_spin_avatar.png`.
+
+**Límite honesto**: esto es geometría fuente en bind pose, no el `.bod`
+comprimido real que el cliente descarga/anima por red (seguiría haciendo
+falta Ghidra sobre `gamma.dll`, como con `.cmp`) y no hay animación
+reconstruida — ningún sistema de huesos/animación inventado, por la regla
+de alcance de esta sesión.
+
+**De paso, revisando `table.rwg` con la experiencia acumulada** (tarea
+explícita de la sesión): el bug quedó resuelto. La asunción vieja
+("tamaño de registro uniforme, derivado dividiendo el payload total entre
+el número de polígonos") nunca hacía falta — cada registro de `PLST` ya
+declara su propio `vertexCount`, que se lee directamente. Lo único que
+había que resolver era cuántos ints finales siguen a cada registro, que sí
+es constante pero POR ARCHIVO, no por registro — se resuelve probando
+candidatos pequeños hasta que la lectura secuencial (usando el
+`vertexCount` real de cada registro, sin asumir uniformidad) cierra exacto
+en el byte final. Con esto, `table.rwg` (546 polígonos, mezcla real
+verificada de triángulos y cuadriláteros) parsea limpio y renderiza una
+mesa coherente (`docs/renders/rwg_table_fixed.png`). Efecto colateral: se
+corrigió una afirmación previa del doc RWG — el primer campo de cada
+registro de `PLST`, documentado como "flag, siempre 1", en realidad NO es
+constante (en `ball.rwg`, 512 registros, cuenta 1..512) — ver
+`docs/rwg-bod-format-reference.md` para el detalle completo.
+
+---
+
 ## 5. Roadmap por fases
 
 **Orden de módulos: networking → renderer → UI**
