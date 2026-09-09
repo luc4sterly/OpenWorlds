@@ -1043,26 +1043,57 @@ hace falta tocar nada nativo.
   `IconViewRoom1` muestra una fila de postes decorativos correctamente
   espaciados, sin superposiciones absurdas — capturas en
   `docs/renders/world_*.png`.
-- ⚠️ **Límite honesto encontrado y documentado, no ocultado**: una
-  tercera sala más compleja (`ReceptionView1`, 56 objetos) renderiza con
-  geometría gravemente degenerada y una caja delimitadora
-  implausiblemente grande — la convención exacta del bloque 3×3 de
-  rotación/escala de la matriz no está resuelta del todo para
-  rotaciones más complejas. Se probó transponer ese bloque como
-  hipótesis y el resultado fue PEOR (revertido explícitamente, no se
-  dejó a medias).
 - **Rendimiento**: 7148 triángulos / 56 objetos en modo inmediato
   (`glBegin`/`glVertex`, sin VBOs) renderizan en una fracción trivial de
   los ~4 segundos totales de ejecución (dominados por arranque de
   JVM/GLFW/X11 y carga de 28 archivos RWX, no por el dibujo en sí) — no
-  hace falta optimizar a esta escala, tal como se pidió no convertir
-  esto en una sesión de optimización salvo necesidad clara.
+  hace falta optimizar a esta escala.
 
-**Siguiente paso lógico**: resolver la convención exacta del bloque 3×3
-de la matriz para rotaciones complejas (probablemente necesite un
-objeto de prueba con una rotación simple y conocida, ej. 90° en un solo
-eje, aislado de la complejidad de una sala real completa); o retomar
-`.cmp`/RWG multi-joint, que siguen pendientes de sesiones anteriores.
+### ✅ Sesión 2 (2026-09-09): el bug del bloque 3×3 resuelto — no era la
+### convención, eran bytes de relleno sin inicializar
+
+La sala compleja (`ReceptionView1`) que quedó rota al final de la
+sesión anterior se investigó volviendo al código Java real (no
+adivinando convenciones matemáticas). Dos hallazgos en
+`Transform.java` que antes no se habían mirado:
+`Transform.printGuts()` (un método de depuración real, no nativo)
+confirma almacenamiento **row-major** (`índice = fila×4+columna`);
+`Transform.worldVecToObjectVec()` usa `punto.vectorTimes(matriz)` —
+confirma que el vector se multiplica a la izquierda (`v' = v·M`, no
+`v' = M·v`). Con esa evidencia, la deducción matemática muestra que
+**no hace falta transponer nada** para pasar los 16 floats crudos a
+`glMultMatrixf` — lo cual explica por qué transponer (sesión anterior)
+empeoró las cosas: aplicaba la convención equivocada.
+
+La causa real de `ReceptionView1` resultó ser otra: los índices 3, 7 y
+11 de la matriz (que en cualquier matriz afín válida deben ser
+siempre `0.0`) contenían basura numérica consistente por objeto (no
+ruido aleatorio — un objeto compartido entre `Reception` y
+`ReceptionView1` mostraba exactamente los mismos valores basura en
+ambas salas). Un escaneo automático confirmó por qué unas salas se
+veían bien y otra no: `IconViewRoom1` tenía 0 objetos afectados,
+`Reception` 1 (pequeño, casi invisible), `ReceptionView1` más de 15.
+Interpretación más plausible: el "guts" nativo de RenderWare es en
+realidad una matriz afín compacta de 4×3, ampliada a 16 floats para el
+formato de guardado Java, con la columna de relleno serializada
+directamente desde memoria nativa sin inicializar — el renderizador
+real nunca la leía. Arreglo: forzar también esos 3 índices a `0.0`
+(sumado al índice 15→`1.0` ya corregido antes).
+
+**Verificado antes/después en las 3 salas** (`docs/renders/world_*_fixed.png`):
+`IconViewRoom1` queda idéntico (el arreglo es quirúrgico); `Reception`
+gana un objeto pequeño correctamente posicionado que antes tenía datos
+basura; `ReceptionView1` pasa de triángulos gigantes degenerados a
+objetos reales reconocibles — y verificado con datos, no solo
+visualmente: las posiciones mundiales de los 56 objetos tienen sentido
+geográfico real (mobiliario de picnic agrupado, cactus/rocas dispersos,
+un camino, paredes de un edificio) en una zona exterior genuinamente
+extensa, no un artefacto.
+
+**Siguiente paso lógico**: retomar `.cmp`/RWG multi-joint, que siguen
+pendientes de sesiones anteriores; o seguir explorando más salas del
+`.world` real para ver si aparece algún otro caso no cubierto por estos
+dos arreglos de matriz.
 
 ---
 

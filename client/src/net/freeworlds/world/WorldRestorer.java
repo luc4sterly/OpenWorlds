@@ -359,14 +359,63 @@ public final class WorldRestorer {
     *    docs/world-format-reference.md for the full evidence trail and
     *    screenshots.
     */
+   /**
+    * Real evidence for the matrix convention, found in the decompiled
+    * client itself (not assumed):
+    * - `Transform.printGuts()` (a real, non-native debug method) prints
+    *   the 16 floats as `var2[var8*4+var5]` with `var8`=row (outer
+    *   loop 0-3), `var5`=column (inner loop 0-3) - i.e. ROW-MAJOR
+    *   storage, `index = row*4 + col`.
+    * - `Transform.worldVecToObjectVec()` calls
+    *   `Point3Temp.make(var1).vectorTimes(var2)` - a POINT is the
+    *   receiver/left operand and the Transform/matrix is the argument,
+    *   i.e. row-VECTOR semantics: v' = v * M (not the column-vector
+    *   v' = M * v that OpenGL's own convention defaults to).
+    *
+    * With M stored row-major as `matrix[row*4+col]` and used as
+    * `v' = v*M`, the OpenGL-ready column-major array for
+    * `glMultMatrixf` (which computes `v' = G*v`) needs `G = M^T`. Column-
+    * major storage of M^T is `Garray[col*4+row] = M^T[row][col] =
+    * M[col][row] = matrix[col*4+row]` - IDENTICAL to the raw row-major
+    * array's own indexing. So no transpose is needed: feeding the raw
+    * 16 floats directly to `glMultMatrixf` already implements the real
+    * client's `v*M` semantics correctly (confirmed: transposing this
+    * block was tried in a previous session and made real geometry MORE
+    * degenerate, consistent with this derivation - transposing would
+    * have produced `v'=M*v`, the wrong convention).
+    *
+    * What DOES need fixing - found by comparing real parsed matrices
+    * against the only 4 values a valid affine row-major matrix can have
+    * outside its rotation/scale block: indices 3, 7, 11 (the last
+    * column of rows 0-2, mathematically always 0 for an affine
+    * transform) and 15 (row 3 col 3, always 1) are NOT reliably those
+    * values in the real file - e.g. a real shared object
+    * ("WObLOGO"/"Rect843cy", present in both Reception and
+    * ReceptionView1 with byte-identical data) reads
+    * matrix[3]=1.0021795E-38, matrix[7]=1.3061306E10, matrix[11]=0.125,
+    * matrix[15]=0.0 - none of which are valid for an affine matrix.
+    * This is consistent across every affected object (not per-context
+    * noise), and only affects SOME objects (0 in IconViewRoom1, 1 in
+    * Reception, many in ReceptionView1 - which is exactly why
+    * IconViewRoom1/Reception rendered mostly fine while
+    * ReceptionView1 rendered as degenerate garbage). The most likely
+    * explanation: RenderWare's native "guts" representation is really a
+    * compact 4x3 affine matrix (3x3 rotation/scale + 3x1 translation),
+    * padded to 16 floats for the Java save format, and the padding
+    * column was serialized straight from whatever was in native memory
+    * at the time rather than being deliberately zeroed - i.e. this is a
+    * real quirk/bug of the ORIGINAL client's own save format, not a
+    * parsing error on this side. The real native renderer, using a 4x3
+    * matrix internally, would never read that 4th column at all - so
+    * forcing it to the only mathematically valid affine values ([0,0,0,1])
+    * reproduces what the original client actually did, rather than
+    * trusting uninitialized bytes it never used.
+    */
    private static float[] fixMatrix(float[] m) {
-      // Transposing the 3x3 block (tested) made real geometry MORE
-      // degenerate, not less - so the raw file order is NOT simply
-      // row-major vs OpenGL's column-major. Left un-transposed for now;
-      // only the confirmed-necessary w=1 fix is applied. The 3x3 part's
-      // real convention is still ⚠️ VERIFICAR - see
-      // docs/world-format-reference.md.
       float[] r = m.clone();
+      r[3] = 0.0f;
+      r[7] = 0.0f;
+      r[11] = 0.0f;
       r[15] = 1.0f;
       return r;
    }

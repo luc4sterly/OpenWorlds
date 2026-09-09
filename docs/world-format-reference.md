@@ -200,42 +200,125 @@ cualquier consumidor OpenGL estándar. Forzar el float 16 a `1.0` al leer
 la matriz (`WorldRestorer.fixMatrix()`) resolvió por completo la
 pantalla en negro — de 0 objetos visibles a geometría real reconocible.
 
-### Estado de verificación por sala (evidencia honesta, no todo funciona
-### igual de bien)
+### Sesión 2 (2026-09-09): la convención real del bloque 3×3, leída del
+### código fuente — no adivinada
 
-- **`Reception`** (`docs/renders/world_reception.png`): con el arreglo
-  del float 16, se ve un hexágono limpio y reconocible (la geometría
-  real `ShapeCeiling`/`hubceil1c.rwx`, un panel de techo hexagonal —
-  nombre y forma coinciden) más varias líneas finas correspondientes a
-  objetos `frame.rwx` — que YA se había verificado por separado
-  (`RwxViewer` en solitario) que son geometría genuinamente delgada
-  (bordes de marco), no un error de renderizado.
-- **`IconViewRoom1`** (`docs/renders/world_iconviewroom1.png`, 16
-  objetos, caja delimitadora real de 1000×500×435 unidades — coherente
-  con una sala pequeña): se ve una **fila de postes evenly-spaced**,
-  colores alternos, tamaños similares — exactamente la disposición
-  esperada de una fila decorativa de postes (`post1a`/`post1b`/`post1c`
-  RWX ya conocidos), sin superposiciones absurdas.
-- ⚠️ **`ReceptionView1`** (`docs/renders/world_receptionview1_anomaly.png`,
-  56 objetos): la caja delimitadora real sale desproporcionadamente
-  grande (~38.600 × 42.300 unidades, 10-40x más grande que las otras
-  salas comparables) y el render muestra triángulos gigantes,
-  degenerados, radiando desde un punto — **evidencia clara de que el
-  arreglo del float 16 no es suficiente para todos los casos**. Se probó
-  además transponer el bloque 3×3 de rotación/escala de la matriz (otra
-  hipótesis razonable dado que el float 16 sugiere una posible
-  convención row-major vs column-major) — el resultado fue **peor**
-  (`Reception` pasó de mostrar un hexágono reconocible a líneas
-  degeneradas), así que esa hipótesis se descartó explícitamente en el
-  código, no se dejó a medias.
+El estado anterior dejaba `ReceptionView1` con geometría gravemente
+degenerada, y la hipótesis de "transponer el bloque 3×3" ya se había
+probado y descartado (empeoraba `Reception`). Esta sesión, siguiendo
+instrucción explícita del usuario, se volvió al código Java real en vez
+de seguir probando convenciones matemáticas "razonables" a ciegas.
 
-**Conclusión honesta**: el pipeline `.world` → geometría real
-posicionada → render funciona y está verificado para casos con
-transformaciones simples (ejes alineados, sin rotación compleja) — dos
-salas reales completas lo confirman con evidencia visual coherente. Para
-objetos con rotaciones más complejas (aparentes en `ReceptionView1`) la
-convención exacta del bloque 3×3 de la matriz de RenderWare sigue sin
-resolverse — marcado ⚠️ VERIFICAR, no forzado con una solución sin
-evidencia. Siguiente paso lógico: conseguir un objeto de prueba con una
-rotación simple y conocida (ej. 90° en un solo eje) para aislar la
-convención exacta sin la complejidad de una sala real completa.
+**Evidencia real, no matemática abstracta**, encontrada en
+`Transform.java`:
+
+1. **`Transform.printGuts()`** (método de depuración real, NO nativo —
+   a diferencia de `getGuts`/`setGuts`) imprime los 16 floats así:
+   ```java
+   for (int var8 = 0; var8 < 4; var8++) {      // var8 = fila
+      for (int var5 = 0; var5 < 4; var5++) {   // var5 = columna
+         String var6 = var2[var8 * 4 + var5];  // índice = fila*4 + columna
+   ```
+   Esto confirma **almacenamiento row-major**: `matrix[fila*4+columna]`
+   — NO column-major como se había asumido sin verificar.
+2. **`Transform.worldVecToObjectVec()`** (línea 285): 
+   ```java
+   Point3Temp var3 = Point3Temp.make(var1).vectorTimes(var2)...
+   ```
+   Un `Point3Temp` (el vector/punto) es el receptor de `.vectorTimes()`,
+   y el `Transform` (la matriz) es el argumento — es decir, **el vector
+   se multiplica a la izquierda: `v' = v · M`** (convención de vector
+   fila), no `v' = M · v` (convención de vector columna, la que asume
+   OpenGL/`glMultMatrixf` por defecto).
+
+**Deducción matemática a partir de esta evidencia** (no una convención
+elegida a priori): con `M` almacenada row-major como
+`matrix[fila*4+columna]` y usada como `v' = v·M`, el array column-major
+que espera `glMultMatrixf` para producir el mismo resultado (`v' = G·v`)
+es `G = M^T`. Escribiendo el almacenamiento column-major de `M^T`:
+`Garray[columna*4+fila] = M^T[fila][columna] = M[columna][fila] =
+matrix[columna*4+fila]` — **exactamente el mismo índice que el array
+crudo ya tiene**. Es decir: **no hace falta transponer nada** — pasar
+los 16 floats tal cual a `glMultMatrixf` ya implementa correctamente la
+semántica real `v·M` del cliente. Esto explica por qué transponer (sesión
+anterior) empeoró las cosas: habría aplicado `v' = M·v`, la convención
+equivocada.
+
+### La causa real de `ReceptionView1`: no era la convención, eran bytes
+### de relleno sin inicializar
+
+Con la convención ya confirmada como correcta (sin transponer), se
+comparó cada matriz real de `ReceptionView1` contra los únicos valores
+matemáticamente válidos que una matriz afín puede tener fuera del
+bloque de rotación/escala y traslación: los índices 3, 7 y 11 (última
+columna de las filas 0-2) deben ser siempre `0.0`, y el índice 15
+(esquina inferior derecha) debe ser siempre `1.0`.
+
+**Hallazgo**: en TODO objeto problemático, esos 4 índices contienen
+basura numérica — ni ceros ni ruido aleatorio, sino valores consistentes
+por objeto (float denormalizado minúsculo en el índice 3, un float
+enorme como `1.3E10` en el índice 7, un float "razonable pero falso"
+como `0.125` en el índice 11). Un objeto compartido
+(`WObLOGO`/`Rect843cy`, presente en `Reception` y `ReceptionView1` con
+datos idénticos, confirmando que no es ruido de lectura) mostró
+exactamente: `matrix[3]=1.0021795E-38, matrix[7]=1.3061306E10,
+matrix[11]=0.125, matrix[15]=0.0`.
+
+**Por qué solo afectaba a algunas salas**: escaneando las 3 salas de
+prueba con un detector automático de valores fuera de rango, `Reception`
+tenía exactamente 1 objeto afectado (pequeño, casi oculto),
+`IconViewRoom1` tenía 0, y `ReceptionView1` tenía más de 15 — coincide
+exactamente con por qué esas salas se veían bien y esta no.
+
+**Interpretación más plausible (⚠️ el motivo último sigue sin
+confirmarse a nivel de desensamblado nativo, pero el patrón es
+inequívoco)**: la representación nativa "guts" de RenderWare
+probablemente es en realidad una matriz afín compacta de 4×3 (rotación/
+escala 3×3 + traslación 3×1), ampliada a 16 floats por conveniencia del
+formato de guardado Java — y esa columna de relleno se serializó
+directamente desde lo que hubiera en memoria nativa en ese momento, sin
+inicializarse a cero. El renderizador nativo real, usando internamente
+una matriz 4×3, nunca leía esa columna — así que forzarla a los únicos
+valores matemáticamente válidos (`[0,0,0,1]`) reproduce el
+comportamiento real del cliente original, en vez de confiar en bytes
+que el propio cliente nunca usó.
+
+**Arreglo aplicado** (`WorldRestorer.fixMatrix()`): además de forzar el
+índice 15 a `1.0` (ya hecho la sesión anterior), ahora también se fuerzan
+los índices 3, 7 y 11 a `0.0`. Sin transponer nada — la deducción de
+arriba confirma que no hace falta.
+
+### Verificación antes/después (mismas 3 salas, capturas reales)
+
+- **`IconViewRoom1`** (`docs/renders/world_iconviewroom1_fixed.png`,
+  0 objetos afectados por el bug): **idéntico** al render anterior — el
+  arreglo es quirúrgico, no toca datos que ya eran válidos.
+- **`Reception`** (`docs/renders/world_reception_fixed.png`, 1 objeto
+  afectado): el hexágono y las líneas de `frame.rwx` siguen igual de
+  reconocibles que antes, y ahora aparece además un pequeño cuadrilátero
+  rojizo correctamente posicionado cerca del centro — el objeto que
+  antes tenía datos basura (`Rect843cy`) y que antes se proyectaba fuera
+  de cualquier posición razonable.
+- **`ReceptionView1`** (antes: `docs/renders/world_receptionview1_anomaly.png`,
+  después: `docs/renders/world_receptionview1_fixed.png`) — cambio
+  drástico: los triángulos gigantes degenerados desaparecen por
+  completo, sustituidos por objetos reales reconocibles (un panel, unas
+  formas pequeñas, una figura delgada). Verificado además con datos: se
+  volcó la posición mundial real de los 56 objetos, y el resultado tiene
+  sentido geográfico — un cúmulo de mobiliario de picnic
+  (`grill`/`yard_table`/`cokecan`/`bottle1`/`umbrella`/`steak`/`fork`,
+  todos entre las coordenadas ~(100-400, -2000, 300-400)), cactus y rocas
+  dispersos por una zona exterior grande, un camino (`road_01.rwx`) en
+  el borde, y paredes/techo de un edificio (`sideh*`/`roof.rwx`) — la
+  caja delimitadora sigue siendo grande (~38.600 unidades de ancho) pero
+  **es real**: es una escena exterior genuinamente extensa, no un
+  artefacto.
+
+**Conclusión**: el bug de `ReceptionView1` no era la convención
+matemática del bloque 3×3 (esa ya estaba bien implementada, confirmado
+ahora con evidencia del código fuente real en vez de solo por
+descarte), sino 4 bytes de relleno sin inicializar en el propio formato
+de guardado del cliente original, que había que reconocer y descartar
+explícitamente. El pipeline `.world` → geometría real posicionada →
+render queda verificado en las 3 salas de prueba, incluyendo la que
+antes fallaba.
