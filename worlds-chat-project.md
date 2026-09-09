@@ -491,37 +491,86 @@ patrón `.replace('/', '\\')`: `EditMusicDialog.java:39`, `ASFThread.java:26`,
 ejecución, así que se documentan como ⚠️ VERIFICAR para una pasada de
 portabilidad futura, no se tocaron (no era lo que se pidió esta vez).
 
-### ⚠️ Todavía NO llegó a intentar una conexión de red real
+### ✅ Sesión 2026-09-09 (continuación): 6 paredes más, cliente llega a red real y descarga con éxito
 
-Con evidencia del log completo (`docs/xvfb-runtime-trace.log`): el cliente
-**no llegó a conectar a ningún servidor**. La razón, con evidencia:
-`FastDataInput` (el lector binario de archivos `.world`/persistidos) está
-completamente mockeado — sus métodos `native` (`nativeInit`, `readBoolean`,
-`read`, etc.) solo loguean y devuelven valores por defecto, nunca leen
-bytes reales del disco. Por eso `Restorer.<init>` revienta con
-`NullPointerException` al validar la cabecera del archivo (`"PERSISTER
-Worlds, Inc."` esperado, `null` recibido) — no importa si el archivo existe
-de verdad o no, el mock nunca lo lee. El cliente **atrapa ese error**
-(muestra el mensaje `cant-teleport`, reintenta un par de veces con el mismo
-resultado) y luego, en vez de caer a un intento de conexión de red, termina
-limpiamente el hilo principal (`System.exit(0)` normal, no un crash).
+Sesión larga y autónoma, empujando desde el assert de `Cursor.java:212`
+hasta el objetivo final (conexión de red real). Cada pared se investigó
+con evidencia antes de tocarla, siguiendo el mismo criterio que las
+sesiones anteriores. Commits en orden: `6c503ba`, `645c3d3`, `f563a6b`,
+`4ffac8c`, `f1e53e1`, `618af6f`.
 
-**Conclusión**: con el mock actual (defaults genéricos, sin I/O real), la
-carga del mundo local por defecto es un paso previo obligatorio que nunca
-puede tener éxito, y el cliente no tiene una ruta alternativa de "si falla
-lo local, prueba la red" en este punto del arranque — la conexión de red
-real (`Galaxy`/`NetUpdate`/`AutoServer`) se dispara desde otro punto del
-flujo que esta ejecución no llegó a alcanzar. **Siguiente paso lógico**:
-hacer que `FastDataInput` lea bytes reales de disco (mock "inteligente",
-no genérico — ver sección 7, quedaría como extensión de la herramienta #4)
-para que la carga del mundo por defecto pueda tener éxito de verdad, o
-investigar si hay una forma de forzar el flujo de conexión a un
-`WorldServer` sin depender de que cargue un mundo local primero.
+1. **`FastDataInput` mock "inteligente"** (retomado de la sesión previa,
+   commiteado ahora) — contrato investigado a fondo antes de escribir nada:
+   `implements DataInput`, todo el método surface son los primitivos de esa
+   interfaz (sin seek/random-access en ningún lado), y
+   `protocol/LibreWorlds-wiki-master/Persister-(.world-etc.)-format.md`
+   (documentación de terceros, independiente) confirma que el formato en
+   disco **es** el wire format de `java.io.DataInput`, no una aproximación.
+   Implementado envolviendo un `DataInputStream` real. `NewWorld.world`
+   confirmado presente en `assets/WorldsPlayer/` (no asumido — verificado
+   con `find`) y cargó con éxito por primera vez.
+2. **`Cursor.java:212`** — investigado: NO es una pared de portabilidad
+   Windows como las anteriores. `defaultCursor = retrieveSystemCursor(...)`
+   viene de `loadSystemCursor("IDC_ARROW")`, un `native` que devuelve un
+   handle Win32 — la política genérica del mock (`int` → `0`) choca con la
+   convención de este código de que `0` significa "falló". Mismo problema
+   en `loadCursor()`. Fix: devolver `1` en vez de `0` para esos dos.
+3. **Bug real del decompilador, no portabilidad**: `PosableShape.<clinit>`
+   reventó con `ArrayIndexOutOfBoundsException: Index -128` — un contador
+   de loop declarado `byte` desborda a los 127 elementos y sigue en
+   negativo. Se buscó el mismo patrón (`for (byte `) en todo el árbol: **11
+   apariciones en 8 archivos**, todas verificadas una por una (el contador
+   solo se usa para indexar, nunca se guarda como `byte`) antes de
+   arreglarlas todas en lote.
+4. **Heurístico generalizado en `jni_mock.py`**: `Transform.scale(float,
+   float,float)` (native, mockeado a `null`) se usa en cadenas fluidas
+   (`var1.scale(x).raise(y)`) — el `null` rompe la SIGUIENTE llamada de la
+   cadena, no esta, lo que lo hacía fácil de pasar por alto. Se generalizó
+   la regla: cuando un `native` no estático devuelve exactamente el tipo de
+   su propia clase, el mock devuelve `this` — verificado contra call sites
+   reales antes de generalizar. 28 métodos afectados tras reaplicar.
+5. **`IniFile` mock "inteligente"** — el hallazgo clave de la sesión:
+   contrato pequeño (2 getters, 2 setters) sobre archivos con el formato
+   INI clásico ya visto literalmente en `worlds.ini`/`override.ini` reales.
+   Implementado con un parser INI real. **Esto reveló la razón real de por
+   qué nunca se veía un intento de conexión**: `World.setWorldServerURL()`
+   solo llama a `Console.load()` con una URL real si `this.isMultiuser` es
+   `true`, y sin leer el `worlds.ini` real el cliente nunca podía ver
+   `RestartAt=home:GroundZero/GroundZero.world` — siempre caía al
+   `NewWorld.world` de un solo jugador, que no tiene servidor y por lo
+   tanto nunca intenta conectar. No era un hueco del mock — era el mock
+   anterior de `IniFile` (genérico, sin leer archivo real).
+6. **DNS real en `DNSLookup.gethostbyname`** — contrato trivial (`String →
+   String[]` de IPs), implementado con `InetAddress.getAllByName()` real.
 
-No se editó `worlds.ini`/`override.ini` para apuntar a `whirl` ni a
-WorlioWorlds esta vez — no tenía sentido hacerlo hasta resolver el punto de
-arriba, ya que el cliente ni siquiera llega al código que leería esos
-valores para intentar conectar.
+**Resultado final, verificado con evidencia dura, no logs de texto**: con
+`worlds.ini` real ahora leído, el cliente pide `upgradeServer=
+http://us1.worlds.net/3DCDup` y bajo Xvfb **completa una descarga HTTP real
+y exitosa**. `getent hosts us1.worlds.net` resuelve a una IP real y viva
+(`172.237.126.108`, DNS inverso `file.libreworlds.org` — **no** el dominio
+muerto que se asumía en la sección 1), y se inspeccionaron directamente los
+archivos que el cliente escribió en su caché local tras la descarga:
+`cachedir/1.dat` abre con la cabecera real de `actions.dat` ("VERSION 2 //
+This file defines global actions that may be performed by avatars...");
+otros dos archivos son listas reales de idiomas/fuentes con códigos de
+locale (`ja_JP 210673`, `es_ES 208280`, etc.). **`us1.worlds.net` está vivo
+y sirviendo contenido real** — aparentemente mantenido o reflejado por la
+comunidad LibreWorlds, no simplemente muerto como se asumía.
+
+El hilo principal del cliente completa su secuencia de arranque local y
+llama a `System.exit(0)` en bien menos de un segundo — las descargas de
+caché corren en hilos daemon asíncronos (`NetCacheThreads=2`) que no
+alcanzan a reportar resultado por log antes de que la JVM termine, así que
+no hay una línea explícita de "conexión exitosa" en
+`docs/xvfb-runtime-trace.log` — pero los archivos reales en disco son
+evidencia más fuerte que cualquier línea de log.
+
+**Punto de parada de esta sesión** (según lo pedido): llegar más lejos
+(un flujo de login explícito, esperar a los hilos de caché asíncronos)
+exigiría tocar el control de flujo de `Gamma.java` o el modelo de hilos de
+`Cache`/`NetUpdate` — código real de red/flujo del cliente, ya no un mock
+de nativos ni un fix de portabilidad menor. Se para aquí para que el
+usuario decida el siguiente paso.
 
 ### Direcciones de servidor por defecto (pregunta 4)
 
@@ -529,8 +578,15 @@ Sin necesitar que el cliente llegue más lejos, esto ya se puede sacar por
 análisis estático + la config real que aportó el usuario:
 
 - **`assets/WorldsPlayer/worlds.ini`** (la instalación real de 2026, tal
-  como la dejó el usuario): `upgradeServer=http://us1.worlds.net/3DCDup`
-  — el dominio oficial, muerto desde octubre 2025 (sección 1).
+  como la dejó el usuario): `upgradeServer=http://us1.worlds.net/3DCDup`.
+  ⚠️ **Actualización (2026-09-09): este subdominio concreto NO está muerto**
+  — `us1.worlds.net` resuelve a una IP real y viva
+  (`172.237.126.108`/`file.libreworlds.org`) y sirve contenido real y
+  descargable (confirmado, no asumido — ver el bloque de esta sesión más
+  abajo). La sección 1 sigue siendo correcta sobre los dominios apex
+  `worlds.com`/`worlds.net` (página de aparcamiento), pero al menos este
+  subdominio de infraestructura parece mantenido o reflejado por la
+  comunidad LibreWorlds.
 - **Hardcodeado en el `.java` decompilado** (`Galaxy.java:678-679`): si el
   host del server resuelto es literalmente `www.3dcd.com:6650`, el cliente
   tiene un fallback a la IP fija `209.67.68.214:6650` (probablemente un
@@ -609,11 +665,16 @@ Orden de prioridad recomendado:
    automáticamente.
 
 ### Prioridad media
-4. ✅ **HECHO (2026-09-09)** — **Bridge JNI "mock"** — stub que implementa
-   los métodos `native` con logging en vez de lógica real, para poder
-   arrancar el cliente y probar networking/UI sin esperar a tener el
-   renderizador completo. Ver sección 4 para el resultado y el hallazgo del
-   límite real (headless/AWT, no las DLLs).
+4. ✅ **HECHO Y EXTENDIDO (2026-09-09)** — **Bridge JNI "mock"** — stub que
+   implementa los métodos `native` con logging en vez de lógica real, para
+   poder arrancar el cliente y probar networking/UI sin esperar a tener el
+   renderizador completo. Extendido con mocks "inteligentes" con I/O real
+   para `FastDataInput` (lectura binaria de disco), `IniFile` (lectura real
+   de `.ini`) y `DNSLookup` (DNS real) — el cliente llegó a completar una
+   descarga de red real y exitosa. Ver sección 4 para el detalle completo
+   y todas las paredes encontradas por el camino (headless/AWT,
+   `libnet.so`, rutas Windows, handles nativos, bug del decompilador,
+   builders fluidos).
 5. **Comparador de versiones del `.jar`** — diff automatizado entre distintas
    builds decompiladas (si se consiguen), para distinguir bugs de
    comportamiento intencional a lo largo del tiempo.
@@ -781,13 +842,21 @@ lento que hacerlo directo.
 - Decidir con más información real (tras la fase 0) si el camino de
   renderizado será Java+LWJGL puro, o si compensa más seguir el modelo de
   `WideWorlds` (cliente web con three.js) en vez de un cliente nativo.
-- ✅ **RESUELTO (2026-09-09)**: probado con Xvfb (el usuario lo instaló), y
-  la asunción de ruta Windows de `URL.java` que lo frenaba ya está portada
-  (sección 4). Con eso el cliente completa un ciclo entero de arranque y
-  apagado limpio, sin crashear. **Sigue sin llegar a una conexión de red
-  real** — no por portabilidad, sino porque `FastDataInput` (mock genérico,
-  sin I/O real) hace fallar la carga del mundo local por defecto antes de
-  que el flujo llegue al código de conexión. Ver la sección 4
-  ("Todavía NO llegó a intentar una conexión de red real") para el detalle
-  completo y el siguiente paso propuesto (mock "inteligente" de
-  `FastDataInput` con lectura real de disco).
+- ✅ **RESUELTO (2026-09-09)**: probado con Xvfb, la asunción de ruta
+  Windows de `URL.java` portada, y **el objetivo final se alcanzó y se
+  superó**: con los mocks "inteligentes" de `FastDataInput`/`IniFile`/
+  `DNSLookup` (sección 4), el cliente lee la config real, resuelve DNS de
+  verdad, y **descarga contenido real con éxito** desde
+  `us1.worlds.net` — que además resultó estar vivo (aparentemente
+  mantenido por LibreWorlds), no muerto como se asumía. Ver la sección 4
+  ("Sesión 2026-09-09 (continuación)") para las 6 paredes encontradas y el
+  detalle completo de la evidencia.
+- **Nuevo (2026-09-09)**: llegar más lejos (login explícito, ver el
+  resultado de las descargas de caché asíncronas en vivo) exige tocar el
+  control de flujo de `Gamma.java` o el modelo de hilos de
+  `Cache`/`NetUpdate` — ya no es un mock de nativos ni portabilidad menor.
+  Es la decisión que le toca al usuario para la próxima sesión: ¿seguir
+  empujando el cliente mockeado más adentro del flujo de red/login, o
+  pivotar hacia el parser RWX (fase 1 del roadmap, sección 5) ahora que el
+  reconocimiento del terreno (nativos, portabilidad, arranque) está
+  esencialmente completo?
