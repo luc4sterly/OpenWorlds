@@ -40,10 +40,183 @@ public final class NativeMock {
       sb.append(')');
       System.err.println(sb.toString());
    }
+
+   /**
+    * Shared by the "smart" mocks (FastDataInput, IniFile) that do real
+    * disk I/O: NET.worlds.network.URL.validateFile() lowercases every
+    * path it resolves - harmless on the case-insensitive Windows
+    * filesystem this client was written for, but it means a literal path
+    * built from that scheme almost never matches a real filename on a
+    * case-sensitive Linux filesystem (e.g. "newworld.world" vs the real
+    * "NewWorld.world"). Walk the path one segment at a time and, for any
+    * segment that doesn't match exactly, fall back to a case-insensitive
+    * match against the real directory listing - i.e. reproduce the same
+    * case-insensitive lookup Windows already does for free.
+    */
+   public static java.io.File resolveCaseInsensitive(String path) {
+      java.io.File exact = new java.io.File(path);
+      if (exact.exists()) {
+         return exact;
+      }
+
+      java.io.File current = new java.io.File(path.startsWith("/") ? "/" : ".");
+
+      for (String part : path.split("/")) {
+         if (part.isEmpty()) {
+            continue;
+         }
+
+         java.io.File candidate = new java.io.File(current, part);
+         if (!candidate.exists()) {
+            java.io.File[] siblings = current.listFiles();
+            if (siblings != null) {
+               for (java.io.File sibling : siblings) {
+                  if (sibling.getName().equalsIgnoreCase(part)) {
+                     candidate = sibling;
+                     break;
+                  }
+               }
+            }
+         }
+
+         current = candidate;
+      }
+
+      return current;
+   }
 }
 EOF
 
 python3 "$ROOT/tools/jni_mock.py" source "$ROOT/docs/native-methods-callers.md"
+
+# "Smart" mock override for FastDataInput (section 7, tool #4 extension -
+# see worlds-chat-project.md sec. 4 for the full investigation). Unlike the
+# generic NativeMock stubs jni_mock.py just wrote into this file (log +
+# return a zero/false/null default), this one does REAL sequential binary
+# file I/O by delegating to java.io.DataInputStream. Verified safe:
+#   - FastDataInput `implements DataInput` and every method on it IS one of
+#     that interface's primitive read methods - no seek/random-access is
+#     exposed anywhere in the class, so a plain DataInputStream fulfills
+#     the whole contract.
+#   - protocol/LibreWorlds-wiki-master/Persister-(.world-etc.)-format.md
+#     (third-party, independently reverse-engineered) confirms the on-disk
+#     .world/.rwx/etc. format IS Java's own DataInput/DataOutput wire
+#     format (2-byte big-endian length-prefixed modified-UTF-8 strings,
+#     etc.) - a real DataInputStream is byte-for-byte compatible, not an
+#     approximation.
+cat > source/NET/worlds/core/FastDataInput.java << 'EOF'
+package NET.worlds.core;
+
+import java.io.DataInput;
+import java.io.DataInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+
+public class FastDataInput implements DataInput {
+   private DataInputStream in;
+
+   public FastDataInput(String var1) throws IOException {
+      nativeInit();
+      this.read(var1);
+   }
+
+   public void close() {
+      NET.worlds.core.NativeMock.log("FastDataInput", "close", new Object[0]);
+
+      try {
+         if (this.in != null) {
+            this.in.close();
+         }
+      } catch (IOException var2) {
+      }
+   }
+
+   public void readFully(byte[] var1) throws IOException {
+      this.readFully(var1, 0, var1.length);
+   }
+
+   public static void nativeInit() {
+      NET.worlds.core.NativeMock.log("FastDataInput", "nativeInit", new Object[0]);
+   }
+
+   // The read* methods below deliberately do NOT log every call (unlike
+   // the generic NativeMock stubs) - they run once per primitive value in
+   // a binary file that can contain many thousands of them, and are pure
+   // pass-through to DataInputStream, so there is nothing a per-call log
+   // line would add besides noise and slowdown. open()/close() are logged.
+   public void readFully(byte[] var1, int var2, int var3) throws IOException {
+      this.in.readFully(var1, var2, var3);
+   }
+
+   public int skipBytes(int var1) throws IOException {
+      return this.in.skipBytes(var1);
+   }
+
+   public boolean readBoolean() throws IOException {
+      return this.in.readBoolean();
+   }
+
+   public byte readByte() throws IOException {
+      return this.in.readByte();
+   }
+
+   public int readUnsignedByte() throws IOException {
+      return this.in.readUnsignedByte();
+   }
+
+   public short readShort() throws IOException {
+      return this.in.readShort();
+   }
+
+   public int readUnsignedShort() throws IOException {
+      return this.in.readUnsignedShort();
+   }
+
+   public char readChar() throws IOException {
+      return this.in.readChar();
+   }
+
+   public int readInt() throws IOException {
+      return this.in.readInt();
+   }
+
+   public long readLong() throws IOException {
+      return this.in.readLong();
+   }
+
+   public float readFloat() throws IOException {
+      return this.in.readFloat();
+   }
+
+   public double readDouble() throws IOException {
+      return this.in.readDouble();
+   }
+
+   public String readLine() throws IOException {
+      Debug.assert_(false);
+      return null;
+   }
+
+   public String readUTF() throws IOException {
+      return this.in.readUTF();
+   }
+
+   private void read(String var1) throws IOException {
+      NET.worlds.core.NativeMock.log("FastDataInput", "read", new Object[]{var1});
+      String var2 = var1;
+      if (var1.length() > 1 && var1.charAt(1) == ':') {
+         // Strip the synthetic single-character "drive" prefix that
+         // NET.worlds.network.URL.normalizeCurrentDir() adds on non-Windows
+         // platforms (see this script) - real Unix filesystem paths never
+         // start with "<char>:". This is specific to running the mock on
+         // Linux/Xvfb, not a general Windows-path fix.
+         var2 = var1.substring(2);
+      }
+
+      this.in = new DataInputStream(new FileInputStream(NativeMock.resolveCaseInsensitive(var2)));
+   }
+}
+EOF
 
 python3 - << 'PYEOF'
 import re
