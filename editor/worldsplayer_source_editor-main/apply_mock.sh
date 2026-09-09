@@ -384,4 +384,172 @@ PYEOF
 grep -rl "for (byte " --include="*.java" source | xargs sed -i 's/for (byte /for (int /g'
 echo "Patched 11 byte-typed loop counters -> int (Vineflower decompiler bug, see worlds-chat-project.md sec. 4)"
 
+# "Smart" mock override for IniFile (section 7, tool #4 extension - see
+# worlds-chat-project.md sec. 4). Small, well-defined contract: 2 getters
+# (getIniInt/getIniString), 2 setters, over files that are the exact
+# classic Windows-INI format ([Section] headers, key=value lines) already
+# seen verbatim in the real assets/WorldsPlayer/worlds.ini and
+# override.ini this project has on disk. gamma() reads the default file
+# (file==null, resolves to "worlds.ini"); override() hardcodes
+# ".\override.ini" - same Windows-separator issue as everywhere else,
+# stripped here rather than in URL.java (out of scope). Without this, the
+# client can never see e.g. worlds.ini's real
+# RestartAt=home:GroundZero/GroundZero.world, so it always falls back to
+# the single-player NewWorld.world default, which never attempts a network
+# connection at all (World.setWorldServerURL only calls Console.load with
+# a real URL when this.isMultiuser is true) - this was the actual reason
+# no connection attempt was ever observed, not a missing native mock.
+# setIniInt/setIniString only update the in-memory cache for this run -
+# deliberately never written back to the user's real .ini files on disk.
+cat > source/NET/worlds/core/IniFile.java << 'EOF'
+package NET.worlds.core;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Hashtable;
+
+public class IniFile {
+   String file;
+   String section;
+   static boolean initialized = false;
+   private static IniFile gamma_ = null;
+   private static IniFile override_ = null;
+   private static final Hashtable<String, Hashtable<String, Hashtable<String, String>>> cache = new Hashtable<>();
+
+   public IniFile(String var1) {
+      this.file = null;
+      this.section = var1;
+   }
+
+   private IniFile(String var1, String var2) {
+      this.file = var1;
+      this.section = var2;
+   }
+
+   public static IniFile gamma() {
+      if (gamma_ == null) {
+         gamma_ = new IniFile("Gamma");
+      }
+
+      if (!initialized) {
+         nativeInit();
+         initialized = true;
+      }
+
+      return gamma_;
+   }
+
+   public static IniFile override() {
+      if (!initialized) {
+         nativeInit();
+         initialized = true;
+      }
+
+      if (override_ == null) {
+         override_ = new IniFile(".\\override.ini", "Runtime");
+      }
+
+      return override_;
+   }
+
+   public int getIniInt(String var1, int var2) {
+      NET.worlds.core.NativeMock.log("IniFile", "getIniInt", new Object[]{var1, var2});
+      String var3 = this.loadSection().get(var1);
+      if (var3 == null) {
+         return var2;
+      }
+
+      try {
+         return Integer.parseInt(var3.trim());
+      } catch (NumberFormatException var4) {
+         return var2;
+      }
+   }
+
+   public void setIniInt(String var1, int var2) {
+      NET.worlds.core.NativeMock.log("IniFile", "setIniInt", new Object[]{var1, var2});
+      this.loadSection().put(var1, String.valueOf(var2));
+   }
+
+   public String getIniString(String var1, String var2) {
+      NET.worlds.core.NativeMock.log("IniFile", "getIniString", new Object[]{var1, var2});
+      String var3 = this.loadSection().get(var1);
+      return var3 != null ? var3 : var2;
+   }
+
+   public void setIniString(String var1, String var2) {
+      NET.worlds.core.NativeMock.log("IniFile", "setIniString", new Object[]{var1, var2});
+      this.loadSection().put(var1, var2);
+   }
+
+   public static void nativeInit() {
+      NET.worlds.core.NativeMock.log("IniFile", "nativeInit", new Object[0]);
+   }
+
+   private String resolveFileName() {
+      String var1 = this.file != null ? this.file : "worlds.ini";
+      var1 = var1.replace('\\', '/');
+      if (var1.startsWith("./")) {
+         var1 = var1.substring(2);
+      }
+
+      return var1;
+   }
+
+   private Hashtable<String, String> loadSection() {
+      String var1 = this.resolveFileName();
+      Hashtable<String, Hashtable<String, String>> var2 = cache.get(var1);
+      if (var2 == null) {
+         var2 = parseIni(var1);
+         cache.put(var1, var2);
+      }
+
+      Hashtable<String, String> var3 = var2.get(this.section);
+      if (var3 == null) {
+         var3 = new Hashtable<>();
+         var2.put(this.section, var3);
+      }
+
+      return var3;
+   }
+
+   private static Hashtable<String, Hashtable<String, String>> parseIni(String var0) {
+      Hashtable<String, Hashtable<String, String>> var1 = new Hashtable<>();
+      File var2 = NativeMock.resolveCaseInsensitive(var0);
+
+      try (BufferedReader var3 = new BufferedReader(new FileReader(var2))) {
+         String var4;
+         String var5 = "";
+         Hashtable<String, String> var6 = new Hashtable<>();
+         var1.put(var5, var6);
+
+         while ((var4 = var3.readLine()) != null) {
+            var4 = var4.trim();
+            if (!var4.isEmpty() && var4.charAt(0) != ';' && var4.charAt(0) != '#') {
+               if (var4.startsWith("[") && var4.endsWith("]")) {
+                  var5 = var4.substring(1, var4.length() - 1);
+                  var6 = var1.get(var5);
+                  if (var6 == null) {
+                     var6 = new Hashtable<>();
+                     var1.put(var5, var6);
+                  }
+               } else {
+                  int var7 = var4.indexOf(61);
+                  if (var7 > 0) {
+                     var6.put(var4.substring(0, var7).trim(), var4.substring(var7 + 1).trim());
+                  }
+               }
+            }
+         }
+      } catch (IOException var8) {
+         NET.worlds.core.NativeMock.log("IniFile", "parseIni-failed", new Object[]{var0, var8.toString()});
+      }
+
+      return var1;
+   }
+}
+EOF
+
 echo "Mock applied."
