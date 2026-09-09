@@ -990,6 +990,82 @@ predictor causal 2D ya identificado debería ser relativamente directa.
 
 ---
 
+### 🟢 `.world` — parser completo, conectado al motor, escena real
+### renderizada (2026-09-09)
+
+Sesión con el mismo espíritu que RWX/RWG: buscar el archivo real primero
+(confirmado: `GroundZero.world`, 205.759 bytes, 3 copias idénticas,
+mundo por defecto según `worlds.ini`), investigar el formato con la
+mejor evidencia disponible, implementar, y verificar con datos reales —
+en este caso con una ventaja enorme sobre RWX/RWG/`.cmp`: **el propio
+mecanismo de serialización SÍ está completo en el Java decompilado**, no
+hace falta tocar nada nativo.
+
+- **Formato investigado y documentado** (`docs/world-format-reference.md`):
+  no es un binario ad-hoc, es el protocolo genérico "Persister" del
+  cliente (`Saver`/`Restorer`), verificado byte a byte contra la
+  cabecera real (`"PERSISTER Worlds, Inc."` + versión 7) y contra ~30
+  clases reales del código fuente (`SuperRoot`, `Transform`, `WObject`,
+  `Shape`, `Room`, `RoomEnvironment`, `Rect`, `Portal`, `Material`,
+  `Point3`, más las familias `Action`/`Sensor`). Posición/rotación/escala
+  de cada objeto se guardan como una matriz 4×4 completa de 16 floats
+  (el "guts" nativo de RenderWare), reutilizando directamente la
+  infraestructura de matrices ya existente de RWX.
+- **Parser implementado y verificado end-to-end**
+  (`client/src/net/freeworlds/world/WorldRestorer.java`): parsea el
+  archivo real completo, sin errores, hasta el marcador real
+  `END PERSISTER` — 25 salas, 578 nodos, 103 objetos con geometría real
+  (50 archivos `.rwx`/`.rwg` únicos, todos verificados contra archivos
+  reales en disco). Se encontraron y corrigieron 4 bugs reales durante
+  la implementación (documentados con evidencia byte a byte en el doc):
+  la distinción entre `Material.restore()` (con booleano previo) y un
+  `var1.restore()` directo (sin él) mal aplicada en 3 sitios distintos;
+  `WObject` apareciendo como clase concreta instanciable, no solo como
+  superclase; y la cadena de herencia de `SendURLAction`/`DialogAction`
+  invertida.
+- **Conectado al motor de renderizado**
+  (`client/src/net/freeworlds/render/WorldViewer.java`): carga una sala
+  real, resuelve las URLs de geometría contra archivos reales en disco,
+  y dibuja el árbol completo con el pipeline de iluminación/materiales
+  ya existente. **Hallazgo real crítico**: la matriz de 16 floats leída
+  del archivo no es una matriz afín válida tal cual — su float número 16
+  (que debería ser 1.0 siempre) vale literalmente 0.0 en todos los
+  objetos reales inspeccionados, colapsando la coordenada homogénea y
+  dejando la pantalla completamente negra pese a que la geometría se
+  enviaba a OpenGL sin errores. Diagnosticado por eliminación metódica
+  (se descartaron iluminación, culling y precisión de profundidad antes
+  de encontrar la causa real proyectando un vértice a mano en Python) y
+  corregido forzando ese valor a 1.0.
+- **Verificado con evidencia visual real**: `Reception` muestra un
+  hexágono limpio y reconocible (el panel de techo real
+  `hubceil1c.rwx`) más los bordes delgados de `frame.rwx` (ya verificado
+  por separado que es geometría genuinamente delgada, no un error);
+  `IconViewRoom1` muestra una fila de postes decorativos correctamente
+  espaciados, sin superposiciones absurdas — capturas en
+  `docs/renders/world_*.png`.
+- ⚠️ **Límite honesto encontrado y documentado, no ocultado**: una
+  tercera sala más compleja (`ReceptionView1`, 56 objetos) renderiza con
+  geometría gravemente degenerada y una caja delimitadora
+  implausiblemente grande — la convención exacta del bloque 3×3 de
+  rotación/escala de la matriz no está resuelta del todo para
+  rotaciones más complejas. Se probó transponer ese bloque como
+  hipótesis y el resultado fue PEOR (revertido explícitamente, no se
+  dejó a medias).
+- **Rendimiento**: 7148 triángulos / 56 objetos en modo inmediato
+  (`glBegin`/`glVertex`, sin VBOs) renderizan en una fracción trivial de
+  los ~4 segundos totales de ejecución (dominados por arranque de
+  JVM/GLFW/X11 y carga de 28 archivos RWX, no por el dibujo en sí) — no
+  hace falta optimizar a esta escala, tal como se pidió no convertir
+  esto en una sesión de optimización salvo necesidad clara.
+
+**Siguiente paso lógico**: resolver la convención exacta del bloque 3×3
+de la matriz para rotaciones complejas (probablemente necesite un
+objeto de prueba con una rotación simple y conocida, ej. 90° en un solo
+eje, aislado de la complejidad de una sala real completa); o retomar
+`.cmp`/RWG multi-joint, que siguen pendientes de sesiones anteriores.
+
+---
+
 ## 5. Roadmap por fases
 
 **Orden de módulos: networking → renderer → UI**
@@ -997,7 +1073,7 @@ predictor causal 2D ya identificado debería ser relativamente directa.
 | Fase | Contenido | Dificultad | Tiempo estimado |
 |---|---|---|---|
 | 0 — Reconocimiento | Decompilar con `worldsplayer_source_editor`, `grep -r "native"` para mapear todos los métodos nativos, identificar DLLs cargadas | 🟢 Baja-media | 1–3 semanas |
-| 1 — Parsers de formato | ✅ **RWX (estático) HECHO (2026-09-09)** — 118/118 archivos reales verificados contra `three-rwx-loader`, ver sección 4. 🟡 **RWG parcial (2026-09-09)** — parser Java del contenedor de chunks y de un único ATOM (posición/UV de vértices + polígonos) verificado contra los 2 únicos `.rwg` reales disponibles y renderizado; jerarquía real de múltiples joints **NO verificada** (el corpus real no la demuestra) y `.bod` (formato binario de red, usado por los 26 avatares reales en caché) sigue sin descifrar — ver `docs/rwg-bod-format-reference.md` | 🟡 RWX fácil / RWG-BOD medio-alto (sin corpus real suficiente) | 2–6 semanas |
+| 1 — Parsers de formato | ✅ **RWX (estático) HECHO (2026-09-09)** — 118/118 archivos reales verificados contra `three-rwx-loader`, ver sección 4. 🟡 **RWG parcial (2026-09-09)** — parser Java del contenedor de chunks y de un único ATOM (posición/UV de vértices + polígonos) verificado contra los 2 únicos `.rwg` reales disponibles y renderizado; jerarquía real de múltiples joints **NO verificada** (el corpus real no la demuestra) y `.bod` (formato binario de red, usado por los 26 avatares reales en caché) sigue sin descifrar — ver `docs/rwg-bod-format-reference.md`. ✅ **`.world` HECHO (2026-09-09)** — parser completo del protocolo de persistencia del cliente, verificado end-to-end contra un archivo real de 205KB (25 salas, 578 nodos, 103 objetos con geometría real) — ver `docs/world-format-reference.md` | 🟡 RWX fácil / RWG-BOD medio-alto (sin corpus real suficiente) / `.world` fácil (Java puro, sin nativo) | 2–6 semanas |
 | 2 — Renderizador | 🟡 **Profundizado (2026-09-09)** — iluminación (2 luces, verificada en Java real) y pipeline de materiales (opacidad, doble cara) implementados y verificados por píxel/histograma sobre pipeline de función fija; escena multi-objeto probada. Texturas `.cmp`: bucle de descompresión localizado con precisión (función exacta, formato de píxel, tabla de predictores 2D reales extraída del binario) pero el decoder de píxeles sigue sin completarse — requiere depuración paso a paso, no solo lectura estática — ver `docs/cmp-texture-format-reference.md` y `docs/render-pipeline-reference.md` | 🔴 Alta (sin SDK de RW2 al que recurrir; `.cmp` requiere depuración dedicada) | 2–6 meses |
 | 3 — Red | Ya resuelto en gran parte — protocolo documentado por LibreWorlds/Xyem, implementado en `whirl` (Rust) y `munch` (Go) como referencias cruzadas | 🟢 Baja | Incluido en fase 0-1 |
 | 4 — Integración y UI | Chat, lista de amigos, mapa, menús, compatibilidad de comportamiento con el original | 🟡 Media (sin atajos, trabajo de descubrimiento línea a línea) | 1–3 meses |
