@@ -1,0 +1,40 @@
+# Raw dump from assets/WorldsPlayer/bin/gamma.dll's data section (Ghidra
+# headless, this session) - the 2D neighbor-offset predictor table used by
+# FUN_00442bc0/FUN_00457d88 (the .cmp/.mov scanline decoder). See
+# docs/cmp-texture-format-reference.md, "Sesión 2 (continuación)" section,
+# for the analysis. Read as interleaved (rowDelta, colDelta) int32 pairs
+# across the 16 overlapping-view arrays below (each array below is the
+# same underlying byte stream read starting at a different int32 offset,
+# which is how the decompiled C referenced it: TABLE[i*2] and TABLE[i*2+1]
+# via two different base symbols 4 bytes apart).
+
+DAT_00478e98 @ 00478e98: 0 0 0 -6 0 -5 0 -4 0 -3 0 -2 -4 0 -4 1 -4 2 -4 3
+DAT_00478e9c @ 00478e9c: 0 0 -6 0 -5 0 -4 0 -3 0 -2 -4 0 -4 1 -4 2 -4 3 -4 
+DAT_00478ea0 @ 00478ea0: 0 -6 0 -5 0 -4 0 -3 0 -2 -4 0 -4 1 -4 2 -4 3 -4 4 
+DAT_00478ea4 @ 00478ea4: -6 0 -5 0 -4 0 -3 0 -2 -4 0 -4 1 -4 2 -4 3 -4 4 -4 
+DAT_00478ea8 @ 00478ea8: 0 -5 0 -4 0 -3 0 -2 -4 0 -4 1 -4 2 -4 3 -4 4 -4 5 
+DAT_00478eac @ 00478eac: -5 0 -4 0 -3 0 -2 -4 0 -4 1 -4 2 -4 3 -4 4 -4 5 -4 
+DAT_00478eb0 @ 00478eb0: 0 -4 0 -3 0 -2 -4 0 -4 1 -4 2 -4 3 -4 4 -4 5 -4 6 
+DAT_00478eb4 @ 00478eb4: -4 0 -3 0 -2 -4 0 -4 1 -4 2 -4 3 -4 4 -4 5 -4 6 -4 
+DAT_00478eb8 @ 00478eb8: 0 -3 0 -2 -4 0 -4 1 -4 2 -4 3 -4 4 -4 5 -4 6 -4 -6 
+DAT_00478ebc @ 00478ebc: -3 0 -2 -4 0 -4 1 -4 2 -4 3 -4 4 -4 5 -4 6 -4 -6 -4 
+DAT_00478ec0 @ 00478ec0: 0 -2 -4 0 -4 1 -4 2 -4 3 -4 4 -4 5 -4 6 -4 -6 -4 -5 
+DAT_00478ec4 @ 00478ec4: -2 -4 0 -4 1 -4 2 -4 3 -4 4 -4 5 -4 6 -4 -6 -4 -5 -4 
+DAT_00478ec8 @ 00478ec8: -4 0 -4 1 -4 2 -4 3 -4 4 -4 5 -4 6 -4 -6 -4 -5 -4 -4 
+DAT_00478ecc @ 00478ecc: 0 -4 1 -4 2 -4 3 -4 4 -4 5 -4 6 -4 -6 -4 -5 -4 -4 -4 
+DAT_00478ed0 @ 00478ed0: -4 1 -4 2 -4 3 -4 4 -4 5 -4 6 -4 -6 -4 -5 -4 -4 -4 -3 
+DAT_00478ed4 @ 00478ed4: 1 -4 2 -4 3 -4 4 -4 5 -4 6 -4 -6 -4 -5 -4 -4 -4 -3 -4 
+
+--- raw bytes around 0x478e98..0x478f60 (for eyeballing structure) ---
+00478e98: 00 00 00 00 00 00 00 00 00 00 00 00 fa ff ff ff 
+00478ea8: 00 00 00 00 fb ff ff ff 00 00 00 00 fc ff ff ff 
+00478eb8: 00 00 00 00 fd ff ff ff 00 00 00 00 fe ff ff ff 
+00478ec8: fc ff ff ff 00 00 00 00 fc ff ff ff 01 00 00 00 
+00478ed8: fc ff ff ff 02 00 00 00 fc ff ff ff 03 00 00 00 
+00478ee8: fc ff ff ff 04 00 00 00 fc ff ff ff 05 00 00 00 
+00478ef8: fc ff ff ff 06 00 00 00 fc ff ff ff fa ff ff ff 
+00478f08: fc ff ff ff fb ff ff ff fc ff ff ff fc ff ff ff 
+00478f18: fc ff ff ff fd ff ff ff fc ff ff ff fe ff ff ff 
+00478f28: fc ff ff ff ff ff ff ff fd ff ff ff 00 00 00 00 
+00478f38: fd ff ff ff 01 00 00 00 fd ff ff ff 02 00 00 00 
+00478f48: fd ff ff ff 03 00 00 00 fd ff ff ff 04 00 00 00 

@@ -1,0 +1,199 @@
+# Sample disassembly (Ghidra headless, this session) of the 256-entry
+# indirect jump table PTR_LAB_00483844 in gamma.dll, called once per
+# decoded symbol inside the .cmp/.mov scanline decoder. Initially looked
+# like it might mean 256 distinct complex routines; every sampled entry
+# is actually a 5-7 instruction byte-broadcast/alignment helper (packing
+# the same input byte into different register-byte positions) - the
+# classic manual "unaligned 4-byte fill" trick for fast run-length pixel
+# fills. Confirms no hidden per-symbol complexity here - see
+# docs/cmp-texture-format-reference.md.
+
+=== handler[0] @ 0x4595b4 ===
+  004595b4: MOV AH,AL
+  004595b6: MOV EDX,EAX
+  004595b8: MOV ECX,EAX
+  004595ba: MOV EBX,EAX
+  004595bc: RET
+
+=== handler[1] @ 0x4595be ===
+  004595be: MOV DL,AH
+  004595c0: MOV DH,AL
+  004595c2: MOV AH,AL
+  004595c4: MOV ECX,EAX
+  004595c6: MOV EBX,EAX
+  004595c8: RET
+
+=== handler[2] @ 0x4595ca ===
+  004595ca: MOV EDX,EAX
+  004595cc: MOV AH,AL
+  004595ce: MOV ECX,EAX
+  004595d0: MOV EBX,EAX
+  004595d2: RET
+
+=== handler[3] @ 0x4595d4 ===
+  004595d4: MOV DL,AH
+  004595d6: MOV DH,AH
+  004595d8: MOV AH,AL
+  004595da: MOV ECX,EAX
+  004595dc: MOV EBX,EAX
+  004595de: RET
+
+=== handler[4] @ 0x4595e0 ===
+  004595e0: MOV CL,AH
+  004595e2: MOV CH,AL
+  004595e4: MOV AH,AL
+  004595e6: MOV EDX,EAX
+  004595e8: MOV EBX,EAX
+  004595ea: RET
+
+=== handler[5] @ 0x4595ec ===
+  004595ec: MOV DL,AH
+  004595ee: MOV DH,AL
+  004595f0: MOV ECX,EDX
+  004595f2: MOV AH,AL
+  004595f4: MOV EBX,EAX
+  004595f6: RET
+
+=== handler[6] @ 0x4595f8 ===
+  004595f8: MOV EDX,EAX
+  004595fa: MOV CL,AH
+  004595fc: MOV CH,AL
+  004595fe: MOV AH,AL
+  00459600: MOV EBX,EAX
+  00459602: RET
+
+=== handler[7] @ 0x459604 ===
+  00459604: MOV DL,AH
+  00459606: MOV DH,AH
+  00459608: MOV CL,AH
+  0045960a: MOV CH,AL
+  0045960c: MOV AH,AL
+  0045960e: MOV EBX,EAX
+  00459610: RET
+
+=== handler[0] @ 0x4595b4 ===
+  004595b4: MOV AH,AL
+  004595b6: MOV EDX,EAX
+  004595b8: MOV ECX,EAX
+  004595ba: MOV EBX,EAX
+  004595bc: RET
+
+=== handler[16] @ 0x459670 ===
+  00459670: MOV BL,AH
+  00459672: MOV BH,AL
+  00459674: MOV AH,AL
+  00459676: MOV EDX,EAX
+  00459678: MOV ECX,EAX
+  0045967a: RET
+
+=== handler[32] @ 0x45973e ===
+  0045973e: MOV EBX,EAX
+  00459740: MOV AH,AL
+  00459742: MOV EDX,EAX
+  00459744: MOV ECX,EAX
+  00459746: RET
+
+=== handler[48] @ 0x4597fa ===
+  004597fa: MOV BL,AH
+  004597fc: MOV BH,AH
+  004597fe: MOV AH,AL
+  00459800: MOV EDX,EAX
+  00459802: MOV ECX,EAX
+  00459804: RET
+
+=== handler[64] @ 0x4598c8 ===
+  004598c8: MOV DL,AL
+  004598ca: MOV DH,AL
+  004598cc: MOV ECX,EDX
+  004598ce: MOV EBX,EDX
+  004598d0: XCHG AH,AL
+  004598d2: RET
+
+=== handler[80] @ 0x459996 ===
+  00459996: MOV DL,AL
+  00459998: MOV DH,AL
+  0045999a: MOV ECX,EDX
+  0045999c: XCHG AH,AL
+  0045999e: MOV EBX,EAX
+  004599a0: RET
+
+=== handler[96] @ 0x459a52 ===
+  00459a52: MOV DL,AL
+  00459a54: MOV DH,AL
+  00459a56: MOV ECX,EDX
+  00459a58: MOV EBX,EAX
+  00459a5a: XCHG AH,AL
+  00459a5c: RET
+
+=== handler[112] @ 0x459b0e ===
+  00459b0e: MOV DL,AL
+  00459b10: MOV DH,AL
+  00459b12: MOV ECX,EDX
+  00459b14: MOV BL,AH
+  00459b16: MOV BH,AH
+  00459b18: XCHG AH,AL
+  00459b1a: RET
+
+=== handler[128] @ 0x459bdc ===
+  00459bdc: MOV DL,AL
+  00459bde: MOV DH,AL
+  00459be0: MOV ECX,EDX
+  00459be2: MOV EBX,EDX
+  00459be4: RET
+
+=== handler[144] @ 0x459c98 ===
+  00459c98: MOV DL,AL
+  00459c9a: MOV DH,AL
+  00459c9c: MOV ECX,EDX
+  00459c9e: MOV BL,AH
+  00459ca0: MOV BH,AL
+  00459ca2: RET
+
+=== handler[160] @ 0x459d54 ===
+  00459d54: MOV DL,AL
+  00459d56: MOV DH,AL
+  00459d58: MOV ECX,EDX
+  00459d5a: MOV EBX,EAX
+  00459d5c: RET
+
+=== handler[176] @ 0x459dfe ===
+  00459dfe: MOV DL,AL
+  00459e00: MOV DH,AL
+  00459e02: MOV ECX,EDX
+  00459e04: MOV BL,AH
+  00459e06: MOV BH,AH
+  00459e08: RET
+
+=== handler[192] @ 0x459eba ===
+  00459eba: MOV DL,AL
+  00459ebc: MOV DH,AL
+  00459ebe: MOV ECX,EDX
+  00459ec0: MOV EBX,EDX
+  00459ec2: MOV AL,AH
+  00459ec4: RET
+
+=== handler[208] @ 0x459f88 ===
+  00459f88: MOV DL,AL
+  00459f8a: MOV DH,AL
+  00459f8c: MOV ECX,EDX
+  00459f8e: MOV BL,AH
+  00459f90: MOV BH,AL
+  00459f92: MOV AL,AH
+  00459f94: RET
+
+=== handler[224] @ 0x45a056 ===
+  0045a056: MOV DL,AL
+  0045a058: MOV DH,AL
+  0045a05a: MOV ECX,EDX
+  0045a05c: MOV EBX,EAX
+  0045a05e: MOV AL,AH
+  0045a060: RET
+
+=== handler[240] @ 0x45a112 ===
+  0045a112: MOV DL,AL
+  0045a114: MOV DH,AL
+  0045a116: MOV ECX,EDX
+  0045a118: MOV AL,AH
+  0045a11a: MOV EBX,EAX
+  0045a11c: RET
+

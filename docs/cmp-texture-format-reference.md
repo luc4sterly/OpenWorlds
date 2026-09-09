@@ -155,27 +155,99 @@ Java_NET_worlds_console_ScapePicImage_loadImage@12  (0x004103e0)  [entry point J
   solo las tablas sin poder consumir el bitstream no permite extraer
   ningún píxel real todavía.
 
+## Sesión 2 (continuación, 2026-09-09): se localizó el bucle final — sigue
+## sin ser suficientemente claro para implementar con confianza
+
+Retomando exactamente donde quedó la sesión anterior, se volvió a
+`gamma.dll` con Ghidra y se persiguió la cadena de llamadas más allá de
+`FUN_00442750` (que solo construye las tablas Huffman) hasta encontrar
+**la función que de verdad decodifica una fila de píxeles y la escribe
+en el buffer de imagen**: `FUN_00442bc0` (invocada como
+`this->getScanline(rowIndex, destBuffer, stride)` desde
+`FUN_00443180`/`ScapePicTexture_makeTexture`). Su interior:
+
+1. Llama a `FUN_00426af0` — el decodificador Huffman a nivel de bit real
+   (registro de desplazamiento, tabla de 256 entradas, exactamente el
+   patrón clásico `decode_c()` de LHA) — para producir hasta 5 "canales"
+   de símbolos decodificados por fila.
+2. Llama a `FUN_00457d88` — la función que **de verdad reconstruye los
+   píxeles** a partir de esos símbolos y los escribe en el buffer final.
+   Esta SÍ es la pieza que faltaba la sesión anterior.
+
+**Hallazgos concretos y verificables dentro de `FUN_00457d88` y su
+contexto** (no especulación — datos reales extraídos del binario):
+
+- **Formato de píxel confirmado: 8 bits por píxel, paleta indexada**,
+  con el ancho de fila redondeado a múltiplos de 4 bytes (`(width+3)/4`
+  DWORDs por fila) — coincide exactamente con lo que ya había reportado
+  la comunidad (`kangworlds.net/tutorials/cmp`: "indexed palette, based
+  on BMP") pero ahora confirmado a nivel de código real, no solo de
+  tutorial de usuario.
+- **Filas escritas con stride negativo** (`param_5 = -stride`) — convención
+  bottom-up típica de un `HBITMAP`/DIB de Windows (coincide con que la
+  función que arma el bitmap final, `FUN_00422260`/`FUN_00422150`, usa
+  literalmente `CreateCompatibleDC`/`HBITMAP` de la API de Windows).
+- **Tabla de predictores espaciales extraída directamente del binario**
+  (no inferida): en `0x478e98`-`0x478f5f` hay una tabla real de pares
+  `(desplazamiento_fila, desplazamiento_columna)` — ej. `(0,-6)`,
+  `(0,-5)`... `(0,-2)`, `(-4,0)`, `(-4,1)`... `(-4,6)`, `(-4,-6)`...
+  formando una ventana causal de ~50 posiciones candidatas dentro de las
+  últimas ~4-6 filas y ±6 columnas. Combinada en tiempo real con el
+  stride real de la imagen (`offset = colDelta - stride*rowDelta`) para
+  obtener un desplazamiento de bytes concreto. **Esto revela que el
+  algoritmo real no es LZSS con offsets arbitrarios de una ventana
+  deslizante genérica, sino un predictor 2D de vecinos causales**: cada
+  símbolo Huffman-decodificado selecciona uno de esos ~50 vecinos ya
+  decodificados y copia su valor de píxel — mucho más parecido a los
+  filtros predictivos de PNG/JPEG-LS que a LZSS clásico. Esto corrige
+  la hipótesis "LZSS" de la sesión anterior con evidencia real.
+- **La tabla de 256 punteros a función indirectos** (`PTR_LAB_00483844`,
+  invocada una vez por símbolo) que en un primer vistazo parecía sugerir
+  256 rutinas de reconstrucción distintas (complejidad temida) **resultó
+  ser trivial una vez desensamblada**: cada una de las 256 entradas es
+  una función de 5-7 instrucciones que solo reordena/replica el byte de
+  entrada en distintas combinaciones de registros de 8/16/32 bits — es
+  el truco manual clásico de los años 90 para "rellenar 4 bytes a la vez
+  con el mismo valor, con distintos desplazamientos de alineación", usado
+  para acelerar el relleno de tramos (runs) de píxeles repetidos. **No
+  aporta complejidad algorítmica real** — en Java equivale trivialmente a
+  un bucle de relleno normal, sin necesidad de replicar el truco de
+  registros de x86.
+
+**Por qué NO se implementó igualmente, siguiendo la instrucción
+explícita del usuario de no forzar nada a medias**: aunque el `qué`
+(predictor causal 2D + relleno de tramos) ya está razonablemente claro,
+el `cómo exacto` de `FUN_00457d88` sigue sin estarlo lo suficiente para
+confiar en una traducción bit-exacta: usa aritmética de acarreo
+(`CARRY4`) sobre un par de acumuladores empaquetados que llevan a la vez
+un contador de repetición y un registro de desplazamiento de bits, y
+escribe DOS filas de salida simultáneamente por cada símbolo consumido
+(offset `_DAT_00482d05` aparte del principal) — el motivo de ese
+"doblado" de filas no se terminó de entender. Implementar sin esa
+claridad arriesgaría exactamente lo que se pidió evitar: producir
+píxeles con aspecto plausible pero incorrectos, presentados como
+verificados sin serlo. Se decidió parar aquí y documentar, no adivinar.
+
 ## Conclusión y siguiente paso concreto
 
-⚠️ **`.cmp` queda sin resolver por completo esta sesión**, con una base
-de evidencia mucho más sólida que al empezar (antes: solo un magic byte
-sin interpretar; ahora: algoritmo identificado con precisión razonable,
-cadena de llamadas completa hasta el punto exacto donde falta la pieza
-final). El siguiente paso concreto para una sesión futura dedicada:
+⚠️ **`.cmp` sigue sin resolverse del todo**, pero con una base de
+evidencia mucho más precisa que al empezar esta sub-sesión: función
+exacta localizada (`FUN_00442bc0`/`FUN_00457d88`), formato de píxel
+confirmado (8bpp indexado, stride negativo, filas alineadas a 4 bytes),
+tabla real de predictores 2D extraída del binario, y el "misterio" de
+los 256 punteros de función descartado como optimización trivial de
+relleno. Siguiente paso concreto para una futura sesión dedicada:
 
-1. Desensamblar el/los callee(s) de `FUN_00442750` que consumen las
-   tablas Huffman ya construidas (buscar referencias a
-   `param_1[0x11+i]`, los 4 punteros a tabla Huffman guardados en el
-   objeto, más adelante en el flujo de `ScapePicTexture_makeTexture`/
-   `FUN_00422b30`, que sí se desensambló esta sesión y muestra el
-   consumo final vía `FUN_00443180`/`FUN_00442bc0` — con más profundidad
-   ahí probablemente esté el LZSS real).
-2. Cross-verificar cualquier hipótesis de bit-stream contra la
-   especificación PÚBLICA de LHA/LZH (Okumura/Yoshizaki, de dominio
-   público, múltiples reimplementaciones en C disponibles) dado el
-   fuerte parecido estructural ya confirmado — no partir de cero.
-3. Verificar byte a byte contra los 17 archivos reales del proyecto
-   (mismo corpus que esta sesión), decodificando al menos un `.cmp`
-   pequeño (`ADWORLDS.CMP`, 1637 bytes) hasta obtener dimensiones+píxeles
-   plausibles, y comparrécurrentemente contra lo que se sepa del
-   material RWX que lo referencia (nombre/tamaño esperado).
+1. Entender la aritmética exacta de acarreo (`CARRY4`) y el propósito
+   real de la escritura de doble fila en `FUN_00457d88` — probablemente
+   requiere trazar la ejecución paso a paso (single-step) con un
+   depurador contra el propio `gamma.dll` corriendo bajo Wine, en vez de
+   solo leer el pseudocódigo estático de Ghidra, para confirmar el orden
+   real de bits/bytes sin ambigüedad.
+2. Una vez con eso claro, implementar en Java el predictor causal 2D ya
+   identificado (copiar valor de uno de los ~50 vecinos de la tabla real
+   extraída, o repetir un literal N veces) y verificar dimensiones +
+   tamaño de salida esperado antes de aceptar cualquier píxel como bueno,
+   exactamente como pidió el usuario.
+3. Verificar contra los 17 archivos `.cmp` reales del proyecto y, si
+   aparece, contra el material RWX que los referencia.
