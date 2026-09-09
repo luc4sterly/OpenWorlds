@@ -602,6 +602,137 @@ análisis estático + la config real que aportó el usuario:
   `worlds.net`/`3dcd.com`. El puerto por defecto observado (`6650`) es un
   buen punto de partida para comparar contra el puerto que escucha `whirl`.
 
+### ✅ Fase 1 (parser RWX) completa y Fase 2 (renderizador) arrancada (2026-09-09)
+
+Sesión larga y autónoma. Resultado: **118/118 archivos `.rwx` reales del
+proyecto parsean idéntico** (posición de vértices/triángulos) a
+`three-rwx-loader` (la referencia JS), y hay una ventana LWJGL pintando esa
+geometría en pantalla de verdad (evidencia en `docs/renders/`, no solo "no
+crashea"). Todo el trabajo nuevo vive en `client/src/net/freeworlds/`
+(paquete nuevo, deliberadamente separado de `NET.worlds.*` que es el
+código decompilado original) y `tools/rwx-harness/`.
+
+**Antes de escribir el parser**: se montó primero el arnés de comparación
+(herramienta #3 de la sección 7) — `tools/rwx-harness/extract.mjs` corre
+`three-rwx-loader` real (headless vía `jsdom`, instalado con npm, no
+vendorizado) y `client/.../RwxExtractMain.java` corre el parser nuevo;
+ambos emiten el mismo JSON canónico y `tools/rwx-harness/compare.py` los
+diffea, escribiendo `docs/rwx-parser-progress.md` como fuente de verdad
+real (no asumida) del estado archivo por archivo. Los 118 `.rwx` de
+prueba son los reales del proyecto (`assets/GROUNDZERO/` +
+`assets/WorldsPlayer/GroundZero/tex/`) — no se inventó contenido de
+prueba.
+
+**El propio arnés tuvo 2 bugs que causaron falsos positivos masivos**
+antes de corregirse (documentados en `tools/rwx-harness/compare.py`):
+confiar en el orden de cada lado ordenado por texto (JS escribe `"7e-05"`,
+Java escribe `"7.0E-5"` — un simple sort lexicográfico los desincroniza en
+silencio aunque el contenido sea idéntico) y ordenar con más precisión
+que la tolerancia de comparación (float vs. double puede intercambiar dos
+claves de sort adyacentes). Los dos se corrigieron reordenando con una
+clave numérica calculada en Python. Antes de corregirlos, el marcador
+mostraba solo 70/118 OK — la mayoría de esas "diferencias" no eran bugs
+del parser en absoluto.
+
+**Un subagente (fork) se lanzó primero para escribir
+`docs/rwx-format-reference.md`** leyendo el código de `three-rwx-loader` —
+se interrumpió a medio camino (se desvió construyendo el arnés en vez de
+documentar, trabajo útil pero no el encargo) y nunca escribió el
+documento. Se completó leyendo el código fuente directamente en el hilo
+principal (la lógica del parser está explícitamente fuera de lo que se
+delega, según las instrucciones de esta sesión).
+
+**Hallazgos no obvios, verificados línea por línea contra el código
+fuente real (no la wiki de Active Worlds, no suposiciones)** — ver
+`docs/rwx-format-reference.md` para el detalle completo con número de
+línea:
+- `ModelBegin`/`ModelEnd` **no existen** para `three-rwx-loader` — ninguna
+  regex los reconoce, son no-ops puros. Solo `ClumpBegin`/`ClumpEnd`
+  importan.
+- Los índices de vértice de `Triangle`/`Quad` son relativos a un buffer
+  **por clump** que se limpia en `ClumpBegin` Y en `ClumpEnd` — no una
+  lista global del archivo.
+- `Transform` (16 valores) es un **set absoluto**, column-major (igual que
+  `THREE.Matrix4`, `v'=M×v`) — no una multiplicación como
+  `Translate`/`Scale`. La primera versión del parser usaba row-major con
+  `v'=v×M` (convención contraria) y daba geometría sutilmente mal en
+  archivos con transformaciones no triviales, sin ningún error — solo
+  números ligeramente distintos. Lo detectó el arnés, no habría sido
+  obvio a ojo.
+- `ClumpBegin` congela la transformación acumulada como base del clump y
+  **resetea el acumulador local a identidad**; `ClumpEnd` restaura el
+  acumulador a lo que era justo antes del reset. El material tiene el
+  mismo scoping (clon apilado/restaurado por clump).
+- `Rotate x y z angle` **no es una rotación de eje arbitrario** — son
+  hasta 3 rotaciones independientes por eje cardinal (X, Y, Z en ese
+  orden), cada una solo si su coeficiente es no-cero, por
+  `coeficiente × angle` grados. Muy fácil de malinterpretar (así lo
+  implementé al principio, antes de leer el código).
+- `Quad` corta por la diagonal más **corta**, no siempre A-C.
+- **Comparar materiales/colores no es fiable en este entorno**: sin
+  archivos de textura reales (el corpus solo tiene `.cmp`, no `.jpg`), la
+  carga de textura falla y **contamina también el color base** — todos
+  los triángulos salen gris plano `d8d8d8` en la referencia JS,
+  independientemente de lo que declare el archivo. Con
+  `setEnableTextures(false)` se evita la contaminación pero entonces el
+  nombre de textura nunca se registra, y el hex de `THREE.Color` no
+  coincide con una conversión directa `canal×255` (sospecha de
+  conversión linear↔sRGB, fórmula exacta ⚠️ VERIFICAR, no identificada).
+  **Decisión**: el material es una nota informativa en `compare.py`, no
+  un criterio de OK/DIFERENCIAS — la geometría (100% verificable) es la
+  comparación autoritativa.
+
+**Sin implementar / ⚠️ VERIFICAR, no aparecen en el corpus de 118
+archivos así que no se pudieron verificar empíricamente**: `Polygon`
+(implementado con la reversión de orden documentada en el código fuente,
+pero sin un archivo real que lo ejercite), `ProtoBegin`/`ProtoEnd`/
+`ProtoInstance` (no implementado en absoluto), el caso especial de `Quad`
+en modo wireframe y la corrección de normales inválidas de
+`correctInvalidNormals`. `JointTransformBegin`/`JointTransformEnd`/
+`IdentityJoint`/`Hints`/`AddHint` sí aparecen mucho en el corpus (72+40+336
+veces) y están **verificados como no-ops reales** (tampoco los reconoce
+`three-rwx-loader`).
+
+**Renderizador (fase 2)**: `client/src/net/freeworlds/render/RwxViewer.java`
+— ventana LWJGL/GLFW, pipeline de función fija (`glBegin`/`glVertex`, sin
+shaders/VBOs todavía), color plano por triángulo desde el material
+parseado (sin texturas ni luz), cámara que encuadra automáticamente según
+el bounding box del modelo, auto-rotación lenta. Verificado con evidencia
+real de píxeles (no solo "compila y no revienta"): se renderizó
+`BASKET.RWX` y se inspeccionó el histograma de color del PNG resultante —
+contiene exactamente los dos colores de material que declara el archivo
+(`0x893232` cuerpo, `0x338d2d` asa), no solo el color de fondo.
+
+**Detalle de entorno encontrado y arreglado**: esta máquina es una sesión
+de escritorio Wayland real (`WAYLAND_DISPLAY` seteada) aunque se renderiza
+contra un Xvfb X11 separado para pruebas — GLFW auto-detecta y prefiere
+Wayland cuando ve esa variable, y falla directamente ahí (no hay
+compositor real escuchando para este proceso). Arreglado con
+`glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11)` explícito en el código,
+en vez de depender de desactivar la variable de entorno en cada
+invocación.
+
+**Herramientas nuevas de esta sesión** (todas descargadas/instaladas
+localmente, no requieren privilegios de sistema, todas gitignored):
+`tools/node/` (Node.js portable v26.8.1, sin `apt`/`dnf`), `tools/lwjgl/`
+(LWJGL 3.4.3 desde Maven Central — módulos `core`/`glfw`/`opengl` +
+natives de Linux), `tools/rwx-harness/node_modules/` (`three-rwx-loader` +
+`three` + `jsdom` vía npm).
+
+**Commits de esta sesión**: `10840fe` (parser + arnés), `caf1ccb`
+(renderizador).
+
+**Siguiente paso lógico**: dos caminos razonables, a elegir con el
+usuario — (a) seguir en fase 1 y encarar el parser binario RWG/BOD
+(avatares articulados, más complejo, formato binario sin biblioteca de
+referencia JS conocida — habría que documentarlo desde cero o buscar otra
+referencia), o (b) profundizar la fase 2: texturas reales (cargar los
+`.cmp`/`.bmp` del proyecto, no soportados por `three-rwx-loader` tampoco,
+así que aquí sí haría falta documentar el formato `.cmp` desde cero),
+iluminación básica difusa/ambiente/especular ya parseada y disponible en
+`RwxMaterial`, y sustituir el pipeline de función fija por uno moderno
+(shaders + VBOs) antes de que crezca más.
+
 ---
 
 ## 5. Roadmap por fases
@@ -611,8 +742,8 @@ análisis estático + la config real que aportó el usuario:
 | Fase | Contenido | Dificultad | Tiempo estimado |
 |---|---|---|---|
 | 0 — Reconocimiento | Decompilar con `worldsplayer_source_editor`, `grep -r "native"` para mapear todos los métodos nativos, identificar DLLs cargadas | 🟢 Baja-media | 1–3 semanas |
-| 1 — Parsers de formato | Parser RWX (Java, basado en la lógica de `three-rwx-loader`) primero; RWG/BOD (binario, avatares articulados) después | 🟡 RWX fácil / RWG-BOD medio | 2–6 semanas |
-| 2 — Renderizador | Sustituir las llamadas JNI por implementación portable — recomendado: Java puro + **LWJGL** (bindings OpenGL), replicando el pipeline simple de RenderWare 2 (sin shaders, solo difusa/especular/ambiente básicas) | 🔴 Alta (sin SDK de RW2 al que recurrir) | 2–6 meses |
+| 1 — Parsers de formato | ✅ **RWX (estático) HECHO (2026-09-09)** — 118/118 archivos reales verificados contra `three-rwx-loader`, ver sección 4. RWG/BOD (binario, avatares articulados) sigue pendiente | 🟡 RWX fácil / RWG-BOD medio | 2–6 semanas |
+| 2 — Renderizador | ✅ **Esqueleto arrancado (2026-09-09)** — ventana LWJGL pintando geometría real parseada, pipeline de función fija, sin texturas/luz todavía. Sustituir por un pipeline moderno (shaders, texturas RenderWare) sigue pendiente | 🔴 Alta (sin SDK de RW2 al que recurrir) | 2–6 meses |
 | 3 — Red | Ya resuelto en gran parte — protocolo documentado por LibreWorlds/Xyem, implementado en `whirl` (Rust) y `munch` (Go) como referencias cruzadas | 🟢 Baja | Incluido en fase 0-1 |
 | 4 — Integración y UI | Chat, lista de amigos, mapa, menús, compatibilidad de comportamiento con el original | 🟡 Media (sin atajos, trabajo de descubrimiento línea a línea) | 1–3 meses |
 | 5 — Porteo a OpenBSD | Una vez quitadas las dependencias nativas de Windows, evaluar viabilidad real en OpenBSD (Wine no está soportado oficialmente ahí — Mesa/OpenGL nativo es el camino) | 🔴 Alta | Posterior al resto |
