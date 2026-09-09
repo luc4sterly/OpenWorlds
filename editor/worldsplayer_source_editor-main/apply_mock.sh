@@ -369,4 +369,19 @@ open(path, "w").write(text)
 print("Patched Cursor.java loadCursor/loadSystemCursor (native handle default)")
 PYEOF
 
+# Vineflower decompiler bug, NOT a portability/mock issue: 11 loops across
+# 8 files got their counter mistyped as `byte` instead of `int` (almost
+# certainly local-variable-slot reuse confusing the type inferencer, the
+# same root cause category as the Persister/Persister[] bug fixed during
+# the original decompile pass - see worlds-chat-project.md sec. 4). A byte
+# counter overflows at 127, wraps negative, and keeps satisfying `< array
+# .length` (byte widens to int for the comparison) - crashes with
+# ArrayIndexOutOfBoundsException on any table with >= ~128 entries.
+# Verified every occurrence: the counter is only ever used for array/Vector
+# indexing and arithmetic, never stored or serialized as a byte anywhere -
+# safe to widen uniformly. Found via:
+#   grep -rn "for (byte " --include="*.java" source
+grep -rl "for (byte " --include="*.java" source | xargs sed -i 's/for (byte /for (int /g'
+echo "Patched 11 byte-typed loop counters -> int (Vineflower decompiler bug, see worlds-chat-project.md sec. 4)"
+
 echo "Mock applied."
