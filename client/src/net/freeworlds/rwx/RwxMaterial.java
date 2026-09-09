@@ -11,6 +11,8 @@ public final class RwxMaterial {
    public float specular = 0.0f;
    public String textureName;
    public String maskName;
+   /** MaterialModes Double/Null - real corpus evidence: assets/GROUNDZERO/YARD_TABLE.RWX uses "MaterialModes Double". Default false (single-sided/backface-culled) per the RWX spec. */
+   public boolean doubleSided = false;
 
    public RwxMaterial copy() {
       RwxMaterial c = new RwxMaterial();
@@ -23,6 +25,7 @@ public final class RwxMaterial {
       c.specular = specular;
       c.textureName = textureName;
       c.maskName = maskName;
+      c.doubleSided = doubleSided;
       return c;
    }
 }

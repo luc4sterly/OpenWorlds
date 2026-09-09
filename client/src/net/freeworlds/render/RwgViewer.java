@@ -101,6 +101,26 @@ public final class RwgViewer {
       glDisable(GL_CULL_FACE); // we don't know real winding/culling convention for this format yet - draw both sides rather than risk an invisible model
       glClearColor(0.10f, 0.10f, 0.14f, 1f);
       glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
+      boolean lit = !wireframe;
+      if (lit) {
+         GlLighting.init();
+         // RWG doesn't carry RWX-style ambient/diffuse/specular material
+         // scalars (not part of what's been decoded from the format yet -
+         // see docs/rwg-bod-format-reference.md) - this is a placeholder
+         // material, not a real parsed value. ⚠️ VERIFICAR.
+         GlLighting.applyMaterial(placeholderMaterial());
+         // Winding convention unverified (see triangulate() javadoc) and,
+         // empirically, NOT consistent face-to-face in real data: enabling
+         // backface culling (tested against cube.rwg) removes the WRONG
+         // triangles on some faces (visible holes) rather than fixing
+         // anything, so both sides are kept visible. That still leaves a
+         // real, disclosed artifact on 2 of cube.rwg's 6 faces (a
+         // z-fighting-like grid pattern where the near and far side of the
+         // solid render at nearly the same depth from a raking angle) -
+         // ⚠️ VERIFICAR, not fixed this session. Core geometry (position +
+         // normal data) is unaffected and separately verified - see docs.
+         GlLighting.applyCulling(true);
+      }
 
       float angle = startAngle;
       int frames = screenshotPath != null ? 1 : Integer.MAX_VALUE;
@@ -119,7 +139,7 @@ public final class RwgViewer {
          glRotatef(angle, 0, 1, 0);
          glTranslatef(-cx, -cy, -cz);
 
-         drawTriangles(atom.vertices, triangles);
+         drawTriangles(atom.vertices, triangles, lit);
 
          angle += 0.6f;
          glfwSwapBuffers(window);
@@ -159,19 +179,56 @@ public final class RwgViewer {
       return tris.toArray(new int[0][]);
    }
 
-   private static void drawTriangles(java.util.List<RwgVertex> vertices, int[][] triangles) {
-      glColor3f(0.7f, 0.75f, 0.85f); // arbitrary flat gray-blue - no material/texture info decoded yet for this format
+   private static void drawTriangles(java.util.List<RwgVertex> vertices, int[][] triangles, boolean lit) {
+      if (!lit) {
+         glColor3f(0.7f, 0.75f, 0.85f); // arbitrary flat gray-blue - no material/texture info decoded yet for this format
+      }
       glBegin(GL_TRIANGLES);
       for (int[] t : triangles) {
-         emit(vertices.get(t[0]));
-         emit(vertices.get(t[1]));
-         emit(vertices.get(t[2]));
+         RwgVertex a = vertices.get(t[0]);
+         RwgVertex b = vertices.get(t[1]);
+         RwgVertex c = vertices.get(t[2]);
+         // ⚠️ Real-data finding (cube.rwg): the 8 "plain" vertices with no
+         // UV also have an all-zero parsed normal (0,0,0) - a missing-data
+         // placeholder, not a real direction - and 2 of the 6 cube faces
+         // reference exactly those vertices. Feeding a zero-length normal
+         // to GL_NORMALIZE is undefined and breaks lighting for that face
+         // (visible as a garbled/transparent-looking triangle before this
+         // fix). Same fallback discipline as RwxViewer: fall back to the
+         // real geometric (cross-product) face normal whenever the parsed
+         // per-vertex normal is degenerate, rather than trusting a zero.
+         float[] faceN = GlLighting.faceNormal(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+         emit(a, lit, faceN);
+         emit(b, lit, faceN);
+         emit(c, lit, faceN);
       }
       glEnd();
    }
 
-   private static void emit(RwgVertex v) {
+   private static void emit(RwgVertex v, boolean lit, float[] fallbackNormal) {
+      if (lit) {
+         float len2 = v.normalX * v.normalX + v.normalY * v.normalY + v.normalZ * v.normalZ;
+         if (len2 > 1e-8f) {
+            // Real per-vertex normal parsed straight from the VLST record
+            // (see docs/rwg-bod-format-reference.md) - not computed/guessed.
+            glNormal3f(v.normalX, v.normalY, v.normalZ);
+         } else {
+            glNormal3f(fallbackNormal[0], fallbackNormal[1], fallbackNormal[2]);
+         }
+      }
       glVertex3f(v.x, v.y, v.z);
+   }
+
+   private static net.freeworlds.rwx.RwxMaterial placeholderMaterial() {
+      net.freeworlds.rwx.RwxMaterial mat = new net.freeworlds.rwx.RwxMaterial();
+      mat.colorR = 0.7f;
+      mat.colorG = 0.75f;
+      mat.colorB = 0.85f;
+      mat.opacity = 1.0f;
+      mat.ambient = 0.3f;
+      mat.diffuse = 0.8f;
+      mat.specular = 0.1f;
+      return mat;
    }
 
    private static float[] boundingBox(java.util.List<RwgVertex> vertices) {

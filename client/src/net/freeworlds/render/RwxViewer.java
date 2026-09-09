@@ -35,20 +35,24 @@ import static org.lwjgl.opengl.GL11.*;
 public final class RwxViewer {
    public static void main(String[] args) throws IOException {
       if (args.length < 1) {
-         System.err.println("Usage: RwxViewer <file.rwx> [--screenshot out.png] [--wireframe]");
+         System.err.println("Usage: RwxViewer <file.rwx> [--screenshot out.png] [--wireframe] [--unlit]");
          System.exit(2);
       }
 
       String rwxPath = args[0];
       String screenshotPath = null;
       boolean wireframe = false;
+      boolean unlit = false;
       for (int i = 1; i < args.length; i++) {
          if (args[i].equals("--screenshot") && i + 1 < args.length) {
             screenshotPath = args[++i];
          } else if (args[i].equals("--wireframe")) {
             wireframe = true;
+         } else if (args[i].equals("--unlit")) {
+            unlit = true;
          }
       }
+      boolean lit = !wireframe && !unlit;
 
       String text = new String(Files.readAllBytes(new File(rwxPath).toPath()), "ISO-8859-1");
       RwxModel model = new RwxParser().parse(text);
@@ -96,6 +100,9 @@ public final class RwxViewer {
       glEnable(GL_DEPTH_TEST);
       glClearColor(0.10f, 0.10f, 0.14f, 1f);
       glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
+      if (lit) {
+         GlLighting.init();
+      }
 
       float angle = 0f;
       int frames = screenshotPath != null ? 1 : Integer.MAX_VALUE;
@@ -114,7 +121,7 @@ public final class RwxViewer {
          glRotatef(angle, 0, 1, 0);
          glTranslatef(-cx, -cy, -cz);
 
-         drawModel(model);
+         drawModel(model, lit);
 
          angle += 0.6f;
          glfwSwapBuffers(window);
@@ -130,21 +137,45 @@ public final class RwxViewer {
       glfwTerminate();
    }
 
-   private static void drawModel(RwxModel model) {
-      glBegin(GL_TRIANGLES);
+   private static void drawModel(RwxModel model, boolean lit) {
+      // glEnable/glCullFace are illegal between glBegin/glEnd, so material
+      // (and its culling mode) can only change with glEnd/glBegin bracketing it.
       RwxMaterial lastMat = null;
+      boolean inBegin = false;
       for (int i = 0; i < model.triangles.size(); i++) {
          RwxMaterial mat = model.triangleMaterials.get(i);
          if (mat != lastMat) {
-            glColor3f(clamp01(mat.colorR), clamp01(mat.colorG), clamp01(mat.colorB));
+            if (inBegin) {
+               glEnd();
+               inBegin = false;
+            }
+            if (lit) {
+               GlLighting.applyMaterial(mat);
+               GlLighting.applyCulling(mat.doubleSided);
+            } else {
+               glColor3f(clamp01(mat.colorR), clamp01(mat.colorG), clamp01(mat.colorB));
+            }
             lastMat = mat;
          }
+         if (!inBegin) {
+            glBegin(GL_TRIANGLES);
+            inBegin = true;
+         }
          int[] t = model.triangles.get(i);
-         emitVertex(model.vertices.get(t[0]));
-         emitVertex(model.vertices.get(t[1]));
-         emitVertex(model.vertices.get(t[2]));
+         RwxVector3 a = model.vertices.get(t[0]);
+         RwxVector3 b = model.vertices.get(t[1]);
+         RwxVector3 c = model.vertices.get(t[2]);
+         if (lit) {
+            float[] n = GlLighting.faceNormal(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+            glNormal3f(n[0], n[1], n[2]);
+         }
+         emitVertex(a);
+         emitVertex(b);
+         emitVertex(c);
       }
-      glEnd();
+      if (inBegin) {
+         glEnd();
+      }
    }
 
    private static void emitVertex(RwxVector3 v) {

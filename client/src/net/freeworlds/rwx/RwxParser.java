@@ -180,13 +180,24 @@ public final class RwxParser {
             currentMaterial.textureName = tok[1].equalsIgnoreCase("null") ? null : tok[1];
             currentMaterial.maskName = (tok.length > 2 && !tok[2].equalsIgnoreCase("null")) ? tok[2] : null;
             break;
+         case "materialmode":
+         case "materialmodes":
+            // Real corpus evidence: assets/GROUNDZERO/YARD_TABLE.RWX has
+            // "MaterialModes Double". Doesn't affect vertex/triangle
+            // geometry (irrelevant to the phase-1 three-rwx-loader
+            // position comparison, hence previously ignored), but matters
+            // for phase-2 rendering: whether backfaces are culled.
+            currentMaterial = currentMaterial.copy();
+            currentMaterial.doubleSided = tok[1].equalsIgnoreCase("double");
+            break;
 
          default:
             // Unrecognized command (includes ModelBegin/ModelEnd,
             // JointTransformBegin/End, IdentityJoint, Hints, AddHint, Tag,
-            // GeometrySampling, LightSampling, TextureModes,
-            // MaterialModes...): ignored, matches the reference exactly
-            // for all of these (verified in docs/rwx-format-reference.md).
+            // GeometrySampling, LightSampling, TextureModes...): ignored,
+            // matches the reference exactly for all of these (verified in
+            // docs/rwx-format-reference.md) - none of these affect vertex
+            // positions, which was phase 1's only concern.
             break;
       }
    }
