@@ -552,4 +552,45 @@ public class IniFile {
 }
 EOF
 
+# "Smart" mock override for DNSLookup.gethostbyname (section 7, tool #4
+# extension - see worlds-chat-project.md sec. 4). Trivial, well-defined
+# contract: String hostname -> String[] of dotted-quad IPs, or null on
+# failure (DNSLookup.lookupAllCommon() already turns a null into
+# UnknownHostException for callers - see this file). Delegates to real
+# java.net.InetAddress.getAllByName() instead of a blind null, which is
+# what finally lets the client attempt a real network connection instead
+# of failing at the DNS step before ever opening a socket. This is the
+# actual network entry point - deliberately NOT reimplementing anything
+# past this (no socket/protocol code touched).
+python3 - << 'PYEOF'
+path = "source/NET/worlds/network/DNSLookup.java"
+text = open(path).read()
+
+old = '''   private static String[] gethostbyname(String var0) {
+      NET.worlds.core.NativeMock.log("DNSLookup", "gethostbyname", new Object[]{var0});
+      return null;
+   }'''
+new = '''   private static String[] gethostbyname(String var0) {
+      NET.worlds.core.NativeMock.log("DNSLookup", "gethostbyname", new Object[]{var0});
+
+      try {
+         java.net.InetAddress[] var1 = java.net.InetAddress.getAllByName(var0);
+         String[] var2 = new String[var1.length];
+
+         for (int var3 = 0; var3 < var1.length; var3++) {
+            var2[var3] = var1[var3].getHostAddress();
+         }
+
+         return var2;
+      } catch (java.net.UnknownHostException var4) {
+         return null;
+      }
+   }'''
+assert old in text, "DNSLookup.java gethostbyname pattern not found"
+text = text.replace(old, new)
+
+open(path, "w").write(text)
+print("Patched DNSLookup.java gethostbyname (real DNS resolution)")
+PYEOF
+
 echo "Mock applied."
