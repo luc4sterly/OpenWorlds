@@ -171,7 +171,19 @@ for f, text in file_texts.items():
         # (e.g. synchronizeStartup(String, boolean) is a real flag, not a
         # get-with-fallback pair).
         generic_default = default_return(ret)
-        if generic_default == "null" and params and params[-1][0].strip() == ret.strip():
+        is_static = "static" in mods
+        # Fluent "return this" builder convention, e.g.
+        # Transform.scale(float,float,float) / Point3Temp.times(Transform):
+        # mutate the receiver's native-backed state and return it so calls
+        # chain (`a.scale(x).raise(y)`). When a non-static native's
+        # declared return type is exactly its own enclosing class, a blind
+        # `null` breaks every such chain with an NPE on the *next* call,
+        # not this one - `this` is always a valid, correctly-typed, non-
+        # null substitute (confirmed against real call sites - see
+        # worlds-chat-project.md sec. 4 - before generalizing this rule).
+        if generic_default == "null" and not is_static and ret.strip() == cls:
+            default = "this"
+        elif generic_default == "null" and params and params[-1][0].strip() == ret.strip():
             default = params[-1][1]
         else:
             default = generic_default
