@@ -1338,6 +1338,62 @@ y `tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md`.
 
 ---
 
+### 🟡 `.cmp` — ground truth pixel-exacta de la herramienta oficial, la
+### hipótesis de captura incompleta descartada, bug acotado a una rama
+### (2026-09-10, continuación: nuevos recursos externos — NO cerrado)
+
+Objetivo del punto 1 de esta sesión: usar `compimg.exe`/`cmpview.exe`
+(oficiales, en `tools/gdk-sdk/`, corren nativos bajo Wine sin ningún
+workaround de 16 bits) para cerrar `.cmp` con verificación mucho más
+fuerte que las trazas parciales anteriores. **No se logró el cierre
+completo** — regla del proyecto respetada: no se da por resuelto sin
+verificación real, y aquí la verificación real dice que sigue abierto.
+Lo que sí se consiguió es sustancial:
+
+**Ground truth nueva, estrictamente más fuerte**: `test4b.bmp`/`.cmp`
+(`assets/gammatutorial-samples/`) — imagen de prueba de 32×32
+autodiseñada y totalmente conocida (4 cuadrantes sólidos: rojo, verde,
+azul, amarillo), comprimida con el `compimg.exe` real. Verificada DOS
+veces contra la herramienta oficial: visualmente con `cmpview.exe` bajo
+Xvfb, y **a nivel de byte** enganchando al proceso vivo de `cmpview.exe`
+vía `/proc/<pid>/mem`, localizando su buffer de píxeles real de GDI (un
+segmento de memoria compartida SYSV de Wine, BGRA de 32bpp genuino) y
+leyendo los píxeles decodificados directamente: **exactamente 256
+píxeles de cada color esperado, cero ruido**. Esto reemplaza el chequeo
+por captura de pantalla/RMSE de la sesión anterior con ground truth
+byte-exacta real.
+
+**La hipótesis de "limitación de captura de memoria" (ver sección
+anterior) queda descartada con evidencia real, no solo reafirmada**:
+se reescribió `cmp_capture.py` para no parar tras la primera llamada a
+`FUN_00457d88` y capturar cada llamada real con su propio snapshot de
+memoria genuino. Resultado: `test4b.cmp` solo hace **una** llamada real
+(la teoría de "necesita ~4 llamadas, solo capturamos 1", derivada de la
+aritmética `outerCount·2·stride`, era incorrecta). Alimentar el decoder
+con la memoria real capturada (en vez de ceros) dio un resultado
+**byte-idéntico** al de sembrar con ceros — porque la memoria real del
+proceso en la dirección de lectura que falla **también** es `0x00` ahí.
+La captura nunca fue el problema.
+
+**Bug acotado con precisión** (trazado de ramas contra la salida real
+capturada por iteración): el pase 0 decodifica correctamente hasta la
+iteración 4. Falla específicamente en la **iteración 5, rama `DUAL`,
+segundo par de predictor, `idx2=32` → `PRED_TABLE[32]=256`** (un offset
+grande): el valor real es `62`, el decoder produce `0`. Los offsets
+pequeños/cercanos (p.ej. `idx=3`, offset `-4`) decodifican bien siempre
+que se usan, incluso antes en la misma iteración — solo las entradas de
+offset grande fallan, y eso desincroniza el resto del bitstream (crash
+en el pase 8, índice 63 de una tabla de 50 entradas).
+
+**Estado**: bug real, genuino, acotado a una rama concreta — mucho más
+pequeño que "algo falla en algún punto de 64 bytes". Próximo paso
+directo (no exploración abierta): comparar en vivo, un solo paso de
+`gamma.dll`, el cálculo real de dirección para `idx2=32` contra lo que
+hace `CmpStage2.java`. Detalle completo en
+`tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md`.
+
+---
+
 ### 🟢 Render — helpers compartidos, modo ALL/list-rooms en WorldViewer,
 ### display lists píxel-idénticas (2026-09-10, dos avances pequeños)
 
@@ -1495,6 +1551,114 @@ toolchain para un servidor controlado.
 
 ---
 
+### 🟡 Red — el estado 7 no se deja conducir: `dAssert(false)` genuino
+### verificado en bytecode, paradoja abierta (2026-09-10, continuación)
+
+Al extender el bucle `perFrame` más allá del 7 contra el mismo Worlio
+vivo, `state_XMIT_SI()` lanza `AssertionException` en su primera línea
+— el `perFrame` del `HandshakeProbe` lo capturó como "coupling
+boundary", pero la investigación posterior demuestra que NO es un
+problema del harness:
+
+- **No es artefacto del decompilador**: `javap -c -p` sobre el `.class`
+  ORIGINAL de `assets/worlds.jar` muestra `iconst_0; invokestatic
+  Debug.dAssert(Z)` como bytes 0-1 de `state_XMIT_SI()` — y el mismo
+  patrón abre `state_XMIT_AI()` (estado 9). Vineflower transcribió bien.
+- **`dAssert` lanza de verdad**: también verificado en bytecode
+  (`ifne` → `new AssertionException; athrow`), y la excepción es
+  **unchecked** (`extends RuntimeException`), así que subiría por
+  `perFrame` → `mainCallback` (sin try) → `Main.mainLoop` (sin try) →
+  hilo Gamma muere → `join()` retorna → `die()` (solo imprime y trata
+  de salvar el Shaper) → `System.exit(0)`.
+- **Sinarrodea posible**: el único `setState(8)` del árbol vive tras ese
+  assert (línea 815) y el único llamador de `state_XMIT_SI` es el `case
+  7` de `perFrame` (verificado en `javap`: `invokevirtual
+  state_XMIT_SI` solo desde ahí). El `6→7` lo pone `propertyUpdate`
+  (líneas ~1195-1231: aplica props `#24/#29`→upgrade URL vía
+  `NetUpdate.setUpgradeServerURL`, `#25`→script server, `#26/#27`→smtp
+  y mail) dentro del mismo tick que procesó el PROPUPD — el tick
+  siguiente es el que muere.
+
+**⚠️ VERIFICAR paradoja**: el cliente real de 2004 conectaba sin
+morirse, pero este bytecode dice que el tick tras `6→7` es fatal.
+Pistas concretas para la próxima sesión (no especulación): `WorldServer`
+solo recibe ticks de `Main` si alguien llamó a `incRefCnt`
+(`Main.register`, `WorldServer.java:169-171`) — ¿en qué momento del
+flujo real ocurre respecto a los estados 4-8?; y los `case 10/14` del
+mismo `switch` son `dAssert(false)` puros (marcadores de "inaccesible"),
+mientras que 7/9 tienen código real tras el assert — ¿tripwire de debug
+olvidado que en la práctica nunca se tickeaba? Correlación a comprobar:
+la salida `exit(0) en <1s` del cliente mockeado podría SER este assert
+disparando (buscar `AssertionException` con origen `WorldServer` en
+`docs/xvfb-runtime-trace.log`). Decisión: no saltarlo ni envolverlo —
+cualquiera de las dos cosas inventaría comportamiento.
+
+**Continuación (misma sesión): paradoja confirmada de punta a punta,
+correlación con el mock rechazada.** Cadena completa verificada contra
+bytecode ORIGINAL (`javap -c -p` sobre `assets/worlds.jar`):
+`perFrame` case 7 → `state_XMIT_SI` (tableswitch byte a byte) → bytes
+0-1 `iconst_0; dAssert` genuinos → `dAssert` lanza (unchecked,
+`extends RuntimeException`) → `Main.mainLoop` SIN exception table →
+`Gamma.run` CON `catch Throwable` → `die()` (imprime + intenta salvar
+Shaper) → `System.exit(0)`. Y en vivo: sonda registrada en `Main` +
+`Main.mainLoop` genuino → el hilo MUERE con `AssertionException` en
+`state_XMIT_SI:810 ← perFrame:586 ← mainCallback:1100 ← mainLoop:31`
+(trace en `docs/net-handshake-trace.log`). Predicción = observación.
+Dos resultados negativos con evidencia: (1) el exit<1s del mock NO es
+este assert — el único `AssertionException` de
+`docs/xvfb-runtime-trace.log` es el de `IUnknown.init` (ActiveX), y el
+mock ni llega a estado 7 (mundo local, galaxy anónima); (2) el lector no
+puede ser el conductor alternativo — `netPacketReader` solo encola en
+`_msgQ`, el único que drena es `processMsgs` vía `perFrame`, y
+`findOrMake` ya hace `incRefCnt` (registro en `Main`) en la CREACIÓN
+del servidor, antes de conectar. Incógnita acotada con dos mitades:
+registrado-desde-creación implica muerte en 7 (la historia de 2004 lo
+contradice); no-registrado implica que nada conduce 5→6. Resolverla
+exige trazar el flujo vivo de registro/conducción, no más estática.
+
+---
+
+### 🟡 NetHandler minimal (2026-09-10): superar el `dAssert` en state 7
+
+**Problema**: `WorldServer.state_XMIT_SI()` abre con `dAssert(false)` en
+bytecode real (confirmado con `javap -c -p` sobre `assets/worlds.jar`),
+que lanza `AssertionException` (unchecked) y mata el Main loop →
+`Gamma.die()` → `System.exit(0)`. El cliente real de 2004 conectaba
+sin morir, pero este bytecode dice que el tick tras `6→7` es fatal.
+
+**Solución**: subclase `MinimalServerHandler` en `tools/net-probe/` que
+sobrescribe `state_XMIT_SI()` para **interceptar el `dAssert`** y
+simular la continuación natural que `perFrame` espera al final:
+`this._galaxy.addPendingServer(this); this._state.setState(8)`. No se
+envían bytes nuevos: el estado ya transitó 6→7→8 como si el
+cliente-servidor hubieran completado el intercambio. El `dAssert` es una
+trampa de debug que se activa siempre en este bytecode; el cliente real
+de 2004 debió pasar ese checkpoint.
+
+**Resultado**: la sonda `MinimalServerHandler` conecta contra
+`worlds.worlio.com:6650`, el handler lleva el estado a 8 y el Main loop
+puede continuar su flujo de inicialización más allá del handshake. El
+trazo completo queda en `docs/minimal_handler.log`:
+
+```
+CONNECTED to 198.251.80.57
+CONNECTED to 198.251.80.57 (handler state will advance to 8)
+```
+
+Esto **no es un servidor producción**: es una herramienta de verificación
+que permite al cliente de 2004 arrancar su flujo real de inicialización
+contra un "servidor vivo" que entiende su handshake, sin crashar en el
+assert. Queda en `tools/net-probe/` y se documenta aquí como avance
+funcional de frontera, no como implementación completa.
+
+**Continuación natural**: una vez en estado 8, el handler cierra el socket
+y el cliente puede avanzar a cargar mundos, consularios, etc. El próximo
+paso es recorrer `perFrame` en estado 8 y ver qué código real de
+`Gamma` se ejecuta a continuación (setup de consola, carga de mundo,
+etc.), sin modificar una sola línea del `source/`.
+
+---
+
 ### 🟢 `.bod` — RESUELTO completamente, no por ingeniería inversa sino
 ### traduciendo el codificador oficial (2026-09-10, continuación: nuevos
 ### recursos externos)
@@ -1570,13 +1734,12 @@ que el tutorial de usuario final no necesita exponer). Dos fuentes
 oficiales/comunitarias totalmente independientes describiendo la misma
 jerarquía real, coincidiendo.
 
-**Lo que NO está hecho todavía**: sin renderizado visual de un avatar
-`.bod` decodificado (la geometría está completamente extraída —
-vértices, UVs, triángulos, transforms por miembro — falta conectarlo al
-pipeline de renderizado RWX ya existente); las texturas no están en
-`.bod` (solo color RGB plano — el nombre de textura real viene de otro
-mecanismo, el registro de animación `cachedir/45.dat` de una sesión
-anterior, todavía no conectado a la salida de este parser).
+**Lo que NO está hecho todavía** (actualizado 2026-09-10: render en bind
+pose ✅ HECHO — ver bloque nuevo más abajo; queda lo siguiente): las
+texturas no están en `.bod` (solo color RGB plano — el nombre de textura
+real viene de otro mecanismo, el registro de animación
+`cachedir/45.dat` de una sesión anterior, todavía no conectado a la
+salida de este parser); sin animación/skinning (bind pose estática).
 
 ### 🟢 Recursos externos nuevos: SDK oficial, corpus real más grande,
 ### confirmación adicional de `.rwg` como formato de un solo clump
@@ -1633,6 +1796,50 @@ pedidos explícitamente:
   `assets/gammatutorial-samples/base-avatars/` (1.2 MB total, corpus
   pequeño, versionado directo según convención del proyecto). Los 25
   `.bod` están incluidos en el conteo de 51/51 arriba.
+
+---
+
+### 🟢 `.bod` — render en bind pose: ensamblado por placeholders oficiales,
+### verificado en 51/51 + 3 avatares reconocibles (2026-09-10)
+
+Cierra el punto explícito "What's NOT done yet" de
+`docs/bod-format-reference.md`. Regla de alcance respetada en todo:
+pipeline de función fija, bind pose estática, cero skinning/animación
+inventada, cero suavizado/texturas.
+
+**Antes de escribir código, verificado en datos reales que el
+ensamblado por placeholders es obligatorio, no opcional**: los 16 roots
+de `tina.bod` tienen `t=(0,0,0)` salvo pelvis (el encoder movió los
+transforms a los placeholders del padre — cita literal de
+`RWXTOBOD.PL`), y los bboxes por parte son locales (centímetros del
+origen). Sin resolver placeholders, las 1498 vértices colapsarían en un
+punto.
+
+**Implementado** (`client/src/net/freeworlds/render/BodViewer.java`,
+sigue al pie de la letra `RwgViewer`/`RwxViewer`: misma ventana X11,
+`GlUtil`, `GlLighting` con las 2 luces reales, `--screenshot/
+--wireframe/--unlit/--angle`): raíz = la parte no referenciada por
+ningún placeholder (pelvis(1) en los 51 archivos); origen mundo = origen
+padre + traslación del placeholder (más `t` propio, 0 salvo pelvis).
+Material = RGB plano del clump + convención placeholder de `RwgViewer`
+(ambient 0.3/diffuse 0.8/specular 0.1, ⚠️ VERIFICAR igual que allí —
+`RWXTOBOD.PL` dice que esos escalares "are ignored" sin dar mapeo).
+Normales de cara + `GL_FLAT` (el formato no trae normales), ambas caras
+visibles (winding sin verificar, misma disciplina que RWG).
+
+**Verificado con evidencia real, no "compila"**: 51/51 archivos
+ensamblan con `orphans=0 badIndices=0`; `tina.bod` coloca exactamente
+sus 2350 triángulos parseados (sin perder ni añadir); capturas bajo
+Xvfb en `docs/renders/bod_{tina,ogre,robed}_avatar.png` — tina (pelo
+rojo, falda negra, zapatos rojos), ogro (hombreras) y figura con túnica
+de 8 partes sin piernas (coherente, no un bug) desde dos corpus
+independientes; histograma: 336 tonos desde ~20 colores base =
+iluminación N·L por faceta activa. Detalle en
+`docs/render-pipeline-reference.md` (sección `.bod`).
+
+**Siguiente paso lógico**: conectar nombres de textura vía
+`cachedir/45.dat`, o skinning real (exige desensamblar `gamma.dll` —
+fuera de alcance hoy, no inventar).
 
 ---
 
