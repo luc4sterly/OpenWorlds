@@ -305,3 +305,147 @@ the same live-read-vs-CSV spot-check method, on the working hypothesis
 that most or all of it is further capture-tool artifacts rather than
 decoder bugs (per the pattern in both `rustwood.cmp` and `sball.cmp` so
 far) — but that is not yet proven, only suggestive.
+
+## 2026-09-10, round 5 (LÍNEA A): `sball.cmp` CLOSED — fourth real bug
+## (`ROL` emits byte3, not byte1); all 3 files byte-exact; pipeline connected
+
+Starting point: `test4b.cmp` 256/256, `rustwood.cmp` 4070/4096,
+`sball.cmp` 2709/4096.
+
+**First divergence, precisely located** (same per-pass comparison as
+round 4): `sball.cmp` pass 0, offset 16 = iteration 8, first byte —
+a `SINGLE` with `idx=3` (offset −4). Decoder emits 7, capture says 31.
+`sball.cmp` uses all three branches from pass 0 on
+(`CTRL,CTRL,DUAL,CTRL,CTRL,DUAL,CTRL,CTRL,SINGLE,...`), unlike
+`test4b.cmp` (whose real execution never takes `DUAL` at all). Both
+files are 128×128 (`ch0=32, outer=64, stride=-128`); their `.cmp`
+headers differ at bytes 8-15 (`sball` `0204 ff00…`, `rustwood`
+`ffff 0000…`, `test4b` `0507 4000…`) — possibly a flags field, still
+open (see orientation note below).
+
+**Live evidence first, as required** — two tooling facts learned the
+hard way this round:
+- `gamma.dll`'s load base is NOT fixed at `0x03A40000` (the previous
+  session's comment): observed `0x03840000`/`0x03841000` across runs
+  (fresh `wineserver` vs reused one changes the layout). Worse,
+  `info sharedlibrary`'s `From` address is base+`0x1000` (first section,
+  headers skipped) — arming breakpoints off it silently lands `0x1000`
+  high and the process runs to exit untouched. Fix used for every trace
+  this round: self-validate the candidate ENTRY against the real first
+  16 bytes from the PE file (`c8000000565753558b4510a3002d4800`,
+  RVA `0x57d88`), trying `delta` and `delta-0x1000`.
+- A full static disassembly of `FUN_00457d88` was obtained
+  (`llvm-objdump -d --adjust-vma=0x400000`, `0x457d88-0x458000`) and
+  used to reinterpret every breakpoint. Correction to round 3's census
+  method: `0x457eed` is NOT "the CTRL dispatch" — it is the
+  `low3==0` re-entry (`je` from `0x457f56`), so it fires only for
+  `low3==0` non-`0x24` CTRLs. `low3!=0`/`0x24` CTRLs are invisible to
+  it (decoder iter 7, `ctrl=1`, correctly produces no hit there).
+
+**Branch sync confirmed live** (breakpoint-hit order, unbuffered
+winedbg notices): pass 0 starts `CTRL,CTRL,DUAL,CTRL,CTRL,DUAL,CTRL,`
+then the first `SINGLE` — exactly the decoder's sequence, with matching
+`SINGLE` indices (3, 1, 2). A register dump at that first `SINGLE`
+showed history bytes `07 07 07 1f 07 07 07 1f` — exactly the decoder's
+own iter-7 fill output. So the decoder's bit reader, branch dispatch,
+stream positions, and history state are all correct at the divergence
+point — yet the emitted byte disagrees.
+
+**Decisive experiment**: a fresh mem-after-store capture (break at each
+of the 7 esi-write sites, single-step OVER the store, read the target
+`[esi]` byte — no register interpretation involved), pass 0 of
+`sball.cmp`, 64/64 bytes (`PARAMS edi0=04ae3f80 esi0=03149b58 outer0=64
+ch0=32 stride0=-128`, same shape as the checked-in capture, different
+heap base). Result: the new capture matches the OLD csv **64/64
+(0 diffs)** — the capture tool is vindicated, deterministic and
+correct — while the decoder matches it only **58/64**, with all 6
+diffs at `SINGLE`-produced positions (offs 16, 26, 27, 29, 30, 31;
+off 29 is a lookback cascade of the earlier ones, not a new bug).
+
+**Root cause — the fourth real bug, same style as the previous three
+(a real case prior files never exercised)**: `SINGLE` does
+`rol eax,8; mov [esi(+1)],al` (`0x457e36/0x457e39`,
+`0x457e4c/0x457e4f`). x86 `ROL r32,8` rotates toward the MSB, so the
+new `AL` is the OLD HIGH byte — **byte3 (bits 24-31), not byte1**.
+The decoder emitted byte1 (as if the rotation were `ROR`). At the
+divergence point `v1=[07,07,07,1f]`: real `AL` after `ROL` is `0x1f`
+(31, confirmed live as `regal=31 mem=31`), byte1 is `0x07` (the
+decoder's wrong 7). The `0x24` literal escape uses the same
+`rol; mov al` pair (`0x457fba/0x457fbd`, `0x457fd0/0x457fd3`) and had
+the same bug — fixed too. `DUAL` is genuinely byte1: it stores `ah`
+with NO rotation (`0x457ebb/0x457ee5`) — left untouched (and every
+live `DUAL` byte already matched before this fix). Why it hid:
+`test4b.cmp`'s flat quadrants have all four history-word bytes equal
+(byte1==byte3 everywhere — a synthetic image hiding a real bug, exactly
+the failure mode round 4 warned about); `rustwood.cmp` happened to
+have byte1==byte3 at all but 26 positions.
+
+**Statically verified on the side**: all 256 fill-handler bodies
+(symbolic simulation of their `mov`/`xchg`/`ret` instruction streams
+against the file's pointer table at `0x483844`) implement EXACTLY the
+round-4 shuffle model (each output lane = `al`/`ah` per `fillIdx` bit)
+— 0/256 mismatches. The shuffle model is now proven for every index,
+not just 3 live samples. Also confirmed in disassembly: the refill
+`je 0x457e8e` re-tests bit2 via a carry→`sbb`→ZF chain (equivalent to
+the decoder's carry-preserving `shiftBit()`), and `idx==0` consumes a
+stream byte plus a guarded bit with no output (never fires for these
+files — the decoder's throw there never triggered).
+
+**Final scores, full re-run over all 3 files (fix breaks nothing)**:
+- `test4b.cmp`: **256/256 — still byte-exact.**
+- `rustwood.cmp`: **4096/4096 — byte-exact** (was 4070/4096: the 26
+  "capture artifacts" round 4 couldn't prove were, in fact, this bug —
+  corrected here with the evidence above).
+- `sball.cmp`: **4096/4096 — byte-exact** (was 2709/4096).
+
+**Independent end-to-end ground truth** (the `/proc`-vs-`cmpview` pixel
+check this round's tasking demanded): `cmpview.exe` screenshots under
+Xvfb/`import` (window at fixed coords, 1:1 pixels).
+- `test4b.cmp` renders 32×32 with exactly 256 px each of
+  `(252,0,0)/(0,252,0)/(0,0,252)/(252,252,0)` (252 = Wine's 6-bit visual
+  quantization of 255): TL=red TR=green BL=blue BR=yellow, giving the
+  palette `{63:red, 62:green, 60:blue, 58:yellow}` and proving pass 0 =
+  TOP row pair for this file.
+- `sball.cmp` renders a 128×128 tile/ornament pattern (134 distinct
+  colors). The decoder's full-history image (all 16384 index bytes, not
+  the branch-mixed esi subsample) maps onto these pixels under ONE
+  orientation (`pass0=BOTTOM + within-pair swap`, vs `pass0=TOP` for
+  `test4b` — orientation evidently varies per file, presumably the
+  header-bytes flag above; never guessed, stored per-file as
+  `orient 0 0`): with the voted mode-color palette, the render differs
+  from cmpview's screenshot in **0/16384 pixels**. Indices and colors
+  are each independently grounded (live process memory / official tool
+  display) — the vote only aligns them.
+- Negative result, documented honestly: `rustwood.bmp` is NOT the
+  source of `rustwood.cmp` — no orientation scores above 0.06
+  (vs 1.00 for sball), so the earlier grayscale/palette-correlation
+  failures were a false pairing by filename, not a decoder problem.
+  (`test4b.bmp`↔`test4b.cmp` is genuine self-made ground truth.)
+
+**Pipeline connection (this round's close-out criterion)**:
+`client/src/net/freeworlds/cmp/` (`CmpStage2` port of this directory's
+verified decoder + `CmpTexture` loader), `assets/cmp-verified/sball/`
+(`.cmp` + 5 Stage-2 streams trimmed to exact verified consumption —
+sball A 1940/2048, ctrl/fill 593/640, lit 997/1024, bits 516/576 —
+plus the voted palette; zero history seed, proven live to be all
+zeros at call entry), UV parsing in `RwxParser`/`RwxModel`, and
+`RwxViewer --texture <dir>/<base> --camera top|front [--doubleside]`.
+Rendered `sball.rwx` (768 verts, 256 tris, real per-vertex UVs
+spanning u 0-1, v 0.62-1.0) with its verified texture —
+`docs/renders/sball_ring_{flat_top,textured_unlit_top,textured_lit_top}.png`.
+Pixel proof on identical geometry (13548 non-bg px): flat = 10
+saturated material colors; unlit-textured = **1195/1195 colors within
+6.6 (mean 2.5, GL_LINEAR blend noise) of the verified texture
+palette**; lit-textured = 1274/1452 within 12 (shading darkens the
+rest, still texture-family); flat control = 0/10 near palette (mean
+distance 155). Zero magenta pixels (no unmapped palette index ever
+sampled). Real verified `.cmp` pixels are on the geometry — not flat
+color. Demo scope, stated in the code: single-texture `--texture`
+override (sball.rwx itself says `Texture NULL`; its own materials are
+degenerate black, forced to white under MODULATE), no per-material
+`textureName` honoring yet.
+- Open, NOT claimed: Huffman Stage 1 (other `.cmp` files still
+  undecodable — the trimmed streams are its verified outputs for this
+  file); palette on-disk location; the orientation header flag; RWX
+  `v=0` convention (renders are flip-ambiguous, histograms are not);
+  winding/culling for textured plates (`--doubleside` demo aid).
