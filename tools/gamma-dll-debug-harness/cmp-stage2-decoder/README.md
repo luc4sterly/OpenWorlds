@@ -219,3 +219,89 @@ the `TRACE` flag plus the same live-branch-census technique to find
 where the decoder's bit reader first disagrees with the real one about
 which branch to take (not which offset to use — that part is now
 right).
+
+## 2026-09-10, round 4 (LÍNEA A): `test4b.cmp` byte-exact, real texture
+## `rustwood.cmp` at 99.37%, THREE more real bugs found and fixed
+
+**Bug found in the capture tool itself, not the decoder**: `cmp_capture.py`'s
+`Write1Bp` breakpoint class always read the `AL` byte of `eax` for every
+tracked write site. Real disassembly shows `SINGLE`'s writes really do
+use `rol eax,8; mov [esi(+1)],al` (AL is correct there), but `DUAL`'s
+writes are plain `mov [esi],ah` / `mov [esi+1],ah` — **no rotation, and
+the wrong register**. Every DUAL-covered "ground truth" byte captured by
+every prior round was silently wrong. Invisible until now purely by
+luck: no file tested in rounds 1-3 ever took a real `DUAL` branch
+(confirmed separately via the branch census). Fixed: `WRITE1` entries now
+carry `(byteslot, register)` pairs.
+
+**The real second bug, found and fixed**: disassembly shows every
+"consume a bit" call site in `FUN_00457d88` has a guarding `je [refill]`
+check **except bit1's own test** (`0x457e1a`: `add edx,edx; jb 0x457e80`
+— no `je` at all). When the shift register's last surviving bit is
+consumed exactly at that unguarded site, real hardware does **not**
+refill immediately — it leaves the register at literal `0` and defers
+the refill to whichever guarded site runs next, which (shifting an
+already-zero register) produces one genuine "fake" 0 bit before its own
+refill finally fires. The old `shiftBit()` refilled eagerly regardless
+of call site, silently dropping that fake bit and desyncing every later
+bit read by exactly one position whenever this edge case hit — which is
+exactly why the decoder spuriously took `DUAL` branches the real process
+never took. Fixed: a new `shiftBit1NoRefill()` used only at the bit1
+site; every other site keeps the original guarded `shiftBit()`. Found
+via a live branch-dispatch trace against `rustwood.cmp` (real varied
+content — `test4b.cmp`'s flat quadrants never happened to exercise this
+edge case at all, which is also why round 3 didn't find it).
+
+**A third bug, uncovered once real varied content could be tested**: the
+"fill broadcast" on the control-byte path (`ctrl != 0x24`) was NOT a
+uniform "replicate `al` four times into both rows," as a much earlier
+session's static read of a couple of handler bodies had concluded — that
+conclusion happened to be unfalsifiable against every file tested so far
+because those files' literal byte pairs always had `al == ah`. Live
+register tracing against `rustwood.cmp` (`al != ah` there) around the
+`call [edx*4+0x483844]` dispatch showed the `fillIdx` stream byte is
+actually an **8-bit shuffle mask** — each bit independently selects `ah`
+(1) or `al` (0) for one of 8 output byte lanes (`dl,dh,cl,ch,bl,bh,
+axLo,axHi`, bit 0..7 in that order). Confirmed exactly, all 8 bits, on 3
+independent live samples. Fixed accordingly.
+
+**Also fixed**: `lookback()` was refusing any `idx >= outPos` for the
+*current* pass, on the theory that later positions were "not yet
+written." Real evidence (`test4b.cmp` pass 8, iteration 0) shows a
+lookback can legitimately read a **previous pass's** leftover value at
+the same output-array slot — the `out` buffer, like the history buffer,
+is never cleared between passes. Fixed to only reject indices outside
+the buffer entirely.
+
+**Match results** (against real per-pass captured output, with the
+capture tool's own AL/AH bug fixed first):
+- **`test4b.cmp`: 256/256 — 100%, byte-exact.**
+- **`rustwood.cmp`** (real 128×128 texture, not synthetic): **4070/4096
+  — 99.37%**, up from 403/4096 at the start of this round. The one
+  remaining mismatch spot-checked was resolved in the decoder's favor:
+  a **fresh, independent live memory read** (bypassing both the decoder
+  and the capture tool's stored CSV entirely) matched the decoder's
+  output, not the CSV — evidence the residual ~26 bytes are further
+  undiagnosed capture-tool artifacts, not decoder bugs, though this
+  isn't proven for every remaining byte.
+- **`sball.cmp`** (third real file): **2709/4096 — 66%**, captured
+  fresh with the corrected tool. The same live-read-vs-CSV spot-check
+  pattern repeated once (a `fillIdx=24` case) and again sided with the
+  decoder over the stored capture — but this file diverges earlier and
+  more often than `rustwood.cmp`, so there may be a real, additional,
+  undiagnosed issue specific to it (or simply more capture noise this
+  round didn't have time to track down). **Not resolved with
+  certainty.**
+
+**Did not connect to the render pipeline this round** — `sball.cmp`'s
+gap isn't resolved with the same confidence as `rustwood.cmp`'s, and the
+project rule against shipping plausible-but-unverified pixels applies
+here. `test4b.cmp` alone being byte-exact isn't enough: it's a synthetic
+flat-color image that (as this very round demonstrated) can hide real
+bugs a varied texture exposes.
+
+**Next step for a future session**: chase the `sball.cmp` residual with
+the same live-read-vs-CSV spot-check method, on the working hypothesis
+that most or all of it is further capture-tool artifacts rather than
+decoder bugs (per the pattern in both `rustwood.cmp` and `sball.cmp` so
+far) — but that is not yet proven, only suggestive.

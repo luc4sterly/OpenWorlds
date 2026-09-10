@@ -101,6 +101,14 @@ public class CmpStage2 {
     // the bit just shifted out was the last surviving 1-bit, i.e. reg was
     // a power of two before the shift). This models the real instruction
     // sequence literally rather than assuming a fixed 32-bit cadence.
+    //
+    // IMPORTANT: this refill-guarded form matches every "add edx,edx" site
+    // in FUN_00457d88 EXCEPT bit1's own test (0x457e1a: "add edx,edx; jb
+    // 0x457e80" - no accompanying "je" at all). Use shiftBit1NoRefill() for
+    // that one site; see its comment for why the distinction is real, not
+    // cosmetic (2026-09-10, LINEA A session, found via rustwood.cmp - a
+    // rare case genuinely hits this since it needs the register's lowest
+    // set bit to land exactly on a bit1 test).
     boolean shiftBit() {
         boolean carry = (reg & 0x80000000) != 0;
         reg = reg << 1;
@@ -108,6 +116,32 @@ public class CmpStage2 {
         if (reg == 0) {
             refillWord();
         }
+        return carry;
+    }
+
+    // bit1's test (0x457e1a) is the ONE "add edx,edx" in this function with
+    // NO accompanying "je [refill]" - confirmed directly from disassembly.
+    // If the register's last surviving bit is shifted out exactly here, real
+    // hardware does NOT refill immediately: reg is left sitting at literal 0,
+    // and the refill is deferred to whichever refill-guarded site runs next
+    // (bit2, or SINGLE's extra pad bit) - which, shifting an already-zero
+    // register, produces a genuine "fake" 0 bit (0<<1==0, carry==0) BEFORE
+    // that site's own "je" finally triggers the real refill. An earlier
+    // version of shiftBit() refilled eagerly regardless of call site,
+    // silently dropping that one fake bit whenever this edge case hit -
+    // desyncing every bit read after it by exactly one position. Found via a
+    // real branch-dispatch trace against rustwood.cmp: the decoder read
+    // CTRL where the real process took DUAL, several iterations after the
+    // last verified-correct one, with no other explanation surviving
+    // (predictor table, idx values, and the fill-broadcast formula were all
+    // independently re-verified live and were NOT the cause here). No
+    // change needed elsewhere: once the next guarded shiftBit() call
+    // performs its own deferred refill, the two streams naturally
+    // resynchronize with no additional state to track.
+    boolean shiftBit1NoRefill() {
+        boolean carry = (reg & 0x80000000) != 0;
+        reg = reg << 1;
+        bitsLeftInReg--;
         return carry;
     }
 
@@ -138,15 +172,25 @@ public class CmpStage2 {
     }
 
     int lookback(int offsetFromCurrent) {
-        // Real esi resets to the SAME starting address every outer pass
-        // (see decodeFull below), so on iteration 0-1 of pass 2+ a negative
-        // offsetFromCurrent legitimately points BEFORE this call's own
-        // output - real memory there, but not memory this function itself
-        // ever wrote (it only ever writes forward from esi0). Not modeled
-        // (no real value known for it) - treated as 0 rather than crashing,
-        // same honest-unknown convention as the zero-padded history buffer.
+        // Real esi resets to the SAME starting address every outer pass (see
+        // decodeFull below) and, like the edi/history buffer, is NEVER
+        // cleared between passes - a lookback with idx >= outPos(this pass)
+        // legitimately reads a PREVIOUS pass's leftover byte at that same
+        // array slot, not "unwritten" memory. Confirmed with real evidence
+        // (2026-09-10, LINEA A session): test4b.cmp pass 8 iter 0 computes
+        // `ah` via lookback(off=0) - i.e. idx==outPos exactly, BEFORE this
+        // iteration's own write lands (real al/ah are only stored together,
+        // as one word, at the very end of the iteration) - and the real
+        // captured value there (63) exactly equals pass 7's real value at
+        // that SAME output position (also 63, esi_all_passes.csv "7,0,63"),
+        // not pass 8's own freshly-computed al (60). So: any idx within the
+        // buffer's real bounds is valid to read regardless of the CURRENT
+        // pass's outPos; only idx outside the buffer entirely (never
+        // written by any pass so far) is genuinely unknown, treated as 0
+        // (same honest-unknown convention as the zero-padded history
+        // buffer) rather than crashing.
         int idx = outPos + offsetFromCurrent;
-        if (idx < 0 || idx >= outPos) {
+        if (idx < 0 || out == null || idx >= out.length) {
             return 0;
         }
         return out[idx] & 0xFF;
@@ -187,12 +231,13 @@ public class CmpStage2 {
     // takes for test4b.cmp (real: 124 SINGLE + 4 CTRL + 0 DUAL out of 128
     // iterations) - this flag is left in for whoever chases that bug next.
     static boolean TRACE = false;
+    static int DEBUG_BASE = 0; // for relative-address debug prints only
 
     /** Decode `ch` iterations (each produces 2 output bytes) starting at the given edi. */
     byte[] decode(int ch, int edi0Arg) {
         int edi = edi0Arg;
         for (int i = 0; i < ch; i++) {
-            boolean bit1 = shiftBit();
+            boolean bit1 = shiftBit1NoRefill();
             if (!bit1) {
                 // single 4-byte predictor copy
                 int idx = streamA[posA++] & 0xFF;
@@ -207,6 +252,21 @@ public class CmpStage2 {
                 wr32(edi + stride, v2);
                 emit(byte1(v1));
                 emit(byte1(v2));
+                // Real disassembly (FUN_00457d88 @0x457e52, gamma.dll) shows the
+                // SINGLE path does a SECOND "add edx,edx" here before rejoining
+                // the loop tail - a bit is shifted out of the register and its
+                // value is NEVER tested (only the resulting refill-check "je"
+                // uses it, via ZF - the carry/bit VALUE itself feeds no branch).
+                // DUAL/CTRL jump straight to the shared tail (0x457e10) with no
+                // such extra shift. Every iteration consumes exactly 2 bits from
+                // the stream either way (bit1+bit2 for DUAL/CTRL, bit1+this
+                // discarded pad bit for SINGLE) - the encoder apparently keeps a
+                // fixed 2-bit-per-iteration budget regardless of branch. Missing
+                // this desynced the bit reader by 1 bit starting from the first
+                // SINGLE iteration, which is exactly why the decoder started
+                // spuriously taking DUAL branches the real process never takes
+                // (see README.md, "second, deeper bug").
+                shiftBit();
             } else {
                 boolean bit2 = shiftBit();
                 if (bit2) {
@@ -240,6 +300,8 @@ public class CmpStage2 {
                             int off1 = low3 - 3;
                             al = lookback(off1);
                             int off2 = (ctrl >>> 3) - 3;
+                            if (TRACE) System.out.println("  CTRL low3!=0: ctrl=" + ctrl + " off1=" + off1 + " al(lookback)=" + al
+                                + " outPos=" + outPos + " lookbackIdx=" + (outPos + off1));
                             if ((ctrl >>> 3) == 0) {
                                 ah = streamLit[posLit++] & 0xFF;
                             } else {
@@ -249,17 +311,48 @@ public class CmpStage2 {
                         emit(al);
                         emit(ah);
                         // every non-0x24 control-byte iteration ALSO consumes a
-                        // streamFillIdx byte and does a run-fill-style broadcast
-                        // of `al` into history (4 bytes, both rows) - discovered
-                        // live: the 256-entry trivial fill-handler table is
-                        // called here too, seeded with whatever ended up in AL
-                        // for this iteration (real evidence: gdb trace showing
-                        // 0x3a97f68-0x3a97f9a executes unconditionally after the
-                        // esi write for every ctrl!=0x24 case).
-                        posFillIdx++; // handler selection only affects alignment, not the broadcast value
-                        int bcast = (al & 0xFF) * 0x01010101;
-                        wr32(edi, bcast);
-                        wr32(edi + stride, bcast);
+                        // streamFillIdx byte and writes 4 history bytes into
+                        // BOTH rows (double-row write, like SINGLE/DUAL) via the
+                        // 256-entry PTR_LAB_00483844 handler table.
+                        //
+                        // NOT a uniform "broadcast AL 4x" (an earlier session's
+                        // static read of a handful of handler bodies concluded
+                        // that - wrong, and it never showed up as a bug against
+                        // test4b.cmp because that file's literal byte pairs
+                        // always had al==ah, making the two formulas
+                        // indistinguishable). Real evidence (2026-09-10, LINEA A
+                        // session): live-traced EAX/EDX/ECX/EBX immediately
+                        // before/after the `call [edx*4+0x483844]` against
+                        // rustwood.cmp (real varied content, al!=ah). The
+                        // fillIdx BYTE ITSELF is an 8-bit shuffle mask - bit n
+                        // independently selects `ah` (1) or `al` (0) for ONE of
+                        // 8 output byte-lanes. Confirmed exactly (all 8 bits) on
+                        // 3 independent live samples, e.g. fillIdx=0x70=0b01110000
+                        // (al=0xd3,ah=0x9c) -> real DL=0xd3(al) DH=0xd3(al)
+                        // CL=0xd3(al) CH=0xd3(al) BL=0x9c(ah) BH=0x9c(ah)
+                        // AL_out=0x9c(ah) AH_out=0xd3(al) - bit0..7 in that exact
+                        // order (DL,DH,CL,CH,BL,BH,ALout,AHout), MSB=bit7=ALout's
+                        // pair partner (AHout). The memory writes actually done
+                        // (`mov [edi],dx; mov [edi+2],cx; add edi,stride;
+                        // mov [edi],bx; mov [edi+2],ax`) only use the low 16 bits
+                        // of each register, so upper-bit "garbage" left over from
+                        // unrelated earlier code in edx/ecx/ebx (also observed
+                        // live) never reaches memory - safe to ignore.
+                        int fillIdx = streamFillIdx[posFillIdx++] & 0xFF;
+                        int dl = (fillIdx & 0x01) != 0 ? ah : al;
+                        int dh = (fillIdx & 0x02) != 0 ? ah : al;
+                        int cl = (fillIdx & 0x04) != 0 ? ah : al;
+                        int ch2 = (fillIdx & 0x08) != 0 ? ah : al;
+                        int bl = (fillIdx & 0x10) != 0 ? ah : al;
+                        int bh = (fillIdx & 0x20) != 0 ? ah : al;
+                        int axLo = (fillIdx & 0x40) != 0 ? ah : al;
+                        int axHi = (fillIdx & 0x80) != 0 ? ah : al;
+                        int row1 = dl | (dh << 8) | (cl << 16) | (ch2 << 24);
+                        int row2 = bl | (bh << 8) | (axLo << 16) | (axHi << 24);
+                        if (TRACE) System.out.println("  CTRL fill: edi(rel)=" + (edi - DEBUG_BASE) + " al=" + al + " ah=" + ah
+                            + " fillIdx=" + fillIdx + " row1(@" + (edi - DEBUG_BASE) + ")=" + row1 + " row2(@" + (edi + stride - DEBUG_BASE) + ")=" + row2);
+                        wr32(edi, row1);
+                        wr32(edi + stride, row2);
                     }
                 } else {
                     // dual 2-byte predictor copy
@@ -271,9 +364,14 @@ public class CmpStage2 {
                     wr16(edi, r1a);
                     int r1b = rd16(edi + stride + off1);
                     wr16(edi + stride, r1b);
+                    if (TRACE) System.out.println("  edi(rel)=" + (edi - DEBUG_BASE) + " off1=" + off1
+                        + " readAddr1(rel)=" + (edi + stride + off1 - DEBUG_BASE) + " r1b_raw=" + r1b
+                        + " emitted=" + ((r1b >>> 8) & 0xFF));
                     emit((r1b >>> 8) & 0xFF);
 
                     int off2 = predOffset(idx2);
+                    if (TRACE) System.out.println("  edi(rel)=" + (edi - DEBUG_BASE) + " off1=" + off1 + " off2=" + off2
+                        + " readAddr2(rel)=" + (edi + 2 + off2 - DEBUG_BASE) + " r2a_raw=" + rd16(edi + 2 + off2));
                     int r2a = rd16(edi + 2 + off2);
                     wr16(edi + 2, r2a);
                     int r2b = rd16(edi + stride + 2 + off2);

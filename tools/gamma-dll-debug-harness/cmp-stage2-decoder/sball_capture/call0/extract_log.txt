@@ -1,0 +1,5 @@
+edi0=04ce3f80 esi0=0304a6c0 outer0=64 ch0=32 stride0=-128
+structptr=0050f2b0 bits_ptr=03056fc0
+stream_a=030571c0 stream_fillidx=03057954 stream_ctrl=03057ba5 stream_lit=03057df6
+history.bin: 4224 bytes from 0x04ce2f80 (edi0 at offset 4096; back_margin=4096 fwd_margin=128)
+captured 4096 (pass,offset) write events across 64 passes seen

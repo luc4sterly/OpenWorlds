@@ -130,15 +130,26 @@ cresults = {{}}  # (pass_index, offset) -> byte value, cleared each call
 # which is what made earlier sessions' captures slow (thousands of stepi
 # round-trips through the winedbg-gdb proxy for even a partial decode).
 WRITE1 = {{
-    0x03a97e39: 0, 0x03a97e4f: 1,
-    0x03a97ebb: 0, 0x03a97ee5: 1,
-    0x03a97fbd: 0, 0x03a97fd3: 1,
+    0x03a97e39: (0, 'al'), 0x03a97e4f: (1, 'al'),
+    0x03a97ebb: (0, 'ah'), 0x03a97ee5: (1, 'ah'),
+    0x03a97fbd: (0, 'al'), 0x03a97fd3: (1, 'al'),
 }}
 
 class Write1Bp(gdb.Breakpoint):
-    def __init__(self, addr, byteslot):
+    # SINGLE (0x...e39/e4f) and the 0x24 literal escape (0x...fbd/fd3) both
+    # do "rol eax,8; mov [esi(+1)],al" - the real byte is pre-rotated into
+    # AL before the store. DUAL (0x...ebb/ee5) has no such rotation - its
+    # real instructions are "mov [esi],ah" / "mov [esi+1],ah" (confirmed by
+    # disassembly AND a live single-step trace, 2026-09-10, LINEA A
+    # session). An earlier version of this script always read AL regardless
+    # of address, which silently captured the WRONG byte for every DUAL
+    # write - invisible against every file tested so far because none of
+    # them took a real DUAL branch (confirmed separately via a live branch
+    # census), until rustwood.cmp exposed it. `reg` picks which byte to read.
+    def __init__(self, addr, byteslot, reg):
         super(Write1Bp, self).__init__("*0x%x" % addr, internal=False)
         self.byteslot = byteslot
+        self.reg = reg
     def stop(self):
         if cstate["esi0"] is None:
             return False
@@ -147,8 +158,9 @@ class Write1Bp(gdb.Breakpoint):
         if off < cstate["last_offset"]:
             cstate["pass_index"] += 1
         cstate["last_offset"] = off
-        al = int(gdb.parse_and_eval("$eax")) & 0xff
-        cresults[(cstate["pass_index"], off + self.byteslot)] = al
+        eax = int(gdb.parse_and_eval("$eax")) & 0xffffffff
+        val = eax & 0xff if self.reg == 'al' else (eax >> 8) & 0xff
+        cresults[(cstate["pass_index"], off + self.byteslot)] = val
         return False
 
 class Write2Bp(gdb.Breakpoint):
@@ -165,8 +177,8 @@ class Write2Bp(gdb.Breakpoint):
         cresults[(cstate["pass_index"], off + 1)] = (eax >> 8) & 0xff
         return False
 
-for addr, slot in WRITE1.items():
-    Write1Bp(addr, slot)
+for addr, (slot, reg) in WRITE1.items():
+    Write1Bp(addr, slot, reg)
 Write2Bp("*0x03a97f65")
 
 # We are already stopped at call 0's FUNC_ENTRY (the top-level `continue`
