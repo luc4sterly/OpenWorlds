@@ -11,16 +11,11 @@ import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryStack;
 
-import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
-
-import javax.imageio.ImageIO;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -47,46 +42,109 @@ import static org.lwjgl.opengl.GL11.*;
  * and reported, not silently dropped.
  *
  * Usage: java -cp ... net.freeworlds.render.WorldViewer <file.world> <roomName> [--screenshot out.png]
+ *        java -cp ... net.freeworlds.render.WorldViewer <file.world> ALL [--screenshot-dir outdir]
+ *        java -cp ... net.freeworlds.render.WorldViewer <file.world> --list-rooms
  */
 public final class WorldViewer {
    private static final Map<String, RwxModel> modelCache = new HashMap<>();
+   // Display list por modelo unico (clave = instancia de modelCache).
+   // Optimizacion de rendimiento period-correct (listas de OpenGL 1.x,
+   // la tecnica de la epoca de RenderWare 2): captura la MISMA secuencia
+   // glMaterial/glNormal/glVertex que el modo inmediato, pixel-identica,
+   // compilada una vez y re-ejecutada por instancia. Valida solo dentro
+   // del contexto GL actual — se limpia al crear/destruir cada ventana
+   // (modo ALL crea un contexto por sala).
+   private static final Map<RwxModel, Integer> displayListCache = new HashMap<>();
    private static File baseDir;
    private static int loadedCount = 0;
    private static int missingCount = 0;
    private static int avatarSkipCount = 0;
 
-   public static void main(String[] args) throws Exception {
-      if (args.length < 2) {
-         System.err.println("Usage: WorldViewer <file.world> <roomName> [--screenshot out.png]");
-         System.exit(2);
-      }
-      File worldFile = new File(args[0]);
-      String roomName = args[1];
-      String screenshotPath = null;
-      for (int i = 2; i < args.length; i++) {
-         if (args[i].equals("--screenshot") && i + 1 < args.length) {
-            screenshotPath = args[++i];
-         }
-      }
+    public static void main(String[] args) throws Exception {
+       if (args.length < 2) {
+          System.err.println("Usage: WorldViewer <file.world> <roomName|ALL|--list-rooms> [--screenshot out.png] [--screenshot-dir outdir]");
+          System.exit(2);
+       }
+       File worldFile = new File(args[0]);
+       String roomArg = args[1];
+       String screenshotPath = null;
+       String screenshotDir = null;
+       for (int i = 2; i < args.length; i++) {
+          if (args[i].equals("--screenshot") && i + 1 < args.length) {
+             screenshotPath = args[++i];
+          } else if (args[i].equals("--screenshot-dir") && i + 1 < args.length) {
+             screenshotDir = args[++i];
+          }
+       }
 
-      baseDir = worldFile.getParentFile();
-      byte[] data = Files.readAllBytes(worldFile.toPath());
-      WNode world = WorldRestorer.parse(data);
-      WNode room = world.roomsByName.get(roomName);
-      if (room == null) {
-         System.err.println("Room \"" + roomName + "\" not found. Available: " + world.roomsByName.keySet());
-         System.exit(1);
-      }
+       baseDir = worldFile.getParentFile();
+       byte[] data = Files.readAllBytes(worldFile.toPath());
+       WNode world = WorldRestorer.parse(data);
 
-      // Pre-load all geometry referenced in this room so we can report
-      // real counts before opening a window (and compute a scene bounding
-      // box from REAL loaded vertex data, not a guess).
-      float[] bbox = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
-      int[] objectCount = {0};
-      preload(room, identity(), bbox, objectCount);
-      System.out.println("Room \"" + roomName + "\": " + objectCount[0] + " objects placed, "
-         + loadedCount + " real geometry files loaded, " + missingCount + " missing on disk, "
-         + avatarSkipCount + " avatar: refs skipped (not rendered - see class javadoc)");
+       if (roomArg.equals("--list-rooms")) {
+          java.util.List<String> names = new java.util.ArrayList<>(world.roomsByName.keySet());
+          java.util.Collections.sort(names);
+          for (String n : names) {
+             System.out.println(n);
+          }
+          return;
+       }
+
+       java.util.List<String> rooms;
+       if (roomArg.equals("ALL")) {
+          rooms = new java.util.ArrayList<>(world.roomsByName.keySet());
+          java.util.Collections.sort(rooms);
+          if (screenshotDir != null) {
+             new File(screenshotDir).mkdirs();
+          }
+       } else {
+          rooms = java.util.Collections.singletonList(roomArg);
+          if (screenshotDir != null) {
+             System.err.println("--screenshot-dir only applies with ALL; ignoring");
+             screenshotDir = null;
+          }
+       }
+
+       boolean first = true;
+       for (String roomName : rooms) {
+          WNode room = world.roomsByName.get(roomName);
+          if (room == null) {
+             System.err.println("Room \"" + roomName + "\" not found. Available: " + world.roomsByName.keySet());
+             if (!roomArg.equals("ALL")) {
+                System.exit(1);
+             }
+             continue;
+          }
+          String out = screenshotPath;
+          if (roomArg.equals("ALL") && screenshotDir != null) {
+             out = new File(screenshotDir, "world_" + roomName + ".png").getPath();
+          } else if (roomArg.equals("ALL")) {
+             out = null; // sin capturas: solo estadisticas por sala
+          }
+          if (!first) {
+             System.out.println("---");
+          }
+          first = false;
+          renderRoom(room, roomName, out);
+       }
+    }
+
+    private static void renderRoom(WNode room, String roomName, String screenshotPath) throws Exception {
+       drawnTriangles = 0;
+       drawnObjects = 0;
+
+       // Pre-load all geometry referenced in this room so we can report
+       // real counts before opening a window (and compute a scene bounding
+       // box from REAL loaded vertex data, not a guess).
+       float[] bbox = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+       int[] objectCount = {0};
+       int loadedBefore = loadedCount;
+       int missingBefore = missingCount;
+       int avatarBefore = avatarSkipCount;
+       preload(room, identity(), bbox, objectCount);
+       System.out.println("Room \"" + roomName + "\": " + objectCount[0] + " objects placed, "
+          + (loadedCount - loadedBefore) + " real geometry files loaded, " + (missingCount - missingBefore) + " missing on disk, "
+          + (avatarSkipCount - avatarBefore) + " avatar: refs skipped (not rendered - see class javadoc)");
       float radius = Math.max(0.01f, distance(bbox));
       float cx = (bbox[0] + bbox[3]) / 2f;
       float cy = (bbox[1] + bbox[4]) / 2f;
@@ -112,6 +170,7 @@ public final class WorldViewer {
       glfwMakeContextCurrent(window);
       glfwSwapInterval(1);
       GL.createCapabilities();
+      displayListCache.clear(); // IDs del contexto anterior (modo ALL) no valen aqui
 
       glEnable(GL_DEPTH_TEST);
       glClearColor(0.10f, 0.10f, 0.14f, 1f);
@@ -141,13 +200,13 @@ public final class WorldViewer {
          float near = Math.max(0.01f, eyeDistance - radius * 1.3f);
          float far = eyeDistance + radius * 1.3f;
 
-         glMatrixMode(GL_PROJECTION);
-         glLoadIdentity();
-         perspective(60f, (float) width / height, near, far);
+          glMatrixMode(GL_PROJECTION);
+          glLoadIdentity();
+          GlUtil.perspective(60f, (float) width / height, near, far);
 
-         glMatrixMode(GL_MODELVIEW);
-         glLoadIdentity();
-         lookAt(cx, cy + radius * 0.7f, cz + radius * 1.6f, cx, cy, cz, 0, 1, 0);
+          glMatrixMode(GL_MODELVIEW);
+          glLoadIdentity();
+          GlUtil.lookAt(cx, cy + radius * 0.7f, cz + radius * 1.6f, cx, cy, cz, 0, 1, 0);
          glTranslatef(cx, cy, cz);
          glRotatef(angle, 0, 1, 0);
          glTranslatef(-cx, -cy, -cz);
@@ -162,13 +221,14 @@ public final class WorldViewer {
       System.out.println("Drew " + drawnObjects + " objects, " + drawnTriangles + " triangles this frame. GL error: " + glGetError());
 
       if (screenshotPath != null) {
-         saveScreenshot(width, height, screenshotPath);
+         GlUtil.saveScreenshot(width, height, screenshotPath);
          System.out.println("Screenshot written to " + screenshotPath);
       }
 
       glfwDestroyWindow(window);
       glfwTerminate();
-   }
+      displayListCache.clear();
+    }
 
    /** Walk the room's real WObject tree once (no GL context needed) purely to resolve+load geometry and compute a real bounding box. */
    private static void preload(WNode n, float[] parentToWorld, float[] bbox, int[] objectCount) {
@@ -276,8 +336,23 @@ public final class WorldViewer {
       return (cur != null && cur.isFile()) ? cur : null;
    }
 
-   private static void drawModel(RwxModel model) {
-      RwxMaterial lastMat = null;
+    private static void drawModel(RwxModel model) {
+       Integer list = displayListCache.get(model);
+       if (list != null) {
+          glCallList(list);
+          return;
+       }
+       int id = glGenLists(1);
+       glNewList(id, GL_COMPILE);
+       emitModelImmediate(model);
+       glEndList();
+       displayListCache.put(model, id);
+       glCallList(id);
+    }
+
+     /** Secuencia inmediata original (glMaterial/glNormal/glVertex por triangulo) — unica fuente de verdad visual; la display list solo la captura. */
+    private static void emitModelImmediate(RwxModel model) {
+       RwxMaterial lastMat = null;
       boolean inBegin = false;
       for (int i = 0; i < model.triangles.size(); i++) {
          RwxMaterial mat = model.triangleMaterials.get(i);
@@ -336,59 +411,13 @@ public final class WorldViewer {
       };
    }
 
-   private static float distance(float[] bbox) {
-      if (bbox[0] > bbox[3]) {
-         return 1f; // no geometry loaded at all
-      }
-      float dx = bbox[3] - bbox[0];
-      float dy = bbox[4] - bbox[1];
-      float dz = bbox[5] - bbox[2];
-      return (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
-   }
-
-   private static void perspective(float fovYDeg, float aspect, float near, float far) {
-      float fH = (float) Math.tan(Math.toRadians(fovYDeg) / 2) * near;
-      float fW = fH * aspect;
-      glFrustum(-fW, fW, -fH, fH, near, far);
-   }
-
-   private static void lookAt(float ex, float ey, float ez, float cx, float cy, float cz, float ux, float uy, float uz) {
-      float[] f = normalize(cx - ex, cy - ey, cz - ez);
-      float[] u = normalize(ux, uy, uz);
-      float[] s = normalize(f[1] * u[2] - f[2] * u[1], f[2] * u[0] - f[0] * u[2], f[0] * u[1] - f[1] * u[0]);
-      float[] u2 = {s[1] * f[2] - s[2] * f[1], s[2] * f[0] - s[0] * f[2], s[0] * f[1] - s[1] * f[0]};
-      try (MemoryStack stack = MemoryStack.stackPush()) {
-         FloatBuffer m = stack.mallocFloat(16);
-         m.put(0, s[0]).put(4, s[1]).put(8, s[2]).put(12, 0);
-         m.put(1, u2[0]).put(5, u2[1]).put(9, u2[2]).put(13, 0);
-         m.put(2, -f[0]).put(6, -f[1]).put(10, -f[2]).put(14, 0);
-         m.put(3, 0).put(7, 0).put(11, 0).put(15, 1);
-         glMultMatrixf(m);
-         glTranslatef(-ex, -ey, -ez);
-      }
-   }
-
-   private static float[] normalize(float x, float y, float z) {
-      float len = (float) Math.sqrt(x * x + y * y + z * z);
-      if (len < 1e-8f) {
-         return new float[]{0, 0, 0};
-      }
-      return new float[]{x / len, y / len, z / len};
-   }
-
-   private static void saveScreenshot(int width, int height, String path) throws IOException {
-      ByteBuffer buf = ByteBuffer.allocateDirect(width * height * 4);
-      glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buf);
-      BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-      for (int y = 0; y < height; y++) {
-         for (int x = 0; x < width; x++) {
-            int i = (x + (height - 1 - y) * width) * 4;
-            int r = buf.get(i) & 0xFF;
-            int g = buf.get(i + 1) & 0xFF;
-            int b = buf.get(i + 2) & 0xFF;
-            image.setRGB(x, y, 0xFF000000 | (r << 16) | (g << 8) | b);
-         }
-      }
-      ImageIO.write(image, "png", new File(path));
-   }
+    private static float distance(float[] bbox) {
+       if (bbox[0] > bbox[3]) {
+          return 1f; // no geometry loaded at all
+       }
+       float dx = bbox[3] - bbox[0];
+       float dy = bbox[4] - bbox[1];
+       float dz = bbox[5] - bbox[2];
+       return (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
 }
