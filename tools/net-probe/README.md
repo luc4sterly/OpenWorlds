@@ -187,3 +187,71 @@ siendo útil como intercepción explícita cuando se quiere forzar el
 camino base sin la danza de auto-detección, pero ya no hace falta como
 "parche" para un bug real — el camino real (`AutoServer`) simplemente
 funciona, verificado en vivo contra el servidor de producción.
+
+## LOGIN COMPLETO contra el guest real (2026-09-10, `NET/worlds/network/GuestLoginProbe.java`, trace `docs/net-guest-login-trace.log`)
+
+La sonda sigue el handoff genuino de `AutoServer` y después conduce la
+subclase viva con `perFrame()` real, con el `setAuthInfo` exacto que el
+`LoginWizard` hace al pulsar Sign-In (nick por argv, sin UI). Objetivo:
+`gippsland.worlio.com:8265`, el servidor anónimo de Worlio (según
+https://worlds.worlio.com/ "requires no registration, only a valid
+nickname" — el único sitio donde un login real es posible sin cuenta).
+Una conexión por ejecución, se cierra al terminar. Xvfb :99, CWD
+`assets/WorldsPlayer`, `netdebug=1260` vía reflexión (solo harness).
+
+Resultado: **login completo, estado 12 MAINLOOP estable 12s,
+`lastError=null`, cierre limpio**, con este intercambio real:
+
+```
+send(PROPREQ 255[...]) → bytes 03 ff 0a
+recv(PROPUPD ... (#8 1000000 / #25 http://files.worlio.com/cgi-bin/
+  #24 http://files.worlio.com/ / #15 4 / #3 24 / #1 Gippsland))
+  → AutoServer detecta tipo 4 → crea AnonRoomServer (predicción exacta),
+    reuseConnection + swapServer + setGalaxyType (levanta LoginWizard0)
+send(SESSINIT (VAR_PROTOCOL=24 VAR_CLIENT=2004080500 VAR_AVATARS=24
+  VAR_USERNAME=FWProbeGuest2))
+  → bytes 25 1 6 3 2 32 34 9 a 32 30 30 34 30 38 30 35 30 30 ... (ver trace)
+recv(SESSINIT (VAR_ERROR=0 VAR_SERVERTYPE=4 VAR_UPDATETIME=1000000
+  VAR_PROTOCOL=24 VAR_CHANNEL=dimension-1))
+  → estado 8→11→12 + wizard.setConnected() real
+recv(TEXT Gippsland: Welcome to WorlioWorlds Gippsland, an anonymous
+  free-for-all. Be wary of links, impersonation, and spam. Keep your
+  mute buttons greased.)
+```
+
+Dos obstáculos encontrados y resueltos con evidencia, sin inventar nada:
+
+1. `VAR_CLIENT=null` → el servidor responde `SESSINIT (VAR_ERROR=7
+   "Sorry, your client software is out of date...")` (verificado 2
+   veces en vivo). Causa raíz: el mock JNI devuelve null en
+   `Std.getClientVersion()`; el gamma.dll REAL de nuestra instalación
+   (`assets/WorldsPlayer/bin/gamma.dll`, build 08/05/04 Rev 1900)
+   devuelve el literal `"2004080500"` (formato AAAAMMDDHH de la fecha
+   de build). Verificado offline: la exportación
+   `_Java_NET_worlds_core_Std_getClientVersion@8` (RVA 0x2ff0) hace
+   `NewStringUTF(env, 0x46d428)` y en esa dirección está `2004080500`
+   (mismo método confirma `getBuildInfo` → `"08/05/04 05:45:33 GMT (Rev
+   1900)"`, idéntico al `Gamma.Log` genuino — validación cruzada).
+   Con el valor real, `VAR_ERROR=0`. La sonda lo inyecta en el campo
+   `protected _clientVersion` (mismo paquete, solo harness, argv 5º).
+2. `NPE` en `LoginWizard.setConnected` (`setIniString("User0", null)`
+   — el mock usa Hashtable): ARTEFACTO del harness, no bug del
+   cliente — al saltarse la UI, `loginUserName` quedaba null; en el
+   flujo real nunca es null (lo exige `validateKnownUserInfo` antes de
+   `doLogin`). La sonda lo deja como lo dejaría la UI (reflexión solo
+   en el harness) y el login cierra limpio.
+
+## Servidor primario: hace falta cuenta registrada a mano (2026-09-10)
+
+`worlds.worlio.com:6650` anuncia `#15=1` (UserServer, ver
+`docs/net-handshake-trace.log`): el `sessionInit` exige modo 1
+(REGISTER: usuario+password+serial de la web) o 2 (AUTHENTICATE:
+usuario+password). El registro es un formulario web en
+https://worlds.worlio.com/register (verificado accesible; pide email)
+y la entrada en https://worlds.worlio.com/ lo confirma. **Sin una
+cuenta creada manualmente ahí no se puede pasar del sessionInit en el
+primario, y esta línea NO inventa ni hardcodea credenciales**:
+`GuestLoginProbe` acepta nick+password SOLO por argv (3º/4º) para usar
+con una cuenta propia cuando exista. Los tres hostnames
+(`worlds.worlio.com`, `worlio.com`, `gippsland.worlio.com`) resuelven
+a la misma IP (198.251.80.57).
