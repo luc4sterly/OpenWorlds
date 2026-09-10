@@ -109,13 +109,51 @@ public class CmpStage2 {
     }
 
     int lookback(int offsetFromCurrent) {
+        // Real esi resets to the SAME starting address every outer pass
+        // (see decodeFull below), so on iteration 0-1 of pass 2+ a negative
+        // offsetFromCurrent legitimately points BEFORE this call's own
+        // output - real memory there, but not memory this function itself
+        // ever wrote (it only ever writes forward from esi0). Not modeled
+        // (no real value known for it) - treated as 0 rather than crashing,
+        // same honest-unknown convention as the zero-padded history buffer.
         int idx = outPos + offsetFromCurrent;
+        if (idx < 0 || idx >= outPos) {
+            return 0;
+        }
         return out[idx] & 0xFF;
     }
 
-    /** Decode `ch` iterations (each produces 2 output bytes), edi starts at edi0. */
-    byte[] decode(int ch) {
+    /**
+     * Outer loop, found by re-reading the full saved disassembly (missed in
+     * the previous session): after the inner ch-loop finishes, real code at
+     * 0x3a97e60-0x3a97e78 resets esi to its ORIGINAL starting value, resets
+     * ch to its original count, advances edi by DAT_3ac2d09 (= 2*stride -
+     * ch0*4, on top of the ch0*4 the inner loop already advanced it - net
+     * 2*stride per outer pass), and decrements an outer counter (read from
+     * param 0x10(ebp) at entry - 64 for both files tested here) before
+     * looping the WHOLE inner process again. Stream positions and the bit
+     * register are NOT reset between outer passes (they live in the same
+     * DAT_ globals throughout) - only esi/ch are. Only the LAST outer pass's
+     * esi writes are the real, final output; earlier passes exist purely to
+     * build up the edi history buffer (hence outerCount * 2*stride ==
+     * 64*256 == 16384 == 128*128, the full image size, for the files
+     * tested).
+     */
+    byte[] decodeFull(int ch0, int outerCount, int outerAdvance) {
         int edi = edi0OffsetInWindow;
+        byte[] lastPass = null;
+        for (int o = 0; o < outerCount; o++) {
+            outPos = 0;
+            lastPass = decode(ch0, edi);
+            edi += ch0 * 4;       // already-executed inner-loop advance
+            edi += outerAdvance;  // additional outer-loop advance (DAT_3ac2d09)
+        }
+        return lastPass;
+    }
+
+    /** Decode `ch` iterations (each produces 2 output bytes) starting at the given edi. */
+    byte[] decode(int ch, int edi0Arg) {
+        int edi = edi0Arg;
         for (int i = 0; i < ch; i++) {
             boolean bit1 = shiftBit();
             if (!bit1) {
@@ -241,8 +279,38 @@ public class CmpStage2 {
         }
         System.out.println("edi0Offset=" + edi0Offset + " stride=" + stride);
 
-        CmpStage2 dec = new CmpStage2(edi, edi0Offset, stride, a, ctrl, lit, fillidx, bits);
-        byte[] result = dec.decode(32);
+        int ch0 = 32;       // DAT_3ac2d04 (== bl from param 0x14(ebp)) for the files tested
+        int outerCount = 64; // DAT_3ac2d00 (== param 0x10(ebp)) for the files tested
+        int outerAdvance = 2 * stride - ch0 * 4; // DAT_3ac2d09, per the real setup code
+
+        // Hypothesis test: does history need to be SEEDED from a live memory
+        // dump at all, or does a freshly-allocated (hence OS-zeroed) buffer
+        // work, since the outer loop builds up all its own context across
+        // 64 passes? Try zero-initialized first - if this matches real
+        // output, no memory-window capture is needed at all for verification.
+        boolean zeroSeed = args.length > 2 && args[2].equals("zero");
+
+        // edi moves by netAdvancePerPass (== 2*stride, see decodeFull) once
+        // per outer pass; over outerCount passes the real `edi` pointer
+        // wanders by totalNetMovement bytes from edi0 (negative here, since
+        // stride is negative for the bottom-up files tested - edi walks to
+        // LOWER addresses each pass). The buffer must have enough room on
+        // whichever side that movement heads towards, plus a fixed margin
+        // for the +-6/+-518ish predictor-table offsets read at any point
+        // along the way.
+        int netAdvancePerPass = 2 * stride;
+        int totalNetMovement = outerCount * netAdvancePerPass;
+        int predictorMargin = 4096;
+        int backwardRoom = Math.max(0, -totalNetMovement) + predictorMargin;
+        int forwardRoom = Math.max(0, totalNetMovement) + predictorMargin;
+        int newEdi0Offset = backwardRoom;
+        byte[] bigHistory = new byte[backwardRoom + forwardRoom];
+        if (!zeroSeed) {
+            System.arraycopy(edi, 0, bigHistory, newEdi0Offset - edi0Offset, edi.length);
+        }
+
+        CmpStage2 dec = new CmpStage2(bigHistory, newEdi0Offset, stride, a, ctrl, lit, fillidx, bits);
+        byte[] result = dec.decodeFull(ch0, outerCount, outerAdvance);
 
         System.out.println("produced " + result.length + " bytes, expected " + real.length);
         boolean match = java.util.Arrays.equals(result, real);
