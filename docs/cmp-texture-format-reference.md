@@ -339,3 +339,171 @@ motor — no hay nada real que conectar todavía.
    tamaño de salida esperado antes de aceptar cualquier píxel como bueno.
 4. Verificar contra los 17 archivos `.cmp` reales del proyecto y, si
    aparece, contra el material RWX que los referencia.
+
+---
+
+## Sesión de desbloqueo (2026-09-10): Xvfb desbloquea el cuelgue de
+## ventana/dispositivo — ambigüedad de acarreo y doble fila RESUELTAS con
+## ejecución real
+
+Punto de partida: la sesión anterior construyó un entorno de depuración
+dinámica real (Wine + `winedbg --gdb`) pero se bloqueó porque cualquier
+camino de ejecución que pasara del parseo de cabecera hacia el decoder de
+píxeles disparaba creación de ventana/dispositivo DirectDraw/OpenGL, que
+se colgaba indefinidamente en el sandbox (sin X real, sin gestor de
+ventanas).
+
+### El desbloqueo: Xvfb solo, sin gestor de ventanas
+
+Se arrancó `Xvfb :99 -screen 0 1024x768x24` (mismo patrón que la sesión
+del `HeadlessException` de Swing, varias sesiones atrás) y se exportó
+`DISPLAY=:99` para Wine. **Esto solo bastó** — no hizo falta ningún
+gestor de ventanas (`fluxbox`/`openbox`/etc. no están instalados en este
+entorno y no se pudieron instalar por falta de `sudo`, pero no hicieron
+falta). Con `ScapePicImage.loadImage()` sobre un archivo "normal"
+(`ADWORLDS.CMP`, modo `0x02`, el tipo de archivo simple pedido) el
+proceso ya no se cuelga: termina limpio (`EXIT 0`) y devuelve
+**`width=128, height=128, hDIB=0x0309004D`** — la primera decodificación
+real y exitosa obtenida en todas las sesiones de este proyecto sobre
+`.cmp`. (El arnés `ScapePicTexture.makeTexture()` de la sesión anterior sí
+sigue fallando bajo Xvfb, pero con un error DISTINTO y no relacionado con
+ventanas — `Assertion failed: line 98 in file nScapePicTexture` durante
+`nativeInit()`, consistente con que el arnés minimalista de esa clase no
+replica todos los campos que el código nativo espera; irrelevante para
+esta sesión porque `loadImage()` solo, sin `makeTexture()`, ya alcanza y
+ejecuta el decoder de píxeles real.)
+
+Con el entorno desbloqueado, un breakpoint puesto en `FUN_00442750`
+(validador de cabecera), `FUN_00442bc0` (`getScanline`) y `FUN_00457d88`
+(reconstructor de píxeles) — las tres direcciones ya identificadas por
+sesiones anteriores — **se alcanzan las tres, en orden, durante una sola
+llamada a `loadImage()`** (no hace falta `ScapePicTexture.makeTexture()`
+después de todo). Direcciones runtime confirmadas otra vez estables
+(`gamma.dll` sigue cargando siempre en `0x03A40000` en este entorno):
+`0x03A82750`, `0x03A82BC0`, `0x03A97D88`.
+
+### Ambigüedad #1 resuelta: "aritmética de acarreo" = lectura de bits
+### MSB-primero, no aritmética multi-precisión
+
+Traza real de 900 instrucciones (single-step completo, con EFLAGS y los
+8 registros generales en cada paso) capturada desde la entrada de
+`FUN_00457d88`. **Cero instrucciones `ADC`/`SBB` reales aparecen en la
+traza** — lo que Ghidra marcaba como `CARRY4` en su pseudocódigo resulta
+ser el patrón clásico de "leer un bit a la vez de un registro de
+desplazamiento" mediante `add %edx,%edx` (equivalente a `shl $1,%edx`)
+seguido de `jb`/`jae`/`je` sobre el flag de acarreo resultante — el bit
+que "se cae" de la posición 31 al desplazar queda en `CF`, y el código
+lo usa para caminar un árbol de Huffman de 2-3 niveles mediante saltos
+condicionales encadenados (no una tabla de búsqueda por prefijo en esta
+parte — la tabla de búsqueda de LHA ya identificada sirve para otra
+etapa). Antes de este bucle, el registro de 32 bits recién leído del
+stream se pasa por `rol $0x10,%edx` (intercambia las dos mitades de 16
+bits) — corrección de orden de bytes necesaria para que la extracción de
+bits MSB-primero funcione sobre una palabra leída en little-endian.
+**No hay ninguna aritmética de acarreo multi-palabra real** — la
+ambigüedad original queda resuelta: es el lector de bits canónico de
+LHA/Huffman ya documentado en sesiones anteriores, aplicado aquí con
+total literalidad.
+
+### Ambigüedad #2 resuelta: la "escritura de doble fila" es una
+### duplicación vertical deliberada de 2 filas por símbolo
+
+Evidencia real, dirección por dirección, de AMBOS caminos de símbolo que
+escriben píxeles (relleno de "run" y copia por predictor):
+
+```
+; relleno (run-fill), tras obtener un valor de 4 bytes ya replicado
+; (dx=cx=bx=ax, vía el manejador de reparto trivial de PTR_LAB_00483844)
+mov %dx,(%edi)           ; escribe 2 bytes en la fila ACTUAL
+mov %cx,0x2(%edi)        ; escribe 2 bytes más en la fila ACTUAL (4 en total)
+add DAT_3ac2d05,%edi     ; edi += stride  (DAT_3ac2d05 = -128 para esta imagen)
+mov %bx,(%edi)           ; escribe 2 bytes en la OTRA fila (edi+stride)
+mov %ax,0x2(%edi)        ; escribe 2 bytes más en la OTRA fila (4 en total)
+sub DAT_3ac2d05,%edi     ; edi -= stride  (vuelve a la fila actual)
+```
+
+```
+; copia por predictor 2D (tabla en 0x3ac2d0d, ver más abajo)
+mov 0x3ac2d0d(,%ebx,4),%ebx  ; ebx = tabla[índice] = desplazamiento de bytes del vecino
+mov (%ebx,%edi,1),%eax        ; lee 4 bytes del vecino predicho
+mov %eax,(%edi)                ; los escribe en la fila ACTUAL
+rol $0x8,%eax
+mov %al,(%esi)                  ; 1 byte al buffer de salida de "paleta" (esi)
+add DAT_3ac2d05,%edi            ; edi += stride
+mov (%edi,%ebx,1),%eax          ; lee 4 bytes del vecino, esta vez relativo a la OTRA fila
+mov %eax,(%edi)                  ; los escribe en la OTRA fila
+sub DAT_3ac2d05,%edi              ; vuelve a la fila actual
+rol $0x8,%eax
+mov %al,0x1(%esi)                   ; siguiente byte de salida
+```
+
+**Confirmado con evidencia real: cada símbolo (relleno o copia por
+predictor) escribe el mismo bloque de 4 bytes en DOS filas separadas por
+exactamente un `stride`** — no es limpieza de un buffer de scratch ni un
+efecto colateral accidental; es la operación central del símbolo. Dado
+que el stride es negativo (DIB "bottom-up") y todo el resto de la
+evidencia (tabla de predictores con desplazamientos de fila hasta -4,
+más abajo) indica que la imagen se decodifica en el sentido estándar
+top-to-bottom mientras el buffer físico crece hacia direcciones más
+bajas, la interpretación más consistente es que **cada símbolo pinta un
+bloque de 4×2 píxeles (4 de ancho, 2 filas de alto) con el mismo valor
+de una sola vez** — una optimización de compresión deliberada que
+explota la coherencia vertical típica de texturas de superficies lisas,
+no una construcción auxiliar. (Alternativa no descartada del todo: que
+sea una pre-siembra de la fila siguiente antes de decodificarla — en
+cualquier caso, el hecho verificado y relevante para implementar el
+decoder es el MISMO: escribir el bloque en `edi` y en `edi±stride` a la
+vez.)
+
+### Bonus: la tabla de predictores en runtime coincide EXACTA con la
+### tabla estática ya extraída, con la fórmula de conversión corregida
+
+Se volcó la tabla real que `FUN_00457d88` usa en `0x3ac2d0d` (24 dwords,
+memoria en vivo, no inferida):
+
+```
+0x3ac2d0d: 0x00000000 0xfffffffa 0xfffffffb 0xfffffffc
+0x3ac2d1d: 0xfffffffd 0xfffffffe 0x00000200 0x00000201
+0x3ac2d2d: 0x00000202 0x00000203 0x00000204 0x00000205
+0x3ac2d3d: 0x00000206 0x000001fa 0x000001fb 0x000001fc
+0x3ac2d4d: 0x000001fd 0x000001fe 0x000001ff 0x00000180
+0x3ac2d5d: 0x00000181 0x00000182 0x00000183 0x00000184
+```
+
+Comparado contra la tabla estática de `(desplazamiento_fila,
+desplazamiento_columna)` ya extraída de `0x478e98` en una sesión anterior
+(`docs/gamma-dll-cmp-evidence/predictor-offset-tables.txt`), **cada
+entrada coincide exactamente** con la fórmula
+`offset = colDelta + stride·rowDelta` (con `stride=-128` para esta
+imagen) — por ejemplo `(0,-6)→-6`, `(-4,0)→0+(-128)·(-4)=512=0x200`,
+`(-4,6)→6+512=518=0x206`, `(-4,-6)→-6+512=506=0x1FA`. **Corrección real
+frente a la sesión anterior**: la fórmula tentativa documentada entonces
+era `offset = colDelta - stride·rowDelta` (con un signo negativo) — la
+ejecución real confirma que es `colDelta + stride·rowDelta` (sin negar).
+Esto conecta de forma sólida, con evidencia de dos sesiones distintas
+(extracción estática de la tabla + uso real en ejecución), el mecanismo
+de predicción 2D documentado desde el principio.
+
+### Qué queda genuinamente sin verificar
+
+- La granularidad exacta del bucle externo (`ch`, contador de 32 en esta
+  llamada — probablemente "número de símbolos/columnas procesadas por
+  llamada", no la altura de la imagen) y cuántas veces `getScanline`
+  invoca a `FUN_00457d88` por fila real no se terminó de aislar con
+  certeza total.
+- El significado exacto del byte centinela `0x24` (36 decimal) que
+  provoca una salida temprana de la rama de "control byte" no se
+  investigó más allá de confirmar que existe.
+- No se decodificó a mano un `.cmp` completo byte a byte para comparar
+  contra el buffer de píxeles real en memoria — se confirmó que la
+  decodificación real TERMINA con éxito (`width=128, height=128,
+  hDIB` no nulo) pero no se volcó y comparó el contenido de píxeles
+  final. Paso natural siguiente antes de dar por bueno un decoder Java.
+
+**Conclusión**: las dos ambigüedades que motivaron toda la investigación
+dinámica de esta sesión y la anterior — aritmética de acarreo y
+propósito de la escritura de doble fila — están **resueltas con
+evidencia de ejecución real**, no solo hipótesis. Lo que falta para un
+decoder Java completo es trabajo de implementación y verificación
+adicional (no ambigüedad de diseño), documentado arriba como próximos
+pasos concretos.
