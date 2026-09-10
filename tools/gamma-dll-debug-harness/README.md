@@ -100,23 +100,47 @@ non-obvious things you need to work around:
    old session notes - see the 2026-09-10 session's finding that gdb's own
    labels, not the underlying addresses, were the thing that was wrong.
 
-## Known blocker (2026-09-10): device/window init hangs in this sandbox
+## RESOLVED (2026-09-10, continuation session): Xvfb alone unblocks it
 
-Both harnesses here reliably reach real `gamma.dll` code (confirmed via
-live single-step trace showing genuine `ReadFile` against the real file
-bytes), but neither could be driven far enough to reach the actual pixel
-decoder (`FUN_00442bc0`/`FUN_00457d88`) in this session's environment:
-any code path that gets past header parsing into real pixel decode also
-triggers DirectDraw/OpenGL device and window creation, which hangs
-indefinitely here (`err:clipboard:convert_selection Timed out waiting for
+Root cause of the device/window hang below was simply **no X server**
+for Wine to talk to. Starting a virtual one and pointing Wine at it fixes
+it completely, with no window manager needed:
+
+```
+Xvfb :99 -screen 0 1024x768x24 &
+DISPLAY=:99 wine assets/WorldsPlayer/bin/java.exe -cp <out> \
+  NET.worlds.console.ScapePicImage 'C:\path\to\file.cmp'
+```
+
+With `DISPLAY` pointing at a live Xvfb, `ScapePicImage.loadImage()` on a
+normal-mode (`0x02`) `.cmp` file completes cleanly and reaches all three
+breakpoints (`FUN_00442750` → `FUN_00442bc0`/`getScanline` →
+`FUN_00457d88`/pixel-reconstruct) in order, in a single call - no need
+for `ScapePicTexture.makeTexture()` after all. See
+`docs/cmp-texture-format-reference.md`, "Sesión de desbloqueo
+(2026-09-10)", for the resulting single-step trace and the two
+previously-open ambiguities (carry arithmetic, double-row write) it
+resolved.
+
+`ScapePicTexture.makeTexture()` still fails even under Xvfb, but with an
+unrelated, more mundane problem: `Assertion failed: line 98 in file
+nScapePicTexture` during `nativeInit()`, most likely because this
+harness's minimal `ScapePicTexture` class (it doesn't extend the real
+`Texture` superclass) is missing a field or registration step the native
+code expects. Not investigated further since `loadImage()` alone already
+reaches the pixel decoder - fixing this only matters if a future session
+specifically needs `makeTexture()`'s code path (e.g. to see whether it
+decodes rows `loadImage()` alone doesn't reach).
+
+### Original blocker writeup (kept for context)
+
+Any code path that got past header parsing into real pixel decode
+triggered DirectDraw/OpenGL device and window creation, which hung
+indefinitely (`err:clipboard:convert_selection Timed out waiting for
 SelectionNotify event`, `libEGL warning: egl: failed to create dri2
-screen`, then no further progress even after 150s+) - tried: killing stale
-`wineserver`, Wine's own virtual-desktop mode (`wine explorer
-/desktop=name,WxH ...`), both software and hardware gdb breakpoints, and a
-timed async interrupt to inspect the actual stall point (which showed a
-Wine loader-critical-section wait between threads, consistent with a
-device/window-thread startup race under this specific headless
-Xwayland setup - not evidence of a bug in `gamma.dll`'s own decode logic).
-A future session with real GPU/DRI access or a proper window manager
-available may not hit this at all - worth retrying this harness there
-before re-deriving it from scratch.
+screen`, then no further progress even after 150s+) - at the time, tried
+killing stale `wineserver`, Wine's own virtual-desktop mode (`wine
+explorer /desktop=name,WxH ...`), both software and hardware gdb
+breakpoints, and a timed async interrupt to inspect the actual stall
+point (which showed a Wine loader-critical-section wait between threads).
+None of those fixed it; Xvfb, tried in the next session, did.

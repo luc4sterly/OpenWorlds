@@ -484,21 +484,65 @@ Esto conecta de forma sólida, con evidencia de dos sesiones distintas
 (extracción estática de la tabla + uso real en ejecución), el mecanismo
 de predicción 2D documentado desde el principio.
 
+### Ground truth real capturado: fila 0 decodificada, byte a byte
+
+Se volcó la fila de salida real (128 bytes, apuntada por `esi` =
+`0xc(%ebp)`) justo al retornar de la ÚNICA llamada real a `FUN_00457d88`
+durante un `loadImage()` de `ADWORLDS.CMP` (128×128): **los 128 bytes
+son `0xAD` constante** — coincide exactamente con el patrón
+`0xadadadad` visto repetido por todo el resto de la traza (el valor
+replicado por el manejador de reparto trivial), confirmando de forma
+cruzada que esta fila se decodificó enteramente por el camino de
+"relleno" (run-fill). Guardado como evidencia cruda en
+`docs/gamma-dll-cmp-evidence/adworlds-row0-dump.txt` para verificar
+contra una futura reimplementación en Java.
+
+### Corrección real importante: `FUN_00457d88` se invoca UNA sola vez
+### por `loadImage()`, no una vez por fila
+
+Con los 3 breakpoints (`FUN_00442750`, `FUN_00442bc0`/`getScanline`,
+`FUN_00457d88`) armados, los tres se alcanzan **exactamente una vez cada
+uno** durante todo un `loadImage()` completo — el proceso termina
+normalmente sin volver a golpear ninguno, incluso para una imagen de 128
+filas. Esto corrige la asunción inicial de esta sesión ("una llamada =
+una fila decodificada por `ch`, contador de grupos de 4 píxeles"): con
+`ch=32` y ancho=128 (`128/4=32`), esa aritmética SÍ encaja para una sola
+fila, pero la evidencia de una única invocación total sugiere que, o
+bien (a) esta llamada decodifica la imagen COMPLETA en un bucle externo
+más allá de las 900 instrucciones trazadas (no alcanzado por el límite
+de pasos de esta sesión), o bien (b) `loadImage()` en sí solo
+materializa una fila representativa (¿fila 0, para una vista previa?) y
+el resto de filas se decodifican más tarde, bajo demanda, vía llamadas
+posteriores a `getScanline` desde `ScapePicTexture.makeTexture()` — el
+camino que esta sesión no pudo ejercitar limpiamente (ver el arnés
+`ScapePicTexture` y su fallo de aserción, sección anterior). **No
+resuelto con certeza** — el hallazgo real y verificado es que, dentro de
+esta sesión, solo se observó una invocación; no se afirma cuál de las
+dos hipótesis es la correcta sin más evidencia.
+
 ### Qué queda genuinamente sin verificar
 
-- La granularidad exacta del bucle externo (`ch`, contador de 32 en esta
-  llamada — probablemente "número de símbolos/columnas procesadas por
-  llamada", no la altura de la imagen) y cuántas veces `getScanline`
-  invoca a `FUN_00457d88` por fila real no se terminó de aislar con
-  certeza total.
+- Cuál de las dos hipótesis anteriores sobre la granularidad de
+  `FUN_00457d88` es la correcta (bucle interno sobre las 128 filas vs.
+  una fila por llamada con el resto delegado a `makeTexture()`).
 - El significado exacto del byte centinela `0x24` (36 decimal) que
   provoca una salida temprana de la rama de "control byte" no se
   investigó más allá de confirmar que existe.
-- No se decodificó a mano un `.cmp` completo byte a byte para comparar
-  contra el buffer de píxeles real en memoria — se confirmó que la
-  decodificación real TERMINA con éxito (`width=128, height=128,
-  hDIB` no nulo) pero no se volcó y comparó el contenido de píxeles
-  final. Paso natural siguiente antes de dar por bueno un decoder Java.
+- El espacio completo de símbolos del árbol de Huffman interno (solo se
+  trazaron las ramas que esta fila concreta, toda plana, llegó a
+  ejercitar — un archivo con más variación de píxeles ejercitaría más
+  ramas y podría revelar comportamiento no visto aquí).
+- Un decoder Java todavía no se implementó ni se verificó contra el
+  ground truth real capturado — dado que las dos ambigüedades
+  específicas que motivaron esta sesión (aritmética de acarreo, doble
+  fila) SÍ están resueltas, pero la granularidad de llamada y el espacio
+  de símbolos completo no lo están, implementar ahora arriesgaría
+  exactamente lo que el proyecto prohíbe: producir píxeles con aspecto
+  plausible pero no verificados. Próximo paso concreto y honesto para
+  una futura sesión: trazar 2-3 archivos `.cmp` reales adicionales con
+  contenido no plano (para ejercitar más ramas del árbol de símbolos) y
+  aislar con certeza la granularidad fila-vs-imagen-completa antes de
+  escribir el decoder.
 
 **Conclusión**: las dos ambigüedades que motivaron toda la investigación
 dinámica de esta sesión y la anterior — aritmética de acarreo y
