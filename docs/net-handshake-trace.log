@@ -1,0 +1,50 @@
+[NATIVE-MOCK] IniFile.nativeInit()
+[NATIVE-MOCK] IniFile.getIniString(PRODUCT_NAME, Worlds.com - The 3D Entertainment Portal)
+[NATIVE-MOCK] IniFile.getIniString(productName, Worlds.com - The 3D Entertainment Portal)
+[NATIVE-MOCK] IniFile.parseIni-failed(override.ini, java.io.FileNotFoundException: ./override.ini (No existe el fichero o el directorio))
+[NATIVE-MOCK] Std.getClientVersion()
+[NATIVE-MOCK] IniFile.getIniString(netdebug, 0)
+[NATIVE-MOCK] IniFile.getIniInt(netdebug, 0)
+NETWORK DEBUGGING LEVEL = 1216
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] DNSLookup.gethostbyname(worlds.worlio.com)
+Connected to 198.251.80.57
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+MRE: MessagesBundle_es_ES 
+NO MESSAGE for MenuFont
+[NATIVE-MOCK] IniFile.getIniInt(tieredVIP, 0)
+[NATIVE-MOCK] IniFile.getIniString(ProductName, )
+[NATIVE-MOCK] IniFile.getIniInt(VIP, 0)
+[NATIVE-MOCK] IniFile.getIniInt(SPGUEST, 0)
+[NATIVE-MOCK] IniFile.getIniString(DEFAULTCONSOLE, NET.worlds.console.DefaultConsole)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+MRE: MessagesBundle_es_ES 
+NO MESSAGE for not-whispers
+connectedHost=198.251.80.57 state=5 XMIT_PROPREQ
+[NATIVE-MOCK] IniFile.getIniInt(upgradeTimeout, 7)
+[NATIVE-MOCK] IniFile.getIniInt(testautoupgrade, 0)
+[NATIVE-MOCK] IniFile.getIniInt(testworldautoupgrade, 0)
+[NATIVE-MOCK] IniFile.getIniString(upgradeServer, )
+[NATIVE-MOCK] IniFile.getIniString(WorldServer, )
+[NATIVE-MOCK] IniFile.getIniInt(DISABLESHAPER, 1)
+[NATIVE-MOCK] IniFile.getIniInt(DISABLESHAPER, 1)
+[NATIVE-MOCK] IniFile.getIniString(upgradeServer, )
+[NATIVE-MOCK] IniFile.getIniInt(useNetworkAvatars, 1)
+[NATIVE-MOCK] IniFile.getIniInt(useNetworkAvatars, -1)
+[NATIVE-MOCK] IniFile.getIniString(avatarDir, avatar/)
+[NATIVE-MOCK] IniFile.getIniString(avatar, nullavatar/)
+[NATIVE-MOCK] IniFile.getIniString(file, )
+[NATIVE-MOCK] IniFile.getIniInt(maxupgradeversion, 999999999)
+[NATIVE-MOCK] IniFile.getIniString(lastchatname, Fred)
+[NATIVE-MOCK] Std.nativeGetMillis()
+[0] worlds.worlio.com:6650: send(PROPREQ  255[worlds.worlio.com:6650] )
+worlds.worlio.com:6650: send[3 ff a ]
+[NATIVE-MOCK] Std.nativeGetMillis()
+sent propReq, state=6 RCV_PROPS
+state -> 6 RCV_PROPS
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+worlds.worlio.com:6650: recv(PROPUPD  255[worlds.worlio.com:6650] (#27 [DBSTORE /POSSESS ] worlds.worlio.com #26 [DBSTORE /POSSESS ] worlds.worlio.com:2500 #25 [DBSTORE /POSSESS ] http://files.worlio.com/cgi-bin/ #15 [DBSTORE /POSSESS ] 1 #3 [DBSTORE /POSSESS ] 24 #1 [DBSTORE /POSSESS ] WormMaster ))
+state -> 7 XMIT_SI
+final state=7 XMIT_SI
+closed cleanly

@@ -1,0 +1,32 @@
+== [1] DNS via NET.worlds.network.DNSLookup ==
+[NATIVE-MOCK] DNSLookup.gethostbyname(us1.worlds.net)
+DNS us1.worlds.net -> 172.237.126.108
+[NATIVE-MOCK] DNSLookup.gethostbyname(worlds.worlio.com)
+DNS worlds.worlio.com -> 198.251.80.57
+== [2] URL de upgrade construida como NetUpdate ==
+[NATIVE-MOCK] IniFile.nativeInit()
+[NATIVE-MOCK] IniFile.getIniString(upgradeServer, )
+upgradeServer ini = http://us1.worlds.net/3DCDup
+[NATIVE-MOCK] IniFile.getIniInt(useNetworkAvatars, 1)
+[NATIVE-MOCK] IniFile.getIniInt(useNetworkAvatars, -1)
+[NATIVE-MOCK] IniFile.getIniString(avatarDir, avatar/)
+[NATIVE-MOCK] IniFile.getIniInt(upgradeTimeout, 7)
+[NATIVE-MOCK] IniFile.getIniInt(testautoupgrade, 0)
+[NATIVE-MOCK] IniFile.getIniInt(testworldautoupgrade, 0)
+[NATIVE-MOCK] IniFile.getIniString(upgradeServer, )
+[NATIVE-MOCK] IniFile.getIniString(WorldServer, )
+[NATIVE-MOCK] IniFile.getIniInt(DISABLESHAPER, 1)
+[NATIVE-MOCK] IniFile.getIniInt(DISABLESHAPER, 1)
+[NATIVE-MOCK] IniFile.getIniString(upgradeServer, )
+[NATIVE-MOCK] IniFile.getIniInt(maxupgradeversion, 999999999)
+[NATIVE-MOCK] IniFile.getIniString(avatar, http://us1.worlds.net/3DCDup/avatar/)
+[NATIVE-MOCK] IniFile.getIniString(http, )
+URL.make(uServer+"upgrades.lst").unalias() = http://us1.worlds.net/3DCDupupgrades.lst
+== [3] HTTP GET via DNSLookup.lookup + openConnection (patron CacheEntry.openURL) ==
+resolved = http://172.237.126.108/3DCDupupgrades.lst
+contentLength = 158, lastModified = 0
+HTTP FAILED: java.io.FileNotFoundException: http://172.237.126.108/3DCDupupgrades.lst
+== [4] TCP 6650 (puerto WorldServer) via IP resuelta por DNSLookup ==
+TCP us1.worlds.net:6650 FAILED: java.net.ConnectException: Conexión rehusada (connect failed)
+TCP worlds.worlio.com (198.251.80.57):6650 CONNECTED (local=/10.0.0.18:35262)
+NETPROBE: 2 FAILURES
