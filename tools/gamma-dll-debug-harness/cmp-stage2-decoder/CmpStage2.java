@@ -9,14 +9,43 @@ import java.nio.file.*;
  * (dumped live from the process) providing 2D-predictor context.
  */
 public class CmpStage2 {
-    static int[] PRED_TABLE = new int[50];
-    static {
-        int[] vals = {
-            0,-6,-5,-4,-3,-2,512,513,514,515,516,517,518,506,507,508,509,510,511,
-            384,385,386,387,388,389,390,378,379,380,381,382,383,256,257,258,259,260,
-            261,262,250,251,252,253,254,255,122,123,124,125,126
-        };
-        PRED_TABLE = vals;
+    // PRED_TABLE is NOT a fixed array of offsets - it's built by gamma.dll at
+    // RUNTIME (in .data, all zero in the static file) from a fixed
+    // (colDelta, rowDelta) neighbor-search recipe: off = colDelta +
+    // stride*rowDelta. A single earlier session captured this table live but
+    // ONLY for 128-wide files (stride=-128) and baked the resulting COMBINED
+    // offsets into a flat int[] - which is only correct for stride=-128.
+    // Found and fixed in a 2026-09-10 session: entries with rowDelta==0
+    // (idx 0-5, the small/nearby offsets) are stride-independent and so
+    // happened to keep working for any stride (matches the earlier
+    // observation that idx=3 always decoded correctly); every entry with
+    // rowDelta!=0 (idx 6+, the "far" offsets) was silently wrong for any
+    // stride other than -128 - e.g. idx=32 gave 256 (correct only for
+    // stride=-128) instead of 64 (the real value for stride=-32), which is
+    // exactly the bug that broke test4b.cmp (32-wide, stride=-32) from
+    // iteration 5 onward. Derived by live-reading gamma.dll's runtime table
+    // (address 0x00482d0d, DWORD per entry, NOT the 0x00478e98 address an
+    // earlier session's comments claimed - that address holds unrelated
+    // data) for two different real strides (-128 and -32) and solving the
+    // two linear equations per entry; every entry gave a clean integer
+    // solution with no residual, confirming the model.
+    static final int[] PRED_COL = {
+        0,-6,-5,-4,-3,-2, 0,1,2,3,4,5,6, -6,-5,-4,-3,-2,-1,
+        0,1,2,3,4,5,6, -6,-5,-4,-3,-2,-1,
+        0,1,2,3,4,5,6, -6,-5,-4,-3,-2,-1,
+        -6,-5,-4,-3,-2
+    };
+    static final int[] PRED_ROW = {
+        0,0,0,0,0,0, -4,-4,-4,-4,-4,-4,-4, -4,-4,-4,-4,-4,-4,
+        -3,-3,-3,-3,-3,-3,-3, -3,-3,-3,-3,-3,-3,
+        -2,-2,-2,-2,-2,-2,-2, -2,-2,-2,-2,-2,-2,
+        -1,-1,-1,-1,-1
+    };
+    static { if (PRED_COL.length != 50 || PRED_ROW.length != 50) throw new AssertionError("PRED_COL/PRED_ROW size mismatch"); }
+
+    /** off = colDelta + stride*rowDelta, evaluated for THIS instance's real stride (not a fixed table). */
+    int predOffset(int idx) {
+        return PRED_COL[idx] + stride * PRED_ROW[idx];
     }
 
     byte[] history; // window around edi0, mutable copy
@@ -151,6 +180,14 @@ public class CmpStage2 {
         return lastPass;
     }
 
+    // Debug flag: when true, decode() prints which branch (SINGLE/DUAL/CTRL)
+    // fires each iteration. A live branch census against gamma.dll itself
+    // (2026-09-10 session, see cmp-stage2-decoder/README.md) found this
+    // decoder spuriously taking DUAL branches that the real process never
+    // takes for test4b.cmp (real: 124 SINGLE + 4 CTRL + 0 DUAL out of 128
+    // iterations) - this flag is left in for whoever chases that bug next.
+    static boolean TRACE = false;
+
     /** Decode `ch` iterations (each produces 2 output bytes) starting at the given edi. */
     byte[] decode(int ch, int edi0Arg) {
         int edi = edi0Arg;
@@ -162,7 +199,8 @@ public class CmpStage2 {
                 if (idx == 0) {
                     throw new IllegalStateException("idx==0 special case not modeled (never observed live)");
                 }
-                int off = PRED_TABLE[idx];
+                int off = predOffset(idx);
+                if (TRACE) System.out.println("iter=" + i + " SINGLE idx=" + idx + " off=" + off + " posA=" + posA);
                 int v1 = rd32(edi + off);
                 wr32(edi, v1);
                 int v2 = rd32(edi + stride + off);
@@ -173,6 +211,7 @@ public class CmpStage2 {
                 boolean bit2 = shiftBit();
                 if (bit2) {
                     int ctrl = streamCtrl[posCtrl++] & 0xFF;
+                    if (TRACE) System.out.println("iter=" + i + " CTRL ctrl=" + ctrl + " posCtrl=" + posCtrl);
                     if (ctrl == 0x24) {
                         int lo = (streamLit[posLit] & 0xFF) | ((streamLit[posLit+1] & 0xFF) << 8)
                                | ((streamLit[posLit+2] & 0xFF) << 16) | ((streamLit[posLit+3] & 0xFF) << 24);
@@ -226,14 +265,15 @@ public class CmpStage2 {
                     // dual 2-byte predictor copy
                     int idx1 = streamA[posA++] & 0xFF;
                     int idx2 = streamA[posA++] & 0xFF;
-                    int off1 = PRED_TABLE[idx1];
+                    if (TRACE) System.out.println("iter=" + i + " DUAL idx1=" + idx1 + " idx2=" + idx2 + " posA=" + posA);
+                    int off1 = predOffset(idx1);
                     int r1a = rd16(edi + off1);
                     wr16(edi, r1a);
                     int r1b = rd16(edi + stride + off1);
                     wr16(edi + stride, r1b);
                     emit((r1b >>> 8) & 0xFF);
 
-                    int off2 = PRED_TABLE[idx2];
+                    int off2 = predOffset(idx2);
                     int r2a = rd16(edi + 2 + off2);
                     wr16(edi + 2, r2a);
                     int r2b = rd16(edi + stride + 2 + off2);

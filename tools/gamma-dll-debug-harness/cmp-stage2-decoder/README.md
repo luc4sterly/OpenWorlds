@@ -168,3 +168,54 @@ single-stepped through this exact iteration in `gamma.dll`) against what
 `CmpStage2.java` computes for `idx2=32`, rather than re-deriving the
 whole algorithm from scratch. This is a much smaller, well-evidenced
 target than "something's wrong somewhere in 64 bytes."
+
+## 2026-09-10, round 3: `PRED_TABLE` bug found and fixed (real fix,
+## 23/141 → 86/141), second deeper bug found underneath (still not closed)
+
+Disassembling `FUN_00457d88` directly (rather than trusting an earlier
+session's comment) showed the predictor-offset lookup is
+`mov ebx, DWORD PTR [ebx*4+0x482d0d]` — **not** `0x00478e98` as an
+earlier session's code comment claimed (that address holds unrelated
+data; reading it statically from the file returns garbage). `0x482d0d`
+is in `.data` and is all-zero in the static file: **the table is built
+by `gamma.dll` at runtime from the current `stride`**, not a fixed
+constant. The old `PRED_TABLE` array (this file's original version) had
+been captured live, but only ever for 128-wide files (`stride=-128`),
+then baked in as fixed combined offsets — correct only for that one
+stride.
+
+**Real proof of the model**: live-read the runtime table for two
+different real strides (`-128` and `-32`, via winedbg/gdb) and solved
+`off = colDelta + stride·rowDelta` as two linear equations per entry.
+**Every one of the 50 entries produced a clean integer solution, no
+residual** — strong confirmation this is the actual recipe, not a
+coincidence. Entries with `rowDelta=0` (the small/nearby offsets, idx
+0-5) are stride-independent, which is exactly why `idx=3` always
+decoded correctly even with the old bug — it's why the round-2 bug
+report ("idx=32 gives 256 instead of 62") looked like an isolated
+oddity rather than a systemic stride bug. Fixed: `PRED_COL`/`PRED_ROW`
+arrays plus `predOffset(idx) = PRED_COL[idx] + stride*PRED_ROW[idx]`,
+replacing the flat `PRED_TABLE`.
+
+**Result**: 23/141 → **86/141** matches against real captured per-pass
+output — reproduced cleanly, a real ~3.7x improvement, not noise.
+
+**A second, deeper bug remains** (the reason `test4b.cmp` still isn't
+byte-exact): a live branch-dispatch census across the *entire* real
+decode (`evidence_2nd_session/branch_census.log`, address-tagged
+breakpoint hit counts) shows the real execution takes **`SINGLE` 124
+times and `CTRL` 4 times — `DUAL` zero times**, for the whole file.
+`CmpStage2.java`'s own trace (`TRACE` flag, left in the code) shows it
+taking `DUAL` five times in pass 0 alone. **The real code never takes
+the branch this decoder thinks it's taking at this point** — meaning
+the residual gap isn't in the predictor table at all; it's upstream, in
+`shiftBit()`/`refillWord()` or the `bit1`/`bit2` dispatch logic itself,
+misreading the bitstream into a branch decision the real code never
+makes.
+
+**Not closed.** `rustwood.cmp` wasn't checked since `test4b.cmp` itself
+still isn't byte-exact. Next concrete step for a future session: use
+the `TRACE` flag plus the same live-branch-census technique to find
+where the decoder's bit reader first disagrees with the real one about
+which branch to take (not which offset to use — that part is now
+right).
