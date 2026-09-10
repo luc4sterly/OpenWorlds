@@ -1,0 +1,3 @@
+edi0=04ce3f80 esi0=0304a5b8 ch0=32 stride0=-128
+edi window: lo=0x04ce3980 hi=0x04ce3ffc span=1660 (edi0 offset in window = 1536)
+captured 64 positions, missing: []
