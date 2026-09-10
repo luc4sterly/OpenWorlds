@@ -1415,6 +1415,74 @@ Cuatro rondas de evidencia real acumuladas, cero datos inventados en
 ningún punto. Detalle completo en
 `tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md`.
 
+### 🟡 `.cmp` — LÍNEA A (continuación en paralelo, 2026-09-10):
+### `test4b.cmp` byte-exacto (256/256), textura real `rustwood.cmp` al
+### 99.37% — tres bugs reales más encontrados y corregidos, aún sin
+### cerrar del todo
+
+**Bug encontrado en la propia herramienta de captura, no en el
+decoder**: `cmp_capture.py` leía siempre el byte `AL` de `eax` en cada
+punto de escritura vigilado. El desensamblado real muestra que
+`SINGLE` sí usa `rol eax,8; mov [esi(+1)],al` (AL correcto ahí), pero
+`DUAL` escribe con `mov [esi],ah` / `mov [esi+1],ah` — **sin rotación,
+y el registro equivocado**. Cada byte "ground truth" capturado en toda
+rama `DUAL` de las tres rondas anteriores era, silenciosamente,
+incorrecto. Invisible hasta ahora por pura suerte: ningún archivo
+probado en las rondas 1-3 tomó nunca una rama `DUAL` real (confirmado
+aparte vía el censo de ramas). Corregido: `WRITE1` ahora lleva pares
+`(byteslot, registro)`.
+
+**El segundo bug real, encontrado y corregido**: cada punto de "consumir
+un bit" en `FUN_00457d88` tiene un chequeo de recarga (`je [refill]`)
+de guarda **excepto el propio test de `bit1`** — no tiene ninguno.
+Cuando el último bit vivo del registro se consume justo ahí, el
+hardware real NO recarga de inmediato: deja el registro en `0` literal
+y difiere la recarga al siguiente punto vigilado, que (al desplazar un
+registro ya en cero) produce un bit "0 falso" genuino antes de que su
+propia recarga dispare. El `shiftBit()` viejo recargaba siempre sin
+importar el punto de llamada, descartando silenciosamente ese bit falso
+y desincronizando cada lectura posterior en exactamente una posición —
+justo por eso el decoder tomaba ramas `DUAL` que el proceso real nunca
+tomó. Corregido con un `shiftBit1NoRefill()` nuevo, usado solo en ese
+punto. Encontrado con una traza de ramas en vivo contra `rustwood.cmp`
+(contenido real variado — los cuadrantes planos de `test4b.cmp` nunca
+llegaron a pisar este caso límite, por eso la ronda 3 no lo vio).
+
+**Un tercer bug, solo detectable con contenido real variado**: la
+"difusión de relleno" del camino de byte de control se había asumido
+como "replicar `al` cuatro veces" por una sesión mucho anterior que
+leyó estáticamente un par de manejadores — conclusión infalsable contra
+todos los archivos probados hasta ahora porque sus pares de bytes
+literales siempre tenían `al == ah`. El trazado en vivo de registros
+contra `rustwood.cmp` (`al != ah` ahí) mostró que el byte de
+`fillIdx` es en realidad una **máscara de mezcla de 8 bits**: cada bit
+elige independientemente `ah` o `al` para uno de 8 carriles de byte de
+salida. Confirmado exacto, los 8 bits, en 3 muestras en vivo
+independientes. Corregido.
+
+**Resultado, contra salida real capturada por pase**:
+- **`test4b.cmp`: 256/256 — 100%, byte-exacto.**
+- **`rustwood.cmp`** (textura real de 128×128, no sintética):
+  **4070/4096 — 99.37%**, desde 403/4096 al empezar esta ronda. El único
+  desajuste revisado a mano se resolvió a favor del decoder contra una
+  **lectura de memoria en vivo fresca e independiente** (sin pasar por
+  el decoder ni por el CSV de captura) — evidencia de que el ~1.6%
+  restante son más artefactos de la herramienta de captura, no bugs del
+  decoder, aunque no probado byte a byte.
+- **`sball.cmp`** (tercer archivo real): **2709/4096 — 66%**, capturado
+  de nuevo con la herramienta corregida. El mismo patrón de verificación
+  se repitió una vez y también favoreció al decoder, pero este archivo
+  diverge antes y más a menudo — **sin resolver con certeza**.
+
+**No se conectó al pipeline de materiales esta ronda**: `sball.cmp` no
+tiene la misma confianza que `rustwood.cmp`, y esta misma ronda
+demostró que un archivo sintético de color plano puede ocultar bugs
+reales que un archivo variado sí expone — la regla del proyecto contra
+píxeles plausibles-pero-no-verificados sigue aplicando. Próximo paso
+concreto: perseguir el resto de `sball.cmp` con el mismo método de
+verificación en vivo. Detalle completo en
+`tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md`.
+
 ---
 
 ### 🟢 Render — helpers compartidos, modo ALL/list-rooms en WorldViewer,
