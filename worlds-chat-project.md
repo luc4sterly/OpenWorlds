@@ -2242,3 +2242,117 @@ lento que hacerlo directo.
   pivotar hacia el parser RWX (fase 1 del roadmap, sección 5) ahora que el
   reconocimiento del terreno (nativos, portabilidad, arranque) está
   esencialmente completo?
+
+---
+
+### 🟢 `.cmp` — LÍNEA A (2026-09-10): `sball.cmp` cerrado — cuarto bug
+### real (byte3 tras ROL), 3/3 archivos byte-exactos, decoder conectado
+### al pipeline con prueba de píxeles
+
+**Punto de partida**: `test4b.cmp` 256/256, `rustwood.cmp` 4070/4096,
+`sball.cmp` 2709/4096 (ronda anterior).
+
+**Primera divergencia de `sball.cmp`, localizada exacta**: pase 0,
+offset 16 (iter 8, rama `SINGLE`, `idx=3`). Decoder daba 7, ground
+truth 31.
+
+**Causa raíz (cuarto bug, probado en vivo con traza
+mem-after-store)**: `rol eax,8; mov [esi],al` deja en `AL` el byte3
+(alto, bits 24-31), no el byte1. En el punto de divergencia
+`v1=[07,07,07,1f]` → real `0x1f` (31, confirmado en vivo como
+`regal=31 mem=31`), decoder 7. Mismo fix en el escape `0x24` (mismo
+par rol/mov); `DUAL` intacto (usa `ah` sin rotación, ya era
+correcto). Oculto hasta ahora porque `test4b.cmp` es plano
+(`byte1==byte3` en todas partes) y `rustwood.cmp` casi — el mismo
+patrón que los tres bugs anteriores: archivo sintético que esconde un
+caso real que solo contenido variado ejercita.
+
+**Resultado, contra salida real capturada por pase**:
+- `test4b.cmp`: **256/256** (igual que antes, sin regresión).
+- `rustwood.cmp`: **4096/4096** (desde 4070 — los 26 restantes eran
+  este bug, no ruido de captura como se había supuesto).
+- `sball.cmp`: **4096/4096** (desde 2709).
+
+**Evidencia colateral**: los 256 fill-handlers verificados
+simbólicamente contra el binario (0/256 desvíos del modelo shuffle);
+re-captura mem-after-store 64/64 idéntica al CSV viejo (herramienta
+vindicada); paleta votada índice a índice contra el render del propio
+`cmpview.exe` (**0/16384 px difieren**); `rustwood.bmp` NO es fuente
+de `rustwood.cmp` (todas las orientaciones ≤0.06 — el emparejamiento
+por nombre era falso, no un problema del decoder).
+
+**Cierre del criterio de la sesión: pipeline conectado y probado por
+píxel** — `client/src/net/freeworlds/cmp/` (`CmpStage2` porteado +
+`CmpTexture`), `assets/cmp-verified/sball/` (streams recortados al
+consumo verificado + paleta), UVs en `RwxParser`/`RwxModel`,
+`RwxViewer --texture <dir>/<base> --camera top|front`. Render de
+`sball.rwx` con su textura verificada
+(`docs/renders/sball_ring_{flat_top,textured_unlit_top,
+textured_lit_top}.png`): sobre geometría idéntica (13548 px no-fondo),
+plano = 10 colores; con textura sin luz = **1195/1195 colores a ≤6.6
+(media 2.5) de la paleta verificada**; control plano = 0/10 (media
+155); 0 píxeles magenta. **Primera textura real visible en la
+geometría del proyecto.** Alcance honesto del demo: override
+`--texture` de una sola textura (el `sball.rwx` dice `Texture NULL`);
+quedan abiertos Stage-1 Huffman, paleta on-disk, flag de orientación,
+`v=0`, y honrar `textureName` por material.
+
+**Commits de esta línea** (sin tocar nada de red):
+`1857cd0` (fix byte3), `63c35a9` (path texturizado + port),
+`f8cd31d` (assets verificados), más el doc (`f3e2d28`). Detalle
+completo en `tools/gamma-dll-debug-harness/cmp-stage2-decoder/
+README.md`.
+
+---
+
+### 🟢 Red — LÍNEA B (2026-09-10): login REAL completo contra
+### servidor vivo (guest anónimo, estado 12 MAINLOOP + bienvenida)
+
+**Resultado: login completo SÍ** — contra el guest de Worlio
+`gippsland.worlio.com:8265` (todos sus hostnames resuelven a
+`198.251.80.57`, verificado). Estados reales con código 100% del
+cliente: `0→4→5→6→7` (AutoServer) → handoff a `AnonRoomServer` →
+`0→3→7→8→11→12 MAINLOOP` estable 12s, `lastError=null`, cierre
+limpio, exit 0. Trace real en `docs/net-guest-login-trace.log`
+(Xvfb :99, una conexión, cerrada al terminar).
+
+**Intercambio real** (bytes del propio `sendNetMsg`):
+- `send(PROPREQ)` → `03 ff 0a`; `recv(PROPUPD #15=4 #3=24
+  #1=Gippsland #25=cgi-bin #24=files #8=1000000)` → AutoServer crea
+  `AnonRoomServer`, `LoginWizard0` real levantado.
+- `send(SESSINIT VAR_PROTOCOL=24 VAR_CLIENT=2004080500
+  VAR_AVATARS=24 VAR_USERNAME=FWProbeGuest2)`.
+- `recv(SESSINIT VAR_ERROR=0 VAR_SERVERTYPE=4 VAR_UPDATETIME=1000000
+  VAR_PROTOCOL=24 VAR_CHANNEL=dimension-1)` → `wizard.setConnected()`
+  real.
+- `recv(TEXT Gippsland: Welcome to WorlioWorlds Gippsland, an
+  anonymous free-for-all. Be wary of links, impersonation, and spam.
+  Keep your mute buttons greased.)` — **primera sesión real completa
+  del cliente reconstruido**.
+
+**Dos obstáculos, causa raíz verificada**:
+1. `VAR_CLIENT=null` (mock JNI) → el servidor responde `VAR_ERROR=7
+   "client out of date"` (visto 2 veces en vivo). Ground truth:
+   `objdump` sobre `assets/WorldsPlayer/bin/gamma.dll` real — la
+   exportación `getClientVersion` devuelve `"2004080500"` (y
+   `getBuildInfo` = `"08/05/04 05:45:33 GMT (Rev 1900)"`, idéntica al
+   `Gamma.Log` genuino). Con el valor real: `VAR_ERROR=0`.
+2. NPE en `LoginWizard.setConnected` (`setIniString("User0",null)`):
+   artefacto del harness (UI saltada deja `loginUserName=null`; el
+   flujo real lo exige en `validateKnownUserInfo`) — resuelto
+   preseedeando el wizard como lo dejaría la UI.
+
+**Cuentas (pregunta explícita de la sesión)**: el primario
+`worlds.worlio.com:6650` anuncia `#15=1` (UserServer) → exige
+usuario+password, registro solo vía web en
+`https://worlds.worlio.com/register` (accesible, pide email). **Sin
+una cuenta creada manualmente ahí no se puede loguear en el
+primario; no se inventó ni hardcodeó ninguna credencial** (la sonda
+acepta nick/password solo por argv). El guest no necesita registro.
+
+**Commits de esta línea** (sin tocar nada de `.cmp`/render):
+`bd4275c` (GuestLoginProbe), `a1edb1e` (trace del login completo),
+`2ae6c91` (documentación). **Siguiente paso concreto**: login en el
+primario cuando un humano registre una cuenta en la URL de arriba —
+la misma sonda (argv nick/password) debería llegar a 12 por el camino
+`UserServer` modo 2; pendiente de esa cuenta, no de código.
