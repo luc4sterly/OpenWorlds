@@ -1211,6 +1211,74 @@ GPU/ventanas, en `docs/cmp-texture-format-reference.md` y
 
 ---
 
+### 🟢 `.cmp` — Xvfb desbloquea el cuelgue de ventana/dispositivo; las dos
+### ambigüedades de `FUN_00457d88` quedan resueltas con ejecución real
+### (2026-09-10, sesión de continuación)
+
+Objetivo: desbloquear el cuelgue de ventana/dispositivo de la sesión
+anterior usando Xvfb (igual que se hizo hace varias sesiones para el
+`HeadlessException` de Swing) y, si se lograba, retomar la depuración de
+`FUN_00457d88` con valores reales.
+
+**Desbloqueo logrado con la primera opción probada**: `Xvfb :99
+-screen 0 1024x768x24` + `DISPLAY=:99` para Wine — **sin ningún gestor de
+ventanas** (no hicieron falta ni estaban disponibles en el entorno). Con
+esto, `ScapePicImage.loadImage()` sobre un `.cmp` real "normal" (modo
+`0x02`, `ADWORLDS.CMP`) termina limpio y devuelve **una decodificación
+real y exitosa** (`width=128, height=128, hDIB` no nulo) — la primera de
+todas las sesiones de este proyecto. Los tres breakpoints ya localizados
+(`FUN_00442750` → `getScanline` → `FUN_00457d88`) se alcanzan los tres, en
+orden, dentro de esa única llamada — no hizo falta `makeTexture()`
+después de todo (ese arnés sigue fallando, pero por un problema de
+fidelidad del arnés minimalista — una aserción nativa durante
+`nativeInit()` — no relacionado con el cuelgue de ventana ya resuelto).
+
+**Las dos ambigüedades que motivaron dos sesiones de trabajo quedan
+resueltas con evidencia de ejecución real** (traza de 900 instrucciones,
+con `EFLAGS` y los 8 registros generales en cada paso):
+
+- **"Aritmética de acarreo"**: cero instrucciones `ADC`/`SBB` reales en
+  toda la traza. Es el lector de bits MSB-primero clásico de
+  Huffman/LHA (`add reg,reg` + `jb` sobre el flag de acarreo), con un
+  `rol $0x10` previo para corregir el orden de bytes de una palabra
+  leída en little-endian — nada de aritmética multi-palabra.
+- **"Escritura de doble fila"**: confirmado con las direcciones exactas
+  de ambos caminos de símbolo (relleno y copia por predictor) — cada
+  símbolo escribe el mismo bloque de 4 bytes en la fila actual (`edi`) Y
+  en `edi±stride` a la vez, como operación central del símbolo (no
+  limpieza de scratch). Interpretación más consistente: cada símbolo
+  pinta un bloque de 4×2 píxeles de una vez, explotando coherencia
+  vertical.
+- **Bonus, confirmación cruzada entre dos sesiones**: se volcó la tabla
+  de predictores real que usa `FUN_00457d88` en tiempo de ejecución y
+  coincide EXACTA con la tabla estática ya extraída en una sesión
+  anterior (`0x478e98`), con la fórmula de conversión corregida
+  (`offset = colDelta + stride·rowDelta`, no con el signo negado como se
+  había documentado tentativamente antes).
+- **Ground truth real capturado**: la fila 0 completa de `ADWORLDS.CMP`
+  (128 bytes reales, todos `0xAD`) — guardada en
+  `docs/gamma-dll-cmp-evidence/adworlds-row0-dump.txt` para verificar una
+  futura implementación Java.
+- **Corrección de granularidad**: una traza extendida a 6000
+  instrucciones sin ver ni un `ret` ni una reentrada a la función indica
+  que **una sola llamada a `FUN_00457d88` decodifica la imagen
+  COMPLETA**, no una fila — coherente con que `getScanline` solo se
+  invoque una vez por imagen.
+
+**Honestamente sin implementar todavía**: el espacio completo de símbolos
+del árbol de Huffman interno no está mapeado (solo se ejercitaron las
+ramas que una fila totalmente plana llegó a tocar) y el byte centinela
+`0x24` visto en la traza no se investigó. Implementar el decoder Java
+ahora, con esos huecos, arriesgaría exactamente lo que el proyecto
+prohíbe — píxeles con aspecto plausible pero no verificados. Por eso no
+se implementó ni se conectó nada al pipeline de materiales esta sesión;
+próximo paso concreto documentado en
+`docs/cmp-texture-format-reference.md`: trazar 2-3 archivos `.cmp` reales
+con contenido no plano para ejercitar el resto del árbol de símbolos
+antes de escribir el decoder.
+
+---
+
 ## 5. Roadmap por fases
 
 **Orden de módulos: networking → renderer → UI**
@@ -1219,7 +1287,7 @@ GPU/ventanas, en `docs/cmp-texture-format-reference.md` y
 |---|---|---|---|
 | 0 — Reconocimiento | Decompilar con `worldsplayer_source_editor`, `grep -r "native"` para mapear todos los métodos nativos, identificar DLLs cargadas | 🟢 Baja-media | 1–3 semanas |
 | 1 — Parsers de formato | ✅ **RWX (estático) HECHO (2026-09-09)** — 118/118 archivos reales verificados contra `three-rwx-loader`, ver sección 4. 🟡 **RWG parcial (2026-09-09)** — parser Java del contenedor de chunks y de un único ATOM (posición/UV de vértices + polígonos) verificado contra los 2 únicos `.rwg` reales disponibles y renderizado; jerarquía real de múltiples joints **NO verificada** (el corpus real no la demuestra) y `.bod` (formato binario de red, usado por los 26 avatares reales en caché) sigue sin descifrar — ver `docs/rwg-bod-format-reference.md`. ✅ **`.world` HECHO (2026-09-09)** — parser completo del protocolo de persistencia del cliente, verificado end-to-end contra un archivo real de 205KB (25 salas, 578 nodos, 103 objetos con geometría real) — ver `docs/world-format-reference.md` | 🟡 RWX fácil / RWG-BOD medio-alto (sin corpus real suficiente) / `.world` fácil (Java puro, sin nativo) | 2–6 semanas |
-| 2 — Renderizador | 🟡 **Profundizado (2026-09-09)** — iluminación (2 luces, verificada en Java real) y pipeline de materiales (opacidad, doble cara) implementados y verificados por píxel/histograma sobre pipeline de función fija; escena multi-objeto probada. Texturas `.cmp`: bucle de descompresión localizado con precisión (función exacta, formato de píxel, tabla de predictores 2D reales extraída del binario) pero el decoder de píxeles sigue sin completarse — requiere depuración paso a paso, no solo lectura estática — ver `docs/cmp-texture-format-reference.md` y `docs/render-pipeline-reference.md` | 🔴 Alta (sin SDK de RW2 al que recurrir; `.cmp` requiere depuración dedicada) | 2–6 meses |
+| 2 — Renderizador | 🟡 **Profundizado (2026-09-09)** — iluminación (2 luces, verificada en Java real) y pipeline de materiales (opacidad, doble cara) implementados y verificados por píxel/histograma sobre pipeline de función fija; escena multi-objeto probada. Texturas `.cmp`: 🟢 **(2026-09-10)** depuración dinámica real (Wine+gdb+Xvfb) resolvió las dos ambigüedades de diseño pendientes (lector de bits MSB-primero, escritura simultánea de 2 filas por símbolo) con ejecución real y ground truth de píxeles capturado; falta mapear el resto del espacio de símbolos antes de escribir el decoder Java — ver `docs/cmp-texture-format-reference.md` y `docs/render-pipeline-reference.md` | 🟡 Media (la ambigüedad de diseño ya no bloquea; queda trabajo de implementación/verificación) | 2–6 meses |
 | 3 — Red | Ya resuelto en gran parte — protocolo documentado por LibreWorlds/Xyem, implementado en `whirl` (Rust) y `munch` (Go) como referencias cruzadas | 🟢 Baja | Incluido en fase 0-1 |
 | 4 — Integración y UI | Chat, lista de amigos, mapa, menús, compatibilidad de comportamiento con el original | 🟡 Media (sin atajos, trabajo de descubrimiento línea a línea) | 1–3 meses |
 | 5 — Porteo a OpenBSD | Una vez quitadas las dependencias nativas de Windows, evaluar viabilidad real en OpenBSD (Wine no está soportado oficialmente ahí — Mesa/OpenGL nativo es el camino) | 🔴 Alta | Posterior al resto |
