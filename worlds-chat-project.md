@@ -1495,6 +1495,147 @@ toolchain para un servidor controlado.
 
 ---
 
+### 🟢 `.bod` — RESUELTO completamente, no por ingeniería inversa sino
+### traduciendo el codificador oficial (2026-09-10, continuación: nuevos
+### recursos externos)
+
+`.bod` es el formato real de avatar articulado multi-joint, transferido
+por red y comprimido (a diferencia de `.rwg`, confirmado en sesiones
+anteriores como un formato placeholder trivial de un solo clump, nunca
+usado para avatares reales — ver más abajo la confirmación adicional con
+`e3.rwg`). Llevaba bloqueado sesiones enteras de ingeniería inversa pura
+sobre bytes/desensamblado de `gamma.dll`.
+
+**Cómo se resolvió**: esta sesión bajó `gdk.zip` ("Gamma Developer Kit"
+de Worlds Inc., desde `http://jett.dacii.net/jett/gdk.zip` — la URL
+`fran.bonkmaykr.xyz` del prompt no resuelve en absoluto, fallo DNS
+confirmado con `getent hosts`, probado con `http://` y `https://`;
+`jett.dacii.net` solo sirve HTTP plano, no HTTPS, lo que hizo fallar un
+primer intento con TLS antes de notarlo). Dentro está `RWXTOBOD.PL`: el
+código Perl **oficial** de Worlds Inc. para la herramienta `rwxtobod`
+que shippeaban, copyright 1995-1999, con la especificación completa del
+formato binario `.bod` en sus comentarios Y la lógica de codificación
+real. `docs/bod-format-reference.md` y
+`client/src/net/freeworlds/bod/BodParser.java` son una traducción
+directa y cuidadosa de ese codificador real a su inverso (un decoder) —
+no una suposición, no inferido de bytes. `RWXTOBOD.PL` queda guardado en
+`tools/gdk-sdk/RWXTOBOD.PL` para referencia/atribución.
+
+**Formato** (detalle completo en `docs/bod-format-reference.md`):
+cabecera (versión, tabla de N partes con tag+offset), luego N árboles
+recursivos de "clumps". Cada clump: tag byte (bit alto = placeholder,
+solo transform stub), flags (UV presente, traslación x/y/z presente,
+atajos de cuantización U/V), color RGB, vértices cuantizados en 0-255
+sobre un rango min/max por eje (orden `v,y,z,x,u` en la cabecera pero
+`x,y,z,[u],[v]` en las columnas — asimetría real del formato, confirmada
+del propio código, no un error), triángulos en un bitstream LSB-first
+con un "highest" que solo crece y un mecanismo de wraparound para
+valores negativos. Encoding de floats de 3 bytes (`f3`): float de 4
+bytes IEEE-754 estándar sin el byte menos significativo de la mantisa.
+
+**El único bug real encontrado**: `pushBits` en el Perl original le suma
+`cap` a CUALQUIER valor negativo (no solo al código de escape
+explícito) — como `highest - v2` puede ser legítimamente negativo
+cuando otra esquina del triángulo referencia un vértice por encima de
+`highest`, el codificador envuelve también esos casos silenciosamente.
+Encontrado trazando a mano los bits crudos de un archivo real
+(verificado cruzado con una reimplementación independiente en Python
+para descartar errores de transcripción), corregido, y reverificado.
+
+**Verificación — 51/51 archivos reales, sin inventar nada**:
+`client/src/net/freeworlds/bod/BodExtractMain.java` corre contra
+**26 archivos reales de `assets/WorldsPlayer/cachedir/`** (avatares
+reales descargados de un servidor vivo en una sesión anterior) más
+**25 archivos base oficiales nuevos** encontrados esta sesión dentro del
+instalador `Worlds1890.exe` (ver más abajo) — **51 / 51 consumidos
+completamente, byte a byte, sin excepción ni sobrante**, con estructura
+anatómicamente coherente en todos los casos de 16 partes: `pelvis(1)` →
+`back(2)`, `rthip(15)`, `lfhip(19)`; `back(2)` → `neck(3)`,
+`rtshoulder(6)`, `lfshoulder(11)`; cadenas hombro/cadera correctas hasta
+codo/muñeca y rodilla/tobillo; `neck(3)` → `head(4)`.
+
+**Tabla de 32 tags** (pelvis=1 … tail4=32) confirmada ahora por DOS
+fuentes independientes: la comunidad/GammaDocs de una sesión anterior, y
+ahora directamente el hash `%tags` de `RWXTOBOD.PL`.
+
+**Cross-check adicional con `kangworlds.net/tutorials/rwg.html`** (leído
+esta sesión, URL HTTP confirmada accesible): el tutorial describe una
+jerarquía de joints de más alto nivel con letras selectoras — `Z`=tail,
+`P`=pelvis, `B`=torso, `N`=neck, `H`=head, `W/X/Y`=cadera/rodilla/tobillo
+izquierdos, `I/J/K`=derechos, `L/M/O`=hombro/codo/muñeca izquierdos,
+`R/U/V`=derechos — que coincide estructuralmente, joint por joint, con
+la tabla de 32 tags de bajo nivel de `RWXTOBOD.PL` (los tags detallados
+de esternón/dedos/orejas/nariz/boca/cola son un nivel de detalle extra
+que el tutorial de usuario final no necesita exponer). Dos fuentes
+oficiales/comunitarias totalmente independientes describiendo la misma
+jerarquía real, coincidiendo.
+
+**Lo que NO está hecho todavía**: sin renderizado visual de un avatar
+`.bod` decodificado (la geometría está completamente extraída —
+vértices, UVs, triángulos, transforms por miembro — falta conectarlo al
+pipeline de renderizado RWX ya existente); las texturas no están en
+`.bod` (solo color RGB plano — el nombre de textura real viene de otro
+mecanismo, el registro de animación `cachedir/45.dat` de una sesión
+anterior, todavía no conectado a la salida de este parser).
+
+### 🟢 Recursos externos nuevos: SDK oficial, corpus real más grande,
+### confirmación adicional de `.rwg` como formato de un solo clump
+### (2026-09-10, continuación)
+
+Además de `.bod`, esta sesión integró varios recursos externos nuevos
+pedidos explícitamente:
+
+- **`tools/gdk-sdk/`**: además de `RWXTOBOD.PL`, contiene las
+  herramientas oficiales `compimg.exe` (compresor `.cmp`/`.mov`,
+  versión 0.68, Knowledge Adventure 1993-95) y `cmpview.exe` (visor
+  oficial de `.cmp`) — **ambas corren de forma nativa bajo Wine sin
+  ningún workaround de Windows de 16 bits**: son PE32 estándar
+  (`compimg.exe` reporta "MS Windows 3.10" en su cabecera pero es un
+  ejecutable Win32 normal), la especulación de sesiones anteriores
+  sobre necesitar un `.ovl` de 16 bits no aplicó en la práctica.
+  `cmpview.exe` no importa `gamma.dll` (solo GDI32/KERNEL32/USER32 vía
+  `objdump -p`) — es un binario standalone con su propia copia
+  compilada del códec "ScapePic", mucho más simple de trazar
+  dinámicamente que el cliente completo en red (sin servidor, sin
+  motor 3D, sin handshake de protocolo).
+- **Ground truth real y autodiseñada para `.cmp`**: se generó un BMP de
+  32×32 con 4 cuadrantes de color sólido totalmente conocido (rojo,
+  verde, azul, amarillo), se comprimió con el `compimg.exe` real
+  (`-ecmp -ow -f0 -r0`; los flags `-L -l0,0` de "lossless total"
+  producen una variante de cabecera que `cmpview.exe` rechaza como
+  formato incorrecto — evitar) a `test4b.cmp` (398 bytes), y se
+  confirmó visualmente con el `cmpview.exe` real bajo Xvfb: el render
+  muestra exactamente los 4 cuadrantes de color esperados
+  (cuantizados a 252 en vez de 255 por la paleta de 64 colores —
+  coincide exactamente con lo esperado de una cuantización real, no un
+  error). También se confirmó `rustwood.cmp` (archivo real de la
+  colección de tutoriales, 128×128) contra su `rustwood.bmp`/`.png`
+  fuente: 1.24% RMSE normalizado tras alinear el recorte del
+  screenshot — esencialmente pixel-perfecto, el residuo es ruido de
+  captura de pantalla/cuantización de paleta, no un desajuste real.
+- **`e3.rwg`** (172 KB, bajado de `jett.dacii.net`, el candidato más
+  grande visto hasta ahora para un `.rwg` "real"): parseado con el
+  `RwgParser` existente sin errores — **un solo ATOM, 1379 vértices,
+  2400 triángulos, un solo clump**. Esto **confirma, no contradice**, el
+  hallazgo de sesiones anteriores: incluso un `.rwg` grande y detallado
+  (176 KB) sigue siendo de un solo clump — `.rwg` nunca fue el formato
+  multi-joint real, ni con archivos grandes. `.bod` es y siempre fue el
+  formato real de avatar articulado.
+- **25 avatares base oficiales reales**, incluyendo exactamente
+  `tina.bod` y `ogre.bod` (mencionados en el tutorial de kangworlds;
+  `achoo.bod`/`vwbug` mencionados en el tutorial pero NO encontrados en
+  este instalador — dato honesto, no inventado). Encontrados dentro de
+  `Worlds1890.exe` (el instalador real de WorldsPlayer, extraído de
+  `Worlds1890.zip` de `jett.dacii.net` con `7z`, formato ZIP con stub
+  autoextraíble de Windows), dentro de su `AVATARS.ZIP` interno junto
+  con 96 archivos `.seq` (secuencias de animación) y 21 `.mov`
+  (mismo códec ScapePic que `.cmp`) — los tres tipos copiados a
+  `assets/gammatutorial-samples/base-avatars/` (1.2 MB total, corpus
+  pequeño, versionado directo según convención del proyecto). Los 25
+  `.bod` están incluidos en el conteo de 51/51 arriba.
+
+---
+
 ## 5. Roadmap por fases
 
 **Orden de módulos: networking → renderer → UI**

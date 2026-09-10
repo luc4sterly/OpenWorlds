@@ -1,0 +1,3115 @@
+# animation registry version 0.3
+version 3                               # keep this around
+
+# New avatars:
+#     aggie, female with short hair & dress
+#     aura, female with ponytail, pants & boots
+#     axel, male with short hair, white tee
+#     guru, male guru with long white beard
+#     mark, grey-haired man with striped tee
+#     chloe, female with blue dress & sunglasses
+#     habib, male with dreadlocks
+#     joker, Black & white court jester
+#     dude, surfer dude
+#     tony, male with suit & sunglasses
+#     sonya, woman with long coat
+#     sunshine, female flower child
+#     shamaness, woodwitch
+#
+# Original avatars:
+#     barbra, female, tourist outfit
+#     birdie, bird
+#     hotep, jungle guy
+#     shanubia, woman in long slinky dress
+#     shred, surfer dude with board
+#     willy, little boy with baseball cap
+#
+# Creature avatars:
+#     achoo, the dinosaur
+#     macaw, a bird of sorts
+#     elf, a little guy
+#     demon, a cone headed demon
+#     barrelman, where are his clothes?
+#     monster, devilish with big horns
+#     orangutan, big sad eyed primate
+#     creature, salamander on steroids
+#     ogre, great big warrior
+#     bigfoot, big and ape like
+#     glubber, an escapee from the x-files
+#     bitman, made up of bits and pieces
+#     pilgrim, a pilgrim-like from thanksgiving dinner
+#     graduate, a recent grad
+#     drummajor, the leader of the band
+#     cartoonman, a happy little guy with glasses
+#     boxman, the unknown avatar made of boxes
+#     death, the grim reaper-catch ya later!
+#     roundman, small and round-spokesman for the new millennium
+#
+# More creatures:
+#     lizard, the jesus lizard
+#     spin, a dinosaur
+#     rap, another dino
+#     kangaroo, a hopping mammal
+#     sty, dinosaur speak for little tank
+#     nightglyder, a man-bat mix
+#     pegasus, horse with wings
+#     quail, a little bird like thingy thing
+#     puffin, almost completely unlike a penguin
+#     toucan, you know what they say about birds with big beaks eh?
+#     crane, so much more than just a radio host
+#     penguin, brrr... cold
+#     bluepenguin, a penguin of a different color
+#     kiwibird, like a kiwi fruit with legs
+#     prince, asian horned frog
+#     leo, leopard frog (he eats 'em for breakfast)
+#     horny, ornate horned frog
+#
+# More people:
+#     zita
+#     jon
+#     ray
+#     jenny
+#     amy
+#
+# New geometrix:
+#     cassius
+#     elfin
+#     golem
+#     john
+#     loopy
+#     mesmerist
+#     somgirl
+#     somguy
+#     tina
+#
+# charlie
+
+
+#=================================
+# New Avatars
+#=================================
+
+avatar
+  name=Aggie
+  geometry=aggie.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=Aura
+  geometry=aura.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=Axel
+  geometry=axel.rwx
+  beginimp
+    walk=axelwalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=axelwait
+    endwait=axelendwait
+    endwave=axelendwave
+  endimp
+  beginexp
+    wave=axelwave
+    dance=common_a_dance2
+    yes=axelyes
+    rocknroll=common_a_funky2
+    no=axelno2
+    macarena=axelmacarena
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=axelspin
+    getLost=common_getLost
+    achoo=axelsneeze
+    look=common_a_look
+    bow=common_a_bow
+    flip=axelflip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=guru
+  geometry=guru.rwx
+  beginimp
+    walk=common_y_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=witchwait
+    endwait=common_y_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_y_dance2
+    yes=common_y_yes2
+    rocknroll=common_y_funky2
+    no=common_y_no
+    macarena=common_y_macarena2
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_y_spin
+    getLost=common_getLost
+    achoo=common_y_sneeze
+    look=common_y_look
+    bow=common_y_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+   endexp
+endavatar
+
+avatar
+  name=mark
+  geometry=mark.rwx
+  beginimp
+    walk=willwalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=willwait
+    endwait=willendwait
+    endwave=willendwave
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=alyes
+    rocknroll=common_a_funky2
+    no=common_y_no
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_y_look
+    bow=common_y_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+   endexp
+endavatar
+
+avatar
+  name=Chloe
+  geometry=chloe.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=witchwait
+    endwait=common_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_y_dance2
+    yes=alyes
+    rocknroll=common_a_funky2
+    no=common_y_no
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_y_look
+    bow=common_y_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=Habib
+  geometry=habib.rwx
+  beginimp
+    walk=jameswalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=jameswait
+    endwait=jamesendwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=alyes
+    rocknroll=common_a_funky2
+    no=common_y_no
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_y_look
+    bow=common_y_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=Joker
+  geometry=joker.rwx
+  beginimp
+    walk=jesterwalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_wait
+    endwait=jesterendwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_y_dance2
+    yes=alyes
+    rocknroll=common_a_funky2
+    no=common_y_no
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_y_look
+    bow=common_y_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=Dude
+  geometry=dude.rwx
+  beginimp
+    walk=jesterwalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=jameswait
+    endwait=jesterendwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_y_yes2
+    rocknroll=benfunky
+    no=common_y_no
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_y_look
+    bow=common_y_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=Tony
+  geometry=tony.rwx
+  beginimp
+    walk=jameswalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=tony_wait
+    endwait=jamesendwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=tony_dance
+    yes=tony_yes
+    rocknroll=tony_rocknroll
+    no=tony_no
+    macarena=tony_macarena
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=tony_twirl
+    getLost=common_getlost
+    achoo=tony_achoo
+    look=tony_look
+    bow=tony_bow
+    flip=tony_flip
+  endexp
+endavatar
+
+avatar
+  name=Sonya
+  geometry=sonya.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_wait
+    endwait=common_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=alyes
+    rocknroll=common_a_funky2
+    no=common_y_no
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_y_look
+    bow=common_y_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=sunshine
+  geometry=sunshine.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_wait
+    endwait=common_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_y_dance2
+    yes=common_y_yes2
+    rocknroll=wendy_funky
+    no=common_y_no
+    macarena=common_a_macarena3
+    happy=wendy_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_y_spin
+    getLost=wendy_getLost
+    achoo=wendy_sneeze
+    look=common_y_look
+    bow=wendybow
+    flip=wendyflip
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=shamaness
+  geometry=shamaness.rwx
+  beginimp
+    walk=witchwalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=witchwait
+    endwait=common_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_y_no
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_y_look
+    bow=common_y_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+
+#===========================================
+# Original avatar list
+#===========================================
+
+avatar
+  name=Barbra
+  geometry=barbra.rwx
+  beginimp
+    walk=barbrawalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=barbrawait
+    endwait=barbraendwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_y_no
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Birdie
+  geometry=birdie.rwx
+  beginimp
+    walk=birdiefly
+    wait=birdiewait
+  endimp
+  beginexp
+    wave=birdiewave
+    happy=birdiehappy
+    yes=birdieyes
+    getLost=birdiegetlost
+    no=birdieno
+    circlefly=birdiecirclefly
+    look=birdielook
+    flapland=birdieflap
+  endexp
+endavatar 
+
+avatar
+  name=Hotep
+  geometry=hotep.rwx
+  beginimp
+    walk=hotepwalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=hotepwait
+    endwait=hotependwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_y_no
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Shanubia
+  geometry=shanubia.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_wait
+    endwait=common_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_y_no
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Shred
+  geometry=shred.rwx
+  beginimp
+    walk=shredwalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=shredwait
+    endwait=shredendwait
+  endimp
+  beginexp
+    wave=shred_wave2
+    dance=shred_dance2
+    yes=common_a_yes
+    rocknroll=shred_funky2
+    no=shred_no
+    macarena=shred_macarena3
+    happy=shred_happy
+    pirouette=shred_ballet2
+    upset=shred_angry
+    twirl=common_a_spin2
+    getLost=shred_getLost
+    achoo=shred_sneeze2
+    look=shred_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Willy
+  geometry=willy.rwx
+  beginimp
+    walk=willywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=willywait
+    endwait=willendwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_y_no
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+#===========================================
+# Creature avatar list
+#===========================================
+
+avatar
+  name=Achoo
+  geometry=achoo.rwx
+  beginimp
+    walk=achoowalk
+#   walk2=achoowalk2
+#   walk3=achoowalk3
+    wait=achoowait
+    endwait=achooendwait
+  endimp
+  beginexp
+    wave=achoowave
+    dance=achoodance2
+    yes=achooyes
+    twirl=achoospin2
+    no=achoono
+    flip=achooflip2
+    happy=achoohappy2
+    look=achoolook2
+    upset=achooangry
+    bow=achoobow2
+  endexp
+endavatar
+
+avatar
+  name=macaw
+  geometry=macaw.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g1_wait
+    endwait=common_g1_endwait
+  endimp
+  beginexp
+    wave=common_g1_wave
+    rocknroll=common_a_funky2
+    yes=common_g1_yes
+    twirl=common_g1_spin
+    no=common_g1_no
+    flip=common_a_flip2
+    happy=common_g2_happy
+    look=common_g2_look
+    upset=common_g1_angry
+    getLost=common_g1_getLost
+    bow=common_g1_bow
+  endexp
+endavatar
+
+avatar
+  name=elf
+  geometry=elf.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g2_wait
+    endwait=common_g2_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=common_g2_dance
+    yes=common_g2_yes
+    rocknroll=common_g2_funky
+    no=common_g2_no
+    macarena=common_a_macarena3
+    happy=common_g2_happy
+    pirouette=common_g2_ballet
+    upset=common_g2_angry
+    twirl=common_g2_spin
+    getLost=common_g2_getLost
+    achoo=common_a_sneeze2
+    look=common_g2_look
+    bow=common_g2_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+
+avatar
+  name=demon
+  geometry=demon.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g2_wait
+    endwait=common_g2_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=common_g2_dance
+    yes=common_g2_yes
+    rocknroll=common_g2_funky
+    no=common_g2_no
+    twirl=common_g2_spin
+    happy=common_g2_happy
+    flip=common_a_flip2
+    upset=common_g2_angry
+    getLost=common_g2_getLost
+    look=common_g2_look
+    bow=common_g2_bow
+    achoo=common_a_sneeze2
+  endexp
+endavatar
+
+
+avatar
+  name=barrelman
+  geometry=barrelman.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=barrel_wait
+    endwait=barrel_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=barrel_dance
+    yes=barrel_yes
+    rocknroll=common_a_funky2
+    no=barrel_no
+    macarena=barrel_macarena
+    happy=common_g2_happy
+    pirouette=barrel_ballet
+    upset=barrel_angry
+    twirl=common_a_spin2
+    getLost=common_g2_getLost
+    achoo=barrel_sneeze
+    look=common_g2_look
+    bow=common_g2_bow
+    flip=barrel_flip
+  endexp
+endavatar
+
+avatar
+  name=monster
+  geometry=monster.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g2_wait
+    endwait=common_g2_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=common_g2_dance
+    yes=common_g2_yes
+    rocknroll=common_g2_funky
+    no=common_g2_no
+    pirouette=common_g2_ballet
+    happy=common_g2_happy
+    twirl=common_g2_spin
+    upset=common_g2_angry
+    getLost=common_g2_getLost
+    look=common_g2_look
+    bow=common_g2_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=orangutan
+  geometry=orangutan.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g2_wait
+    endwait=common_g2_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=common_g2_dance
+    yes=common_g2_yes
+    rocknroll=common_g2_funky
+    no=common_g2_no
+    pirouette=common_g2_ballet
+    happy=common_g2_happy
+    twirl=common_g2_spin
+    upset=common_g2_angry
+    getLost=common_g2_getLost
+    look=common_g2_look
+    bow=common_g2_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=creature
+  geometry=creature.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g2_wait
+    endwait=common_g2_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=common_g2_dance
+    yes=common_g2_yes
+    rocknroll=common_g2_funky2
+    no=common_g2_no
+    macarena=common_a_macarena3
+    happy=common_g2_happy
+    pirouette=common_g2_ballet
+    upset=common_g2_angry
+    twirl=common_g2_spin
+    getLost=common_g2_getLost
+    achoo=common_a_sneeze2
+    look=common_g2_look
+    bow=common_g2_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=ogre
+  geometry=ogre.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g2_wait
+    endwait=common_g2_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=common_g2_dance
+    yes=common_g2_yes
+    rocknroll=common_g2_funky
+    no=common_g2_no
+    pirouette=common_g2_ballet
+    happy=common_g2_happy
+    twirl=common_g2_spin
+    upset=common_g2_angry
+    flip=common_a_flip2
+    look=common_g2_look
+    bow=common_g2_bow
+    getLost=common_g2_getLost
+  endexp
+endavatar
+
+avatar
+  name=bigfoot
+  geometry=bigfoot.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g2_wait
+    endwait=common_g2_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=common_g2_dance
+    yes=common_g2_yes
+    rocknroll=common_g2_funky
+    no=common_g2_no
+    pirouette=common_g2_ballet
+    happy=common_g2_happy
+    twirl=common_g2_spin
+    upset=common_g2_angry
+    getLost=common_g2_getLost
+    look=common_g2_look
+    bow=common_g2_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+
+avatar
+  name=glubber
+  geometry=glubber.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g2_wait
+    endwait=common_g2_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=common_g2_dance
+    yes=common_g2_yes
+    rocknroll=common_g2_funky2
+    no=common_g2_no
+    twirl=common_g2_spin
+    happy=common_g2_happy
+    flip=common_a_flip2
+    upset=common_g2_angry
+    getLost=common_g2_getLost
+    look=common_g2_look
+    bow=common_g2_bow
+  endexp
+endavatar
+
+
+avatar
+  name=Bitman
+  geometry=bitman.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g2_wait
+    endwait=common_g2_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=common_g2_dance
+    yes=common_g2_yes
+    rocknroll=common_g2_funky
+    no=common_g2_no
+    macarena=common_a_macarena3
+    happy=common_g2_happy
+    pirouette=common_g2_ballet
+    upset=common_g2_angry
+    twirl=common_g2_spin
+    getLost=common_g2_getLost
+    achoo=common_a_sneeze2
+    look=common_g2_look
+    bow=common_g2_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=pilgrim
+  geometry=pilgrim.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g1_wait
+    endwait=common_g1_endwait
+  endimp
+  beginexp
+    wave=common_g1_wave
+    dance=common_a_dance2
+    yes=common_g1_yes
+    rocknroll=common_a_funky2
+    no=common_g1_no
+    macarena=common_a_macarena3
+    happy=common_g2_happy
+    pirouette=common_y_ballet2
+    upset=common_g1_angry
+    twirl=common_g1_spin
+    getLost=common_g1_getLost
+    achoo=common_g1_sneeze
+    look=common_g2_look
+    bow=common_g1_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=graduate
+  geometry=graduate.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g1_wait
+    endwait=common_g1_endwait
+  endimp
+  beginexp
+    wave=common_g1_wave
+    dance=common_a_dance2
+    yes=common_g1_yes
+    rocknroll=common_a_funky2
+    no=common_g1_no
+    pirouette=common_y_ballet2
+    happy=common_g2_happy
+    twirl=common_g1_spin
+    upset=common_g1_angry
+    flip=common_a_flip2
+    getLost=common_g1_getLost
+    achoo=common_g1_sneeze
+    look=common_g2_look
+    bow=common_g1_bow
+  endexp
+endavatar
+
+
+avatar
+  name=drummajor
+  geometry=drummajor.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g2_wait
+    endwait=common_g2_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=common_g2_dance
+    yes=common_g2_yes
+    rocknroll=common_g2_funky
+    no=common_g2_no
+    macarena=common_a_macarena3
+    happy=common_g2_happy
+    pirouette=common_g2_ballet
+    upset=common_g2_angry
+    twirl=common_g2_spin
+    getLost=common_g2_getLost
+    achoo=common_a_sneeze2
+    look=common_g2_look
+    bow=common_g2_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+
+avatar
+  name=cartoonman
+  geometry=cartoonman.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g2_wait
+    endwait=common_g2_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=common_g2_dance
+    yes=common_g2_yes
+    rocknroll=common_g2_funky
+    no=common_g2_no
+    pirouette=common_g2_ballet
+    happy=common_g2_happy
+    twirl=common_g2_spin
+    upset=common_g2_angry
+    flip=common_a_flip2
+    look=common_g2_look
+    bow=common_g2_bow
+    getLost=common_g2_getLost
+  endexp
+endavatar
+
+
+avatar
+  name=Boxman
+  geometry=boxman.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g1_wait
+    endwait=common_g1_endwait
+  endimp
+  beginexp
+    wave=common_g1_wave
+    dance=common_a_dance2
+    yes=common_g1_yes
+    rocknroll=common_a_funky2
+    no=common_g1_no
+    macarena=common_a_macarena3
+    happy=common_g2_happy
+    pirouette=common_y_ballet2
+    upset=common_g1_angry
+    twirl=common_g1_spin
+    getLost=common_g1_getLost
+    achoo=common_g1_sneeze
+    look=common_g2_look
+    bow=common_g1_bow
+    flip=common_a_flip2
+    expressions=boxman_expression
+  endexp
+endavatar
+
+avatar
+  name=death
+  geometry=death.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_g2_wait
+    endwait=common_g2_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=common_g2_dance
+    yes=common_g2_yes
+    rocknroll=common_g2_funky
+    no=common_g2_no
+    pirouette=common_g2_ballet
+    happy=common_g2_happy
+    twirl=common_g2_spin
+    upset=common_g2_angry
+    flip=common_a_flip2
+    look=common_g2_look
+    bow=common_g2_bow
+    achoo=common_a_sneeze2
+  endexp
+endavatar
+
+
+avatar
+  name=roundman
+  geometry=roundman.rwx
+  beginimp
+    walk=andywalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=roundmanwait
+    endwait=roundmanendwait
+  endimp
+  beginexp
+    wave=common_g1_wave
+    dance=roundmandance
+    yes=roundman_yes
+    rocknroll=roundmanRNR
+    no=roundman_no
+    twirl=roundmantwirl
+    happy=roundmanhappy
+    flip=roundmanflip
+    upset=common_g1_angry
+    getLost=roundmangetlost
+    look=roundmanlook
+    bow=roundmanbow
+  endexp
+endavatar
+
+avatar
+  name=lizard
+  geometry=lizard.rwx
+  beginimp
+    walk=common_g3_walk
+#   walk2=common_g3_walk2
+#   walk3=kangaroo_hop  
+    wait=common_g3_wait
+    endwait=common_g3_endwait
+  endimp
+  beginexp
+    wave=common_g3_wave
+    dance=common_g3_dance
+    yes=common_g3_yes
+    rocknroll=lizard_funky
+    no=common_g3_no
+    excited=lizardexcited
+    happy=lizard_happy
+    twirl=styspin
+    upset=common_g3_angry
+    getLost=lizardgetlost
+    look=common_g3_look
+    bow=common_g3_bow
+  endexp
+endavatar
+
+avatar
+  name=spin
+  geometry=spin.rwx
+  beginimp
+    walk=common_g3_walk
+#   walk2=common_g3_walk2
+#   walk3=kangaroo_hop  
+    wait=common_g3_wait
+    endwait=common_g3_endwait
+  endimp
+  beginexp
+    wave=common_g3_wave
+    dance=common_g3_dance
+    yes=common_g3_yes
+    excited=common_g3_dance2
+    no=common_g3_no
+    rhythm=common_g3_dance3
+    happy=spin_happy
+    twirl=styspin
+    upset=common_g3_angry
+    getLost=common_g1_getLost
+    look=common_g3_look
+    bow=common_g3_bow
+  endexp
+endavatar
+
+avatar
+  name=rap
+  geometry=rap.rwx
+  beginimp
+    walk=common_g3_walk
+#   walk2=common_g3_walk2
+#   walk3=kangaroo_hop  
+    wait=common_g3_wait
+    endwait=common_g3_endwait
+  endimp
+  beginexp
+    wave=rapwave3a
+    dance=common_g3_dance
+    yes=common_g3_yes
+    excited=common_g3_dance2
+    no=common_g3_no
+    rhythm=common_g3_dance3
+    happy=common_g3_happy
+    twirl=styspin
+    upset=rap_angry
+    getLost=common_g1_getLost
+    look=common_g3_look
+    bow=common_g3_bow
+  endexp
+endavatar
+
+avatar
+  name=kangaroo
+  geometry=kangaroo.rwx
+  beginimp
+    walk=kangaroo_hop
+#   walk2=common_g3_walk2
+#   walk3=common_g5_walk 
+    wait=common_g3_wait
+    endwait=common_g3_endwait
+  endimp
+  beginexp
+    wave=kangaroo_wave
+    dance=common_g3_dance
+    yes=common_g3_yes
+    excited=common_g3_dance2
+    no=common_g3_no
+    rhythm=common_g3_dance3
+    happy=common_g3_happy
+    twirl=styspin
+    upset=common_g3_angry
+    getLost=common_g1_getLost
+    look=common_g3_look
+    bow=common_g3_bow
+  endexp
+endavatar
+
+avatar
+  name=sty
+  geometry=sty.rwx
+  beginimp
+    walk=sty_walk
+#   walk2=sty_walk2
+#   walk3=common_g5_walk3
+    wait=common_g5_wait
+    endwait=common_g5_endwait
+  endimp
+  beginexp
+    wave=sty_wave
+    dance=sty_dance
+    yes=common_g5_yes
+    twirl=styspin
+    no=common_g5_no
+    flip=common_g5_flip
+    happy=common_g5_happy
+    look=common_g2_look
+    upset=sty_angry
+  endexp
+endavatar
+
+avatar
+  name=nightglyder
+  geometry=nightglyder.rwx
+  beginimp
+    walk=nightglyderwalkfly
+#   walk3=common_g5_walk
+    wait=common_g2_wait
+    endwait=common_g2_endwait
+  endimp
+  beginexp
+    wave=common_g2_wave
+    dance=common_g2_dance
+    yes=common_g2_yes
+    rocknroll=common_g2_funky
+    no=common_g2_no
+    twirl=nightglyder_spin
+    happy=common_g2_happy
+    look=common_g2_look
+    upset=common_g2_angry
+    bow=common_g2_bow
+    circlefly=nightglyderflying
+  endexp
+endavatar
+
+avatar
+  name=pegasus
+  geometry=pegasus.rwx
+  beginimp
+    walk=pegasuswalkfly
+#   walk3=common_g5_walk3
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=pegasus_wave
+    dance=common_g3_dance
+    yes=common_g5_yes
+    excited=common_g3_dance2
+    no=common_g5_no
+    flip=common_g5_flip
+    happy=common_g5_happy
+    look=common_g3_look
+    upset=pegasus_angry
+    bow=pegasus_bow
+    circlefly=pegasusfly
+  endexp
+endavatar
+
+avatar
+  name=quail
+  geometry=quail.rwx
+  beginimp
+    walk=quail_walk
+#   walk2=quail__walk2
+#   walk3=quail_walk3  
+    wait=common_g1_wait
+    endwait=common_g1_endwait
+  endimp
+  beginexp
+    wave=quail_wave
+    dance=common_g3_dance
+    yes=common_g1_yes
+    excited=common_g3_dance2
+    no=common_g1_no
+    rhythm=common_g3_dance3
+    happy=quail_happy
+    look=common_g3_look
+    upset=quail_angry
+    bow=common_g1_bow
+    twirl=common_g1_spin
+  endexp
+endavatar
+
+avatar
+  name=puffin
+  geometry=puffin.rwx
+  beginimp
+    walk=quail_walk3
+#   walk2=quail__walk2
+#   walk3=quail_walk  
+    wait=common_g1_wait
+    endwait=common_g1_endwait
+  endimp
+  beginexp
+    wave=quail_wave
+    dance=common_g3_dance
+    yes=common_g1_yes
+    rhythm=common_g3_dance2
+    no=common_g1_no
+    twirl=common_g1_spin
+    happy=quail_happy
+    look=common_g3_look
+    upset=penguin_angry
+    bow=common_g1_bow
+  endexp
+endavatar
+
+avatar
+  name=toucan
+  geometry=toucan.rwx
+  beginimp
+    walk=quail_walk
+#   walk2=quail__walk2
+#   walk3=quail_walk3  
+    wait=common_g1_wait
+    endwait=common_g1_endwait
+  endimp
+  beginexp
+    wave=quail_wave
+    dance=common_g3_dance
+    yes=common_g1_yes
+    rhythm=common_g3_dance2
+    no=common_g1_no
+    twirl=common_g1_spin
+    happy=quail_happy
+    look=common_g3_look
+    upset=quail_angry
+    bow=common_g1_bow
+  endexp
+endavatar
+
+avatar
+  name=crane
+  geometry=crane.rwx
+  beginimp
+    walk=quail_walk
+#   walk2=quail__walk2
+#   walk3=quail_walk3  
+    wait=common_g1_wait
+    endwait=common_g1_endwait
+  endimp
+  beginexp
+    wave=quail_wave
+    dance=common_g3_dance
+    yes=common_g1_yes
+    rhythm=common_g3_dance2
+    no=common_g1_no
+    twirl=common_g1_spin
+    happy=quail_happy
+    look=common_g3_look
+    upset=quail_angry
+    bow=common_g1_bow
+  endexp
+endavatar
+
+avatar
+  name=penguin
+  geometry=penguin.rwx
+  beginimp
+    walk=penguin_walk
+#   walk2=quail__walk2
+#   walk3=quail_walk3  
+    wait=common_g1_wait
+    endwait=common_g1_endwait
+  endimp
+  beginexp
+    wave=penguin_wave
+    dance=common_g3_dance
+    yes=common_g1_yes
+    rhythm=common_g3_dance3
+    no=common_g1_no
+    twirl=common_g1_spin
+    happy=quail_happy
+    look=common_g3_look
+    upset=penguin_angry
+    bow=common_g1_bow
+  endexp
+endavatar
+
+avatar
+  name=bluepenguin
+  geometry=bluepenguin.rwx
+  beginimp
+    walk=penguin_walk
+#   walk2=quail__walk2
+#   walk3=quail_walk3  
+    wait=common_g1_wait
+    endwait=common_g1_endwait
+  endimp
+  beginexp
+    wave=penguin_wave
+    dance=common_g3_dance
+    yes=common_g1_yes
+    rhythm=common_g3_dance3
+    no=common_g1_no
+    twirl=common_g1_spin
+    happy=quail_happy
+    look=common_g3_look
+    upset=penguin_angry
+    bow=common_g1_bow
+  endexp
+endavatar
+
+avatar
+  name=kiwibird
+  geometry=kiwibird.rwx
+  beginimp
+    walk=quail_walk
+#   walk2=quail__walk2
+#   walk3=quail_walk3  
+    wait=common_g1_wait
+    endwait=common_g1_endwait
+  endimp
+  beginexp
+    wave=quail_wave
+    dance=common_g3_dance
+    yes=common_g1_yes
+    rhythm=common_g3_dance2
+    no=common_g1_no
+    twirl=common_g1_spin
+    happy=quail_happy
+    look=common_g3_look
+    upset=penguin_angry
+    bow=common_g1_bow
+  endexp
+endavatar
+
+avatar
+  name=prince
+  geometry=prince.rwx
+  beginimp
+    walk=frog_hop
+#   walk2=frog_walk
+#   walk3=frog_walk2 
+    wait=frog_wait
+    endwait=frog_endwait
+  endimp
+  beginexp
+    wave=frog_wave
+    dance=frog_dance
+    yes=frog_yes
+    happy=frog_happy
+    no=frog_no
+    upset=frog_angry
+  endexp
+endavatar
+
+avatar
+  name=leo
+  geometry=leo.rwx
+  beginimp
+    walk=frog_hop
+#   walk2=frog_walk
+#   walk3=frog_walk2 
+    wait=frog_wait
+    endwait=frog_endwait
+  endimp
+  beginexp
+    wave=frog_wave
+    dance=frog_dance
+    yes=frog_yes
+    happy=frog_happy
+    no=frog_no
+    upset=frog_angry
+  endexp
+endavatar
+
+avatar
+  name=horny
+  geometry=horny.rwx
+  beginimp
+    walk=frog_hop
+#   walk2=frog_walk
+#   walk3=frog_walk2 
+    wait=frog_wait
+    endwait=frog_endwait
+  endimp
+  beginexp
+    wave=frog_wave
+    dance=frog_dance
+    yes=frog_yes
+    happy=frog_happy
+    no=frog_no
+    upset=frog_angry
+  endexp
+endavatar
+
+avatar
+  name=Zita
+  geometry=zita.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Jon
+  geometry=jon.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Ray
+  geometry=ray.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Jenny
+  geometry=jenny.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=rachel_wave
+    dance=rachel_dance
+    yes=rachel_yes
+    look=rachel_look
+    no=rachel_no
+    bow=rachel_bow
+    happy=rachel_happy
+    flip=rachel_flip
+    upset=rachel_angry
+    twirl=common_a_spin2
+    getLost=rachel_getlost
+  endexp
+endavatar
+
+avatar
+  name=Amy
+  geometry=amy.rwx
+  beginimp
+    walk=sue_walk2
+#   walk2=sue_walk mocap
+#   walk3=sue_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=sue_wave
+    dance=sue_dance
+    yes=sue_yes
+    look=sue_look
+    no=sue_no
+    bow=sue_bow
+    happy=sue_happy
+    getLost=common_getlost
+    upset=sue_angry
+    flip=sue_flip
+  endexp
+endavatar
+
+avatar
+  name=Cassius
+  geometry=cassius.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=elfin
+  geometry=elfin.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+
+avatar
+  name=golem
+  geometry=golem.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+
+avatar
+  name=john
+  geometry=john.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+
+avatar
+  name=loopy
+  geometry=loopy.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+
+avatar
+  name=mesmerist
+  geometry=mesmerist.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+
+avatar
+  name=somgirl
+  geometry=somgirl.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+
+avatar
+  name=somguy
+  geometry=somguy.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+
+avatar
+  name=tina
+  geometry=tina.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=minotaur
+  geometry=minotaur.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=charlie
+  geometry=mark.rwx
+  beginimp
+    walk=willwalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=willwait
+    endwait=willendwait
+    endwave=willendwave
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=alyes
+    rocknroll=common_a_funky2
+    no=common_y_no
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_y_look
+    bow=common_y_bow
+    flip=common_a_flip2
+   endexp
+endavatar
+
+avatar
+  name=_vvzachanson
+  geometry=_vvzachanson.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=_vvtaylorhanson
+  geometry=_vvtaylorhanson.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=_vvisaachanson
+  geometry=_vvisaachanson.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+# NEW ASIAN AVATARS 7/31/00
+avatar
+  name=Bing
+  geometry=bing.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Haining
+  geometry=haining.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Weilui
+  geometry=weilui.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Ming
+  geometry=ming.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Jian
+  geometry=jian.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Lian
+  geometry=lian.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Mei
+  geometry=mei.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Wei
+  geometry=wei.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Jing
+  geometry=jing.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=Chang
+  geometry=chang.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+# NEW MULTI-CULTURAL HIRES AVATARS 7/10/00
+avatar
+  name=joe
+  geometry=joe.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=simon
+  geometry=simon.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=george
+  geometry=george.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=tre
+  geometry=tre.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=paul
+  geometry=paul.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=julie
+  geometry=julie.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=sienna
+  geometry=sienna.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=roxanne
+  geometry=roxanne.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=alexa
+  geometry=alexa.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=ginger
+  geometry=ginger.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+# Avatars for ENewMedia Coke project
+
+avatar
+  name=infinity
+  geometry=infinity.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    drink=m_drink
+    breakdance=m_break
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=zen
+  geometry=zen.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    drink=f_drink
+    breakdance=f_break
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=cybort
+  geometry=cybort.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    drink=r_drink
+    breakdance=robot_windmill
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+
+avatar
+  name=_vvzacii
+  geometry=_vvzacii.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    drums=z_drum
+    YMCA=YMCA
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=_vvisaacii
+  geometry=_vvisaacii.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    guitar=i_guitar
+    YMCA=YMCA
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=_vvtaylorii
+  geometry=_vvtaylorii.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    keyboard=t_keyboard
+    YMCA=YMCA
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=mitch
+  geometry=mitch.rwx
+  beginimp
+    walk=mitchwalk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    shrug=mitchshrug
+    wipe=mitchwipe
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+
+avatar
+  name=_vvstevetyler
+  geometry=_vvstevetyler.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=steve_dance
+    singing60=steve_singing_60
+    singing30=steve_singing_30
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=_vvjoeperry
+  geometry=_vvjoeperry.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=_vvjoeykramer
+  geometry=_vvjoeykramer.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=_vvbradwhitford
+  geometry=_vvbradwhitford.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar
+
+avatar
+  name=_vvtomhamilton
+  geometry=_vvtomhamilton.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+    quicknap=aurasleeping
+  endexp
+endavatar

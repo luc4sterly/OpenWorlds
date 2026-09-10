@@ -196,11 +196,18 @@ separate-material "hair" or "shoe" piece as a tag-0 child of `head`(4) or
 `client/src/net/freeworlds/bod/BodExtractMain.java` parses a `.bod` and
 prints its full clump tree plus totals. Run against **all 26 real `.bod`
 files** in `assets/WorldsPlayer/cachedir/` (genuine avatar downloads from
-a live server in an earlier session, not synthetic):
+a live server in an earlier session, not synthetic) **plus 25 official
+base avatars** (`tina.bod`, `ogre.bod`, `aggie.bod`, `axel.bod`, etc. —
+found in a later session inside the real `Worlds1890.exe` installer's
+`AVATARS.ZIP`, at `assets/gammatutorial-samples/base-avatars/`):
 
 ```
-26 / 26 files fully consumed without error
+51 / 51 files fully consumed without error
 ```
+
+The two corpora come from completely different sources (live server
+downloads vs. the shipped installer's bundled defaults) and both are
+100% clean, which is meaningfully stronger evidence than either alone.
 
 Every byte of every real file is accounted for (no leftover/misaligned
 trailing bytes, which the triangle-wraparound bug above would have
