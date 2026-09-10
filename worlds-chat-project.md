@@ -1338,6 +1338,163 @@ y `tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md`.
 
 ---
 
+### 🟢 Render — helpers compartidos, modo ALL/list-rooms en WorldViewer,
+### display lists píxel-idénticas (2026-09-10, dos avances pequeños)
+
+Regla de alcance respetada en todo: solo pipeline de función fija, cero
+cambios visuales — cada paso verificado píxel a píxel contra capturas
+previas, no solo "compila y no revienta".
+
+**Avance 1 — `GlUtil` + `WorldViewer` multi-sala**
+(`client/src/net/freeworlds/render/GlUtil.java`, nuevo):
+- `perspective`/`lookAt`/`saveScreenshot` estaban duplicados byte a byte
+  en los 4 viewers — extraídos a `GlUtil` (el `lookAt`/`perspective` son
+  los reemplazos de GLU ya documentados, misma fórmula textbook).
+- `WorldViewer` gana `--list-rooms` (25 salas ordenadas) y
+  `ALL [--screenshot-dir dir]` (renderiza las 25 de una pasada como
+  `world_<sala>.png` + estadísticas por sala). Además los contadores de
+  `loaded/missing/avatar-skip` eran acumulados entre salas y confundían —
+  ahora son por sala (delta antes/después de `preload`).
+- Verificado bajo Xvfb, GL error 0 en todo: `Reception` 12 obj/96 tris
+  (idéntica a antes), `ALL` 25/25 procesadas. `IconViewRoom1a–g` confirman
+  ser pedestales de avatar (`Drew 0`, solo refs `avatar:` saltadas —
+  honesto, ningún avatar inventado). Nueva evidencia:
+  `docs/renders/world_lizcave.png` (`LizCave`, 5 obj, 450 tris, 73 colores).
+
+**Avance 2 — display lists en `WorldViewer`, resto de viewers a `GlUtil`**
+- `RwxViewer`/`RwxSceneViewer`/`RwgViewer` migrados a `GlUtil` (~150 líneas
+  duplicadas eliminadas).
+- `WorldViewer` compila cada modelo único una vez a display list
+  (`glNewList`/`glCallList` — técnica period-correct de la época RW2, no
+  shaders/VBOs). La secuencia inmediata original queda intacta como
+  `emitModelImmediate()` — única fuente de verdad visual, la lista solo
+  la captura (materiales, normales y culling incluidos). Caché invalidada
+  por contexto GL (el modo `ALL` crea una ventana por sala — los IDs del
+  contexto anterior no valen).
+- Verificación píxel-idéntica (tamaño + nº colores + checksum muestreado):
+  Reception, LizCave, `BASKET.RWX` y `cube.rwg` → 4/4 MATCH contra
+  capturas previas; `RwxSceneViewer` (cesta+parrilla) OK, 36 colores.
+- Nota honesta: con capturas de 1 frame no hay ganancia medible (compilar
+  la lista cuesta lo mismo que dibujar); el ahorro aparece en uso
+  interactivo multi-frame.
+
+---
+
+### 🟢 Red — recompilación verificada + sonda NetProbe con clases reales:
+### falta la `/` del upgrade-URL y Worlio:6650 responde (2026-09-10)
+
+Sin tocar el flujo del cliente (`Gamma.java`/`Cache`/`NetUpdate`
+intactos): todo el trabajo es código nuevo que LLAMA a las clases
+decompiladas, más una recompilación en fresco.
+
+**1. Recompilación en fresco del mock** — `source/` (723 `.java`)
+compila limpio SOLO con `javac --release 8`; con javac 25 moderno falla
+por el `yield()` pelado de `netPacketReader.java:89` (identificador
+restringido desde Java 14 — `yield();` sin receptor parsea como sentencia
+yield). Detalle de higiene: `jar cf out/worlds-mock.jar -C out .` con el
+jar dentro de `out/` se auto-incluye (2.6MB vs 1.3MB) — empaquetar vía
+`/tmp` y mover. Jar final: 1.36MB, 737 clases. `Gamma` bajo Xvfb arranca
+igual que en sesiones previas (exit 0; caché sin re-descargar por estar
+al día; solo `gethostbyname(us1.worlds.net)` en el log).
+
+**2. `tools/net-probe/` (nuevo: `NetProbe.java` + `README.md`, trace en
+`docs/net-probe-trace.log`)** — 4 pasos con timeouts explícitos, cada
+fallo se reporta:
+- DNS vía el `DNSLookup` real: `us1.worlds.net` → 172.237.126.108,
+  `worlds.worlio.com` → 198.251.80.57. OK.
+- **Hallazgo real**: el cliente construye
+  `http://us1.worlds.net/3DCDupupgrades.lst` — SIN `/` entre `3DCDup` y
+  `upgrades.lst` (concatenación literal en `NetUpdate.java:413`,
+  `URL.make` no añade nada). Ese URL da 404 con el servidor respondiendo
+  (`contentLength=158` del error). El auto-upgrade está roto contra la
+  infra actual por ese detalle — verificado, no supuesto.
+- Patrón exacto de `CacheEntry.openURL` (`DNSLookup.lookup(java.net.URL)`
+  + `openConnection()`) confirmado funcional contra host vivo.
+- TCP 6650 (puerto WorldServer, el que escucha `whirl` por defecto):
+  `us1.worlds.net` → conexión rehusada (es solo host de ficheros);
+  **`worlds.worlio.com:6650` → CONNECTED** (vía la IP resuelta por el
+  propio `DNSLookup`). Hay un WorldServer vivo alcanzable.
+
+**No hecho (límite honesto)**: hablar protocolo de verdad. Requiere
+`WorldServer`/`WSConnecting` reales (acoplados a consola/galaxy, no un
+socket pelado) o `whirl` local, que pide el toolchain
+`nightly-2024-06-03` — no instalado (solo stable 1.98.1); no se intentó
+descargarlo/compilarlo esta sesión. Siguiente paso natural cuando se
+quiera.
+
+---
+
+### 🟢 Red — handshake REAL contra Worlio: PROPREQ → PROPUPD → estado 7
+### (2026-09-10, continuación: "no seas vago")
+
+Lo de arriba ("límite honesto") quedó resuelto en la misma sesión:
+**el cliente decompilado habla con un WorldServer vivo de verdad**,
+recorre su propia máquina de estados y esta acepta la respuesta.
+Herramienta: `tools/net-probe/NET/worlds/network/HandshakeProbe.java`
+(subclase de `WorldServer` en el mismo paquete — el constructor es
+trivial y sin UI; `WSConnecting` es package-private y
+setSocket/state/perFrame protected, por eso el paquete). Camino 100%
+real, cero bytes inventados: `initInstance` + `state_Initializing` +
+`WSConnecting` + `setSocket` + `state_XMIT_PROPREQ` + `perFrame` contra
+`worlds.worlio.com:6650` (una conexión por ejecución, se cierra al
+terminar; trace en `docs/net-handshake-trace.log`, README actualizado).
+
+**Resultado** (con `netdebug=1216`, el hex lo vuelca el propio
+`sendNetMsg`, no la sonda):
+
+```
+send: PROPREQ 255[worlds.worlio.com:6650] → bytes 03 ff 0a
+recv: PROPUPD 255[worlds.worlio.com:6650]
+        (#27 [DBSTORE /POSSESS] worlds.worlio.com
+         #26 [DBSTORE /POSSESS] worlds.worlio.com:2500
+         #25 [DBSTORE /POSSESS] http://files.worlio.com/cgi-bin/
+         #15 [DBSTORE /POSSESS] 1
+         #3  [DBSTORE /POSSESS] 24
+         #1  [DBSTORE /POSSESS] WormMaster)
+estado 6 RCV_PROPS → 7 XMIT_SI, cierre limpio, exit 0
+```
+
+`#3 = 24` coincide exacto con `_serverProtocolVersion = 24` del
+constructor de `WorldServer` — el servidor vivo habla la misma versión
+que este cliente de 2004. `#1 = WormMaster` (nombre del worldsmaster;
+el default de `whirl` es `WORLDSMASTER` — el vivo dice `WormMaster`).
+
+**Tres paredes, las tres con causa raíz verificada en código** (cada
+fallo intermedio: `NO SOCKET CALLBACK` / NPE en `getLongID` / NPE en
+`ObjectMgr.getObject` → estado 17):
+
+1. **La tabla de paquetes exige UI**: `netPacketReader.<clinit>`
+   (`netPacketReader.java:118`) hace `Class.forName` + `newInstance` de
+   TODAS las clases de paquete; `whisperCmd.<clinit>:11` llama
+   `Console.message("not-whispers")` → `Console.<clinit>:110` crea
+   `static GammaFrame frame = new GammaFrame()` → `getDefaultTitle()` →
+   `Std.getProductName()` → assert (productName null). Fix fiel: la sonda
+   llama a `Std.initProductName()` — exactamente lo que hace `Gamma.main`
+   al arrancar — y corre bajo Xvfb (un Frame AWT real no se construye sin
+   X). Efectos menores documentados: warnings `NO MESSAGE for
+   MenuFont/not-whispers` (huecos del bundle, no fatales).
+2. **`_serverURL` obligatorio**: `state_XMIT_PROPREQ` → `sendNetMsg` con
+   bit 128 → `toString` → `getLongID` → `_serverURL.getHost()` (NPE).
+   Fix: `initInstance(Galaxy.getGalaxy(...), new ServerURL(...))` real —
+   el ctor de `Galaxy` solo crea hashtables/trackers (`ServerTracker`,
+   `WaitList`, `NetworkMulti`), verificado sin UI.
+3. **shortID 255 sin registrar**: el PROPUPD de respuesta moría en NPE
+   (`Hashtable.get(null)` en `ObjectMgr.getObject:31` vía
+   `PropertyUpdateCmd.process:19` → estado 17). Causa: el registro
+   `regShortID(255, getLongID())` + `regObject` lo hace
+   `state_Initializing`, que la sonda se había saltado. Fix: llamar al
+   `state_Initializing()` REAL en vez de poner estado 4 + `WSConnecting`
+   a mano — además parsea host/puerto de `_serverURL` y arranca
+   `WSConnecting` él mismo: el boot genuino, no una aproximación.
+
+**Parada honesta en estado 7**: lo siguiente es `XMIT_SI` →
+`galaxy.addPendingServer` + autenticación — acoplamiento galaxy/console
+de verdad (no el truco limpio de esta sesión). Próximo paso natural:
+`XMIT_SI`/`RCV_SI_ACK` con el mismo método, o `whirl` local con su
+toolchain para un servidor controlado.
+
+---
+
 ## 5. Roadmap por fases
 
 **Orden de módulos: networking → renderer → UI**
