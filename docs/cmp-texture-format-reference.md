@@ -507,24 +507,36 @@ normalmente sin volver a golpear ninguno, incluso para una imagen de 128
 filas. Esto corrige la asunción inicial de esta sesión ("una llamada =
 una fila decodificada por `ch`, contador de grupos de 4 píxeles"): con
 `ch=32` y ancho=128 (`128/4=32`), esa aritmética SÍ encaja para una sola
-fila, pero la evidencia de una única invocación total sugiere que, o
+fila, pero la evidencia de una única invocación total apuntaba a que, o
 bien (a) esta llamada decodifica la imagen COMPLETA en un bucle externo
-más allá de las 900 instrucciones trazadas (no alcanzado por el límite
-de pasos de esta sesión), o bien (b) `loadImage()` en sí solo
-materializa una fila representativa (¿fila 0, para una vista previa?) y
-el resto de filas se decodifican más tarde, bajo demanda, vía llamadas
-posteriores a `getScanline` desde `ScapePicTexture.makeTexture()` — el
-camino que esta sesión no pudo ejercitar limpiamente (ver el arnés
-`ScapePicTexture` y su fallo de aserción, sección anterior). **No
-resuelto con certeza** — el hallazgo real y verificado es que, dentro de
-esta sesión, solo se observó una invocación; no se afirma cuál de las
-dos hipótesis es la correcta sin más evidencia.
+más allá de las 900 instrucciones trazadas, o bien (b) `loadImage()` en
+sí solo materializa una fila representativa y el resto se decodifica más
+tarde vía `makeTexture()`.
+
+**Resuelto a favor de (a), con evidencia adicional**: se extendió la
+traza a 6000 instrucciones (solo registrando el PC en cada paso, sin
+volcar registros completos, para mantenerla manejable), comprobando en
+cada paso si `ESP` volvía a subir por encima de su valor de entrada (lo
+que indicaría un `ret` real de vuelta al llamador) y si el `PC` volvía a
+`0x03A97D88` (una reentrada real a la función). **Ninguna de las dos
+cosas ocurrió en 6000 instrucciones** — la ejecución sigue dentro de la
+función (`PC` final `0x03a97e31`, dentro del mismo rango de direcciones
+ya visto). Dado que decodificar una sola fila de 128 píxeles a ~4 por
+símbolo con ~20-30 instrucciones por símbolo encajaría en unas 700-900
+instrucciones (justo donde se cortó la primera traza), y aun así a las
+6000 sigue sin retornar, la explicación mucho más consistente es que
+**una sola llamada a `FUN_00457d88` decodifica la imagen COMPLETA
+(las 128 filas), no una fila suelta** — coherente con que `getScanline`
+solo necesite invocar al decoder una vez y luego sirva cada fila
+posterior devolviendo punteros al buffer ya completamente decodificado.
+No se llegó a presenciar el `ret` real (habría hecho falta trazar
+decenas de miles de instrucciones más, coste no justificado para esta
+sesión), así que esto queda como una inferencia fuerte respaldada por
+evidencia negativa real (ausencia de retorno/reentrada en 6000 pasos),
+no como observación directa del `ret`.
 
 ### Qué queda genuinamente sin verificar
 
-- Cuál de las dos hipótesis anteriores sobre la granularidad de
-  `FUN_00457d88` es la correcta (bucle interno sobre las 128 filas vs.
-  una fila por llamada con el resto delegado a `makeTexture()`).
 - El significado exacto del byte centinela `0x24` (36 decimal) que
   provoca una salida temprana de la rama de "control byte" no se
   investigó más allá de confirmar que existe.
@@ -535,14 +547,16 @@ dos hipótesis es la correcta sin más evidencia.
 - Un decoder Java todavía no se implementó ni se verificó contra el
   ground truth real capturado — dado que las dos ambigüedades
   específicas que motivaron esta sesión (aritmética de acarreo, doble
-  fila) SÍ están resueltas, pero la granularidad de llamada y el espacio
-  de símbolos completo no lo están, implementar ahora arriesgaría
-  exactamente lo que el proyecto prohíbe: producir píxeles con aspecto
-  plausible pero no verificados. Próximo paso concreto y honesto para
-  una futura sesión: trazar 2-3 archivos `.cmp` reales adicionales con
-  contenido no plano (para ejercitar más ramas del árbol de símbolos) y
-  aislar con certeza la granularidad fila-vs-imagen-completa antes de
-  escribir el decoder.
+  fila) SÍ están resueltas, y la granularidad de llamada también quedó
+  razonablemente aclarada (una llamada decodifica la imagen completa),
+  pero el espacio de símbolos completo del árbol de Huffman NO — solo se
+  ejercitaron las ramas que una fila totalmente plana llegó a tocar —
+  implementar ahora arriesgaría exactamente lo que el proyecto prohíbe:
+  producir píxeles con aspecto plausible pero no verificados. Próximo
+  paso concreto y honesto para una futura sesión: trazar 2-3 archivos
+  `.cmp` reales adicionales con contenido no plano (para ejercitar más
+  ramas del árbol de símbolos, incluyendo el camino de copia por
+  predictor 2D y el byte centinela `0x24`) antes de escribir el decoder.
 
 **Conclusión**: las dos ambigüedades que motivaron toda la investigación
 dinámica de esta sesión y la anterior — aritmética de acarreo y
