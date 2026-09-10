@@ -1,0 +1,191 @@
+[NATIVE-MOCK] IniFile.nativeInit()
+[NATIVE-MOCK] IniFile.getIniString(PRODUCT_NAME, Worlds.com - The 3D Entertainment Portal)
+[NATIVE-MOCK] IniFile.getIniString(productName, Worlds.com - The 3D Entertainment Portal)
+[NATIVE-MOCK] IniFile.getIniInt(netdebug, 0)
+netdebug(harness-override)=1260
+[NATIVE-MOCK] Std.getClientVersion()
+[NATIVE-MOCK] IniFile.getIniString(netdebug, 0)
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] DNSLookup.gethostbyname(gippsland.worlio.com)
+Connected to 198.251.80.57
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniInt(tieredVIP, 0)
+[NATIVE-MOCK] IniFile.getIniString(ProductName, )
+[NATIVE-MOCK] IniFile.getIniInt(VIP, 0)
+[NATIVE-MOCK] IniFile.getIniInt(SPGUEST, 0)
+[NATIVE-MOCK] IniFile.getIniString(DEFAULTCONSOLE, NET.worlds.console.DefaultConsole)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+connectedHost=198.251.80.57 state=5 XMIT_PROPREQ
+[NATIVE-MOCK] IniFile.getIniInt(upgradeTimeout, 7)
+[NATIVE-MOCK] IniFile.getIniInt(testautoupgrade, 0)
+[NATIVE-MOCK] IniFile.getIniInt(testworldautoupgrade, 0)
+[NATIVE-MOCK] IniFile.getIniString(upgradeServer, )
+[NATIVE-MOCK] IniFile.getIniString(WorldServer, )
+[NATIVE-MOCK] IniFile.getIniInt(DISABLESHAPER, 1)
+[NATIVE-MOCK] IniFile.getIniInt(DISABLESHAPER, 1)
+[NATIVE-MOCK] IniFile.getIniString(upgradeServer, )
+[NATIVE-MOCK] IniFile.getIniInt(useNetworkAvatars, 1)
+[NATIVE-MOCK] IniFile.getIniInt(useNetworkAvatars, -1)
+[NATIVE-MOCK] IniFile.getIniString(avatarDir, avatar/)
+[NATIVE-MOCK] IniFile.getIniString(avatar, http://us1.worlds.net/3DCDup/avatar/)
+[NATIVE-MOCK] IniFile.getIniString(http, )
+[NATIVE-MOCK] IniFile.getIniInt(maxupgradeversion, 999999999)
+[NATIVE-MOCK] IniFile.getIniString(lastchatname, Fred)
+[NATIVE-MOCK] Std.nativeGetMillis()
+[0] AutoServer(gippsland.worlio.com:8265): send(PROPREQ  255[gippsland.worlio.com:8265] )
+AutoServer(gippsland.worlio.com:8265): send[3 ff a ]
+[NATIVE-MOCK] Std.nativeGetMillis()
+sent propReq, state=6 RCV_PROPS
+autoserver state -> 6 RCV_PROPS
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+AutoServer(gippsland.worlio.com:8265): recv(PROPUPD  255[gippsland.worlio.com:8265] (#8 [DBSTORE /POSSESS ] 1000000 #25 [DBSTORE /POSSESS ] http://files.worlio.com/cgi-bin/ #24 [DBSTORE /POSSESS ] http://files.worlio.com/ #15 [DBSTORE /POSSESS ] 4 #3 [DBSTORE /POSSESS ] 24 #1 [DBSTORE /POSSESS ] Gippsland ))
+autoserver state -> 7 XMIT_SI
+[NATIVE-MOCK] Std.nativeGetMillis()
+AutoServer(gippsland.worlio.com:8265): AutoServer detected server type 4
+[NATIVE-MOCK] Std.getClientVersion()
+Galaxy[worldserver://gippsland.worlio.com:8265/AutoServer/]: killServer(AutoServer(gippsland.worlio.com:8265))
+	_pendingOpen = []
+	_activeServers = []
+	_pendingClose = []
+DEBUG -- a server tried to murder another!
+Caller = AutoServer(gippsland.worlio.com:8265)
+Victim = null
+java.lang.Exception
+	at NET.worlds.network.ServerTracker.killServer(ServerTracker.java:182)
+	at NET.worlds.network.Galaxy.killServer(Galaxy.java:188)
+	at NET.worlds.network.AutoServer.state_XMIT_SI(AutoServer.java:58)
+	at NET.worlds.network.WorldServer.perFrame(WorldServer.java:586)
+	at NET.worlds.network.GuestLoginProbe.main(GuestLoginProbe.java:129)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(User0, )
+[NATIVE-MOCK] IniFile.getIniInt(DefaultUser, 0)
+[NATIVE-MOCK] IniFile.getIniString(SNum, )
+[NATIVE-MOCK] IniFile.getIniString(handshakeID, )
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniInt(Profile, 0)
+LWDB: brought up LoginWizard0 in setGalaxyType
+autoserver state -> 17 DISCONNECTED
+autoserver final state=17 DISCONNECTED
+tracker entries=1
+tracker holds: gippsland.worlio.com:8265 class=NET.worlds.network.AnonRoomServer
+live server class=NET.worlds.network.AnonRoomServer state=0 PRECONNECTED version=24
+prop #1=Gippsland
+prop #3=24
+prop #15=4
+prop #25=http://files.worlio.com/cgi-bin/
+prop #26=null
+prop #27=null
+override _clientVersion=null -> "2004080500"
+setAuthInfo(nick=FWProbeGuest2 password=null mode=2 AUTHENTICATE)
+preseedWizard: loginUserName=FWProbeGuest2 loginFrom=0 on LoginWizard0
+[NATIVE-MOCK] Std.nativeGetMillis()
+loginMode=2 chatname=FWProbeGuest2
+live state -> 3 INITIALIZING
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+live state -> 7 XMIT_SI
+[NATIVE-MOCK] Std.nativeGetMillis()
+Galaxy[worldserver://gippsland.worlio.com:8265/AutoServer/]: addPendingServer(gippsland.worlio.com:8265)
+	_pendingOpen = []
+	_activeServers = []
+	_pendingClose = []
+[NATIVE-MOCK] IniFile.getIniInt(avatars, 24)
+gippsland.worlio.com:8265: sending AnonRoomServer sessionInit.
+  username = "FWProbeGuest2"
+[NATIVE-MOCK] Std.nativeGetMillis()
+[0] gippsland.worlio.com:8265: send(SESSINIT (VAR_PROTOCOL=24 VAR_CLIENT=2004080500 VAR_AVATARS=24 VAR_USERNAME=FWProbeGuest2 ))
+gippsland.worlio.com:8265: send[26 1 6 3 2 32 34 9 a 32 30 30 34 30 38 30 35 30 30 7 2 32 34 2 d 46 57 50 72 6f 62 65 47 75 65 73 74 32 ]
+[NATIVE-MOCK] Std.nativeGetMillis()
+live state -> 8 RCV_SI_ACK
+[NATIVE-MOCK] Std.nativeGetMillis()
+gippsland.worlio.com:8265: recv(SESSINIT (VAR_ERROR=0 VAR_SERVERTYPE=4 VAR_UPDATETIME=1000000 VAR_PROTOCOL=24 VAR_CHANNEL=dimension-1 ))
+live state -> 11 XMIT_PROPS
+[NATIVE-MOCK] Std.nativeGetMillis()
+Galaxy[worldserver://gippsland.worlio.com:8265/AutoServer/]: addActiveServer(gippsland.worlio.com:8265)
+	_pendingOpen = [gippsland.worlio.com:8265]
+	_activeServers = []
+	_pendingClose = []
+LWDB: calling LoginWizard0 setConnected
+[NATIVE-MOCK] IniFile.setIniString(User0, FWProbeGuest2)
+[NATIVE-MOCK] IniFile.setIniInt(DefaultUser, 0)
+live state -> 12 MAINLOOP
+[NATIVE-MOCK] Std.nativeGetMillis()
+gippsland.worlio.com:8265: recv(TEXT     Gippsland: Welcome to WorlioWorlds Gippsland, an anonymous free-for-all. Be wary of links, impersonation, and spam. Keep your mute buttons greased. )
+[NATIVE-MOCK] IniFile.getIniString(filthfile, filter.dat)
+[NATIVE-MOCK] IniFile.getIniInt(encryptfilth, 0)
+[NATIVE-MOCK] IniFile.getIniInt(allowObscenities, 0)
+[NATIVE-MOCK] IniFile.getIniInt(allowObscentiies, 0)
+[NATIVE-MOCK] IniFile.getIniInt(classicChatBox, 1)
+[NATIVE-MOCK] IniFile.getIniInt(disableRecorder, 0)
+[NATIVE-MOCK] IniFile.getIniString(AutoPlaybackFile, )
+[NATIVE-MOCK] IniFile.getIniString(AutoPlaybackSound, )
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+MAINLOOP stable 12s, stopping
+live final state=12 MAINLOOP lastError=null
+closed cleanly
