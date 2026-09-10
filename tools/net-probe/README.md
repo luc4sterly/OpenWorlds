@@ -79,3 +79,45 @@ registrar shortID 255 (sin él, el PROPUPD muere en NPE en
 `ObjectMgr.getObject`). Parada honesta en estado 7: lo siguiente
 (`XMIT_SI` → `galaxy.addPendingServer`) entra en acoplamiento
 galaxy/console.
+
+## Muro en estado 7: `dAssert(false)` REAL verificado en bytecode (2026-09-10)
+
+Al extender el bucle `perFrame` más allá del 7, `state_XMIT_SI()`
+lanza `AssertionException` en su primera línea — y NO es un artefacto
+del decompilador: `javap -c` sobre el `.class` ORIGINAL de
+`assets/worlds.jar` muestra `iconst_0; invokestatic Debug.dAssert(Z)`
+como bytecode 0-1 del método (igual en `state_XMIT_AI`). `dAssert`
+lanza de verdad (también verificado en bytecode) y la excepción es
+unchecked (`extends RuntimeException`), así que mataría el hilo Main →
+`Gamma.die()` → `System.exit(0)`.
+⚠️ VERIFICAR paradoja abierta: el cliente real de 2004 conectaba, pero
+este código dice que el siguiente tick tras `6→7` muere. Pistas:
+`WorldServer` solo recibe ticks de `perFrame` si alguien hizo
+`incRefCnt` (`Main.register`, `WorldServer.java:169`); el `6→7` lo pone
+`propertyUpdate` (lee props `#24/#29`→upgrade URL, `#25`→script server,
+`#26/#27`→smtp/mail) y el único `setState(8)` vive tras el assert.
+Sin resolver a propósito: saltarlo sería inventar comportamiento.
+
+## Paradoja confirmada de punta a punta (2026-09-10, `handshake7`)
+
+- `javap` sobre `.class` ORIGINALES: `perFrame` case 7 → `state_XMIT_SI`
+  (tableswitch verificado), su byte 0-1 es `dAssert(false)` genuino,
+  `dAssert` lanza (unchecked), `Main.mainLoop` NO tiene exception table,
+  `Gamma.run` SÍ (`catch Throwable` → `die()` → `exit(0)`).
+- Experimento en vivo: sonda registrada en `Main` + `Main.mainLoop`
+  genuino en un hilo → el hilo MUERE con `AssertionException` en
+  `state_XMIT_SI:810 ← perFrame:586 ← mainCallback:1100 ← mainLoop:31`
+  (números de línea del decompilado, coinciden). Cadena predicha =
+  cadena observada.
+- Correlación con el mock RECHAZADA con evidencia: el único
+  `AssertionException` de `docs/xvfb-runtime-trace.log` es el de
+  `IUnknown.init` (ActiveX de consola), no de `WorldServer` — el exit<1s
+  del mock NO es este assert (el mock ni llega a estado 7: mundo local,
+  galaxy anónima).
+- Lector solo encola (`netPacketReader` → `_msgQ`, nadie más drena que
+  `processMsgs` vía `perFrame`); `findOrMake` hace `incRefCnt` (registro
+  en `Main`) ya en la CREACIÓN del servidor, antes de conectar.
+Queda una incógnita acotada con dos mitades: si el servidor está
+registrado desde la creación, el tick en 7 lo mata (2004 contradice);
+si no lo está, nada conduce 5→6 (el lector solo encola). Resolverla
+exige trazar el flujo real de registro/conducción, no más estática.

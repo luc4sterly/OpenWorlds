@@ -1,0 +1,7 @@
+[NATIVE-MOCK] Std.getClientVersion()
+[NATIVE-MOCK] IniFile.nativeInit()
+[NATIVE-MOCK] IniFile.getIniString(netdebug, 0)
+[NATIVE-MOCK] DNSLookup.gethostbyname(worlds.worlio.com)
+Connected to 198.251.80.57
+CONNECTED to 198.251.80.57 (handler state will advance to 8)
+Timeout: forcing exit 0

@@ -46,5 +46,20 @@ state -> 6 RCV_PROPS
 [NATIVE-MOCK] Std.nativeGetMillis()
 worlds.worlio.com:6650: recv(PROPUPD  255[worlds.worlio.com:6650] (#27 [DBSTORE /POSSESS ] worlds.worlio.com #26 [DBSTORE /POSSESS ] worlds.worlio.com:2500 #25 [DBSTORE /POSSESS ] http://files.worlio.com/cgi-bin/ #15 [DBSTORE /POSSESS ] 1 #3 [DBSTORE /POSSESS ] 24 #1 [DBSTORE /POSSESS ] WormMaster ))
 state -> 7 XMIT_SI
+[NATIVE-MOCK] Std.nativeGetMillis()
+perFrame threw (coupling boundary): NET.worlds.core.AssertionException
 final state=7 XMIT_SI
 closed cleanly
+== Main-loop experiment: register + run genuine Main.mainLoop ==
+[NATIVE-MOCK] IniFile.getIniInt(Profile, 0)
+[NATIVE-MOCK] Std.nativeGetMillis()
+Exception in thread "MainLoopProbe" NET.worlds.core.AssertionException
+	at NET.worlds.core.Debug.dAssert(Debug.java:20)
+	at NET.worlds.network.WorldServer.state_XMIT_SI(WorldServer.java:810)
+	at NET.worlds.network.WorldServer.perFrame(WorldServer.java:586)
+	at NET.worlds.network.WorldServer.mainCallback(WorldServer.java:1100)
+	at NET.worlds.console.Main.mainLoop(Main.java:31)
+	at NET.worlds.network.HandshakeProbe$1.run(HandshakeProbe.java:126)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Main.mainLoop thread alive after 3s? false
+Main.mainLoop thread alive after end()? false

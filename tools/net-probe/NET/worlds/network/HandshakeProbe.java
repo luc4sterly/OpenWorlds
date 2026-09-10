@@ -88,14 +88,14 @@ public final class HandshakeProbe extends WorldServer {
       System.out.println("sent propReq, state=" + stateName(probe._state.getState()));
 
       int last = -99;
-      long end = System.currentTimeMillis() + 15000;
+      long end = System.currentTimeMillis() + 25000;
       while (System.currentTimeMillis() < end) {
          int st = probe._state.getState();
          if (st != last) {
             System.out.println("state -> " + stateName(st));
             last = st;
          }
-         if (st != 6) {
+         if (st == 12 || st == 17 || st == -1) {
             break;
          }
          try {
@@ -112,6 +112,27 @@ public final class HandshakeProbe extends WorldServer {
       } catch (Exception ignored) {
       }
       System.out.println("closed cleanly");
+
+      // Experimento decisivo (2): ¿mata el assert al Main loop real?
+      // Registra el servidor (como hace findOrMake vía incRefCnt) y corre
+      // el Main.mainLoop GENUINO en un hilo: si la cadena del análisis es
+      // correcta, el tick en estado 7 propaga AssertionException fuera de
+      // mainLoop (su bytecode NO tiene exception table) y muere el hilo.
+      System.out.println("== Main-loop experiment: register + run genuine Main.mainLoop ==");
+      probe._state.setState(7);
+      NET.worlds.console.Main.register(probe);
+      Thread mainLoop = new Thread(new Runnable() {
+         public void run() {
+            NET.worlds.console.Main.mainLoop();
+         }
+      }, "MainLoopProbe");
+      mainLoop.start();
+      Thread.sleep(3000);
+      boolean alive = mainLoop.isAlive();
+      System.out.println("Main.mainLoop thread alive after 3s? " + alive);
+      NET.worlds.console.Main.end();
+      mainLoop.join(3000);
+      System.out.println("Main.mainLoop thread alive after end()? " + mainLoop.isAlive());
       System.exit(0);
    }
 
@@ -123,6 +144,10 @@ public final class HandshakeProbe extends WorldServer {
          case 5: return "5 XMIT_PROPREQ";
          case 6: return "6 RCV_PROPS";
          case 7: return "7 XMIT_SI";
+         case 8: return "8 RCV_SI_ACK";
+         case 9: return "9 XMIT_AI";
+         case 10: return "10 RCV_AI_ACK";
+         case 11: return "11 XMIT_PROPS";
          case 12: return "12 MAINLOOP";
          case 17: return "17 DISCONNECTED";
          default: return String.valueOf(s);
