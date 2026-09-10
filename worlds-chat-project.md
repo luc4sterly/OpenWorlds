@@ -1385,11 +1385,34 @@ que se usan, incluso antes en la misma iteración — solo las entradas de
 offset grande fallan, y eso desincroniza el resto del bitstream (crash
 en el pase 8, índice 63 de una tabla de 50 entradas).
 
-**Estado**: bug real, genuino, acotado a una rama concreta — mucho más
-pequeño que "algo falla en algún punto de 64 bytes". Próximo paso
-directo (no exploración abierta): comparar en vivo, un solo paso de
-`gamma.dll`, el cálculo real de dirección para `idx2=32` contra lo que
-hace `CmpStage2.java`. Detalle completo en
+**Estado tras una tercera ronda — un bug real corregido, otro más
+profundo encontrado debajo (sigue sin cerrar)**: desensamblar
+`FUN_00457d88` directamente (en vez de confiar en un comentario de una
+sesión anterior) mostró que `PRED_TABLE` **no es una tabla fija** — se
+construye en tiempo de ejecución a partir del `stride` actual
+(dirección `0x00482d0d`, no `0x00478e98` como decía el comentario
+viejo). La tabla existente se había capturado en vivo solo para
+archivos de 128px (`stride=-128`) y quedó mal para cualquier otro
+stride — exactamente el bug que rompía `test4b.cmp` (32px,
+`stride=-32`) desde `idx=32` en adelante. Corregido leyendo la tabla
+real para dos strides distintos (-128 y -32) y resolviendo
+`off = colDelta + stride·rowDelta` — las 50 entradas dieron solución
+entera limpia, sin residuo. **Resultado real: 23/141 → 86/141
+coincidencias**, ~3.7× de mejora, reproducido limpio.
+
+Con ese bug corregido, un censo de ramas en vivo contra la ejecución
+real completa (`evidence_2nd_session/branch_census.log`) reveló un
+**segundo bug más profundo**: el proceso real toma la rama `SINGLE` 124
+veces y `CTRL` 4 veces — `DUAL` **cero** veces, en todo el archivo. El
+decoder Java toma `DUAL` cinco veces solo en el pase 0. El bug ya no
+está en la tabla de predictor (esa parte ahora es correcta) sino más
+arriba, en `shiftBit()`/`refillWord()` o el despacho `bit1`/`bit2` —el
+lector de bits del decoder decide ramas que el código real nunca toma
+para este archivo. **Sigue sin cerrar** — próximo paso concreto para
+una sesión futura: encontrar dónde el lector de bits empieza a
+discrepar del real sobre qué rama tomar (ya no sobre qué offset usar).
+Cuatro rondas de evidencia real acumuladas, cero datos inventados en
+ningún punto. Detalle completo en
 `tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md`.
 
 ---
