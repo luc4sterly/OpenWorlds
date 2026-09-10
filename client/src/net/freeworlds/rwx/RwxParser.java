@@ -44,6 +44,7 @@ import java.util.Locale;
  */
 public final class RwxParser {
    private List<RwxVector3> localVertices = new ArrayList<>();
+   private List<float[]> localUvs = new ArrayList<>(); // parallel to localVertices; {0,0} when the line has no UV suffix
 
    private RwxMatrix4 groupWorld = RwxMatrix4.identity(); // world transform of the innermost enclosing clump
    private final Deque<RwxMatrix4> groupWorldStack = new ArrayDeque<>();
@@ -87,6 +88,7 @@ public final class RwxParser {
             groupWorld = groupWorld.multiply(currentTransform);
             currentTransform = RwxMatrix4.identity();
             localVertices = new ArrayList<>();
+            localUvs = new ArrayList<>();
             materialStack.push(currentMaterial);
             currentMaterial = currentMaterial.copy();
             break;
@@ -94,6 +96,7 @@ public final class RwxParser {
             currentTransform = clumpLocalSaveStack.isEmpty() ? currentTransform : clumpLocalSaveStack.pop();
             groupWorld = groupWorldStack.isEmpty() ? RwxMatrix4.identity() : groupWorldStack.pop();
             localVertices = new ArrayList<>();
+            localUvs = new ArrayList<>();
             currentMaterial = materialStack.isEmpty() ? currentMaterial : materialStack.pop();
             break;
          // ModelBegin/ModelEnd: deliberately NOT handled - not recognized by
@@ -126,6 +129,7 @@ public final class RwxParser {
          case "vertex":
          case "vertexext":
             localVertices.add(bakedVertex(f(tok[1]), f(tok[2]), f(tok[3])));
+            localUvs.add(parseUvSuffix(tok));
             break;
          case "triangle":
             emitTriangle(idx(tok[1]), idx(tok[2]), idx(tok[3]));
@@ -207,6 +211,23 @@ public final class RwxParser {
       return effective.transformPoint(new RwxVector3(x, y, z));
    }
 
+   /** Optional {@code UV u v} suffix on vertex lines (case-insensitive
+    * keyword; anything after the two floats - e.g. GROUNDZERO's
+    * {@code Normal x y z} - is ignored). Returns {@code {0, 0}} when
+    * absent or malformed (recorded as a warning by the caller path). */
+   private float[] parseUvSuffix(String[] tok) {
+      for (int i = 4; i + 2 <= tok.length - 1; i++) {
+         if (tok[i].equalsIgnoreCase("uv")) {
+            try {
+               return new float[]{f(tok[i + 1]), f(tok[i + 2])};
+            } catch (RuntimeException e) {
+               return new float[]{0f, 0f};
+            }
+         }
+      }
+      return new float[]{0f, 0f};
+   }
+
    private void applyRotate(float x, float y, float z, float angleDeg) {
       if (x != 0f) {
          currentTransform = currentTransform.multiply(RwxMatrix4.makeRotationX(Math.toRadians(x * angleDeg)));
@@ -220,9 +241,9 @@ public final class RwxParser {
    }
 
    private void emitTriangle(int a, int b, int c) {
-      int va = model.addVertex(localVertices.get(a));
-      int vb = model.addVertex(localVertices.get(b));
-      int vc = model.addVertex(localVertices.get(c));
+      int va = model.addVertex(localVertices.get(a), localUvs.get(a)[0], localUvs.get(a)[1]);
+      int vb = model.addVertex(localVertices.get(b), localUvs.get(b)[0], localUvs.get(b)[1]);
+      int vc = model.addVertex(localVertices.get(c), localUvs.get(c)[0], localUvs.get(c)[1]);
       model.addTriangle(va, vb, vc, currentMaterial);
    }
 

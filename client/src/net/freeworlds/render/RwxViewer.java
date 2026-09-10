@@ -1,5 +1,6 @@
 package net.freeworlds.render;
 
+import net.freeworlds.cmp.CmpTexture;
 import net.freeworlds.rwx.RwxMaterial;
 import net.freeworlds.rwx.RwxModel;
 import net.freeworlds.rwx.RwxParser;
@@ -10,6 +11,7 @@ import org.lwjgl.opengl.GL;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 
 import static org.lwjgl.glfw.GLFW.*;
@@ -24,12 +26,25 @@ import static org.lwjgl.opengl.GL11.*;
  * from the parsed material (no textures, no lighting), auto-fit camera,
  * slow auto-rotation so the shape actually reads as 3D. Refine later.
  *
- * Usage: java -cp ... net.freeworlds.render.RwxViewer <file.rwx> [--screenshot out.png] [--wireframe]
+ * Usage: java -cp ... net.freeworlds.render.RwxViewer <file.rwx> [--screenshot out.png] [--wireframe] [--unlit]
+ *        [--texture <dir>/<base>] [--camera top|front] [--doubleside]
+ *
+ * Texturing (2026-09-10, .cmp round 5): --texture points at a verified-texture
+ * resource directory + base name (e.g. assets/cmp-verified/sball), decoded at
+ * load time through the real CmpStage2 reconstructor (net.freeworlds.cmp) and
+ * applied with the model's parsed UVs. This is a pipeline-capability proof -
+ * real verified .cmp pixels landing on geometry - NOT a claim about what the
+ * original client shows for the file (sball.rwx itself says Texture NULL; the
+ * pairing is an explicit demo override, and material colors are forced to
+ * white since the file's own materials are degenerate black). Honoring
+ * per-material textureName for arbitrary .cmp files needs the Huffman
+ * Stage 1 decoder first (see CmpTexture's doc).
  */
 public final class RwxViewer {
    public static void main(String[] args) throws IOException {
       if (args.length < 1) {
-         System.err.println("Usage: RwxViewer <file.rwx> [--screenshot out.png] [--wireframe] [--unlit]");
+         System.err.println("Usage: RwxViewer <file.rwx> [--screenshot out.png] [--wireframe] [--unlit]"
+            + " [--texture <dir>/<base>] [--camera top|front] [--doubleside]");
          System.exit(2);
       }
 
@@ -37,6 +52,9 @@ public final class RwxViewer {
       String screenshotPath = null;
       boolean wireframe = false;
       boolean unlit = false;
+      String textureRef = null;
+      boolean cameraTop = false;
+      boolean forceDoubleSide = false;
       for (int i = 1; i < args.length; i++) {
          if (args[i].equals("--screenshot") && i + 1 < args.length) {
             screenshotPath = args[++i];
@@ -44,6 +62,12 @@ public final class RwxViewer {
             wireframe = true;
          } else if (args[i].equals("--unlit")) {
             unlit = true;
+         } else if (args[i].equals("--texture") && i + 1 < args.length) {
+            textureRef = args[++i];
+         } else if (args[i].equals("--camera") && i + 1 < args.length) {
+            cameraTop = args[++i].equalsIgnoreCase("top");
+         } else if (args[i].equals("--doubleside")) {
+            forceDoubleSide = true;
          }
       }
       boolean lit = !wireframe && !unlit;
@@ -57,6 +81,15 @@ public final class RwxViewer {
       );
       for (String w : model.warnings) {
          System.out.println("  warning: " + w);
+      }
+
+      CmpTexture texture = null;
+      if (textureRef != null) {
+         File ref = new File(textureRef);
+         texture = CmpTexture.load(ref.getParentFile(), ref.getName());
+         long uvMapped = model.uvs.stream().filter(uv -> uv[0] != 0f || uv[1] != 0f).count();
+         System.out.println("Texture " + textureRef + ": " + texture.width + "x" + texture.height
+            + ", model UVs non-zero on " + uvMapped + "/" + model.uvs.size() + " vertices");
       }
 
       float[] bbox = boundingBox(model);
@@ -97,6 +130,11 @@ public final class RwxViewer {
       if (lit) {
          GlLighting.init();
       }
+      int glTexture = 0;
+      if (texture != null && !wireframe) {
+         glTexture = uploadTexture(texture);
+         glEnable(GL_TEXTURE_2D);
+      }
 
       float angle = 0f;
       int frames = screenshotPath != null ? 1 : Integer.MAX_VALUE;
@@ -110,12 +148,16 @@ public final class RwxViewer {
 
          glMatrixMode(GL_MODELVIEW);
          glLoadIdentity();
-         GlUtil.lookAt(cx, cy, cz + radius * 2.2f, cx, cy, cz, 0, 1, 0);
+         if (cameraTop) {
+            GlUtil.lookAt(cx, cy + radius * 2.2f, cz, cx, cy, cz, 0, 0, -1);
+         } else {
+            GlUtil.lookAt(cx, cy, cz + radius * 2.2f, cx, cy, cz, 0, 1, 0);
+         }
          glTranslatef(cx, cy, cz);
          glRotatef(angle, 0, 1, 0);
          glTranslatef(-cx, -cy, -cz);
 
-         drawModel(model, lit);
+         drawModel(model, lit, glTexture, forceDoubleSide);
 
          angle += 0.6f;
          glfwSwapBuffers(window);
@@ -131,11 +173,15 @@ public final class RwxViewer {
       glfwTerminate();
    }
 
-   private static void drawModel(RwxModel model, boolean lit) {
+   private static void drawModel(RwxModel model, boolean lit, int glTexture, boolean forceDoubleSide) {
       // glEnable/glCullFace are illegal between glBegin/glEnd, so material
       // (and its culling mode) can only change with glEnd/glBegin bracketing it.
       RwxMaterial lastMat = null;
       boolean inBegin = false;
+      boolean textured = glTexture != 0;
+      if (forceDoubleSide && lit) {
+         GlLighting.applyCulling(true);
+      }
       for (int i = 0; i < model.triangles.size(); i++) {
          RwxMaterial mat = model.triangleMaterials.get(i);
          if (mat != lastMat) {
@@ -144,8 +190,19 @@ public final class RwxViewer {
                inBegin = false;
             }
             if (lit) {
-               GlLighting.applyMaterial(mat);
-               GlLighting.applyCulling(mat.doubleSided);
+               if (textured) {
+                  // Demo scope (see class doc): the file's own materials are
+                  // degenerate black, which under GL_MODULATE would hide any
+                  // texture. White lets the verified texture pixels show.
+                  glColor3f(1f, 1f, 1f);
+               } else {
+                  GlLighting.applyMaterial(mat);
+               }
+               if (!forceDoubleSide) {
+                  GlLighting.applyCulling(mat.doubleSided);
+               }
+            } else if (textured) {
+               glColor3f(1f, 1f, 1f);
             } else {
                glColor3f(clamp01(mat.colorR), clamp01(mat.colorG), clamp01(mat.colorB));
             }
@@ -163,9 +220,21 @@ public final class RwxViewer {
             float[] n = GlLighting.faceNormal(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
             glNormal3f(n[0], n[1], n[2]);
          }
-         emitVertex(a);
-         emitVertex(b);
-         emitVertex(c);
+         if (textured) {
+            float[] uva = model.uvs.get(t[0]);
+            float[] uvb = model.uvs.get(t[1]);
+            float[] uvc = model.uvs.get(t[2]);
+            glTexCoord2f(uva[0], uva[1]);
+            emitVertex(a);
+            glTexCoord2f(uvb[0], uvb[1]);
+            emitVertex(b);
+            glTexCoord2f(uvc[0], uvc[1]);
+            emitVertex(c);
+         } else {
+            emitVertex(a);
+            emitVertex(b);
+            emitVertex(c);
+         }
       }
       if (inBegin) {
          glEnd();
@@ -174,6 +243,32 @@ public final class RwxViewer {
 
    private static void emitVertex(RwxVector3 v) {
       glVertex3f(v.x, v.y, v.z);
+   }
+
+   /** Uploads verified .cmp pixels as an OpenGL texture (RGB, no mipmaps -
+    * presentation detail, not a decode claim: LINEAR filtering, REPEAT wrap
+    * so the slight >1.0 UV overshoot real files carry doesn't streak). */
+   private static int uploadTexture(CmpTexture texture) {
+      int id = glGenTextures();
+      glBindTexture(GL_TEXTURE_2D, id);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+      ByteBuffer buf = ByteBuffer.allocateDirect(texture.rgb.length);
+      // GL expects the first row uploaded to be the BOTTOM row: flip the
+      // top-down decode (whether RWX v=0 means bottom - the RenderWare
+      // convention - is still unverified and noted as such; the histogram
+      // proof below is flip-invariant either way).
+      int rowBytes = texture.width * 3;
+      for (int y = texture.height - 1; y >= 0; y--) {
+         buf.put(texture.rgb, y * rowBytes, rowBytes);
+      }
+      buf.flip();
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texture.width, texture.height,
+         0, GL_RGB, GL_UNSIGNED_BYTE, buf);
+      System.out.println("Uploaded texture " + texture.width + "x" + texture.height);
+      return id;
    }
 
     private static float clamp01(float v) {
