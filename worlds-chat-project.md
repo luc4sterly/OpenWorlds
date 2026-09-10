@@ -1279,6 +1279,65 @@ antes de escribir el decoder.
 
 ---
 
+### 🟡 `.cmp` — árbol de símbolos completo mapeado, `0x24` resuelto,
+### decoder Java implementado y parcialmente verificado (34/64 y 55/64
+### bytes exactos) — NO conectado al pipeline (2026-09-10, cierre)
+
+Objetivo: cerrar `.cmp` del todo — ejercitar el árbol de símbolos con
+archivos reales variados, implementar el decoder, verificar byte a byte,
+conectar al pipeline.
+
+**Corpus variado encontrado**: entropía de Shannon como filtro barato
+confirmó que `ADWORLDS.CMP` (5.0) era degenerado frente al resto de los
+13 `.cmp` únicos del proyecto (7.0-7.8) — `4i.cmp` seleccionado como caso
+real no plano (fila 0 con 9+ valores de byte distintos). Los 5 candidatos
+probados decodifican con éxito bajo Xvfb.
+
+**Árbol de símbolos completo mapeado con evidencia real**: una traza de
+4000 instrucciones sobre `4i.cmp` reveló 236 direcciones nunca vistas en
+la sesión anterior (que solo había visto el caso de relleno plano). El
+árbol superior real tiene 2 bits (no 3): bit1=0 → copia de predictor de
+4 bytes (ya conocida); bit1=1,bit2=0 → **copia de predictor DUAL de 2
+bytes** (nueva, dos índices independientes por mitad de grupo); bit1=1,
+bit2=1 → rama de "byte de control" con varios sub-casos de literal/
+lookback. **`0x24` resuelto** (desensamblado estático fresco de Ghidra):
+no es fin de stream, es un **escape de literal crudo de 8 bytes**.
+Hallazgo real no anticipado, encontrado depurando el primer intento
+fallido de verificación: cada iteración de "byte de control" no-`0x24`
+TAMBIÉN consume un byte adicional del stream de relleno y hace una
+segunda escritura de difusión al historial — invisible en el archivo
+plano de la sesión anterior porque coincidía con lo que ya había ahí.
+
+**Corrección real de granularidad**: la sesión anterior infirió "una
+llamada decodifica la imagen completa" al no ver un `ret` en 6000
+instrucciones. Con un breakpoint real en la dirección de retorno
+(calculada desde `*esp`, no adivinada), se confirma: **una llamada
+produce exactamente `ch×2` bytes** (64 para los archivos probados, medio
+ancho de fila de 128px) — ni una fila ni la imagen completa.
+
+**Decoder Java implementado** (`tools/gamma-dll-debug-harness/
+cmp-stage2-decoder/CmpStage2.java`), verificado contra streams y salida
+real extraídos en vivo del MISMO proceso: **34/64 bytes exactos en
+`adworlds.cmp`** (el resto explicado por una limitación real de captura
+de memoria, no un error de diseño — cada byte faltante debería ser
+`0xAD` como el resto del archivo plano) y **55/64 en `4i.cmp`** (9 bytes
+sin resolver pese a verificación exhaustiva del consumo de stream
+posición por posición contra una traza en vivo — abierto, honestamente
+documentado). **No se conectó nada al pipeline de materiales** — ningún
+archivo alcanzó 100% de verificación, y el proyecto prohíbe explícitamente
+píxeles con aspecto plausible pero no verificados.
+
+Progreso adicional real en `ScapePicTexture.makeTexture()` (necesario
+para decodificar una imagen completa): se avanzó el punto de fallo de un
+`Assertion failed` a un `EXCEPTION_ACCESS_VIOLATION` real replicando la
+jerarquía de clases con más fidelidad, pero sigue sin resolverse.
+
+Detalle completo, con el método de captura de ground truth y el análisis
+de las discrepancias restantes, en `docs/cmp-texture-format-reference.md`
+y `tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md`.
+
+---
+
 ## 5. Roadmap por fases
 
 **Orden de módulos: networking → renderer → UI**
@@ -1287,7 +1346,7 @@ antes de escribir el decoder.
 |---|---|---|---|
 | 0 — Reconocimiento | Decompilar con `worldsplayer_source_editor`, `grep -r "native"` para mapear todos los métodos nativos, identificar DLLs cargadas | 🟢 Baja-media | 1–3 semanas |
 | 1 — Parsers de formato | ✅ **RWX (estático) HECHO (2026-09-09)** — 118/118 archivos reales verificados contra `three-rwx-loader`, ver sección 4. 🟡 **RWG parcial (2026-09-09)** — parser Java del contenedor de chunks y de un único ATOM (posición/UV de vértices + polígonos) verificado contra los 2 únicos `.rwg` reales disponibles y renderizado; jerarquía real de múltiples joints **NO verificada** (el corpus real no la demuestra) y `.bod` (formato binario de red, usado por los 26 avatares reales en caché) sigue sin descifrar — ver `docs/rwg-bod-format-reference.md`. ✅ **`.world` HECHO (2026-09-09)** — parser completo del protocolo de persistencia del cliente, verificado end-to-end contra un archivo real de 205KB (25 salas, 578 nodos, 103 objetos con geometría real) — ver `docs/world-format-reference.md` | 🟡 RWX fácil / RWG-BOD medio-alto (sin corpus real suficiente) / `.world` fácil (Java puro, sin nativo) | 2–6 semanas |
-| 2 — Renderizador | 🟡 **Profundizado (2026-09-09)** — iluminación (2 luces, verificada en Java real) y pipeline de materiales (opacidad, doble cara) implementados y verificados por píxel/histograma sobre pipeline de función fija; escena multi-objeto probada. Texturas `.cmp`: 🟢 **(2026-09-10)** depuración dinámica real (Wine+gdb+Xvfb) resolvió las dos ambigüedades de diseño pendientes (lector de bits MSB-primero, escritura simultánea de 2 filas por símbolo) con ejecución real y ground truth de píxeles capturado; falta mapear el resto del espacio de símbolos antes de escribir el decoder Java — ver `docs/cmp-texture-format-reference.md` y `docs/render-pipeline-reference.md` | 🟡 Media (la ambigüedad de diseño ya no bloquea; queda trabajo de implementación/verificación) | 2–6 meses |
+| 2 — Renderizador | 🟡 **Profundizado (2026-09-09)** — iluminación (2 luces, verificada en Java real) y pipeline de materiales (opacidad, doble cara) implementados y verificados por píxel/histograma sobre pipeline de función fija; escena multi-objeto probada. Texturas `.cmp`: 🟡 **(2026-09-10)** árbol de símbolos completo mapeado con evidencia real (bit-tree, predictor dual, byte centinela `0x24` resuelto), decoder Java implementado (`tools/gamma-dll-debug-harness/cmp-stage2-decoder/`) pero verificado solo parcialmente (34/64 y 55/64 bytes exactos, no 100%) — sin conectar al pipeline hasta verificación completa, ver `docs/cmp-texture-format-reference.md` y `docs/render-pipeline-reference.md` | 🟡 Media (diseño entendido; falta cerrar verificación 100% + conectar) | 2–6 meses |
 | 3 — Red | Ya resuelto en gran parte — protocolo documentado por LibreWorlds/Xyem, implementado en `whirl` (Rust) y `munch` (Go) como referencias cruzadas | 🟢 Baja | Incluido en fase 0-1 |
 | 4 — Integración y UI | Chat, lista de amigos, mapa, menús, compatibilidad de comportamiento con el original | 🟡 Media (sin atajos, trabajo de descubrimiento línea a línea) | 1–3 meses |
 | 5 — Porteo a OpenBSD | Una vez quitadas las dependencias nativas de Windows, evaluar viabilidad real en OpenBSD (Wine no está soportado oficialmente ahí — Mesa/OpenGL nativo es el camino) | 🔴 Alta | Posterior al resto |
