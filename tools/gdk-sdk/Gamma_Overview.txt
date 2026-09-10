@@ -1,0 +1,1252 @@
+
+ [Worlds.com]                 |  Development Kit Table of Contents  |
+
+Gamma Overview
+
+ Getting Started            Building with the Shaper
+
+    * Introduction to          * Introducing the
+      Gamma                      Gamma Shaper
+    * System Requirements           o The Menu Bar
+    * Installing Gamma              o The Options
+    * Establishing                    Menu
+      Content Directories      * The Hierarchy of
+    * Setting Up to Use          Objects
+      World-Builder            * Beginning to Build:
+      Commands                   Deleting, Adding
+    * Starting Gamma           * Sky, Ground, and
+    * World Files and            Infinite Background
+      Content Files            * Moving Objects in
+    * Moving in a Virtual        3D
+      World                    * Connecting Rooms
+    * WorldsMarks and            and Creating
+      Teleporting                Portals
+                               * Connecting Portals
+                               * Textures
+                               * Lighting
+                               * Holograms
+                               * Using Libraries
+                               * Behaviors, Actions
+                                 and Sensors
+                               * Designing for
+                                 Performance
+
+  ------------------------------------------------------------------------
+
+ Using the Overview
+
+ There are two sections to the Overview document. In the first section, Getting
+ Started, you will start at the beginning: installing Gamma and getting
+ yourself oriented with the program. Building with the Shaper has brief
+ explanations of features with links to more detailed Gamma Procedures.
+
+ When you see an arrow image like this: [Top of Page] click on it to go back to
+ the table of contents at the top of this page.
+
+  ------------------------------------------------------------------------
+
+ Introduction to Gamma
+
+ Gamma is a powerful toolkit for creating and viewing 3D multiuser virtual
+ environments. These "virtual worlds" are complex 3D spaces, richly textured,
+ brought to life both with programmed behaviors and the virtual presence of
+ users' avatars that share the experience and communicate in real time.
+
+ Gamma consists of three main components:
+
+    * WorldsPlayer. WorldsPlayer is the 3D equivalent of a Web Browser: it is
+      the window that allows you to see a virtual world, constantly updating
+      the screen display so that any changes are immediately visible. The
+      WorldsPlayer resides on each client PC, along with the files that define
+      a virtual world. If the files don't exist locally, they can be downloaded
+      through the network and cached or written locally.
+    * The Shaper. The Shaper is a set of tools for constructing virtual
+      environments. It enables you to build architectural structures, add
+      textures to them, and integrate actions that happen in these spaces. When
+      you save a world, the Shaper creates a .WORLD file. These .WORLD files
+      (and related content files) are the files that will be placed on or
+      downloaded to each client PC, and are interpreted by the WorldsPlayer.
+      The Shaper is not required for end users to view a virtual world. End
+      users install "external" versions of WorldsPlayer which do not include
+      the Shaper.
+    * Servers. The server handles all the details of multiuser interactivity,
+      constantly updating chat text, avatar positions, and other shared state
+      information over the network. Multiple servers can be used to distribute
+      the load of very large or busy environments. A separate, optional User
+      Server handles authentication, user tracking, and database interactivity.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ System Requirements
+
+ The minimum configuration is a 90 MHz or faster processor, with 32 MB of
+ memory.
+
+ The recommended platform is a Pentium-class processor, 133 MHz or faster, with
+ 48 MB of memory.
+ Windows 95, 98, 2000 or NT
+ 80 MB free hard disk space
+ Active Internet connection
+
+ If your system has less memory than recommended you may find that navigation
+ in the 3D space is slow or jerky. The frame rate (the number of frames
+ rendered per second) can be improved if you follow the Designing for
+ Performance guidelines later in this document.
+
+ [Top of Page]
+  ------------------------------------------------------------------------
+
+ Installing Gamma
+
+ To install your "Internal" version of Gamma (which includes the Shaper),
+ follow these steps:
+
+   1. Download Gamma from your designated FTP or Web site, or insert the Gamma
+      CD into your CD-ROM drive.
+   2. From the Start menu choose Programs/Windows Explorer.
+   3. In Windows Explorer, locate the current GDK.EXE file. The name will
+      include the current version number; for example, GDK1804.EXE.
+   4. If you downloaded Gamma from the Internet, it will be in the target
+      directory you specified for the download. If you are loading Gamma from a
+      CD, it will be visible on your CD-ROM drive.
+   5. Double-click the GDK.EXE file to begin the installation process. The
+      installer will lead you the rest of the way. For building worlds, you
+      might want to put the InternalWorldsPlayer on your C:\ drive where it's
+      easy to get to.
+
+ [Top of Page]
+  ------------------------------------------------------------------------
+
+ Establishing Content Directories
+
+ Unless you specify a different directory path, Gamma looks for all content
+ files (textures, 3D models, sound files, etc.) in the \InternalWorldsPlayer
+ directory.
+
+ It is helpful to organize your content files in subdirectories under
+ \InternalWorldsPlayer . Make a subdirectory for each project within which
+ you'll save all .WORLD files relevant to that project (e.g.
+ C:\InternalWorldsPlayer\Project). Within this project directory, also create a
+ separate subdirectory for textures (as well as one for sounds if needed, e.g.
+ C:\InternalWorldsPlayer\Project\tex).
+
+ [Top of Page]
+  ------------------------------------------------------------------------
+
+ Setting Up to Use World-Builder Commands
+
+ Many of the commands mentioned later in this document are .bat files in the
+ gdk's bin directory. Many of these require that the bin directory be mentioned
+ in your PATH statement.
+
+ To use these properly, edit your C:\AUTOEXEC.BAT file and look for the last
+ "set PATH=blah" statement. Change this to "set PATH=c:\gdk\bin;blah", changing
+ the c:\gdk part to the location of the gdk on your machine. Then reboot the
+ machine.
+
+ Now the commands max2rwx (converting 3D Max files to .RWX), bodtorwx
+ (converting avatar models to .RWX), compit (a compression program for .BMP
+ files), and so forth will work correctly from any directory on your machine.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ Starting Gamma
+
+ From the Start menu, go to Programs/Worlds/InternalGDK/InternalGDK
+
+ Or, use the Internal WorldsPlayer icon that was automatically placed on your
+ desktop.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ World Files and Content Files
+
+ The Shaper saves the architecture of a world as a .WORLD file, a proprietary
+ format. In addition to the basic geometry, the .WORLD file includes references
+ to the art files that serve as surface textures, as well as the files for any
+ imported 3D models, Java behaviors, and sound effects. Gamma accepts a variety
+ of file formats for these content files.
+
+ NOTE: Content files should be organized into appropriate subdirectories which
+ must be identified to Gamma. See Establishing Content Directories for more
+ details.
+
+ The file formats needed to create content for Gamma are described below.
+
+ Art Files
+
+ For art files that are used as surface textures, Gamma accepts .BMP and .CMP
+ (a compressed version of the .BMP file). See Compressing Texture Files for
+ details on how to convert .BMPs to .CMPs
+
+ Photoshop(c) .PSD, .TIF, and other file formats must be converted to .BMP
+ before using them as textures. Textures must also be 128x128, 256x256,
+ 128x256, or 256x128 in size. If your texture is not one of these sizes, Gamma
+ will automatically "squash" it to be 128x128. See Designing for Performance
+ for details.
+
+ 3D Shapes
+
+ 3D models that are imported into Gamma must be in the .RWX or .RWG format, the
+ standard file format for 3D models recognized by Gamma's Renderware ®
+ rendering engine. 3D Studio Max ® includes a built-in conversion utility to
+ create .RWX files. Any textures associated with an .RWX file must be saved as
+ .BMP or .CMP files.
+
+ Audio Files
+
+ Sounds can be incorporated into worlds as .WAV or .MID files. Sound files can
+ also be placed on a server and downloaded dynamically.
+
+ Video Files
+
+ Videos can be incorporated into worlds as .ASF files. These files would reside
+ on a server and be "streamed" into a 3D world.
+
+ [Top of Page]
+  ------------------------------------------------------------------------
+
+ Moving in a Virtual World
+
+ Finding your way around in a 3D environment is easy. We instinctively move as
+ we would in the real world, and the less we are aware of how this happens, the
+ better. But while building a 3D world, you need to do other things besides
+ move around. You need to select objects, enter choices, and identify precise
+ locations in three-dimensional space. To cover both these situations, Gamma
+ includes two completely different ways of navigating, using the cursor or
+ "driving" in virtual space.
+
+ When the cursor is visible, as it is when you first start Gamma, mouse
+ movement controls the cursor. You can choose from menus and select objects in
+ the 3D space.
+
+ To begin driving, click the Drive button located below the 3D viewing window
+ (the red triangular shaped button) and hold down the mouse button as you
+ "scrub" your mouse. The cursor disappears, and you can now move freely about
+ the World by moving your mouse. When you release the mouse button, the cursor
+ reappears.
+
+ While driving, you move through the 3D space as if you were a moving camera, a
+ point of view that shifts as you move the mouse forward, backward, left or
+ right. You can also use the following keys:
+
+ Up Arrow:   move forward
+ Down Arrow:    move backward
+ Left Arrow:    turn left
+ Right Arrow:    turn right
+ Page Up:    look up
+ Page Down:    look down
+ Home: look level (undoes any change in look up or down)
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ WorldsMarks and Teleporting
+
+ This section describes the ways that you can navigate within Gamma. Note: When
+ you are building worlds, be sure to save any changes to the world you're
+ working on before Teleporting to another world.
+
+ WorldsMarks
+
+ WorldsMarks work pretty much like the bookmarks you're used  [WorldsMark Menu]
+ to from web browsers. To set a WorldsMark for the place
+ you're in, go to the WorldsMark button on the right panel
+ of the WorldsPlayer interface and click Add new WorldsMark. That WorldsMark's
+ location will come up in a dialog box and you'll have a chance to rename the
+ WorldsMark to something that's easier to remember before you commit that
+ WorldsMark to the menu. If you want to edit the name, click on the Name field
+ and make your edits, then click OK.
+ Whenever you want to return to that location, go to the WorldsMarks menu and
+ select your desired destination from the list at the bottom of the window.
+ WorldsMarks persist across sessions, so you can set a WorldsMark once and
+ expect that you'll be able to use it again the next time you use the Shaper.
+ The WorldsMarks menu also has an Edit WorldsMarks option that allows you to
+ access and change bookmarks through a standard Gamma dialog. You can add,
+ delete, copy, rename or go straight to a bookmark destination using various
+ options in the Edit Bookmarks List.
+
+ Change Location Option
+
+ You can directly enter the .WORLD file, Room, coordinates and facing you'd
+ like to go by clicking on the Change Location option in the WorldsMark menu.
+ The information must be entered in this order:
+
+ [Change Location window]
+
+ The .WORLD file location#The Room name@The coordinates of the Camera listed in
+ x,y,z, facing order
+
+ The .WORLD file location sometimes begins with "home:" which means "search
+ relative to the directory you installed Worlds into". So if the URL line says
+
+ home:/GroundZero/GroundZero.world
+
+ for the .WORLD file location, WorldsPlayer will automatically expand this into
+ something like
+
+ c:/program files/worlds/internal worldsplayer/groundzero/groundzero.world.
+
+ If you are creating a world from scratch, and you've just saved it to your
+ hard drive, the URL line would start with something like:
+
+ file:c:/internal worldsplayer/MyProject/MyWorld.world
+
+ The .WORLD filename and the Room name are separated by a # hashmark. The Room
+ name and the coordinates are separated by an @ ampersand. Sometimes you'll see
+ <> brackets before the @ ampersand. Normally nothing is in these brackets, but
+ if a world has reached capacity, then the server assigns users to a new
+ dimension (basically a copy of the world) and this is designated inbetween the
+ <> brackets. After the @ ampersand, each coordinate number is separated by a
+ comma. Omitting a Room entry will bring you to that worlds' default room, the
+ first in the list. Omitting coordinates places you in a default position.
+
+ The world information is a filename of the .WORLD file, not the name of the
+ world you entered in World Properties. Because this is a file name you can
+ also enter path information for .WORLD files that aren't in your Gamma root,
+ for instance:
+
+ C:/myworlds/example.world#RumpusRoom<>@100,400,120,25
+
+ When you go to WorldsMarks and choose Change Location, the URL line will
+ already be showing the location you are currently at, so you can just place
+ the insertion mark at the coordinates and change them if all you want to do is
+ move to a different point in the same Room, or change the Room name if you
+ want to move to a different Room within a world. Once you're done changing the
+ URL line, press OK to go to that destination.
+
+ Teleporting
+
+ If you download and install a "World-A" through an .exe file,    [Teleporting]
+ World-A will appear on your Teleport list. The various teleport
+ locations (bookmarks) that have been created within World-A
+ will appear as a sub-list when you rollover the world's name. This listing of
+ installed worlds is not really useful to someone building new worlds. However,
+ the list above the installed worlds is the Back (History) list, which can be
+ used to teleport to various worlds used in a session. Every world you visit
+ during a Gamma session will be listed here, and you can click on that world to
+ teleport back to it.
+
+ NOTE: if you create a new world within a session, the world won't appear on
+ the Back list unless you leave the world and come back to it, or re-open the
+ world from the File menu.
+
+ See Gamma Procedures - Packaging Worlds for instructions on creating teleport
+ bookmarks within a finished world
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ Introducing the Gamma Shaper
+
+ When you first start up Gamma, a default New World opens (if you already have
+ worlds installed, Gamma will open to your default world. To get to a New
+ World, choose File, New). This is the most basic world - four walls, a floor
+ and a ceiling.
+
+ To open (or close) the Shaper, go to the Options button on the right side of
+ the WorldsPlayer interface and select Shaper On/Off.
+
+  [The Shaper]
+
+ The four sections of the Shaper are:
+
+ 1. Hierarchy Tree (see the next section, The Hierarchy of Objects)
+ 2. 3D World Viewer
+ 3. Libraries (see Using Libraries)
+ 4. Properties Box - the contents of this window change depending on what's
+ selected in the Hierarchy Tree
+
+ You can switch the location of the four Shaper sections by clicking on the
+ tiny yellow tab in between each section, and you can change the relative size
+ of each section by clicking and dragging the yellow tab where their four
+ corners meet.
+
+ The buttons above the Properties Box change depending upon the object you have
+ selected in the Hierarchy Tree. The image below shows you the buttons
+ available if you select, for example, a wall. When working in the Shaper, the
+ function of each button appears below the row of buttons as you roll over them
+ with your cursor. They are, in order: Move horizontally, Move vertically,
+ Pitch, Roll, Yaw, Scale, Cut, Copy, Paste, Save to File, and Undo. Each of
+ these buttons will be covered further in the Tutorials.
+
+
+
+ To help you orient yourself within a room, the bottom left-hand corner of the
+ Cyan wall in a newly-created room is always 0,0,0 in the coordinate scheme of
+ that Room. The default wall colors of a newly created room may also serve as
+ an orientation device:
+
+    * Cyan is the "East-facing Wall"
+    * Red is the "West-facing Wall"
+    * Magenta is the "North-facing Wall"
+    * Yellow is a "South-facing Wall"
+
+ NOTE:
+
+ There is no such thing as "true North", "true East," et. al. within Gamma. You
+ can join two "East-facing walls" but neither has to face true East; as such,
+ "East-facing" is merely a description of your present orientation. Not having
+ a "true north" can be an advantage, but it can also be confusing, so many
+ people do try to keep a sense of "true north" from room to room as they build,
+ for instance by hooking portals in one room's South wall to the other room's
+ North wall.
+
+ Also note that Gamma's walls, floors and ceilings are only visible from one
+ side. If you want a wall to be seen from both sides, you'll have to use two
+ walls. See Lesson 1: Building and Exploring a New Room for further
+ explanation.
+
+ The Menu Bar
+
+ The top menu bar has four menus: File, Edit, Libraries, and Worlds. Many of
+ the menu items are not generally used.
+
+ File Menu
+
+    * New
+      Opens a new, default square room.
+    * Open
+      Opens any .WORLD file
+    * Save
+      Saves your .WORLD file
+    * World Properties
+      Displays the World Properties in the Properties Box
+    * Console Properties
+      Displays the DefaultConsole Properties in the Properties Box
+    * Pilot Properties
+      Displays the HoloPilot Properties (camera) in the Properties Box
+    * Inventory
+      Brings up an Inventory window. Not currently used.
+    * Exit
+      Quits the program
+
+ Edit Menu
+
+ The quick keys for this menu (e.g. Ctrl+X) either don't work or are
+ unreliable. Usually world builders use the buttons above the Properties Box
+ rather than the Undo, Cut, Copy or Paste items in the Edit Menu.
+
+    * Undo
+      Will undo the last command used in the Shaper.
+    * Cut
+      Removes the selected object.
+    * Copy
+      Copies the selected object.
+    * Paste
+      Pastes either the Cut or Copied object into the section of Hierarchy you
+      select.
+    * Sortable Attributes
+      Brings up a window in which you can arrange attributes to better suit
+      your needs. For example, in the Rect Properties there is an attribute
+      called Extent. In the Sort Attributes window, if you type in Extent,
+      click Add, and then click OK, the next time you use the Shaper the Extent
+      attribute will be listed at the top of the Rect Properties list.
+    * Snap Tool Settings
+      Brings up a window in which you can set x,y and z "Snap Values" which
+      will place objects such that their origins are at some multiple of those
+      increments. For example, if you set an increment of 50 for x and y, you
+      could place objects at (150, 250) but not at (229, 510). The tool will
+      snap the object to the nearest point that matches the criteria.
+
+ Libraries Menu
+
+    * New Library
+      Not used. At this time, you cannot create new libraries.
+    * New Library Entry
+      Not used. At this time, you cannot add library entries.
+    * Icons On/Off
+      Toggles between displaying library entries as icons with text or just
+      text. You can also use Ctrl+I.
+
+ Worlds Menu
+
+ This menu lists the worlds that have been visited during a session. You can
+ select one of the worlds listed to teleport back to it. NOTE: One of the
+ worlds listed here is home:ad.world - this is the ad cube world located in the
+ lower left corner of the interface. You don't want to teleport to that world!
+
+ The Options Menu
+
+ On the right side of the WorldsPlayer Interface is an Options button. Many of
+ these options are used by worldbuilders, and are listed below:
+
+    * Shaper On/Off
+      Brings up or hides the Shaper tools
+    * Display Statistics
+      Originally this was designed to allow programmers to measure the
+      performance and memory usage of the client software, however much of the
+      information here is no longer accurate as we transition to a new
+      rendering engine.
+    * Upgrade Now...
+      Tells the server to look for any new world upgrades
+    * Dimension Selector
+      This allows you to teleport to a given "dimension" on a server. Once a
+      set number of users are in a given room, new users will be put into
+      another "dimension" where they only interact with each other. It is
+      useful mostly to server programmers testing dimension capability.
+    * Sign In
+      If you are working offline, this option brings up the Sign In box so that
+      you can sign in and go online (necessary when saving shared state
+      Attributes in your world).
+    * Recorder
+      This feature allows you to record and play back your movement through a
+      world. See The Recorder Feature of the Gamma Procedures doc for more
+      info.
+    * Condense World Files
+      Condenses all the texture files in the currently open world. Used before
+      packaging a world to make the download file smaller (See Packaging Worlds
+      section of Gamma Procedures).
+    * Expand World Files
+      Expands the Content.zip (condensed texture files) of the currently open
+      world.
+    * Texture Dictionary
+      Currently not functional.
+    * Music Manager
+      This brings up a dialog box that allows you to assign music to specific
+      rooms in a world. You may specify CD tracks if you are building a room
+      designed to be distributed on a multi-session audio CD, MIDI files, MP3
+      files, or a URL to a streaming audio file in a format recognizable by
+      Windows Media Player.
+    * I18N Test
+      This just displays some sample text in the languages currently supported
+      by Worlds. It is useful to test the display of foreign languages in the
+      chat box on various systems.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ The Hierarchy of Objects
+
+ Worlds in Gamma are organized as a hierarchy, or "tree" of objects. Each
+ object has certain properties, or attributes, which may include other objects.
+ Objects may be nested within other objects many levels deep. The hierarchy
+ includes every possible aspect of a world, from the most general down to the
+ tiniest detail that you can specify. Many objects, like walls and rooms,
+ correspond to objects in the real world. Some are more abstract: for example,
+ textures and actions are also objects in Gamma. Some objects are simply
+ categories or containers to hold other objects.
+
+ At the top level of the hierarchy is the world itself. The properties of a
+ world include its URL and all the rooms contained within it. Each room in turn
+ has its own properties--including its own exterior backgrounds (potentially
+ both Sky/Ground and Infinite Background) not shared or seen from any other
+ room.
+
+ A sample portion of the hierarchy is shown in the Hierarchy Tree image below:
+
+
+
+ For efficient rendering, Gamma makes a distinction between the Room
+ Environment (the walls, portals, and any other objects on the perimeter of the
+ room) and the Room Contents, which typically contains any shapes inside of the
+ room. Although it is possible to add walls or shapes to the both the Room
+ Environment and the Room Contents, it is wise to follow the distinction as a
+ rule of thumb. You should particularly avoid putting portals in a Room's
+ Contents. See Effects of Draw Order on Speed for details.
+
+ Notice that the camera (!HoloPilot1), the invisible object that represents
+ your point of view, is a property of the Room Contents.
+
+ Viewing the Hierarchy of Objects
+
+ The central control panel of Gamma's Shaper is the Properties box (#4 in the
+ Shaper image above), where you can see the properties of every object. The
+ contents of the Properties box change whenever you select an object in the 3D
+ space or select something in the Hierarchy Tree.
+
+ To select an object, right-click any visible object in the 3D viewer and then
+ click the Edit Properties button that comes up. The properties of the selected
+ object display in the Properties box. White boundary lines identify the
+ selected object in the 3D window, and the item you have selected is
+ highlighted yellow in the Hierarchy Tree. You can also select an object by
+ clicking on its listing in the Hierarchy Tree (even if you can't see the
+ object in the 3D viewer it is selected).
+
+ Editing in the Hierarchy of Objects
+
+ When an object in the Hierarchy is selected (such as a wall), the properties
+ of that object will appear in the Properties Box. For example, you can name an
+ object by editing its Name property - double-click on " Name()" in the
+ Properties Box and an Edit Name box will appear where you can type in the
+ objects new name. Gamma gives each new object a generic name, such as Rect
+ (rectangle), plus a unique identifying number. It is very helpful to add your
+ own more descriptive labels to the objects you create. Almost all objects have
+ a Name( ) property that you can edit to name the object as you wish. The other
+ properties of objects will be covered as you go through the tutorials.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ Beginning to Build: Deleting and Adding
+
+ Deleting objects and Undo
+
+ You can't delete an object while you're inside its own Properties list (where
+ you'll be if you right-click on it). To Delete any object, select it in the
+ Hierarchy Tree (it will then have a yellow rectangle around it). Now you can
+ click the Delete button to the right of the Properties Box to actually delete
+ it. Objects that you can't right-click on (Actions etc.) can still be deleted
+ from whatever list they are in.
+
+ You can Undo most Deletes of an Object, and you can Undo transforms, movement,
+ scaling, or any other change in an Edit Box. You have several levels of Undo,
+ but no Redo. In order for Undo to work, you must have the Properties box open.
+
+ Adding Walls and 3D Objects
+
+ You create new objects by adding them at the appropriate level of the
+ hierarchy in the tree. Click on the Objects tab in the Libraries panel. Click
+ on whatever object you would like to add within the Objects Library, and drag
+ it to its place in the Hierarchy tree (For example, Room/Contents or
+ Room/Environment). The object is added to the Hierarchy Tree with a default
+ name (Rect584 for example). Once you have added an object, you can move it to
+ any position and scale it to a different size. The standard colors and
+ directions are simply a convention to help in orientation and do not restrict
+ you.
+
+ Go To: Detailed instructions for creating a wall in a room.
+
+ In addition to the standard architectural objects offered in the Shaper, such
+ as walls, floors, and ceilings, you can import objects created in other 3D
+ modeling programs. The 3D shape must be saved in an appropriate .RWX or .RWG
+ file format. Normally a shape should be included in the Room contents,
+ although it is possible to add shapes at other levels of the hierarchy. For
+ example, you could add a distant object to the contents of an infinite
+ background. You can move and scale 3D shapes just as you would walls.
+
+ Go To: Detailed instructions for creating a Shape in a room.
+
+ See also Utilizing 3D Studio Max files
+
+ Handling Objects as a Group
+
+ Sometimes it is easier to build 3D objects using the standard walls, floors,
+ and ceilings in Gamma instead of importing pre-built objects. For example, you
+ could build a table using walls for the sides and a small floor for the
+ tabletop. (Just as walls are only visible from one side, a floor is a wall
+ that is visible from above. If you were to use a ceiling for the tabletop, it
+ would only be visible from under the table!)
+
+ When you combine objects in this way, you can group them together in a
+ WObject, a virtual object that exists only as an envelope for other objects.
+ This allows you to move or scale the group as if it were a single object, or
+ Copy and Paste the Wobject as needed.
+
+ You can add an empty WObject to the contents of a room in the same way you
+ would add a shape or a wall, then add the components you want to group
+ together to the Contents of the WObject. If you decide that you want to group
+ objects after you have already created them separately, you can still add an
+ empty WObject and then cut and paste the objects into its Contents.
+
+ Naming objects
+
+ Gamma assigns an internal name to all newly created objects. The Gamma-created
+ name will be something like Rect096 or Sound442, not an easy sort of name for
+ builders to remember. Fortunately, any object in Gamma can be renamed by the
+ builder. This makes it a great deal simpler to pick out individual items from
+ a long Contents list. Each major class of Gamma object will have a Name
+ property. Just right-click the object to open up the Properties box, find the
+ Name property, double-click, and type a more practical name that you can
+ remember and that helps you better describe the object. Changes in Name will
+ also appear anyplace else this object appears in the hierarchy. For instance
+ if you change an Action's name you don't have to worry about changing that
+ Action's name in a Sensor's Target list - it's already done for you.
+
+ Go To: Detailed instructions on naming an object.
+
+ Moving and scaling objects
+
+ Most likely you're not happy with exactly where the objects end up when you
+ add them, or the size. There are several ways to adjust position, orientation
+ or size. These can be roughly divided into the "quick and dirty" category and
+ the "by the numbers" category.
+
+    Quick and dirty means using the buttons that appear on the Properties box
+ whenever an appropriate object is selected. You'll get a rough number output
+ of what you're doing with these buttons in a small box that appears on screen.
+ Remember that whatever you do, you can undo! The buttons are useful to "rough
+ in" an object and for getting a feel of the coordinate system of your room
+ while you're moving the objects around visually. The disadvantage of the
+ buttons is that it's very hard to be precise, for instance getting the scale
+ just right or getting walls to join at corners.
+
+ Go To: Detailed instructions on using these buttons.
+
+ When precision is necessary, you'll want to use either the Transform property
+ of an object or the From and To properties (listed in the Properties Box when
+ an object is selected). These can be used in a complementary way, but you
+ might want to consider these general guidelines. From and To are useful if
+ you're trying to fit an object into an existing gap and don't care about
+ distortion that might result from nonlinear scaling, and have a good sense of
+ the coordinate scheme of your room. The Edit Transform box is useful in most
+ other cases, where you can conceive of what you're about to do to your object
+ in terms of a number or coordinate, for instance "make this twice as big" or
+ "scoot this thing 50 units to the right".
+
+ Go To: Detailed instructions on From and To.
+
+ Go To: Detailed instructions on the Edit Transform box.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ Sky, Ground, and Infinite Background
+
+ In Gamma, the sky and ground always meet at a horizon that divides the screen
+ exactly in half. This is appropriate for the normal angle of view, but
+ produces a very strange effect when you use Page Up or Page Down to tilt the
+ angle of view. If you are building a closed room where the sky or ground color
+ will never be visible, you can set them both to Null by selecting them and
+ clicking Delete. If you were actually to try deleting a wall in a room that
+ has the sky and ground set to Null, the sky and ground appear black initially,
+ but as you move the camera objects in the foreground will 'paint' across the
+ null area and generally look really weird. But setting Sky and Ground to null
+ has two important advantages:
+
+   1. There's one less thing for Gamma to draw, so your frame rate will
+      increase by a small amount.
+   2. Joins of walls at corners won't appear to flash or flicker nearly as
+      much, even if they're off by a pixel. This is because when you move the
+      camera the very same painting effect is occurring in the space behind the
+      visible room and obscuring any 'holes' in your wall.
+
+ Color is pretty much the only thing about a Sky or Ground that you can change.
+ If the Sky or Ground color has been set to Null (you'll see Sky Color (null)
+ and Ground Color (null) in the Properties Box), and you double click on one of
+ these properties, you will be asked if you want to create a new instance:
+ click Yes and then you can edit the new Sky or Ground's color.
+
+ Go To: Detailed instructions on changing an object's color.
+
+ If you want to avoid the problems inherent with using the sky and ground
+ colors as a background, or you want to apply a background texture such as a
+ cloudscape, a prairie, or an ocean view to your World, you should use an
+ Infinite Background. An Infinite Background is a Room property, and is
+ essentially a room in the exterior space that surrounds the main room. As a
+ room in itself it has its own Room Environment where you can add walls, floor,
+ ceiling, and other objects. Because the scale never seems to change, a texture
+ file applied to the surfaces of the infinite background appears to recede off
+ into an infinitely distant view.
+
+ NOTE: To have the Infinite Background appear, you will need to add walls to
+ the Infinite Background and then texture the walls appropriately. If you know
+ that there's no way that a portion of the infinite background will ever be
+ visible, leave it totally blank to speed up rendering. Infinite backgrounds
+ aren't always the most efficient way to show an 'outside'. If your distant
+ view is framed by a small window, allowing limited movement and field of view,
+ you may want to fake it with a backdrop texture file applied to an environment
+ wall set behind the window, with the environment wall still located within the
+ room. This can be very effective with an intermediate object such as a railing
+ or planter to accentuate the parallax effect.
+
+ Go To: Detailed instructions on creating walls in an infinite background.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ Moving Objects in 3D
+
+ When moving objects in 3D space, it is helpful to think in terms of the x, y,
+ and z axes. For example, when an object moves in a straight line along the
+ floor, it is moving up or down the x and y axes. Turning motions are described
+ as pitch, roll, or yaw.
+
+ Pitch revolves the object around the x axis.
+
+ Roll revolves the object around the y axis.
+
+ Yaw revolves the object around the z axis.
+
+ Color and Direction
+
+ When you create a new world, color conventions identifying north, south, east,
+ and west walls help to orient you in 3D space.
+
+ Each new world opens as a simple template containing a single square room with
+ a floor that measures 1000x1000 units, a ceiling, and four walls. The wall
+ colors for each new room correspond to the directions they face. You can also
+ identify a wall by the coordinates of its bottom left corner:
+
+   Yellow   South-facing    0,1000,0
+
+   Red      West-facing     1000,1000,0
+
+   Magenta  North-facing    1000,0,0
+
+   Cyan     East-facing     0,0,0
+
+ Note: The rectangles representing the walls of a new room are always listed in
+ this order in the Properties box.
+
+ Behind these walls, there is an exterior space with a flat field of white
+ ground and black sky extending in all directions. This space becomes visible
+ when you delete a wall.
+
+ The Freedom of Virtual Geometry
+
+ The x,y,z coordinates, the wall colors, and the directional conventions all
+ apply only to a single room. Each room has its own separate coordinate system
+ and, for all practical purposes, its own compass. For example, you can connect
+ the north wall of one room to the east wall of another room. Likewise, the
+ relative size and orientation of rooms need not be logically consistent. Large
+ rooms can fit inside of small ones.
+
+ This makes it somewhat more difficult to orient yourself as you build. But it
+ means that the virtual spaces you can build are limited only by your
+ imagination, not by what is physically possible in the real world.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ Connecting Rooms
+
+ When you build additional rooms in your world, the Shaper creates them as
+ completely independent spaces. Each new room has its own environment, its own
+ exterior background, and its own coordinate system with 0,0,0 located at the
+ bottom left corner of the east [cyan] wall.
+
+ You build portals to create a doorway, a passageway, a window, or any opening
+ that allows a view between two rooms. Just like the one-sided walls in Gamma,
+ any single portal offers only a one- way view looking out from the room where
+ it was created. So, to build a realistic doorway that you can see through and
+ travel through in both directions, you must create a separate portal in each
+ room and then connect the two portals.
+
+ Portals can also be used to connect rooms in separate worlds. In this case,
+ the portal opens a connection to a different world server and the user may
+ have to wait briefly while the next world is loading.
+
+ Because each room is a completely separate environment with its own coordinate
+ system, you can also use portals to build unrealistic virtual architecture.
+ For example, going back through a doorway could lead you to a different place
+ than you came from. You could leave a room through a door on the east wall and
+ find yourself immediately entering again on the west side. Or two adjacent
+ rooms connected by portals could have windows looking out on different
+ landscapes.
+
+ Note that portals do not open a view at all unless they are connected to other
+ rooms.
+
+ Gamma does not render the portions of a room that are not visible beyond a
+ portal. For this reason, you can use portals judiciously to divide large or
+ complex rooms up into smaller units that render more quickly and speed up your
+ frame rate.
+
+ Go To: Detailed instructions for creating a new room.
+
+ Go To: Detailed instructions for creating a portal
+
+ Go To: Detailed instructions for connecting portals
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ Connecting Portals
+
+ You should create both Portals first before trying to connect them, referring
+ to each portal by name. Note that you can create the second room (and its
+ corresponding portal) while still in the first room -- to do this, add the
+ second room to the Rooms List level of the Hierarchy Tree, then add the new
+ portal to that second Room's Environment Contents, following the steps
+ outlined in Creating Portals. For details on creating a new room, see Creating
+ a New Room in the Procedures document.
+
+ NOTE: If you ever see this type of message:
+ Portal Portal331 specifies a connection to null#Room#SomePortal which isn't a
+ portal!
+
+ you have probably made an error in naming one or both of your connecting
+ portals. Double-check that you've spelled the Portal Name correctly (Portal
+ Names are case sensitive). If you've fixed any spelling errors, your Portals
+ should behave normally and the error message will disappear unless that Portal
+ really doesn't exist.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ Textures
+
+ The visual richness of a virtual world is largely determined by the use of
+ textures: bitmap art files that you apply to surfaces. You can apply texture
+ files to walls, floors, ceilings, and holograms. (The texture of a shape built
+ in another 3D modeling program should be applied before you import the shape
+ into Gamma.)
+
+ You can use a single image to fill a wall surface, or you can tile an image to
+ repeat it at any scale. You could design the facade of a building as a single
+ image if the architectural detailing does not lend itself to repetition. You
+ might want to repeat an image only twice for a symmetrical effect, or a few
+ times for a panelled style. Or, you can repeat smaller tiles many times for
+ effective floor patterns, carpeting, wallpaper, brick walls, and many other
+ possible styles.
+
+ You should create all your texture images at 128x128 pixels. This is the size
+ that Gamma requires, and images of other sizes will be scaled to 128x128
+ automatically if they aren't stored in this size, sometimes with unpredictable
+ results. There are higher resolution options available in which case your
+ textures could be 128x256, 256x256, or 256x128. However, use hi res images
+ sparingly - they will slow down the navigation through your world if you use
+ too many.
+
+ See Designing for Performance
+
+ Go To: Detailed instructions for applying textures to an object.
+
+ Tiling
+
+ When the Shaper imports a texture file, it automatically scales it to fit the
+ wall exactly with one image, changing the aspect ratio as necessary. By
+ changing the tile size, you can scale and repeat the image. The default tile
+ size is described as [0,0] regardless of the size of the wall. Any other value
+ you set represents units of width by units of height. For example, when using
+ a wall sized 1000 wide by 240 high, a tile size of [250,120] repeats the image
+ four times across and twice vertically.
+
+ You can also set one value only, if you wish, and leave the other at 0. For
+ example, a tile size of [0,120] on the same standard wall will apply the image
+ as two stripes across the full width of the wall.
+
+ The Shaper includes a Library of sample textures that you can practice with.
+ You can also add your own images to the Library, making it especially easy to
+ access and preview them. See Using Libraries for more details.
+
+ Go To: Detailed instructions for changing the default tiling of a texture.
+
+ Colors
+
+ You change the color of an object by specifying a mix of red, green, and blue.
+ Walls that use color rather than texture allow Gamma to run at a faster frame
+ rate. If you have built complex rooms that are running too slowly, you may
+ want to use color rather than texture for walls that are not visually
+ prominent.
+
+ For exterior spaces, you can set the color of the sky and ground but you
+ cannot apply textures to them. If you want to use a texture for distant views
+ in exterior space, you must use an infinite background. See Sky, Ground, and
+ Infinite Background for more details.
+
+ Go To: Detailed instructions for changing the color of an object.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ Lighting
+
+ The Shaper offers three different types of lighting that affect the texture or
+ color of an object. Objects that contain lighting parameters (such as
+ rectangles) can be edited in their Material Properties list, as follows:
+
+    * Ambient Reflection Coefficient sets the general level of reflected light
+      off of the object's material. If the Ambient light is set at it's highest
+      (.75) then Diffuse and Specular lighting will not work.
+    * Diffuse Reflection Coefficient sets the level of the darkest shadows.
+    * Specular Reflection Coefficient sets the level of highlights.
+
+ The color and direction of the light source can also be changed. See Light
+ Source Direction and Light Color listed in the properties of a Room (click on
+ the Room name in the Hierarchy Tree for the Room Properties to appear in the
+ Properties Box).
+
+ You may also want to consider using textures specially created for lighting
+ effects. For example, a pool of light under a lamp can be added as a texture.
+ You can also use animation for lighting effects such as firelight.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ Holograms: a 3D object with only one side
+
+ A hologram is a fake 3D object. It sits there looking like a 3D object, and
+ you can move around it and view it from all sides. A Hologram is a series of
+ images in a list, each image a different view of the object. A hologram can
+ have as many "sides" as you want - for example, the holographic avatars have
+ anywhere from 2 to 8 sides. When you walk up to a hologram, a different side
+ faces you depending on your orientation to that object. Holograms can be very
+ effective production shortcuts because they are usually simpler to create than
+ true 3D objects and they have less impact on frame rate. They are most
+ suitable for representing objects that are symmetrical on a vertical axis, or
+ unobtrusive background fixtures. A tree, a column, a bush, a post, or a bottle
+ can all be effective as holograms.
+
+ A hologram is a .mov file that you make from the series of .bmps that make up
+ the different sides.
+
+ Go To: Detailed instructions on creating a Hologram.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ Using Libraries
+
+ Libraries are browsable catalogs of
+ objects. You use Libraries to easily add
+ objects and behaviors to your 3D worlds.
+
+ Several standard Libraries are provided in    [Objects Library]
+ Gamma, organized in the following             A sample of what's in the
+ categories:                                   Objects Library
+
+    * Objects
+    * Behaviors
+    * Textures
+    * Actions
+    * Attributes
+
+Go to the Libraries section of the Gamma Procedures document to see a
+complete listing of all the Library catalogs and how to use the them.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ Behaviors and Actions
+
+ Behaviors and actions are what makes Gamma more than just a glorified CAD
+ program. They allow you to add movement to your objects, build in custom
+ logic, provide interactivity and make your world an exciting and dynamic
+ place. The distinction between behaviors and actions has to do with how they
+ will start running. A behavior needs no sensor, because it will start acting
+ as soon as you create that behavior in an object, and won't stop until you
+ replace it with another behavior or exit the world. By contrast, an action
+ requires a sensor that will start it acting. This allows you the flexibility
+ to have the action start on some world-specific logic that users can start
+ themselves, for instance when they click on something. Or you can pause
+ running actions and resume them later. Actions aren't just movement, either:
+ they include some basic scripting and multimedia capabilities as well.
+
+ Actions and behaviors are customizable as Java programs. In order to create an
+ action or behavior that will interact properly with other objects, you need to
+ know the Gamma object hierarchy, the underlying methods of related classes and
+ a fair amount of Java programming. But it can be done. Some of the actions
+ included in the Library were written by programmers other than the primary
+ Gamma programmers, after only a few weeks of exposure to Gamma and Java. The
+ compiled versions of actions show up in the GDK as .CLASS files, so if you do
+ compile your own actions you'll need to give them this extension. Note:
+ writing custom behaviors is beyond the scope of this document.
+
+ Go To: Detailed instructions for adding a behavior to an object
+
+ Go to: Detailed instructions for adding an action to an object
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+ Designing for Performance
+
+ Here are tips for designing worlds that render quickly in Gamma. All times are
+ for a Dell P133 with Matrox Millenium, 8-bit color, running the new Worlds
+ console at 640x480 (i.e. the rendering window is quite a bit smaller than
+ 640x480).
+
+ Rules of Thumb
+
+ These rules are derived from the facts&figures section below.
+
+   1. Put more into the environment.
+   2. Prevent overdrawing.
+   3. Use faster surface types.
+   4. Use CD, then music, then sound.
+   5. Use fewer objects.
+
+ Put More Into The Environment
+
+ The number one reason for slow spaces is having objects in the contents of the
+ rooms, rather than in the environment. The difference is that z-buffering is
+ permitted when Gamma renders the contents, and z-buffering is sloooow.
+ Theoretically, z-buffering should impact your frame times only when
+ intersecting objects (not on the display; intersecting objects are those whose
+ axis-aligned 3d bounding boxes overlap) are rendered.
+
+ Prevent Overdrawing
+
+ The second big reason for slow worlds is too much overdrawing. Overdrawing is
+ when a pixel on the display is painted by the renderer multiple times. The
+ renderer works by first drawing the farthest-away objects, then the nearer
+ ones, so that the farther ones are covered by the nearer ones. This is called
+ the Painter's Algorithm (PA), after the way oil-painters work. PA can result
+ in a particular part of the screen being repainted multiple times, for
+ instance first by the sky, then by a cloud image, then by a wall obscuring the
+ cloud, then by a bookcase between the viewer and the wall, and so forth.
+
+ Such overdrawing drastically increases frame times. The number of pixels
+ painted is the primary determinant of the speed of rendering, so if every
+ pixel on the screen is painted twice, the frame time will be twice as long.
+
+ You might think, along the lines of the oil painter analogy, that the system
+ will not paint the entire background before covering it up with the foreground
+ stuff. Why should it? An oil painter wouldn't bother with huge parts of the
+ background that'll just be covered up. But Renderware doesn't work that way.
+ It paints every little bit of every background item before moving on to the
+ closer items.
+
+ The first step is to turn off your sky and ground colors. These paint over the
+ entire screen, which is almost always partially or entirely covered by walls
+ and floors and other images. If the sky or ground can't be seen, there's no
+ reason to paint it! And even when part of it can be seen, there's often no
+ reason to paint all of it. In some cases, such as with enclosed gardens, it
+ might make sense to use a sky-colored surface as a ceiling rather than using
+ Gamma's sky color feature, as it'll look the same and won't overdraw all those
+ pixels behind the garden walls. Getting rid of sky and ground colors gains a
+ relatively small savings in frame time, but it's easy to do so it's a good
+ place to start.
+
+ Your most powerful tool for overdraw prevention is the portal. Portals tell
+ the system to draw only a limited screen rectangle full of pixels, no matter
+ how large the room on the other side of the portal. It provides the world
+ designer with control over how much of the background is to be drawn. The most
+ direct way to use this is in considering a room to be two rooms. Often a large
+ room with internal walls will render more quickly if broken into separate
+ roomlets at the internal-wall boundaries. The internal walls then become
+ external walls for the roomlets. In general, internal walls should trigger
+ your overdraw-avoidance instincts, as they "cover up" other parts of the room,
+ exactly what you're trying to avoid.
+
+ Another similar case is when doing an outdoors scene. Often there will be an
+ indoorish courtyard or hall, over the top of which one can see a distant
+ vista. When done as a single room, this results in overdrawing of the
+ courtyard walls over the vista. The solution is to make two rooms: one for the
+ courtyard, and one for the "background" room, connected by portals set above
+ the courtyard walls. This way, there is never any overdraw.
+
+ Sometimes one wants to make partially see-through walls. These guarantee
+ overdraw of the entire wall, a disaster for performance seekers. A partial
+ solution is to arrange the holes in the see-through wall in clusters, and to
+ put a portal behind each hole or cluster, as "windows" to another background
+ room. This avoids overdraw of the nontransparent parts of the wall. There is a
+ per-portal cost, so one can't add portal windows willy-nilly, but it's usually
+ possible to design a good compromise so that a few portal windows can cover
+ all the holes efficiently, with little overdraw.
+
+ Remember that the transparent part of a see-through wall takes some time to
+ draw, it's not free. So an almost-entirely transparent wall is more costly
+ than a few well-positioned smaller walls, with empty space in between. Uses
+ less RAM for the images that way, too. This means that it's best to either
+ have lots of holes, so that the surface can be instead represented as a few
+ small surfaces with lots of uncovered space between them (therefore there's
+ little overdraw), or to have a surface with few holes so that a few portal
+ windows can service them, again giving little overdraw. The worst situation is
+ a half-covered surface, with holes all over the place (like a latticework),
+ because neither solution works so one is stuck with a large area of overdraw.
+
+ A portal hidden completely by a wall is overdrawn in the same way. Since
+ portals are even more slow (slightly) than regular objects, overdrawing one of
+ them is particularly wasteful. The situation in which this occurs is when one
+ has a door that opens and closes, and when closed the portal is covered up.
+ The solution is to make the portal invisible, using a behavior, when the door
+ is closed, and make it visible again when the door is opened.
+
+ Summary:
+
+    * Turn off sky and ground colors.
+    * Break rooms with internal walls into roomlets with only external walls.
+    * Use portal windows for see-through textures.
+    * Turn off portals behind doors.
+
+ Use Faster Surface Types
+
+ The first rule mentioned above, namely use environment rather than contents to
+ avoid z-buffering, is a special case of a more general rule: use the fastest
+ types of surfaces you can. See the table in the facts&figures section below
+ for a detailed list.
+
+ Rule #1 is #1 because z-buffered are by far the most costly type of surface:
+ one z-buffered wall can ruin your whole frame time. But there is another
+ important rule that can be divined from the table: try to use untextured
+ (solid) surfaces. Solid surfaces are so fast in comparison to textured ones as
+ to be practically instantaneous. Every 10% of your user's screen that is drawn
+ using solid surfaces rather than textured ones will make your frame time
+ almost 10% faster.
+
+ The trick is to integrate solid surfaces into your world without making it
+ look primitive and CAD-like. Try using solid surfaces sparingly, such as at
+ the junctures between wall panels or in alternation with textured walls, to
+ keep the textured look while getting a few tens of percent of speed increase.
+
+ Avatars are an area where there are several choices of surface. One can use
+ solid-colored models, simple or complex, holograms, or textured models. The
+ choice is important because avatars are always overdrawn, so they can slow
+ frame times a lot if one isn't careful. The fastest choice is solid-colored
+ simple models. We're all sick of boring choices like cubes and pyramids, but
+ by adding animation as spice these can become a lot more interesting. A
+ rotating, morphing starfish/pyramid could be as interesting as a hologram.
+ Animation adds practically nothing to frame times but can enliven avatars
+ immensely. The next fastest choice is a hologram, followed closely by a
+ complex solid-colored model, but both of these are much much slower than the
+ first choice.
+
+ Summary:
+
+    * Avoid z-buffering!
+    * Use untextured walls.
+    * Use untextured but interesting models for avatars.
+
+ Use CD, Then Music, Then Sound
+
+ Gamma uses almost zero processor time to play music off of a CD: 0.5 ms.
+ Playing an uncompressed .wav or a .mid file uses 10ms or 11.5ms respectively,
+ still acceptable. Playing a GSM compressed .wav takes much more, and
+ additional 60ms every couple of frames, causing significant jerkiness.
+
+ Running a conversation through a background vocaltech program adds an
+ additional 13ms while doing nothing, plus 10ms more (23ms total) if you are
+ listening or talking to someone, plus peaks of even more.
+
+ Use Fewer Objects
+
+ Gamma's collision detection works best in rooms with fewer than 40 objects.
+ Since everything inside a .rwx file is treated as a single object, you should
+ be sure to group all the parts of a single object within one rwx file where
+ possible, rather than splitting the object into several parts that are each a
+ Gamma object.
+
+ One of the biggest costs of having too many objects is that whenever you move,
+ Gamma's collision detection looks at all the objects in a room to see if
+ you've collided with them. If you can't move the objects into rwx files, the
+ next best thing is to mark most of the parts of the objects as non-bumpable.
+ Be sure to mark not-present objects (those that you have marked as invisible
+ until an action makes them appear) as non-bumpable too, unless you
+ specifically want the user bumping into something invisible.
+
+ For objects with polygons, there is a per-polygon cost. For objects over 1000
+ polys, far-away objects take almost as long as close-up objects (until they
+ start filling appreciable portions of the overall view window, which doesn't
+ usually happen for most objects). The formula on a P90 is that far-away
+ objects take 7ms + 7 per 1000 polys, and somewhat close objects (avatars at
+ typical viewing distance) take an additional 16ms. If the polygonal object is
+ used in an articulated avatar, there is an additional 14ms for the background
+ animation processing that is always going on, whether the object is in view or
+ not.
+
+ What these polygon timings mean is that you probably don't want to use more
+ than a few thousand polys total. And since the cost is almost as high for
+ far-away (very small) objects, design your worlds so that few high-polygon
+ objects are visible at the same time.
+
+ Facts and Figures
+
+    * 8ms overhead per frame.
+    * 0.5ms/object-in-room extra overhead when the camera is moving.
+    * Different surface types, for drawing a regular screenful:
+         o 5ms -- untextured (solid) surface
+         o 8ms -- transparent surface
+         o 10ms -- 100-polygon untextured model
+         o 15ms -- face-on textured plane from an rwx.
+         o 22ms -- facer or face-on textured wall
+         o 28ms -- 1000-polygon untextured model
+         o 32ms -- textured surface
+         o 60ms -- zbuffered textured surface
+    * up to 0.3ms/off-screen image, 0.4ms/hologram, in a visible room.
+    * Times for minimally visible objects:
+         o less than 0.5ms/rect or hologram.
+         o 2ms/portal in addition to the costs for the far-side room.
+         o 5ms/venus (1000-polygon model), 7ms if partially clipped.
+
+[Top of Page]
+  ------------------------------------------------------------------------
+
+Updated 02/15/01   GDK 1848        All Content © Worlds.com, 2001
+
+

@@ -1,0 +1,918 @@
+Building Gamma Worlds
+
+
+Back to Gamma info index page. 
+
+This document contains all sorts of information you don't need to know, mixed in with what you do need to know. Read the
+first two sections to get started, then skip to whichever section applies to you. 
+
+Setting Up to Use World-Builder Commands
+
+Many of the commands mentioned in this document are .bat files in the gdk's bin directory. Many of these require that the bin
+directory be mentioned in your PATH statement. 
+
+To use these properly, edit your C:\AUTOEXEC.BAT file and look for the last "set PATH=blah" statement. Change this to
+"set PATH=c:\gdk\bin;blah", changing the c:\gdk part to the location of the gdk on your machine. Then reboot the machine. 
+
+Now the commands max2rwx, bodtorwx, compit, and so forth will work correctly from any directory on your machine. 
+
+
+Directory Structure
+
+Build your world in a directory separate from your GDK directory: that way you'll be sure to get all the paths right. A common
+error is to have worlds refer to files in "home:". Since "home:" means the directory that Gamma is run from, off the hard disk,
+using this dooms your world to run only from the hard disk. 
+
+
+Content Files
+
+Gamma worlds are represented by .world files, that in turn refer to many other types of files: .wav sound files, .cmp, .bmp, .jpg
+texture files, .mov hologram files, and .rwx or .rwg model files. 
+
+These files are located at URLs relative to the .world file's URL. Where they refer to subfiles (for instance, .rwx files refer to
+textures that must be in .bmp files, and .rwg files refer to textures that must be in .cmp files), the subfiles are located in the same
+directory as the referring file. 
+
+Gamma uses an extended URL system to refer to different types of files that it uses, by using special protocol specifier fields in
+the standard URL syntax. For instance, "home:file1.rwx" means that file1.rwx is in Gamma's home directory, the directory
+where Gamma is installed on the local machine. The special Gamma URL protocols specifiers are: 
+
+     home: the directory where the gamma being used (and its library) is. 
+     file: the current directory, the directory where Gamma was started. 
+     http: the usual URL protocol for a file out on the net, whose path must start with "//". 
+     avatar: standard database of avatars at worlds.net. 
+     rel: an absolute url string follows, including _its_ protocol specifier. rel: is just an indicator that the following absolute url
+     should be saved and displayed in relative form where possible. The rel: format is used for intermediate storage of such
+     relative urls when there is no applicable base URL to which to relate them. 
+     session: a name that means something only in memory, during this session. Used by World. 
+     error: prepended to invalid URLs to allow passing them around as URLs in internal processing. 
+     system: an item defined by the system rather than as a file, as a system cursor or a .class file in the classpath. 
+     worldserver: Gamma multiuser server protocol. See Console. 
+     whatever: anything desired, controlled by ini file [protocol] entries. Allows a user to create aliases for other URLs. 
+     c: or any single letter giving a local drive letter, used only in unnormalized URL strings; in normalized ones "file:" is
+     prepended. In all forms the colon must be followed a / or \. 
+
+Note that rel: and error: are unusual in that they add a twist to the meaning of a URL; unlike the others, these don't affect the
+interpretation of which file is being referred to. 
+
+Gamma has some bugs in its use of textures. All textures are loaded into the internal texture dictionary according to their url
+basename, ignoring path or extension. Case is ignored. Therefore when a world B uses a texture whose basename is used by
+previously loaded world A, then world B wrongly uses world A's copy of the texture. Also, when using masks in .rwx or .rwg
+files, Gamma will apply the mask to the appropriate texture, whether or not that texture is used elsewhere without the mask. If
+the texture is supposed to be displayed elsewhere without a mask, it'll be displayed incorrectly. 
+
+You can avoid the mask problem by using different copies of a texture for each differently-masked use of that texture. For now
+the best way to avoid the texture-basename-collision problem is to use a 3-character world-id as the first 3 letters of your
+textures' basenames. Someday Gamma will be enhanced to automatically distinguish between same-basename textures whose
+url paths differ. 
+
+
+Models and Textures
+
+While creating a world, it's most convenient to use .rwx files for models, and .bmp files for textures. These formats are too large
+for final use; instead use rwx2rwg.exe to convert models to .rwg files, and use compit and its variants to convert textures to
+.cmp files or .mov files. 
+
+To produce a .cmp from a .bmp file like file.bmp, use the command: 
+
+ 
+
+    compit file
+
+The result is a file.cmp that Gamma can load in place of the original .bmp. Gamma will always scale the image to 128x128
+internally, so any higher resolution you use for the input .bmp will just be wasted. 
+
+"compit" is a .bat file in the bin directory, you can look at it to see which options it uses with compimg. You may run compimg
+by hand to change these; for instance, you could run it with the -l0,0 option instead of the default, in order to use less
+compression and get a higher-quality final image. Note however that the default is chosen as the usual best compromise of
+quality and file size. 
+
+If your image has transparency, use: 
+
+ 
+
+    compit file -t
+
+This uses the color of the image's upper-left pixel as the transparent color; any matching pixels are flagged in the cmp as
+transparent. The resulting cmp can take the place of a .bmp texture with a .bmp mask, in an rwx file; in fact, when producing an
+rwg from an rwx, you must convert any texture+masks to single cmps-with-transparency. 
+
+To convert high-res images (images that have 256 pixels in one or both dimensions) into Gamma-approved 128x128 pieces,
+use one of the following .bat files: 
+
+ 
+
+    comp2h file    <-- Splits 256-wide x 128-tall into side-by-side pieces.
+
+    comp2v file    <-- Split 128-wide x 256-tall into top-and-bottom pieces
+
+    comp2h2v file  <-- Split 256x256 into four pieces in a 2x2 arrangement.
+
+If your .bmp is odd sized (i.e. not an even multiple of 128), you'll need to use a hand-crafted compimg call instead of one of
+these .bat files, since the different size will throw off the crop amounts that these use. 
+
+Each of these produces a single file called file.mov containing all the pieces. Load the image into the Texture of a Rect in
+Gamma as follows: add 2h*2v* to the basename. For instance, use the texture name "file2h*2v*.mov" to cause the output of
+comp2h2v above to be loaded into a Rect. Or use file2v*.mov to use the output file.mov from comp2h above. You may use
+these names when animating Rects, too. 
+
+If your image has transparency, you can add the -t option to the above. For instance, "comp2h file -t". This uses the color of
+the pixel in the upper-left corner of the image as defining tranparent color. 
+
+In rwx files, one can refer to textures without an extension, in which case the .bmp of that name is used. Or one can specify an
+extension, in which case any of bmp, cmp, jpg, or gif can be used. However, mask textures in rwx files must always specify a
+.bmp extension. 
+
+
+Holograms
+
+A hologram is a multisided flat texture, which is created by supplying a set of images, one for each side. There are several ways
+to specify a Hologram's image file(s). 
+
+First, you can specify a single .cmp file. This makes a one-sided Hologram, colloquially known as a facer. This is useful for
+radially symmetric objects, that look the same from any angle. It's the cheapest, quickest way to make a 3d-looking object.
+This .cmp name can be a high-res name using the "file2v*.cmp"-type naming system mentioned in the section above, which then
+uses multiple .cmp files as the parts of the single image. 
+
+Second, you can specify a set of .cmp files, one for each side of the image. To do this, make a name like "file2s*.cmp". The
+digit specifies the number of sides. The files actually loaded are file1.cmp, file2.cmp, etc. This may be used in conjunction with
+the high-res naming system; for instance, the name "file2s*2v*.cmp" causes the files file111.cmp and file121.cmp to be used for
+the two parts of the first side, and file211.cmp and file221.cmp to be used as the two parts of the second side. That is, the first
+of the three ending digits is the side number, and the last two digits are the vertical and horizontal segment numbers for the
+high-res feature. 
+
+Third, the most commonly useful method is to make a .mov file that contains one image per side, or if hi-resolution, multiple
+images per side. The easy way to do this is to use the hiresmov.bat program. To use this, you'll have to be sure to first add your
+gdk\bin directory to your PATH in c:\autoexec.bat, and reboot your machine, if it isn't already there. Then, name your images
+starting with name1.bmp, such as name2.bmp, etc. Then run: 
+
+ 
+
+    hiresmov name1.bmp
+
+This produces a file name.mov; the last line printed by the command shows you the proper syntax to use in Gamma when using
+this mov in a hologram. For instance, it might say: 
+
+ 
+
+    Use name.mov in a Hologram as name5s*2h*2v*.mov.
+
+The mov is made with a default lossiness value of -l7,5. This is a good compromise value for most purposes, but if you'd like a
+higher quality image at the expense of file size, add a different value to the line, in double quotes, like this: 
+
+ 
+
+    hiresmov name1.bmp "-l5,3"
+
+Fourth, you can make a .mov file "by hand", by using compimg directly rather than having hiresmov.bat do it for you. Use a
+command like: 
+
+ 
+
+    compimg -c255 -r0 -f0 -l7,5 -t -ow -emov -Mavname +avname.lst
+
+This uses a text file called avname.lst that lists the .bmp files that will be converted into cmps within the .mov, to produce the file
+avname.mov. Here's an example avname.lst file: 
+
+ 
+
+   avname1.bmp
+
+   avname2.bmp
+
+   avname3.bmp
+
+   avname4.bmp
+
+There is more detailed information in the loading speed document. 
+
+To use a high-res mov file, you must supply cropping information, with numbers appropriate to the -C compimg option on each
+line. You must also duplicate lines in the avname.lst file to match. For instance, to split each 128x256 bmp into two vertical
+pieces, you could use this crop.lst file: 
+
+ 
+
+   0,0,0,128
+
+   0,128,0,0
+
+   0,0,0,128
+
+   0,128,0,0
+
+   0,0,0,128
+
+   0,128,0,0
+
+   0,0,0,128
+
+   0,128,0,0
+
+and this avname.lst file: 
+
+ 
+
+   avname1.bmp
+
+   avname1.bmp
+
+   avname2.bmp
+
+   avname2.bmp
+
+   avname3.bmp
+
+   avname3.bmp
+
+   avname4.bmp
+
+   avname4.bmp
+
+Add the option -CLcrop.lst to the command line to compimg use this crop.lst. 
+
+
+Articulated Avatars
+
+To be an articulated avatar, a model must be in .bod format, and be be stored in the avatars subdirectory; they aren't currently
+loadable over the network. The .bod file is made from a .rwx using rwxtobod, for instance "rwxtobod amy" makes amy.bod
+from amy.rwx. 
+
+The .rwx file must use y as its height dimension, and use units of 1 unit = 10 meters. This is the ActiveWorlds avatar format. 
+
+The avatar must have the following hierarchical structure of clumps, each of which is identified by a comment line in the rwx, in
+the standard form put out by the 3DS Max converter to rwx. For instance, the pelvis clump must be preceded by the line "#
+pelvis". 
+
+ 
+
+P   pelvis
+
+B     back                 <-- front and back of abdomen
+
+N       neck
+
+H         head
+
+L       lfshoulder         <-- left upper arm
+
+M         lfelbow          <-- left forearm
+
+O           lfwrist        <-- left hand
+
+R       rtshoulder         <-- right upper arm
+
+U         rtelbow          <-- right forearm
+
+V           rtwrist        <-- right hand
+
+I     lfhip                <-- left thigh
+
+J       lfknee             <-- left calf
+
+K         lfankle          <-- left foot
+
+W     rthip                <-- right thigh
+
+X       rtknee             <-- right calf
+
+Y         rtankle          <-- right foot
+
+Z     tail
+
+Any of the above clumps (except the pelvis) may be left out, in which case the system assumes that part is missing. But an
+in-between clump can't be left out -- e.g. if you have a head clump, you must also have the neck clump. 
+
+The letters at the start of each line in the above table are used in the custom av language described in the next section. 
+
+All joint matrices should be identity matrices, since the system overwrites them internally when doing animations. The Container
+clump should have an identity transform matrix, since the system overwrites this when setting the figure's position and orientation
+in a space. The transform matrix for each clump may be defined. If the overall figure needs to be scaled, set the scale in the
+diagonal values of the pelvis transform matrix. 
+
+When the figure is loaded, its bounding box will be used to position it so that its lowest point touches the ground. If you want
+the figure to float above the ground, make a dummy triangle below the figure to force the rest of the figure to be higher up. See
+BIRDE.RWX for an example of this. 
+
+
+Custom Avatar Language
+
+The name of the avatar is a special "language" that allows Gamma to substitute different body parts in making a custom av. You
+can change your avatar by modifying the Avatar property of the Console in the Shaper. A custom avatar name must always use
+the form "basetype.0code.rwg". basetype is one of the existing base avatars, and controls which set of actions your avatar will
+have. code is a sequence of letters, made up of one subsequence for each limb one wishes to modify from its default for that
+basetype avatar. Each limb subsequence starts with one of the letters from the table in the above section, for instance P for
+pelvis. 
+
+Each limb subsequence consists of the following options: 
+
+ 
+
+    C: color, followed by either _ and a capital letter for a mnemonic color
+
+        code as listed in following table, or by three letters giving the
+
+        RGB value in base 64 from the alphabet -0-9a-zA-Z+.  For instance,
+
+        C_R is red, and C--Z is a blue.  C__ is a special code that means to
+
+        use the original material for the object; it doesn't work in
+
+        animation sequences since it just means "don't replace".
+
+        
+
+            _A black        
+
+            _B blue         
+
+            _C brown        
+
+            _D red orange   
+
+            _E pale pink    
+
+            _F bright green 
+
+            _G green        
+
+            _H dark blue    
+
+            _I blue purple
+
+            _J light blue
+
+            _K dark pink
+
+            _L light green
+
+            _M pale orange
+
+            _N dark grey
+
+            _O orange
+
+            _P pink
+
+            _Q purple
+
+            _R red
+
+            _S burgundy
+
+            _T teal
+
+            _U light grey
+
+            _V violet
+
+            _W white
+
+            _X golden yellow
+
+            _Y medium yellow
+
+            _Z light yellow
+
+            
+
+    T: texture, followed by a lowercase texture file name, for instance
+
+       Ttexa loads the file avatar:texa.cmp.  If the T is followed by a
+
+       number, it represents a frame of an mov file, and the number is the
+
+       frame number, 1 for the first frame.  Otherwise the texture is a cmp
+
+       file.  Next comes the texture file name, which must consist entirely
+
+       of lowercase letters.  The texture name may be left out, in which
+
+       case the last texture name given previously in the avatar string is
+
+       used, or the basetype if there is no previous texture name.  So in
+
+       the avatar amy.0PT1HTZT5sam.rwg, the pelvis uses the first frame of the
+
+       file amy.mov, the head uses the file amy.cmp, and the tail uses the
+
+       fifth frame from the file sam.mov.
+
+       
+
+    S: scale, followed by three letters from the alphabet z-a0A-Z, that give
+
+       the scale in x, y, and z.  y is the height/length dimension, x is the
+
+       width.  Lowercase letters shrink, uppercase letters grow.  If you
+
+       scale a limb, any hierarchically-derived limbs are scaled accordingly.
+
+       To restore such a child limb to normal use, use the corresponding
+
+       other-case letter: for instance, S0b0 is counteracted by S0B0.
+
+       
+
+    G: followed by body type name consisting entirely of lowercase letters,
+
+       for instance Ghabib.  This example loads this
+
+       limb and hierarchically dependent ones from the habib.bod body file.
+
+       A number may follow the G to identify a non-standard body type by
+
+       tag number: for instance, RG15amy means to use Amy's leg part as
+
+       a right shoulder.  The tag numbers used here are:
+
+       
+
+            pelvis => 1
+
+            back => 2
+
+            neck => 3
+
+            head => 4
+
+            rtsternum => 5
+
+            rtshoulder => 6
+
+            rtelbow => 7
+
+            rtwrist => 8
+
+            rtfingers => 9
+
+            lfsternum => 10
+
+            lfshoulder => 11
+
+            lfelbow => 12
+
+            lfwrist => 13
+
+            lffingers => 14
+
+            rthip => 15
+
+            rtknee => 16
+
+            rtankle => 17
+
+            rttoes => 18
+
+            lfhip => 19
+
+            lfknee => 20
+
+            lfankle => 21
+
+            lftoes => 22
+
+            back2 => 23
+
+            tail => 24
+
+            mouth => 25
+
+            nose => 26
+
+            lfear => 27
+
+            rtear => 28
+
+            back3 => 29
+
+            tail2 => 30
+
+            tail3 => 31
+
+            tail4 => 32
+
+       
+
+    0-9: A sequence of digits identifies a subclump within the limb, and all
+
+       further commands affect that subclump rather than the main limb clump.
+
+       These subclump control strings must occur in increasing order; that
+
+       is, H2C_R3C_G is ok, but H3C_G2C_R is not.
+
+       
+
+       The subclump ordering is determined by rwxtobod when it creates the
+
+       limbs in the bod file.  A subclump is made for each separate color
+
+       used in the original clump in the rwx file.  The clumps are sorted
+
+       so that any with textures come first, in alphabetical order, then
+
+       so that those with brighter colors come first, then so that those
+
+       with more polygons come first.
+
+    
+
+    Q: quote.  A no-op character, useful to separate variable length commands
+
+       like Tname from lower-case letter material references a-z, or to do
+
+       similar separation before numerically-specified subclumps.
+
+       
+
+    D: followed by a single character that gives a delay amount.  Used in
+
+       conjunction with multiple color or texture (collectively known as
+
+       material) definitions to specify an animation sequence for a limb.
+
+       Normally the last material specified is shown; then the animation
+
+       starts, interpreting the sequence of D and material commands.  For
+
+       instance, the sequence DeT2D3T3T2T1 shows texture frame 1 to start
+
+       with, then waits "e" time units, then shows frame 2, then waits "3"
+
+       time units, then shows frame 3, then waits the default number of time
+
+       units between showing frame 2 and then frame 1, and starting over.
+
+       
+
+       The time units are on an exponential scale from the default of
+
+       1/20 sec, through the base64 alphabet -0-9a-zA-Z+ using the
+
+       equation 1.0932**val - 0.9.  Using this system, 0-9 are approximately
+
+       in tenths of second increments, a-z are approximately seconds, and
+
+       A-Z are longer delays, up to about five minutes for +.  Multiple
+
+       successive D commands before a material are additive.
+
+       
+
+    a-z: Lowercase letters are a compression technique: they refer to the
+
+       corresponding material defined earlier in the string.
+
+       "a" means the first C/T color/texture definition in the
+
+       overall string, "b" the second, etc.  Forward references are allowed.
+
+ 
+
+Examples: aura.NC_R.rwg <-- aura with a red neck.
+
+          aura.NS0G0.rwg  <-- aura with a tall thin neck and head.
+
+          aura.HGhabibOC_RVa.rwg <-- aura with habib's head and red hands.
+
+ 
+
+Creating customizable avatars
+
+ 
+
+In order to make avatars that are customizable via the Gallery of Metamorphics (WearWalls) and the Customize Avatar dialog
+box, the name you create must follow even stricter guidelines than those presented above.
+ 
+First, you need to indicate which textures are modified by the various buttons on the Gallery of Metamorphics.  You do this by
+including a prefix on the name that associates textures with each of the body parts that may be modified in this way.  This
+“prefix” must immediately follow the period after the avatar name, and begin with the identifier “0E”.
+ 
+After 0E, specify materials (textures or colors)  for the following body parts, in this order:
+ 
+
+   a.skin 
+   b.shirt 
+   c.coat 
+   d.dress 
+   e.pants 
+   f.hair 
+
+ 
+You should then refer to these textures by their alphabetic abbreviation.
+ 
+For example,
+0ET7fdaT3fdaT2fdaT6fdaT3fdbT1fdb
+ 
+Specifies that by default, frame 7 of fda.mov is the skin texture, frame 3 of fda.mov is the shirt texture, etc.  When a user
+changes the skin texture, any reference to material “a” will then be replaced by whatever they selected.
+ 
+In order for the WorldsPlayer to allow customization of head sizes, the neck and head must be the last parts specified in a
+name.  The neck must start with “NS000” to specify a neck of default scale; the user may then modify this scale value. 
+Immediately after the neck’s scale and material, specify the head with a section that starts with “HDg” followed by the face
+texture(s).
+ 
+Here’s a complete example for Aura’s customizable avatar name:
+ 
+aura.0EC__C__C__C__C__C__LcMcOaRcUcVaWdXdYIdJdKBbPeNS000QaHDgT2auraT3T2T1Q0f.rwg
+ 
+This string specifies that the six customizable materials initially use the flat-shaded color stored in the model.  These materials
+are then referenced by individual body parts, to allow customization.  Note the “NS000” and “HDg” tags that are used to
+identify the neck and head.
+
+Integrating New Avatars into WorldsPlayer
+
+ I have this beautiful new articulated avatar that I want in Worlds.  How do I get it up and running?  It’s possible to distribute
+new avatars to end users without distributing a new WorldsPlayer; just follow these steps:
+ 
+
+Preparing texture maps
+
+ 
+First, you need to organize your texture maps and convert them to our compressed .mov format.  .mov files may contain up to
+ten textures apiece, so if your avatar requires more than ten texture maps, you’ll have to create multiple mov files.
+ 
+In order to make it easier to implement changes and tweaks to your textures, it makes sense to set up a batch file to automate
+the conversion of your source texture map images to .mov format.  Create a batch file, “movit.bat” for example, that contains:
+ 
+Compimg –ace –c255 –pt –r0 –l5,3 –Xd1128 –Yd128 –emov –M%1.mov +%2
+ 
+Now, for each set of ten textures, create a text file that simply lists their file names… for example, you could create “av.lst” that
+contains:
+ 
+Lnface1.bmp
+Lnface2.bmp
+Lnface3.bmp
+Lnarms.bmp
+Lnback.bmp
+ 
+To convert these textures into a .mov, you would just type “movit textures av.lst” to create a file named “textures.mov”
+that contains the textures listed in the file “av.lst”.  Make sure that the name of the texture file you select is unique within all of
+the textures used by Worlds’ avatars.
+ 
+
+Preparing the geometry
+
+ 
+Using the 3DS->RWX standalone file converter or 3D Studio conversion plugin, create an RWX file for your avatar according
+to the strict specifications listed above.   It is important that the hierarchy and labels of this model are exactly right; review the
+actual RWX file in a text editor before proceeding to ensure that the subclumps are all in the proper hierarchy and labeled
+correctly.
+ 
+Next, as described above, run rwx2bod to create a .BOD file for your avatar.  Play close attention to any error messages that
+appear that need to be corrected.
+ 
+
+Preparing new motions
+
+ 
+If you have created new actions for your avatar using the LifeForms software package, you will need to export the lifeforms
+motion files to our internal “seq” or “csq” format.  Be sure to rename your finished files with an “seq” extension.
+
+Creating the texture mapping string
+
+ 
+Next, you need to worry about applying your textures to the avatar.  Follow the instructions above in “Custom Avatar
+Language” to create a string that describes what textures are applied to which limbs and subclumps of the model.  Save this
+string for later.
+ 
+
+Creating an avatars.dat file
+
+ 
+Now, you must create a text file named “avatars.dat” that describes what motions your avatar is capable of.  The file must
+specify the file name of the .bod file, along with a list of “implicit” and “explicit” actions that the user may select from.  “Implicit”
+actions are actions that happen automatically, such as walking or sleeping.  “Explicit” actions must be selected by the user, and
+will appear in the avatar’s “actions” dialog box in the WorldsPlayer.  Each action must specify an seq file that contains the
+motion data for the avatar.
+ 
+Here is an example avatars.dat file that just uses some of the generic, default motions:
+ 
+avatar
+  name=Lian
+  geometry=lian.rwx
+  beginimp
+    walk=common_walk
+#   walk2=common_walk2 mocap
+#   walk3=common_walk3 bounce  
+    wait=common_a_wait
+    endwait=common_a_endwait
+  endimp
+  beginexp
+    wave=common_a_wave
+    dance=common_a_dance2
+    yes=common_a_yes
+    rocknroll=common_a_funky2
+    no=common_a_no3
+    macarena=common_a_macarena3
+    happy=common_happy
+    pirouette=common_y_ballet2
+    upset=common_y_angry
+    twirl=common_a_spin2
+    getLost=common_getLost
+    achoo=common_a_sneeze2
+    look=common_a_look
+    bow=common_a_bow
+    flip=common_a_flip2
+  endexp
+endavatar
+ 
+It is possible to do some fancy things in the avatars.dat file, such as specify explicit actions that modify the implicit actions. 
+
+
+Model Color
+
+Renderware's use of the Color, Diffuse, Ambient, Specular, and Surface keywords is not well documented. The converter from
+3ds to rwx uses the values for the 16-bit color version of Renderware, which look wrong on 8-bit color displays. If you have a
+choice, use Surface in preference to separate Diffuse, Ambient, and Specular; those each use only a single parameter on 8-bit
+displays, not three params each, so by using Surface you'll be forced to specify one each and will produce something that looks
+ok on 8-bit displays. 
+
+Always set the specular value to 0, as it greatly slows down software rendering when textured. 
+
+When using textures, you use the "TextureModes Lit" command to turn on lighting, i.e. something other than flat shading. When
+using a null texture, the surface is always lit, and the TexturesModes flag is ignored. 
+
+The Color command specifies an RGB triplet. This is normalized internally to 1, so Color 0 0 0 and Color 0.5 0.5 0.5 and
+Color 1 1 1 are equivalent. You must use separate Surface commands to control the lighting in each part of your model. 
+
+Remember that lighting values about 0.75 shade to white, Renderware's attempt to give a glare effect. That is, the ambient and
+diffuse components of your Surface command should add up to 0.75 where you want full color strength. Since Gamma's
+standard directional light is full strength (1.0), so you'll typically use a value like Surface 0.6 0.2 0 for full color, to give mostly
+ambient lighting. When the light hits directly, giving the full diffuse 0.2 value, the total is then 0.6+0.2 = 0.8, which is greater than
+0.75, and therefore gives a touch of glare highlight. 
+
+Always check your model on a display running 8-bit color, since that's the lowest common denominator. Something that looks
+fine under 16-bit color can look terrible in 8-bit, because the system forces your fine artistic shadings into the available crude
+palette. For instance, caucasian skin tones can easily become grey. It's easiest to touch up such colors by hand-editing the final
+.rwx file. Find the Color line that's not coming out right, and substitute a value from another model that does look right. If you're
+having the grey caucasian problem, Color 0.705882 0.521569 0.407843 looks much better on 8-bit displays, albeit a little too
+red. 
+
+
+Room Models
+
+Starting with version 980, you can create a room based upon an rwx model rather than upon built-in objects like Rects. 
+
+   1.Create your world in 3-D Studio Max, with all the rooms in one big space. You'll be exporting it to Gamma in
+     room-sized pieces, but by building it all in one space you won't have to deal with coordinate conversion issues. In Max,
+     use units of 1 per meter, and be sure to turn off automatic unit conversion and then build the world from scratch, or your
+     scaling will be messed up. For now, the user will always walk at a height of 0; that is, you can't make ramps or different
+     height walking areas yet. 
+   2.Follow the general rules in this document and in the fast worlds document, to make a world design that Gamma can
+     draw quickly. 
+   3.Make rectangles for portals. The portal must be a straight upright rectangle -- that is, it must have a horizontal bottom
+     edge and a vertical right edge. Use a wireframe material for the rectangle in Max so that it'll become invisible (and
+     replaced by a portal) when it is imported into Gamma. 
+
+      Each portal rectangle belongs to one room, and connects to another. Suppose these are respectively called room1 and
+      room2. When saving the rooms, the portal is saved as part of room1, and not saved as part of room2. The name of the
+      portal must contain the phrase "portal room2" within it: that is, the word "portal" followed by the name of the room that
+      the portal connects to. For instance, "room1 portal room2" would be a valid name. Room names must be 5 or fewer
+      characters long. 
+
+      Do not make the rectangle double-sided; it's important that you can see the rectangle only from room1, not from
+      room2. 
+
+   4.Make rectangles for bumpers. These must be upright rectangles in the same way they were for portals, above. But a
+     single object may contain many such rectangles. Include the word "bumper" in the object name, such as "bumper5", and
+     use wireframe material for the object, and Gamma will convert it into invisible bumper surfaces upon import. You may
+     also include the word "bumper" in the name of non-wireframe objects, like regular walls, and bumper surfaces will be
+     generated for them, too. 
+   5.Make an animated polygon if desired. There may be only one per room shape, but the animated polygon may be any
+     shape desired, as one and only one texture is applied to the entire polygon. Include the word "animated" in the object
+     name in 3ds max (some might think of this as the face name in 3ds max), and Gamma will flag this polygon for texture
+     replacement by any attached AnimateAction. 
+   6.Save each room separately, to a file called roomname.rwx. For instance, the two rooms involved in the portal in the
+     previous paragraph would be called room1.rwx and room2.rwx. Save with "Scale by 1" and don't check the "center
+     object" checkbox. Usually models look best with the "Lit" checkbox in the export dialog box checked, and with
+     "preserve hierarchy". Do not choose the "flat (single clump)" option; that'll produce a file that crashes Gamma. 
+   7.Run "max2rwx whatever.rwx" to prepare the exported file from Max for import into Gamma. If you fail to do this,
+     portals and bumpers won't be recognizable to Gamma. See section about about setting up to use world-builder
+     commands. 
+   8.(Optional) Run "rwx2rwg roomwhatever.rwx" to convert the room to an rwg file. This is necessary for the final product,
+     since rwg files load into Gamma more quickly than do rwx files. But during development it will be convenient to skip this
+     step and load the rwx files directly into Gamma. Be sure to come back and reload rwg files in place of the rwx files
+     before you ship the world! 
+
+      rwx2rwg will print out lines stating the names of the cmp files that will be required to load the rwg into Gamma. Run
+      "compit name.bmp" on each bmp file to convert it to a cmp. 
+
+   9.If you are starting from scratch, start with an empty world in Gamma. The easiest way is to use File/New, then to create
+     your first room as described in the next step, then to WorldsMarks/Change Location to the new room, then to delete the
+     initial room that came in as part of the New World. Don't delete the initial room until you've changed location away from
+     it, as that will crash Gamma. 
+  10.The next few steps should be repeated for each room you add. Add a room by dragging from the library's Objects tab
+     either ShapedRoom or SlowShapedRoom to the main window. This creates a new room in the world. Select its name in
+     the property window and rename it to match the room you are loading. A ShapedRoom has the underlying RoomShape
+     in its Environment, while a SlowShapedRoom has the RoomShape in its Contents. 
+
+      A variation that isn't supplied as a prebuilt room is to have a RoomShape in the Infinite Background of the room. You
+      can cut or copy and paste the RoomShape, and can even have multiple RoomShapes at once, although only one
+      RoomShape in a room may have portals or bumpers. For a room destined to become on infinite background, save the
+      room from Max with the "center object" checkbox set. 
+
+  11.Use WorldsMarks/Change Location to move the camera into the new room, by replacing everything after the # in the
+     text box that comes up, with the new room name. All you'll see at this point is a small cube, which represents the
+     non-yet-loaded Shape for this room. 
+
+      At this point, if you are creating the first room in a new world, set that room's name into the Default Room Name
+      property of the world. Then save your world so that the .world file is in the appropriate directory, and restart Gamma
+      and load the .world file. This will cause Gamma to look in the right place for loading rwx files in the next step. 
+
+  12.Right-click on the cube and choose Properties. Then enter your roomwhatever.rwg into the file property of the
+     RoomShape. This loads the rwx model in, and by turning around you should be able to see it. The cube you were
+     originally looking at was at the 0,0,0 of the space, and the loaded room will be at whatever coordinates it was created
+     at, so it might be off in the distance a bit. 
+
+      If the cube remains, there was an error loading your model. The most common problem is for one of the textures to be
+      missing that the model calls upon. If you're loading a .rwg, make sure that every needed .cmp is in the same directory
+      as the .rwg. If you're loading a .rwx, make sure that the corresponding .bmp files are all present. You can look at the
+      .rwx file with a text editor if you like to see what .bmp files it is expecting, and to check to make sure it has the right
+      Max objects in it. 
+
+  13.Set the RoomShape's PrepareRoom property to true. This causes Gamma to activate any portals and bumpers in this
+     room. If you haven't yet loaded the target room that a portal points to, that portal won't activate yet; and after you do
+     load that target room you'll need to come back to this room and set its RoomShape's PrepareRoom property to true
+     again, to activate it. 
+  14.(Optional) If you want, move the camera until it's inside the new room, and look at WorldsMarks/Change Location to
+     see your location. Then transfer the x,y,z and perhaps orientation to the Room's default position properties. These are
+     the first four numbers after the room name and @. Doing this will cause you to start up at the new location upon loading
+     the room, rather than off in the distance when you go to this room during further development. 
+
+It is also possible to add one or more RoomShapes to a room that contains other objects. Just drag Shape from the library's
+Objects tab to the desired position, reset its Transform property's position to 0,0,0, and change its file as desired. Or, copy and
+paste a RoomShape from an existing room, which will already have the Transform set properly. Move the Shape into the
+room's environment or infinite background with cut and paste if that would be more appropriate. 
+
+
+Room Model rwx file format
+
+Special values for the tags in the clumps in a rwx file are used to tell Gamma that it should handle those clumps specially, when
+the PrepareRoom property is set true as described in the section above. 
+
+A tag value with bit 30 set means that this clump is a portal. The lower bits are five 6-bit values. Add 32 to each of these to
+convert to ascii, and convert to lowercase. The result is the room name that the portal will autoconnect to. 
+
+A tag value with bit 29 set means that this clump is a bumper. Lower bits are ignored, except that bit 28 can also be set
+according to the paragraph below. The clump is scanned for upright rectangles, and an invisible Rect is built for each. Each
+rectangle must be represented in the clump as two triangles, joined at the rectangle's diagonal. It's an error to have any other
+sort of polygons in the clump, and will produce warning messages to the Gamma logfile upon import. 
+
+A tag value with bit 28 set means that this clump is animated. Lower bits are ignored. All triangles in the clump are assumed to
+have the same texture applied to them, and this texture is replaced on all these triangles when the AnimateAction is attached to
+the Shape. 
+
+A tag value with bit 27 set means that this clump is a placeholder for a child clump to be connected to a placeholder. The child
+has the same tag value but without bit 27 set; this tag must be < 31. The transform of the placeholder is copied into the child.
+This feature is activated only for xParts, the special parts used for composed-of-parts avatars. 
+
+A clump with the wireframe geometrysampling mode will be turned off upon being loaded into Gamma, becoming invisible.
+Usually portals and bumpers are built as wireframes so that they'll get out of the way of their replacements that are built by the
+PrepareRoom procedure. But one is permitted to have non-wireframe portals and bumpers, which won't go away. 
+
+
+Using higher-res textures in 3D Studio (RWX)
+
+By Eni Oken 
+
+One can use Gamma's high-res feature (see comp2h2v above) only with Rects, not with more complex models. However,
+inside 3D Studio it is possible to split an object made of polygons into 2 or more separate objects in order to assign more than
+one 128 image. For example, to split an object into 4 separate objects: 
+
+   1.Create an object with normal tools. If creating a spline, convert it into Editable Mesh (clicking on the stack modifiers or
+     using the Edit Mesh command). 
+   2.In a viewport facing the frontal part of the object, apply a modifier UVW mapping, choosing Planar, then View Align
+     and Fit to make the UVW gizmo align perfectly fit to the object. Assign 2 for the U tile and 2 for the V tile. 
+   3.In the modifier stack, click on the stack and ask to collapse all. This will convert the object into Editable mesh again, but
+     will maintain the mapping coordinates embedded in the object. 
+   4.Choose the Sub-object Edge and click on Slice Plane. A yellow icon will appear. On the top view, looking down on to
+     the object laterally to the slicing plane, rotate the slicing plane at 90 degrees, using the Angle snap on for precision. Click
+     on Slice to finalize the slicing of the object. 
+   5.On a viewport facing frontal to the object, rotate the slicing plane again, 90 degrees and click on Slice again. This
+     command splits the polygons of the object, without creating separate objects. 
+   6.Choose Sub-Object Face and select the upper quadrant faces and ask to detach (assign a new name for the object,
+     such as object 01). Repeat with each quadrant. 
+   7.Create a texture in Photoshop or other program with 256x256 resolution. Using the rectangular select tool, click on
+     options and choose Style Fixed Size, and determine it to be 128x128. 
+   8.Select portions of the 256x256 texture (upper left, upper right, lower left and lower right) and save them as 4 separated
+     128x128 images. 
+   9.In 3D Studio, create 4 separated materials, numbered respectively according to the textures, and apply them to the
+     correct quadrants. 
+  10.Export normally as rwx. 
+
+      Note: if you use another approach that results in inexact splitting of the texture across the subobjects, the max2rwx
+      converter might not be able to fix up the file properly, resulting in visible joins between the subparts once they're
+      imported into Gamma. This happens when UV texture coordinates in the resulting rwx range from 1 to 2 rather than the
+      usual 0 to 1 range. max2rwx will fail to adjust this if some of the UVs fall outside of the 1-to-2 range due to inexact
+      conversion. 
+
+
+      Sounds
+
+      Gamma's most useful file formats for sounds are .wav and .mid. .wav files hold digitized sounds, which may be
+      compressed with Windows Sound Recorder; the GSM codec at 11KHz is a good choice. .mid files hold note-by-note
+      MIDI files, which are smaller than even the most compressed digitized music. 
+
+
+    
