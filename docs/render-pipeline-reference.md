@@ -123,4 +123,42 @@ confirmados):
 ```
 java -cp out:../tools/lwjgl/*.jar net.freeworlds.render.RwxViewer <archivo.rwx> --screenshot out.png [--unlit] [--wireframe]
 java -cp out:../tools/lwjgl/*.jar net.freeworlds.render.RwgViewer <archivo.rwg> --screenshot out.png [--wireframe] [--angle N]
+java -cp out:../tools/lwjgl/*.jar net.freeworlds.render.BodViewer <archivo.bod> --screenshot out.png [--wireframe] [--unlit] [--angle N]
 ```
+
+## `.bod`: ensamblado por placeholders + render en bind pose (2026-09-10)
+
+Implementado en `client/src/net/freeworlds/render/BodViewer.java` - era
+el punto explícito "What's NOT done yet" de
+`docs/bod-format-reference.md`. Regla de alcance respetada: pipeline de
+función fija, sin skinning/animación inventada (bind pose), sin
+suavizado, sin texturas.
+
+- **Ensamblado (regla oficial, no inventada)**: `RWXTOBOD.PL` dice
+  literalmente "Any transform value in a part is moved into a placeholder
+  in the parent". Verificado en datos reales antes de implementarlo: los
+  16 roots de `tina.bod` tienen `t=(0,0,0)` salvo pelvis, y los bboxes
+  por parte son locales (centímetros del origen) - sin resolver
+  placeholders todo colapsaría en un punto. Raíz = la parte no
+  referenciada por ningún placeholder (pelvis(1) en los 51 archivos
+  reales); el origen mundo de cada parte es el del padre más la
+  traslación del placeholder que la referencia. Huérfanos e índices
+  inválidos se cuentan y reportan, nunca crashean (0/0 en todo el corpus).
+- **Material**: `.bod` solo trae RGB plano por clump; `RWXTOBOD.PL` dice
+  que ambient/diffuse/specular "are ignored" sin dar mapeo numérico -
+  se reutiliza la convención placeholder de `RwgViewer` (ambient 0.3,
+  diffuse 0.8, specular 0.1, opacidad 1), marcada ⚠️ VERIFICAR igual que
+  allí. Sin transparencia (el formato no la tiene).
+- **Normales/culling**: `.bod` no trae normales - normal de cara por
+  producto cruzado + `GL_FLAT`, como RWX. Winding sin verificar: ambas
+  caras visibles, como RWG.
+- **Verificación real**: 51/51 archivos ensamblan limpio
+  (`orphans=0 badIndices=0`); `tina.bod` coloca exactamente sus 2350
+  triángulos parseados; `docs/renders/bod_tina_avatar.png` (figura con
+  pelo rojo, torso, falda negra, zapatos rojos),
+  `bod_ogre_avatar.png` (figura voluminosa con hombreras) y
+  `bod_robed_avatar.png` (figura con túnica de 8 partes, sin piernas -
+  coherente con una túnica) son humanoides upright reconocibles desde
+  dos corpus independientes. Histograma de `tina`: 6509 px no-fondo en
+  336 tonos desde ~20 colores base - sombreado N·L por faceta activo,
+  no color plano.
