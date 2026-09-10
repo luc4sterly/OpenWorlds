@@ -121,3 +121,69 @@ Queda una incógnita acotada con dos mitades: si el servidor está
 registrado desde la creación, el tick en 7 lo mata (2004 contradice);
 si no lo está, nada conduce 5→6 (el lector solo encola). Resolverla
 exige trazar el flujo real de registro/conducción, no más estática.
+
+## PARADOJA RESUELTA (2026-09-10, continuación): `WorldServer` es
+## efectivamente abstracta — el cliente real nunca la instancia a pelo
+
+**Causa raíz encontrada leyendo el código fuente directamente, no
+especulando**: `WorldServer.state_XMIT_SI()`/`state_XMIT_AI()` son el
+patrón "abstracto por assert" típico de este código de los 90 — métodos
+que DEBEN ser sobreescritos por una subclase concreta, marcados con
+`Debug.dAssert(false)` como primera línea en vez de una palabra clave
+`abstract` de verdad. El cliente real **nunca instancia `WorldServer`
+directamente** para una conexión — el harness (`HandshakeProbe`,
+`MinimalServerHandler`) sí lo hacía (`extends WorldServer` a pelo), y
+esa simplificación del harness era la causa completa de la paradoja,
+no un bug del cliente de 2004:
+
+1. `ServerURL(String)` (leído directamente): para una URL normal
+   `host:puerto` sin segmento de tipo explícito, `_serverType` queda
+   literalmente `"AutoServer"` por defecto.
+2. `ServerTracker.findOrMake` instancia por reflexión:
+   `Class.forName("NET.worlds.network." + type).newInstance()` — para
+   cualquier conexión normal, eso es `new AutoServer()`, nunca
+   `new WorldServer()`.
+3. `AutoServer.state_XMIT_SI()` (leído directamente, SÍ tiene lógica
+   real, no un stub): lee la propiedad `#15` de `_propList` (ya
+   presente en el PROPUPD real capturado de `worlds.worlio.com` en
+   `docs/net-handshake-trace.log`: `#15 [DBSTORE /POSSESS] 1`),
+   detecta el tipo de servidor (1 = `UserServer`), crea la subclase
+   concreta (`var1 = new UserServer()`), le transfiere la conexión viva
+   (`reuseConnection`) y la re-alimenta con las mismas props
+   (`propertyUpdate`) — y SOLO ENTONCES pone su propio estado a 17
+   (terminado: ya se especializó y entregó el testigo). Nunca toca el
+   `dAssert`.
+
+**Verificado en vivo, no solo leído**: `NET/worlds/network/
+AutoServerProbe.java` (nueva sonda, misma disciplina que
+`HandshakeProbe` pero `extends AutoServer` en vez de `extends
+WorldServer`) conecta contra `worlds.worlio.com:6650` de verdad y
+atraviesa el estado 7 **sin ninguna `AssertionException`**:
+
+```
+state -> 6 RCV_PROPS
+state -> 7 XMIT_SI
+DEBUG -- a server tried to murder another!          <- benigno, ver abajo
+...
+LWDB: brought up LoginWizard0 in setGalaxyType       <- código real de login, más allá de 7
+state -> 17 DISCONNECTED
+final state=17 DISCONNECTED serverType(from prop #15)=1
+```
+(trace completo en `docs/net-autoserver-trace.log`). `serverType=1`
+coincide exacto con la predicción de `#15="1"` leída en el código antes
+de correr nada. El mensaje "a server tried to murder another" es un log
+de sanidad benigno de `ServerTracker.killServer` (leído en su fuente:
+solo imprime, no lanza) — dispara aquí porque esta sonda, a diferencia
+del cliente real, nunca se registró en `_serverHash` vía `findOrMake`;
+es un artefacto de la simplificación del harness, no del cliente real,
+y no afecta a la ejecución (sigue limpio hasta el estado 17).
+
+**Conclusión**: el `dAssert(false)` es real y el análisis bytecode
+anterior era correcto — pero es genuinamente inalcanzable en el
+cliente real de 2004, tal y como está diseñado: cualquier conexión
+normal pasa por `AutoServer` (o la subclase concreta que `findOrMake`
+resuelva), nunca por `WorldServer` a pelo. `MinimalServerHandler` sigue
+siendo útil como intercepción explícita cuando se quiere forzar el
+camino base sin la danza de auto-detección, pero ya no hace falta como
+"parche" para un bug real — el camino real (`AutoServer`) simplemente
+funciona, verificado en vivo contra el servidor de producción.

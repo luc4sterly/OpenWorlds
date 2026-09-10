@@ -1,0 +1,68 @@
+[NATIVE-MOCK] IniFile.nativeInit()
+[NATIVE-MOCK] IniFile.getIniString(PRODUCT_NAME, Worlds.com - The 3D Entertainment Portal)
+[NATIVE-MOCK] IniFile.getIniString(productName, Worlds.com - The 3D Entertainment Portal)
+[NATIVE-MOCK] Std.getClientVersion()
+[NATIVE-MOCK] IniFile.getIniString(netdebug, 0)
+[NATIVE-MOCK] IniFile.getIniInt(netdebug, 0)
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] DNSLookup.gethostbyname(worlds.worlio.com)
+Connected to 198.251.80.57
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniInt(tieredVIP, 0)
+[NATIVE-MOCK] IniFile.getIniString(ProductName, )
+[NATIVE-MOCK] IniFile.getIniInt(VIP, 0)
+[NATIVE-MOCK] IniFile.getIniInt(SPGUEST, 0)
+[NATIVE-MOCK] IniFile.getIniString(DEFAULTCONSOLE, NET.worlds.console.DefaultConsole)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+connectedHost=198.251.80.57 state=5 XMIT_PROPREQ
+[NATIVE-MOCK] IniFile.getIniInt(upgradeTimeout, 7)
+[NATIVE-MOCK] IniFile.getIniInt(testautoupgrade, 0)
+[NATIVE-MOCK] IniFile.getIniInt(testworldautoupgrade, 0)
+[NATIVE-MOCK] IniFile.getIniString(upgradeServer, )
+[NATIVE-MOCK] IniFile.getIniString(WorldServer, )
+[NATIVE-MOCK] IniFile.getIniInt(DISABLESHAPER, 1)
+[NATIVE-MOCK] IniFile.getIniInt(DISABLESHAPER, 1)
+[NATIVE-MOCK] IniFile.getIniString(upgradeServer, )
+[NATIVE-MOCK] IniFile.getIniInt(useNetworkAvatars, 1)
+[NATIVE-MOCK] IniFile.getIniInt(useNetworkAvatars, -1)
+[NATIVE-MOCK] IniFile.getIniString(avatarDir, avatar/)
+[NATIVE-MOCK] IniFile.getIniString(avatar, http://us1.worlds.net/3DCDup/avatar/)
+[NATIVE-MOCK] IniFile.getIniString(http, )
+[NATIVE-MOCK] IniFile.getIniInt(maxupgradeversion, 999999999)
+[NATIVE-MOCK] IniFile.getIniString(lastchatname, Fred)
+[NATIVE-MOCK] Std.nativeGetMillis()
+sent propReq, state=6 RCV_PROPS
+state -> 6 RCV_PROPS
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.nativeGetMillis()
+state -> 7 XMIT_SI
+[NATIVE-MOCK] Std.nativeGetMillis()
+[NATIVE-MOCK] Std.getClientVersion()
+DEBUG -- a server tried to murder another!
+Caller = AutoServer(worlds.worlio.com:6650)
+Victim = null
+java.lang.Exception
+	at NET.worlds.network.ServerTracker.killServer(ServerTracker.java:182)
+	at NET.worlds.network.Galaxy.killServer(Galaxy.java:188)
+	at NET.worlds.network.AutoServer.state_XMIT_SI(AutoServer.java:58)
+	at NET.worlds.network.WorldServer.perFrame(WorldServer.java:586)
+	at NET.worlds.network.AutoServerProbe.main(AutoServerProbe.java:96)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniString(User0, )
+[NATIVE-MOCK] IniFile.getIniInt(DefaultUser, 0)
+[NATIVE-MOCK] IniFile.getIniString(SNum, )
+[NATIVE-MOCK] IniFile.getIniString(handshakeID, )
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniInt(nocreateaccount, 0)
+[NATIVE-MOCK] IniFile.getIniString(BundlePrefix, MessagesBundle)
+[NATIVE-MOCK] IniFile.getIniInt(Profile, 0)
+LWDB: brought up LoginWizard0 in setGalaxyType
+state -> 17 DISCONNECTED
+final state=17 DISCONNECTED serverType(from prop #15)=1
+closed cleanly
