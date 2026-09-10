@@ -1,0 +1,8 @@
+dumped bits: 8192 bytes from 0x03156d08 (call 0 only)
+dumped stream_a: 8192 bytes from 0x03156d28 (call 0 only)
+dumped stream_fillidx: 8192 bytes from 0x03156da4 (call 0 only)
+dumped stream_ctrl: 8192 bytes from 0x03156da8 (call 0 only)
+dumped stream_lit: 8192 bytes from 0x03156dac (call 0 only)
+call0: done, 256 write events, 16 passes
+loop stopped at call_idx=1: The program is not being run.
+total calls captured: 1

@@ -18,23 +18,26 @@ want to reuse one across many capture runs.)
 Usage:
     python3 cmp_capture.py <path-to.cmp> <output-dir> [--stream-bytes N]
 
-Known limitation this tool does NOT solve (documented, not hidden): a
-STATIC one-time memory snapshot of the "history" scratch buffer
-(gamma.dll's `edi`-addressed 2D-predictor working area) is unreliable -
-confirmed across 2 earlier sessions, a single upfront `read_memory()` call
-only sees ~120 bytes forward from the starting position even though the
-real process reads much further without crashing later (most likely a
-lazily-committed page that only becomes valid once nearby writes trigger
-the OS to grow it - something no single Python-side snapshot call can
-replicate). This tool sidesteps the problem instead of solving it: it does
-NOT capture the history buffer at all. The current best hypothesis (see
-docs/cmp-texture-format-reference.md, "outer loop" discovery) is that the
-real buffer is freshly allocated (hence OS-zero-initialized) and the
-decode process builds all its own history context across the outer loop's
-64 passes - if true, a Java re-implementation needs no external history
-seed whatsoever. This tool captures what's needed to test that hypothesis
-(the 5 streams, generously sized) rather than trying to capture history
-directly.
+Superseded limitation (was: "does not capture history, assumes zero-seed
+suffices"): a 2026-09-10 session found real per-pass evidence that the
+zero-seed hypothesis is WRONG - a single FUN_00457d88 call only covers
+~1/4 of the image (confirmed on a 32x32 self-designed ground-truth file:
+outerCount*2*stride == -(width*height) for ONE call, but ch0 == width/4
+means each call only ever WRITES half a row per pass, so ~4 calls are
+needed to cover a full image), and earlier calls' real output is exactly
+what later calls' predictor reads pull from - not zero. This tool now
+loops over EVERY call to FUN_00457d88 (not just the first) and, at each
+call's entry, takes a real memory snapshot of the history window around
+that call's edi0 (generous +/-`--hist-margin` bytes) - since by the time
+call N starts, whatever call N-1 wrote is real, committed process memory
+(the earlier "unreliable static snapshot" problem was specifically about
+reading FORWARD from a mid-call breakpoint into pages the call itself
+hadn't reached yet; reading at a FRESH call's entry, after prior calls
+already wrote there, does not have that problem - confirmed empirically,
+see the session's report). Each call's streams/history/real per-pass
+output are written to `<outdir>/call<N>/`; the 5 symbol streams are only
+captured once (at call 0) since they are the same continuous buffers read
+across all calls, not reset per call.
 """
 import argparse
 import os
@@ -111,16 +114,21 @@ def rd(addr, n):
 log = []
 outdir = {outdir!r}
 os.makedirs(outdir, exist_ok=True)
-results = {{}}  # (pass_index, offset) -> byte value
-state = {{"esi0": None, "pass_index": 0, "last_offset": -1, "done": False}}
+N = {stream_bytes}
+HIST_MARGIN = {hist_margin}
+MAX_CALLS = {max_calls}
+
+# Per-call state, reset at the top of each loop iteration. Shared (not
+# per-call-local) because the Write1Bp/Write2Bp breakpoint objects below
+# are created ONCE and persist across all calls - they close over this
+# dict rather than being recreated per call.
+cstate = {{"esi0": None, "pass_index": 0, "last_offset": -1}}
+cresults = {{}}  # (pass_index, offset) -> byte value, cleared each call
 
 # Auto-continuing breakpoints (stop() returns False) - these run at full
 # native speed between hits, unlike single-stepping every instruction,
 # which is what made earlier sessions' captures slow (thousands of stepi
 # round-trips through the winedbg-gdb proxy for even a partial decode).
-# A full 64-outer-pass x 32-inner-iteration decode only hits these ~4000
-# times total, not the ~1-2 million raw instructions it would take to
-# single-step through - this is the actual "cleaner method" fix.
 WRITE1 = {{
     0x03a97e39: 0, 0x03a97e4f: 1,
     0x03a97ebb: 0, 0x03a97ee5: 1,
@@ -132,99 +140,144 @@ class Write1Bp(gdb.Breakpoint):
         super(Write1Bp, self).__init__("*0x%x" % addr, internal=False)
         self.byteslot = byteslot
     def stop(self):
-        if state["esi0"] is None:
+        if cstate["esi0"] is None:
             return False
         esi = int(gdb.parse_and_eval("$esi")) & 0xffffffff
-        off = esi - state["esi0"]
-        if off < state["last_offset"]:
-            state["pass_index"] += 1
-        state["last_offset"] = off
+        off = esi - cstate["esi0"]
+        if off < cstate["last_offset"]:
+            cstate["pass_index"] += 1
+        cstate["last_offset"] = off
         al = int(gdb.parse_and_eval("$eax")) & 0xff
-        results[(state["pass_index"], off + self.byteslot)] = al
+        cresults[(cstate["pass_index"], off + self.byteslot)] = al
         return False
 
 class Write2Bp(gdb.Breakpoint):
     def stop(self):
-        if state["esi0"] is None:
+        if cstate["esi0"] is None:
             return False
         esi = int(gdb.parse_and_eval("$esi")) & 0xffffffff
-        off = esi - state["esi0"]
-        if off < state["last_offset"]:
-            state["pass_index"] += 1
-        state["last_offset"] = off
+        off = esi - cstate["esi0"]
+        if off < cstate["last_offset"]:
+            cstate["pass_index"] += 1
+        cstate["last_offset"] = off
         eax = int(gdb.parse_and_eval("$eax")) & 0xffff
-        results[(state["pass_index"], off)] = eax & 0xff
-        results[(state["pass_index"], off + 1)] = (eax >> 8) & 0xff
+        cresults[(cstate["pass_index"], off)] = eax & 0xff
+        cresults[(cstate["pass_index"], off + 1)] = (eax >> 8) & 0xff
         return False
 
-try:
-    for _ in range(5):
-        gdb.execute("stepi", to_string=True)
-    ebp = int(gdb.parse_and_eval("$ebp")) & 0xffffffff
-    edi0 = int(gdb.parse_and_eval("*(int*)(%d+0x8)" % ebp)) & 0xffffffff
-    esi0 = int(gdb.parse_and_eval("*(int*)(%d+0xc)" % ebp)) & 0xffffffff
-    outer0 = int(gdb.parse_and_eval("*(int*)(%d+0x10)" % ebp)) & 0xffffffff
-    ch0 = int(gdb.parse_and_eval("*(int*)(%d+0x14)" % ebp)) & 0xff
-    stride0_raw = int(gdb.parse_and_eval("*(int*)(%d+0x18)" % ebp))
-    structptr = int(gdb.parse_and_eval("*(int*)(%d+0x1c)" % ebp)) & 0xffffffff
-    bits_ptr = int(gdb.parse_and_eval("*(int*)(%d)" % structptr)) & 0xffffffff
-    stream_a = int(gdb.parse_and_eval("*(int*)(%d+0x4)" % structptr)) & 0xffffffff
-    stream_fillidx = int(gdb.parse_and_eval("*(int*)(%d+0x8)" % structptr)) & 0xffffffff
-    stream_ctrl = int(gdb.parse_and_eval("*(int*)(%d+0xc)" % structptr)) & 0xffffffff
-    stream_lit = int(gdb.parse_and_eval("*(int*)(%d+0x10)" % structptr)) & 0xffffffff
-    log.append("edi0=%08x esi0=%08x outer0=%d ch0=%d stride0=%d" % (edi0, esi0, outer0, ch0, stride0_raw))
-    log.append("structptr=%08x bits_ptr=%08x" % (structptr, bits_ptr))
-    log.append("stream_a=%08x stream_fillidx=%08x stream_ctrl=%08x stream_lit=%08x" % (stream_a, stream_fillidx, stream_ctrl, stream_lit))
-    state["esi0"] = esi0
+for addr, slot in WRITE1.items():
+    Write1Bp(addr, slot)
+Write2Bp("*0x03a97f65")
 
-    N = {stream_bytes}
-    dumps = {{
-        "bits": (bits_ptr, N),
-        "stream_a": (stream_a, N),
-        "stream_fillidx": (stream_fillidx, N),
-        "stream_ctrl": (stream_ctrl, N),
-        "stream_lit": (stream_lit, N),
-    }}
-    for name, (addr, n) in dumps.items():
-        data = rd(addr, n)
-        with open(os.path.join(outdir, name + ".bin"), "wb") as f:
-            f.write(data)
-        log.append("dumped %s: %d bytes from 0x%08x" % (name, len(data), addr))
+# We are already stopped at call 0's FUNC_ENTRY (the top-level `continue`
+# above ran until gamma.dll loaded AND the first call happened to hit it -
+# on_new_objfile arms the breakpoint, which then behaves like any other
+# breakpoint for every subsequent call too, so later loop iterations'
+# gdb.execute("continue") calls land here again for call 1, 2, 3...).
+call_idx = 0
+while call_idx < MAX_CALLS:
+    try:
+        for _ in range(5):
+            gdb.execute("stepi", to_string=True)
+        ebp = int(gdb.parse_and_eval("$ebp")) & 0xffffffff
+        edi0 = int(gdb.parse_and_eval("*(int*)(%d+0x8)" % ebp)) & 0xffffffff
+        esi0 = int(gdb.parse_and_eval("*(int*)(%d+0xc)" % ebp)) & 0xffffffff
+        outer0 = int(gdb.parse_and_eval("*(int*)(%d+0x10)" % ebp)) & 0xffffffff
+        ch0 = int(gdb.parse_and_eval("*(int*)(%d+0x14)" % ebp)) & 0xff
+        stride0_raw = int(gdb.parse_and_eval("*(int*)(%d+0x18)" % ebp))
+        structptr = int(gdb.parse_and_eval("*(int*)(%d+0x1c)" % ebp)) & 0xffffffff
+        bits_ptr = int(gdb.parse_and_eval("*(int*)(%d)" % structptr)) & 0xffffffff
+        stream_a = int(gdb.parse_and_eval("*(int*)(%d+0x4)" % structptr)) & 0xffffffff
+        stream_fillidx = int(gdb.parse_and_eval("*(int*)(%d+0x8)" % structptr)) & 0xffffffff
+        stream_ctrl = int(gdb.parse_and_eval("*(int*)(%d+0xc)" % structptr)) & 0xffffffff
+        stream_lit = int(gdb.parse_and_eval("*(int*)(%d+0x10)" % structptr)) & 0xffffffff
 
-    # return address, so we can stop cleanly instead of running past the
-    # real end of the function into unrelated later code
-    esp_now = int(gdb.parse_and_eval("$esp")) & 0xffffffff
-    # esp moved since entry (prologue pushes) - retrieve the original
-    # return address we noted before those pushes ran instead
-    retaddr = state.get("retaddr")
+        call_outdir = os.path.join(outdir, "call%d" % call_idx)
+        os.makedirs(call_outdir, exist_ok=True)
+        clog = []
+        clog.append("edi0=%08x esi0=%08x outer0=%d ch0=%d stride0=%d" % (edi0, esi0, outer0, ch0, stride0_raw))
+        clog.append("structptr=%08x bits_ptr=%08x" % (structptr, bits_ptr))
+        clog.append("stream_a=%08x stream_fillidx=%08x stream_ctrl=%08x stream_lit=%08x" % (stream_a, stream_fillidx, stream_ctrl, stream_lit))
 
-    for addr, slot in WRITE1.items():
-        Write1Bp(addr, slot)
-    Write2Bp("*0x03a97f65")
+        if call_idx == 0:
+            # the 5 symbol streams are the SAME continuous buffers read
+            # across ALL calls (gamma.dll does not reset these pointers
+            # per call) - capture once, generously, from call 0's start
+            dumps = {{
+                "bits": (bits_ptr, N),
+                "stream_a": (stream_a, N),
+                "stream_fillidx": (stream_fillidx, N),
+                "stream_ctrl": (stream_ctrl, N),
+                "stream_lit": (stream_lit, N),
+            }}
+            for name, (addr, n) in dumps.items():
+                data = rd(addr, n)
+                with open(os.path.join(outdir, name + ".bin"), "wb") as f:
+                    f.write(data)
+                log.append("dumped %s: %d bytes from 0x%08x (call 0 only)" % (name, len(data), addr))
 
-    gdb.execute("continue", to_string=True)  # runs until ReturnBp (set below) or a real crash/exit
+        # REAL history snapshot around THIS call's edi0 - by now, whatever
+        # earlier calls wrote is real, committed process memory (not the
+        # "reading forward past what a mid-call snapshot can see" problem
+        # documented in the module docstring - that was about reading
+        # ahead of where the CURRENT call itself had written so far).
+        # The allocation backing this buffer can be smaller than a fixed
+        # margin guess (confirmed live: 4096 bytes back from edi0 hit an
+        # unmapped page for a tiny 32x32 image) - shrink EACH DIRECTION
+        # independently until it succeeds, rather than a single symmetric
+        # margin (the predictor table has offsets up to +518, which can
+        # need real forward room well past what's valid backward).
+        def shrink_read(start_addr, want, direction):
+            m = want
+            while m >= 32:
+                try:
+                    return rd(start_addr, m) if direction > 0 else rd(start_addr - m, m)
+                except Exception:
+                    m //= 2
+            return b""
 
-    log.append("done=%s, captured %d (pass,offset) write events across %d passes seen" % (state["done"], len(results), state["pass_index"] + 1))
+        back_data = shrink_read(edi0, HIST_MARGIN, -1)
+        fwd_data = shrink_read(edi0, HIST_MARGIN, 1)
+        back_margin = len(back_data)
+        fwd_margin = len(fwd_data)
+        hist_data = back_data + fwd_data
+        hist_start = edi0 - back_margin
+        with open(os.path.join(call_outdir, "history.bin"), "wb") as f:
+            f.write(hist_data)
+        clog.append("history.bin: %d bytes from 0x%08x (edi0 at offset %d; back_margin=%d fwd_margin=%d)" %
+                     (len(hist_data), hist_start, back_margin, back_margin, fwd_margin))
 
-    max_pass = max((p for p, _ in results.keys()), default=-1)
-    last_pass_bytes = bytearray(ch0 * 2)
-    for (p, o), v in results.items():
-        if p == max_pass and 0 <= o < len(last_pass_bytes):
-            last_pass_bytes[o] = v
-    with open(os.path.join(outdir, "esi_final_pass.bin"), "wb") as f:
-        f.write(bytes(last_pass_bytes))
+        cstate["esi0"] = esi0
+        cstate["pass_index"] = 0
+        cstate["last_offset"] = -1
+        cresults.clear()
 
-    with open(os.path.join(outdir, "esi_all_passes.csv"), "w") as f:
-        f.write("pass,offset,value\\n")
-        for (p, o), v in sorted(results.items()):
-            f.write("%d,%d,%d\\n" % (p, o, v))
-    log.append("last pass index=%d, wrote esi_final_pass.bin (%d bytes) and esi_all_passes.csv" % (max_pass, len(last_pass_bytes)))
-except Exception as e:
-    log.append("STOP: " + str(e))
+        gdb.execute("continue", to_string=True)  # runs this call's outer-pass decode; stops at the NEXT call's FUNC_ENTRY, or raises if the process exits
 
+        max_pass = max((p for p, _ in cresults.keys()), default=-1)
+        last_pass_bytes = bytearray(ch0 * 2)
+        for (p, o), v in cresults.items():
+            if p == max_pass and 0 <= o < len(last_pass_bytes):
+                last_pass_bytes[o] = v
+        with open(os.path.join(call_outdir, "esi_final_pass.bin"), "wb") as f:
+            f.write(bytes(last_pass_bytes))
+        with open(os.path.join(call_outdir, "esi_all_passes.csv"), "w") as f:
+            f.write("pass,offset,value\\n")
+            for (p, o), v in sorted(cresults.items()):
+                f.write("%d,%d,%d\\n" % (p, o, v))
+        clog.append("captured %d (pass,offset) write events across %d passes seen" % (len(cresults), max_pass + 1))
+        with open(os.path.join(call_outdir, "extract_log.txt"), "w") as f:
+            f.write("\\n".join(clog))
+        log.append("call%d: done, %d write events, %d passes" % (call_idx, len(cresults), max_pass + 1))
+        call_idx += 1
+    except Exception as e:
+        log.append("loop stopped at call_idx=%d: %s" % (call_idx, e))
+        break
+
+log.append("total calls captured: %d" % call_idx)
 with open(os.path.join(outdir, "extract_log.txt"), "w") as f:
     f.write("\\n".join(log))
-print("=== CAPTURE DONE ===")
+print("=== CAPTURE DONE (%d calls) ===" % call_idx)
 end
 quit
 """
@@ -237,7 +290,11 @@ def main():
     ap.add_argument("--stream-bytes", type=int, default=65536,
                      help="bytes to dump per stream (default 65536, generous enough for a full-image decode)")
     ap.add_argument("--max-steps", type=int, default=400000,
-                     help="max single-step budget for the full-decode trace (default 400000)")
+                     help="max single-step budget for the full-decode trace (default 400000, currently unused by the template but kept for CLI compatibility)")
+    ap.add_argument("--max-calls", type=int, default=8,
+                     help="max number of FUN_00457d88 calls to capture (default 8; a full image typically needs ~4, generous upper bound so the loop stops on its own when the process exits)")
+    ap.add_argument("--hist-margin", type=int, default=4096,
+                     help="bytes of real history to snapshot before AND after each call's edi0 (default 4096)")
     ap.add_argument("--timeout", type=int, default=600, help="wine/gdb subprocess timeout in seconds")
     args = ap.parse_args()
 
@@ -260,7 +317,8 @@ def main():
         func_entry=FUNC_ENTRY,
         outdir=outdir_abs,
         stream_bytes=args.stream_bytes,
-        max_steps=args.max_steps,
+        max_calls=args.max_calls,
+        hist_margin=args.hist_margin,
     )
     script_path = os.path.join(outdir_abs, "_gdbscript.txt")
     with open(script_path, "w") as f:

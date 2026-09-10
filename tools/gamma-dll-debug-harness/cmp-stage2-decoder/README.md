@@ -115,20 +115,56 @@ history window, bit source, and captured real output) extracted live from
 `gamma.dll` for each file - see `<prefix>extract_log.txt` for the raw
 addresses/offsets involved.
 
-## Honest bottom line
+## 2026-09-10 continuation: real official-tool ground truth, data-capture
+## gap ruled out, bug narrowed to one predictor-table branch
 
-The core mechanism (bit-tree dispatch, all three top-level symbol shapes,
-the predictor table and its offset formula, the double-row write, and the
-previously-unknown extra fill-broadcast on the control-byte path) is
-**understood and substantially verified against real execution**, not
-guessed. It is **not yet 100% byte-exact** on either test file, for
-reasons that look like a data-capture gap rather than a design gap, but
-that is not proven. **Given this, no decoder was wired into the render
-pipeline this session** — the project rule against shipping
-plausible-but-unverified pixels applies here as much as anywhere else.
-The next session should: (a) get a cleaner ground-truth capture method
-that doesn't need a one-time memory snapshot at all (e.g. breakpoint on
-every individual write instruction and log immediately, rather than
-polling `$pc` every `stepi` — should also just be faster), and (b) resolve
-the 9-byte 4i.cmp gap with that cleaner data before trusting this decoder
-with real texture output.
+A later session found the official `compimg.exe`/`cmpview.exe` tools
+(Knowledge Adventure, 1993-95) and confirmed they run natively under
+Wine with no 16-bit-Windows workaround. Built `test4b.bmp`/`.cmp`
+(`assets/gammatutorial-samples/`) — a **self-designed, fully-known**
+32×32 test image (4 solid quadrants: red/green/blue/yellow) compressed
+by the real `compimg.exe`.
+
+**New, strictly stronger ground truth**: attached to the live
+`cmpview.exe` process via `/proc/<pid>/mem`, located its real GDI pixel
+buffer (a Wine SYSV shared-memory segment, genuine 32bpp BGRA), and read
+out the decoded pixels directly — **exactly 256 pixels of each expected
+color, zero noise**. This replaces the previous screenshot/RMSE-based
+check with byte-exact ground truth.
+
+**The old "data-capture gap" hypothesis (see "Verification status"
+above) is ruled out, with real evidence, not just re-asserted:**
+- Rewrote `cmp_capture.py`'s capture loop to stop gating on a single
+  call and capture every real call to `FUN_00457d88` with a genuine
+  memory snapshot each time. Result: `test4b.cmp` only makes **one** real
+  call — the earlier "needs ~4 calls, we only captured 1" theory (from
+  the `outerCount·2·stride` arithmetic) was wrong.
+  (`test4b_call0/`: real history + per-pass output for that one call.)
+- Fed the decoder the **actual captured real memory** (not a zero-seed)
+  for up to 2048 bytes around the read window. Result: byte-identical
+  to the zero-seed run (still 23/141 matches, same mismatch pattern) —
+  because the real process's own memory at the failing read address
+  genuinely **is** `0x00` there too. The capture was never the problem.
+
+**Bug precisely isolated** (branch tracing against real captured
+per-iteration output, `test4b_esi_all_passes.csv`): pass 0 decodes
+correctly through iteration 4 (`CTRL`, `SINGLE`, `DUAL`, `DUAL`, `CTRL`).
+It breaks specifically at **iteration 5's `DUAL` branch, second
+predictor pair, `idx2=32` → `PRED_TABLE[32]=256`** (a *large* offset):
+real output is `62`, the decoder produces `0`. Small/nearby offsets
+(e.g. `idx=3`, offset `-4`) decode correctly every time they're used,
+including earlier in this same iteration — only the large-offset table
+entries go wrong, then cascade into a full bitstream desync (crash at
+pass 8, `PRED_TABLE` index 63, table only has 50 entries).
+
+**Bottom line, updated**: this is now a genuine, narrow decode-logic bug
+— most likely in how large `PRED_TABLE` offsets combine with `idx2`/the
+row stride in the `DUAL` branch (overflow, sign-extension, or a
+stride-scaling mistake that only bites at larger magnitudes), or a
+subtle bit-consumption miscount earlier that only shows up once a
+large-offset read exposes it. **Not closed** — the next session should
+directly compare `PRED_TABLE[32]`'s real value/stride math (live,
+single-stepped through this exact iteration in `gamma.dll`) against what
+`CmpStage2.java` computes for `idx2=32`, rather than re-deriving the
+whole algorithm from scratch. This is a much smaller, well-evidenced
+target than "something's wrong somewhere in 64 bytes."
