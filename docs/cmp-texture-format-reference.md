@@ -228,26 +228,114 @@ claridad arriesgaría exactamente lo que se pidió evitar: producir
 píxeles con aspecto plausible pero incorrectos, presentados como
 verificados sin serlo. Se decidió parar aquí y documentar, no adivinar.
 
-## Conclusión y siguiente paso concreto
+## Sesión de depuración dinámica (2026-09-10): entorno real construido y
+## verificado, pero un bloqueo de infraestructura (no del algoritmo) impidió
+## llegar al decoder de píxeles
 
-⚠️ **`.cmp` sigue sin resolverse del todo**, pero con una base de
-evidencia mucho más precisa que al empezar esta sub-sesión: función
-exacta localizada (`FUN_00442bc0`/`FUN_00457d88`), formato de píxel
-confirmado (8bpp indexado, stride negativo, filas alineadas a 4 bytes),
-tabla real de predictores 2D extraída del binario, y el "misterio" de
-los 256 punteros de función descartado como optimización trivial de
-relleno. Siguiente paso concreto para una futura sesión dedicada:
+Objetivo de esta sesión: resolver la ambigüedad real pendiente (aritmética
+de acarreo + escritura de doble fila en `FUN_00457d88`) mediante
+depuración dinámica de verdad — no más análisis estático — ejecutando
+`gamma.dll` bajo Wine, paso a paso, con valores reales de registros y
+memoria.
 
-1. Entender la aritmética exacta de acarreo (`CARRY4`) y el propósito
-   real de la escritura de doble fila en `FUN_00457d88` — probablemente
-   requiere trazar la ejecución paso a paso (single-step) con un
-   depurador contra el propio `gamma.dll` corriendo bajo Wine, en vez de
-   solo leer el pseudocódigo estático de Ghidra, para confirmar el orden
-   real de bits/bytes sin ambigüedad.
-2. Una vez con eso claro, implementar en Java el predictor causal 2D ya
+### Entorno de depuración: construido y verificado, funciona
+
+Herramienta elegida: **Wine 11.0 (Staging) + `winedbg --gdb`** (proxy que
+lanza el proceso bajo Wine y conecta un `gdb` real vía protocolo remoto),
+con scripting Python embebido en gdb para automatizar lo que la
+interacción manual no podía. Documentado en detalle, con el código
+reutilizable, en `tools/gamma-dll-debug-harness/README.md`. Piezas clave:
+
+- **Arnés Java mínimo, de sala limpia** (`tools/gamma-dll-debug-harness/`):
+  en vez de levantar el cliente completo (que necesita red/servidor real),
+  se escribieron clases Java mínimas que declaran únicamente los métodos
+  `native` con la firma exacta (`NET.worlds.console.ScapePicImage.
+  loadImage(String)`, `NET.worlds.scape.ScapePicTexture.makeTexture(String,
+  String)` — firmas confirmadas con `javap` contra las clases REALES de
+  `assets/worlds.jar`, no supuestas) y las invocan directamente. Estas
+  clases se ejecutan bajo el propio JRE de época incluido en el proyecto
+  (`assets/WorldsPlayer/bin/java.exe`, Java 1.4.2_05) — mismo binario que
+  el cliente real habría usado. Truco necesario: `javac` moderno no puede
+  emitir bytecode tan antiguo (mínimo `--release 8`, classfile 52, que
+  1.4.2 rechaza), así que se compila con `--release 8` y se parchea a mano
+  el byte de versión mayor del `.class` (52→48) — seguro porque el código
+  fuente es deliberadamente trivial (sin generics, sin concatenación de
+  strings con `+`, sin autoboxing — nada que dependa de clases de runtime
+  posteriores a 1.4).
+- **Confirmado real, con ejecución en vivo**: un breakpoint en
+  `FUN_00442750` (el validador de cabecera ya localizado por análisis
+  estático) SÍ se alcanza al invocar `loadImage()` con un `.cmp` real, y
+  un volcado instrucción-a-instrucción con valores reales de registros
+  muestra la función abriendo y leyendo el archivo de verdad (`ReadFile`
+  real contra los bytes reales del `.cmp`) — la primera confirmación en
+  vivo (no solo estática) de que el código identificado en sesiones
+  anteriores es efectivamente el que procesa estos archivos.
+- **Corrección metodológica real encontrada**: los nombres de símbolo que
+  `gdb`/`winedbg` muestran para direcciones de `gamma.dll` **no son
+  fiables** — la misma dirección que Ghidra (recién reabierto sobre el
+  binario exacto, `analysis/GammaDLL.gpr`, para verificar) confirma como
+  `FUN_00442750` (una función interna real) aparecía en `gdb` etiquetada
+  como `_Java_NET_worlds_core_SystemInfo_GetProcessorType@8+736` — un
+  export completamente distinto y no relacionado. La aritmética de
+  direcciones (`base_runtime - ImageBase_preferido + VA_estática`) es
+  correcta y reproducible entre ejecuciones (`gamma.dll` carga siempre en
+  `0x03A40000` en este entorno); lo que no hay que hacer es fiarse de la
+  etiqueta que `gdb` imprime — hay que verificar contra Ghidra directamente.
+
+### El bloqueo real: no es el algoritmo, es la ventana/dispositivo gráfico
+
+`loadImage()` con `IDLE.CMP` (modo `0x06`, atípico) vuelve rápido con
+`width=height=hDIB=0` — evidencia de que ese modo toma una rama de salida
+temprana, no de que el decoder falle. Con un archivo "normal" (modo
+`0x02`, `ADWORLDS.CMP` — exactamente el tipo de archivo simple que se
+pidió probar primero) y también con `ScapePicTexture.makeTexture()` (la
+función que, según la documentación de sesiones anteriores, es la que de
+verdad invoca `getScanline`/`FUN_00442bc0`), la ejecución real SÍ avanza
+más allá del parseo de cabecera — pero antes de llegar a
+`FUN_00442bc0`/`FUN_00457d88` entra en la inicialización de un dispositivo
+DirectDraw/OpenGL y una ventana real, que en este entorno concreto (Wine
+bajo Xwayland sandboxed, sin aceleración gráfica real) **se cuelga
+indefinidamente** — confirmado repetidas veces, con y sin depurador
+adjunto, con timeouts de hasta 150 segundos, con evidencia de bytes reales
+(`err:clipboard:convert_selection Timed out waiting for SelectionNotify
+event`, `libEGL warning: egl: failed to create dri2 screen`, y una
+interrupción asíncrona durante el cuelgue que mostró un hilo esperando una
+sección crítica del propio cargador de Wine bloqueada por otro hilo — un
+patrón de contención de arranque de dispositivo/ventana bajo Wine, no un
+bucle infinito dentro de la lógica de `gamma.dll` en sí). Se probaron
+mitigaciones razonables (matar `wineserver` residual de ejecuciones
+previas interrumpidas, modo de escritorio virtual de Wine
+`explorer /desktop=...`) sin éxito dentro del tiempo disponible de esta
+sesión.
+
+**Conclusión honesta**: la ambigüedad original (aritmética de acarreo +
+escritura de doble fila en `FUN_00457d88`) **sigue sin resolverse** —
+no por falta de intentarlo con evidencia de ejecución real, sino porque
+este entorno concreto no permite llegar tan lejos en la ejecución real del
+decoder. No se implementó el decoder en Java (habría significado inventar
+la parte no verificada, exactamente lo que se pidió evitar), y por lo
+tanto tampoco se conectó ningún decoder al pipeline de materiales del
+motor — no hay nada real que conectar todavía.
+
+### Siguiente paso concreto para una futura sesión
+
+1. Repetir el arnés de `tools/gamma-dll-debug-harness/` en un entorno con
+   acceso real a GPU/DRI o con un gestor de ventanas real disponible — el
+   propio README documenta el bloqueo exacto para no tener que
+   redescubrirlo. Si el cuelgue desaparece ahí, el resto del plan original
+   (single-step por `FUN_00442bc0`/`FUN_00457d88` con valores reales) sigue
+   siendo el camino correcto y ahora hay un entorno de depuración ya
+   verificado y funcional para hacerlo, en vez de partir de cero.
+2. Alternativa si el bloqueo persiste: investigar si existe alguna forma
+   de invocar `FUN_00442bc0`/`FUN_00457d88` sin pasar por la creación real
+   de dispositivo/ventana (p.ej. llamando las funciones internas
+   directamente desde `gdb` con un objeto `this` construido a mano una vez
+   se conozca su layout con más precisión) — no intentado esta sesión por
+   el riesgo de invertir mucho tiempo en una reconstrucción de layout sin
+   evidencia suficiente.
+3. Una vez con eso claro, implementar en Java el predictor causal 2D ya
    identificado (copiar valor de uno de los ~50 vecinos de la tabla real
    extraída, o repetir un literal N veces) y verificar dimensiones +
-   tamaño de salida esperado antes de aceptar cualquier píxel como bueno,
-   exactamente como pidió el usuario.
-3. Verificar contra los 17 archivos `.cmp` reales del proyecto y, si
+   tamaño de salida esperado antes de aceptar cualquier píxel como bueno.
+4. Verificar contra los 17 archivos `.cmp` reales del proyecto y, si
    aparece, contra el material RWX que los referencia.
