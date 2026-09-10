@@ -1167,6 +1167,50 @@ constante (en `ball.rwg`, 512 registros, cuenta 1..512) — ver
 
 ---
 
+### 🟡 `.cmp` — depuración dinámica real construida y verificada, pero
+### bloqueada por infraestructura antes de llegar al decoder de píxeles
+### (2026-09-10)
+
+Objetivo de la sesión: resolver la ambigüedad pendiente de `FUN_00457d88`
+(aritmética de acarreo + escritura de doble fila) mediante depuración
+dinámica real de `gamma.dll` bajo Wine — no más análisis estático.
+
+**Logrado**: un entorno de depuración dinámica real y reutilizable —
+Wine 11.0 + `winedbg --gdb` (gdb real conectado vía proxy) + un arnés Java
+de sala limpia (`tools/gamma-dll-debug-harness/`) que invoca directamente
+los métodos `native` reales de `gamma.dll` bajo el propio JRE de época del
+proyecto (`java.exe` 1.4.2_05), sin necesitar el cliente completo ni red.
+Confirmado con ejecución en vivo (no solo estática): un breakpoint en
+`FUN_00442750` (validador de cabecera) se alcanza al llamar `loadImage()`
+con un `.cmp` real, y un volcado instrucción a instrucción con registros
+reales muestra la función abriendo y leyendo el archivo de verdad
+(`ReadFile` contra bytes reales). Corrección metodológica real: los
+nombres de símbolo que `gdb`/`winedbg` muestran para `gamma.dll` **no son
+fiables** (una dirección confirmada por Ghidra como `FUN_00442750`
+aparecía etiquetada como un export completamente distinto y no
+relacionado) — hay que verificar direcciones contra Ghidra directamente,
+nunca contra la etiqueta de `gdb`.
+
+**Bloqueado, honestamente sin resolver**: cualquier camino de ejecución
+que pasa del parseo de cabecera hacia el decoder de píxeles real
+(`FUN_00442bc0`/`FUN_00457d88`) dispara la creación de un dispositivo
+DirectDraw/OpenGL y una ventana real, que en este entorno concreto (Wine
+bajo Xwayland en sandbox, sin aceleración gráfica) se cuelga
+indefinidamente (probado hasta 150s, con y sin depurador, con mitigaciones
+razonables como matar `wineserver` residual y modo de escritorio virtual
+de Wine — ninguna funcionó). Evidencia real de que es un problema de
+arranque de dispositivo/ventana de este entorno, no del algoritmo de
+`gamma.dll`: una interrupción asíncrona durante el cuelgue mostró un hilo
+esperando la sección crítica del cargador de Wine, bloqueada por otro
+hilo. No se implementó el decoder (habría significado inventar la parte
+no verificada) ni se conectó nada al pipeline de materiales — no hay
+decoder real que conectar todavía. Detalle completo, con el arnés
+reutilizable documentado para una futura sesión con mejor acceso a
+GPU/ventanas, en `docs/cmp-texture-format-reference.md` y
+`tools/gamma-dll-debug-harness/README.md`.
+
+---
+
 ## 5. Roadmap por fases
 
 **Orden de módulos: networking → renderer → UI**
