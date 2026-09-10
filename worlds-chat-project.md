@@ -1682,6 +1682,58 @@ etc.), sin modificar una sola línea del `source/`.
 
 ---
 
+### 🟢 Red — LÍNEA B: paradoja del `dAssert(false)` en estado 7
+### RESUELTA con evidencia real contra el servidor vivo (2026-09-10,
+### continuación en paralelo)
+
+El análisis de bytecode de la sección anterior (`dAssert(false)` lanza
+de verdad, `javap` contra el `.class` original lo confirma) era
+correcto, pero la "paradoja" en sí — que el cliente de 2004
+aparentemente sobrevivía a esto — era **enteramente un artefacto del
+harness de pruebas**, no un bug real del cliente.
+
+**Causa raíz, encontrada leyendo el código fuente directamente**:
+`WorldServer.state_XMIT_SI()`/`state_XMIT_AI()` son el patrón
+"abstracto por assert" típico de este código de los 90 — el cliente
+real **nunca instancia `WorldServer` a pelo** para una conexión:
+
+1. `ServerURL(String)`: para una URL normal `host:puerto` sin segmento
+   de tipo explícito, `_serverType` queda literalmente `"AutoServer"`
+   por defecto (verificado en el constructor).
+2. `ServerTracker.findOrMake` instancia por reflexión
+   (`Class.forName("NET.worlds.network." + type).newInstance()`) — para
+   cualquier conexión normal, eso es **siempre `AutoServer`**, nunca
+   `WorldServer`.
+3. `AutoServer.state_XMIT_SI()` SÍ tiene lógica real (no un stub): lee
+   la propiedad `#15` (ya presente en el PROPUPD real de
+   `worlds.worlio.com` capturado en `docs/net-handshake-trace.log`:
+   `#15 = "1"`), detecta el tipo de servidor, instancia la subclase
+   concreta (`1 → UserServer`), le transfiere la conexión viva y la
+   re-alimenta con las mismas props — y solo entonces pone su propio
+   estado a 17 (terminado, ya se especializó). Nunca toca el `dAssert`.
+
+**Verificado en vivo contra producción, no solo leído**:
+`AutoServerProbe.java` (misma disciplina que `HandshakeProbe`, pero
+`extends AutoServer` en vez de `extends WorldServer`) conecta contra
+`worlds.worlio.com:6650` real y atraviesa el estado 7 **sin ninguna
+`AssertionException`**, llega a estado 17 con `serverType=1` —
+coincide exacto con la predicción hecha ANTES de correr nada — e
+incluso alcanza código real más allá de lo que cualquier sonda anterior
+tocó (`LWDB: brought up LoginWizard0 in setGalaxyType`). Reproducido
+limpio en una segunda corrida. Un aviso "a server tried to murder
+another!" de `ServerTracker.killServer` es benigno (solo imprime, no
+lanza — dispara porque esta sonda no se registró vía `findOrMake`, un
+artefacto propio del harness, no del cliente real) y no afecta a la
+ejecución. Trazo completo real en `docs/net-autoserver-trace.log`.
+
+**Conclusión**: no hay bug real que arreglar — el camino real
+(`AutoServer`, y la subclase concreta que resuelve por tipo) simplemente
+funciona tal y como está diseñado. `MinimalServerHandler` sigue siendo
+útil como herramienta de intercepción explícita, pero ya no hace falta
+como parche para un bug real.
+
+---
+
 ### 🟢 `.bod` — RESUELTO completamente, no por ingeniería inversa sino
 ### traduciendo el codificador oficial (2026-09-10, continuación: nuevos
 ### recursos externos)
