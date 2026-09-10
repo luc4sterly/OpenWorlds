@@ -162,8 +162,22 @@ public class CmpStage2 {
         history[histIdx] = (byte) v;
         history[histIdx+1] = (byte) (v >>> 8);
     }
-    // byte[1] of a 32-bit value (matches ROL 8 then take low byte)
-    static int byte1(int v) { return (v >>> 8) & 0xFF; }
+    // Emitted byte of a 32-bit history word on the SINGLE and 0x24 paths.
+    // Both do "rol eax,8; mov [esi(+1)],al" (SINGLE @0x457e36/0x457e39 and
+    // @0x457e4c/0x457e4f; 0x24 @0x457fba/0x457fbd and @0x457fd0/0x457fd3).
+    // x86 ROL r32,8 rotates toward the MSB, so the new AL is the OLD HIGH
+    // byte (bits 24-31), NOT byte 1: al = byte3(v). An earlier version of
+    // this decoder emitted byte1 (as if the rotation were ROR) - invisible
+    // against test4b.cmp (flat quadrants: every history word has all four
+    // bytes equal, so byte1==byte3) and nearly invisible against
+    // rustwood.cmp (26/4096), but wrong on varied content: found via a live
+    // mem-after-store trace of sball.cmp pass 0 (2026-09-10, LINEA A
+    // session) - real iter-8 SINGLE reads v1=[07,07,07,1f] and really emits
+    // 0x1f (memcap.txt "ev pass=0 off=16 site=SW0 regal=31 mem=31"),
+    // while byte1(v1) is 0x07. DUAL is unaffected: it stores ah with NO
+    // rotation (0x457ebb/0x457ee5), i.e. genuinely byte1 of the 16-bit
+    // half-word - left as-is below.
+    static int byte3(int v) { return (v >>> 24) & 0xFF; }
 
     void emit(int b) {
         if (out == null) { out = new byte[1024]; }
@@ -250,8 +264,8 @@ public class CmpStage2 {
                 wr32(edi, v1);
                 int v2 = rd32(edi + stride + off);
                 wr32(edi + stride, v2);
-                emit(byte1(v1));
-                emit(byte1(v2));
+                emit(byte3(v1));
+                emit(byte3(v2));
                 // Real disassembly (FUN_00457d88 @0x457e52, gamma.dll) shows the
                 // SINGLE path does a SECOND "add edx,edx" here before rejoining
                 // the loop tail - a bit is shifted out of the register and its
@@ -277,12 +291,12 @@ public class CmpStage2 {
                                | ((streamLit[posLit+2] & 0xFF) << 16) | ((streamLit[posLit+3] & 0xFF) << 24);
                         posLit += 4;
                         wr32(edi, lo);
-                        emit(byte1(lo));
+                        emit(byte3(lo));
                         int hi = (streamLit[posLit] & 0xFF) | ((streamLit[posLit+1] & 0xFF) << 8)
                                | ((streamLit[posLit+2] & 0xFF) << 16) | ((streamLit[posLit+3] & 0xFF) << 24);
                         posLit += 4;
                         wr32(edi + stride, hi);
-                        emit(byte1(hi));
+                        emit(byte3(hi));
                         // raw-escape does NOT consume streamFillIdx / do the extra broadcast (confirmed via static Ghidra disasm: jumps straight to loop top)
                     } else {
                         int al, ah;
