@@ -565,3 +565,151 @@ evidencia de ejecución real**, no solo hipótesis. Lo que falta para un
 decoder Java completo es trabajo de implementación y verificación
 adicional (no ambigüedad de diseño), documentado arriba como próximos
 pasos concretos.
+
+---
+
+## Sesión de cierre (2026-09-10, continuación): árbol de símbolos ampliado
+## con archivos reales variados, `0x24` resuelto, decoder Java implementado
+## y parcialmente verificado — NO conectado al pipeline todavía
+
+Objetivo: cerrar el descompresor `.cmp` ejercitando el árbol de símbolos
+completo (no solo el caso trivial de fila plana de la sesión anterior),
+implementar el decoder en Java, y verificarlo byte a byte contra
+`gamma.dll` real antes de conectarlo al pipeline de materiales.
+
+### Corpus real variado localizado y confirmado no-plano
+
+De los 13 `.cmp` reales únicos del proyecto, se calculó la entropía de
+Shannon de cada uno como filtro barato antes de gastar ciclos de
+depuración: `ADWORLDS.CMP` (la fila ya analizada) tiene entropía 5.0,
+muy por debajo del resto (7.0-7.8), confirmando que era un caso
+degenerado. Se seleccionaron `4i.cmp`, `4h.cmp`, `48.cmp`, `4a.cmp` y
+`ADFRAME.CMP` (entropía 7.4-7.8) como candidatos reales no planos; los 5
+decodifican con éxito bajo Xvfb (128×128, `hDIB` real). Se volcó la fila 0
+real de `4i.cmp` y resultó genuinamente variada (9+ valores de byte
+distintos en 16 bytes, contra el `0xAD` constante de `ADWORLDS.CMP`) —
+corpus válido para ejercitar ramas nuevas del árbol de símbolos.
+
+### Corrección real importante: la granularidad de llamada de sesiones
+### anteriores era incorrecta — `ch` produce exactamente `ch×2` bytes,
+### no una fila ni la imagen completa
+
+La sesión anterior, al no ver un `ret` ni una reentrada en 6000
+instrucciones trazadas, infirió que una sola llamada a `FUN_00457d88`
+decodifica la imagen COMPLETA. Verificación real esta sesión (poniendo un
+breakpoint en la dirección de retorno real, calculada desde `*esp` al
+entrar a la función, en vez de asumir) muestra que **una llamada produce
+exactamente `ch×2` bytes de salida real** (`ch=32` en todos los archivos
+probados ⇒ 64 bytes = medio ancho de fila para una imagen de 128px) — ni
+una fila completa ni la imagen entera. Sesiones futuras que necesiten la
+imagen completa seguirán necesitando resolver `ScapePicTexture.
+makeTexture()` (ver más abajo) o entender cómo `getScanline` compone
+varias llamadas.
+
+### Espacio de símbolos completo, mapeado con evidencia real (viva y
+### estática)
+
+Con el archivo variado (`4i.cmp`), una traza de 4000 instrucciones reveló
+**236 direcciones nuevas** nunca vistas en la traza plana de la sesión
+anterior. Analizadas con registros completos, revelan la estructura
+completa del árbol binario superior (2 bits reales, no 3 — el tercer
+salto que parecía un nivel adicional en realidad reevalúa el MISMO
+resultado de un único `add edx,edx`, leyendo el flag de acarreo y el
+flag de cero por separado):
+
+- **bit1=0** → copia de predictor de 4 bytes (un índice, ya documentado
+  antes).
+- **bit1=1, bit2=0** → **copia de predictor DUAL de 2 bytes** (nueva):
+  dos índices independientes, uno por mitad de 2 píxeles del grupo de 4,
+  cada uno con su propia escritura de doble fila.
+- **bit1=1, bit2=1** → **rama de "byte de control"** (antes solo se había
+  visto el caso trivial de relleno de la fila plana): un byte de control
+  determina, según sus 3 bits bajos y los bits 3+, entre un par literal
+  directo, una referencia hacia atrás (`lookback`) dentro de la propia
+  fila de salida ya escrita, o una combinación de ambos.
+
+**El byte centinela `0x24` (36 decimal) — buscado activamente, nunca
+apareció en vivo en los archivos probados (0 coincidencias en 58
+comparaciones reales), pero se resolvió con desensamblado estático
+fresco de Ghidra** de la dirección de destino (`0x00457fb0`): **NO es un
+marcador de fin de stream** como se sospechaba — es una **ruta de escape
+de literal crudo de 8 bytes**: lee 8 bytes directamente del stream de
+literales y los escribe como dos bloques de 4 bytes (uno por fila,
+mismo patrón de doble escritura que todo lo demás), sin pasar por la
+tabla de predictores en absoluto. Coherente con el resto del diseño: un
+mecanismo de escape genérico para contenido que no encaja en ningún
+patrón de predicción/relleno.
+
+**Hallazgo real no anticipado, encontrado depurando el primer intento de
+verificación fallido**: cada iteración de la rama "byte de control" que
+NO es `0x24` **también** consume, sin excepción, un byte del stream de
+índice de relleno (el mismo stream usado por el camino de relleno plano
+de la sesión anterior) y hace una escritura de difusión adicional (4
+copias del byte que acabó en la salida de esta iteración) hacia el
+historial — con el mismo patrón de doble fila que todo lo demás. Esto no
+se había documentado antes porque en el archivo plano de la sesión
+anterior era indistinguible de "no hacer nada" (el valor de difusión
+coincidía con el valor ya presente). Se encontró solo al verificar contra
+un archivo real con variación, cuando el decoder Java fallaba en TODOS
+los bytes hasta corregir esto.
+
+### Decoder Java implementado y verificado — parcialmente
+
+`tools/gamma-dll-debug-harness/cmp-stage2-decoder/CmpStage2.java`
+implementa la Etapa 2 completa (símbolos ya decodificados por Huffman →
+píxeles reales) con toda la estructura de arriba. Verificado contra datos
+reales extraídos en vivo (streams + ventana de historial + salida real,
+todo del MISMO proceso en una sola ejecución, para evitar comparar entre
+ejecuciones distintas — un error real cometido y corregido durante esta
+sesión):
+
+- **`adworlds.cmp`**: 34/64 bytes exactos. Los 30 restantes son un único
+  bloque contiguo, y cada uno corresponde a una lectura de predictor con
+  desplazamiento >250 bytes hacia adelante — más allá de lo que un volcado
+  de memoria único puede capturar de forma fiable (el proceso real puede
+  seguir leyendo ahí sin fallar, probablemente por páginas comprometidas
+  de forma perezosa a medida que se escribe cerca; un volcado estático
+  de Python en un solo instante no puede reproducir eso). Limitación de
+  captura de datos, no evidencia de error de diseño — en este archivo
+  totalmente plano, CADA uno de esos bytes debería ser `0xAD` igual que
+  el resto, y el decoder los produce mal únicamamente porque mi
+  relleno-con-ceros ocupa el lugar de datos reales que no pude capturar.
+- **`4i.cmp`**: 55/64 bytes exactos. Los 9 restantes (posiciones 41-49)
+  se investigaron a fondo: la secuencia EXACTA de bytes de control y el
+  consumo de posición de stream de literales se verificaron, iteración
+  por iteración, contra una traza en vivo (26 iteraciones de "byte de
+  control" comparadas una a una, coincidencia perfecta), y el byte
+  literal específico que el decoder lee se confirmó en memoria viva en
+  la posición correcta — y aun así, el "ground truth" capturado para esas
+  posiciones concretas no coincide. No resuelto antes de que se agotara
+  el tiempo de esta sesión. Ver el método de captura de "ground truth" en
+  `tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md` — lo más
+  probable, dado lo demás verificado independientemente, es un problema
+  del propio método de captura, no del algoritmo, pero **no está
+  demostrado** y se documenta honestamente como abierto.
+
+### `ScapePicTexture.makeTexture()` — progreso real, sigue bloqueado
+
+Se intentó de nuevo destrabar `makeTexture()` (necesario para decodificar
+una imagen completa, no solo 64 bytes) replicando con más fidelidad la
+jerarquía real de clases (`Texture` con `textureID`/`refs`/`classCookie`,
+`ScapePicMovie` con el tipo exacto). Esto SÍ avanzó el punto de fallo (de
+un `Assertion failed: line 98` a `line 99`, y finalmente a un
+`EXCEPTION_ACCESS_VIOLATION` real — más profundo en el código real que
+antes) pero no se resolvió del todo. No se investigó más allá por límite
+de tiempo de la sesión.
+
+### Por qué NO se conectó nada al pipeline de materiales esta sesión
+
+Siguiendo la regla explícita del proyecto (nunca píxeles con aspecto
+plausible pero sin verificar), y dado que NINGÚN archivo real alcanzó
+verificación 100% byte-exacta (34/64 y 55/64, no 64/64), **no se conectó
+el decoder al pipeline de renderizado**. Habría sido fácil mostrar "algo"
+en pantalla, pero no se puede afirmar honestamente que sea la textura
+real hasta que la verificación sea completa. Próximo paso concreto y
+priorizado para una futura sesión: (1) mejorar el método de captura de
+ground truth (breakpoints reales en cada instrucción de escritura en vez
+de sondeo de `$pc` en cada `stepi` — más rápido y más fiable), (2)
+resolver el gap de 9 bytes de `4i.cmp` con datos más limpios, (3) una vez
+100% verificado en 2-3 archivos, conectar al pipeline y verificar por
+histograma de color que aparecen patrones de textura reales.
