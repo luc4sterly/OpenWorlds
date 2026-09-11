@@ -713,3 +713,204 @@ de sondeo de `$pc` en cada `stepi` — más rápido y más fiable), (2)
 resolver el gap de 9 bytes de `4i.cmp` con datos más limpios, (3) una vez
 100% verificado en 2-3 archivos, conectar al pipeline y verificar por
 histograma de color que aparecen patrones de textura reales.
+
+---
+
+## Sesión Stage 1 (2026-09-11): decodificador Huffman de verdad
+## desensamblado con evidencia real — arquitectura completa entendida,
+## el encadenado exacto entre "filas" sigue sin cerrar (NO funcional aún)
+
+Objetivo: implementar el Stage 1 real (bytes `.cmp` crudos → los 5
+streams de símbolos que `CmpStage2` ya consume byte-exacto), motivado
+por la necesidad de decodificar texturas reales de `GroundZero` (159
+archivos `.cmp` oficiales sin ninguna captura de streams previa — sin
+Stage 1, ninguno de ellos es decodificable). **No se cerró del todo**,
+pero se desensambló con evidencia real (Ghidra/`llvm-objdump`, sin
+adivinar) una cadena mucho más larga de lo que había antes, incluyendo
+**el decodificador de bits real completo**, y se documenta todo aquí con
+precisión byte a byte para que una sesión futura no tenga que repetir
+este trabajo.
+
+### Cabecera de 34 bytes — layout completo, verificado contra los 3
+### archivos reales conocidos
+
+`FUN_00442750` (offset runtime confirmado, `0x03A82750` en este
+entorno) lee y valida 34 bytes (`0x22`) así:
+
+```
+[0..3]   "LzH2" (magic, comparado con memcmp contra 0x479324)
+[4]      "modo" (0x02 en los 3 archivos de prueba)
+[5]      flags: bit7 debe ser 1; bits 2,3,4,6 deben ser 0; bits 0,1,5 libres
+           (bit0=1 en test4b, 0 en rustwood/sball — candidato fuerte a ser
+           el flag "orientation" que `CmpTexture.java` ya vota por archivo
+           como `orient`, sin conocer su origen — esta sesión lo localiza
+           en la cabecera, sin conectarlo todavía)
+[6..7]   W (u16 LE)          -- ya usado por CmpTexture.java
+[8..9]   H (u16 LE)          -- ya usado por CmpTexture.java
+[10..18] sin decodificar (9 bytes, varían por archivo)
+[19]     debe ser 0 (verificado en los 3 archivos)
+[20..31] sin decodificar (12 bytes)
+[32..33] payload size = fileSize - 34 (u16 LE) — **verificado exacto en
+           los 3 archivos**: test4b 364, rustwood 6539, sball 3954,
+           cada uno = tamaño total del archivo menos 34.
+```
+
+### Las 3 tablas de permutación de alfabeto fijo — extraídas byte a byte
+### directamente del binario (no de memoria de sesiones anteriores)
+
+`FUN_00442590(tableIndex, flag, &out)` es un switch de 4 vías (jump
+table real en VA `0x4792e8`, leído directamente del archivo):
+
+- índice 0 → 81 bytes en VA `0x47927c`:
+  `555657595a5b5d5e5f656667696a6b6d6e6f757677797a7b7d7e7f959697999a9b9d9e9fa5a6a7a9aaabadaeafb5b6b7b9babbbdbebfd5d6d7d9dadbdddedfe5e6e7e9eaebedeeeff5f6f7f9fafbfdfeff`
+  (permutación real, no secuencial)
+- índice 1 → 49 bytes en VA `0x479028`:
+  `0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031`
+  (secuencial 1..49 — de facto identidad)
+- índice 2 → **degenerado**: el jump table apunta al mismo caso "fuera
+  de rango" que índice≥4 (`eax=0`, `*out` queda en 0 sin escribir) — el
+  canal de índice 2 no tiene tabla de permutación ni alfabeto fijo en
+  absoluto. Significado real NO resuelto (ver más abajo).
+- índice 3 → 22 bytes en VA `0x4792d0`:
+  `0001020304080a0b0c1011131418191a1c2021222324`
+
+### El bucle de 5 canales en `getScanline` (`FUN_00442bc0`) — mapeo
+### canal↔stream confirmado por desensamblado, no supuesto
+
+Desensamblado completo de `0x442e63`-`0x442f5b`: por cada "grupo"
+(llamado una vez antes de cada llamada a Stage 2, `FUN_00457d88`), lee
+un puntero `dec` de una estructura pequeña y, para `edi=0..4`, si
+`dec_orig[2+edi*2]` (u16) es no-cero, llama
+`FUN_00426af0(this=tableHandle, compressedPtr, outputPtr, wantedLen)` —
+y **el resultado se guarda en un array local `[-0x28(ebp)+edi*4]` que
+es literalmente el mismo puntero (`structptr`) que luego se pasa como
+5º argumento a `FUN_00457d88`/Stage 2** — confirma con desensamblado
+real (no solo con `cmp_capture.py`, que ya lo había hallado
+empíricamente) el orden de canales: `edi=0→bits, 1→streamA,
+2→streamFillIdx, 3→streamCtrl, 4→streamLit`. **El canal 4 (`lit`) usa
+copia directa** (no pasa por `FUN_00426af0`), consistente con "1 de 5
+sin Huffman".
+
+**Implicación intrigante, no resuelta**: el canal 2 (`streamFillIdx`)
+es exactamente el que tiene alfabeto degenerado (índice 2, sin
+permutación) según `FUN_00442590` — pero `streamFillIdx` SÍ tiene
+contenido real variado en los archivos verificados (es la máscara de 8
+bits que elige `al`/`ah` por carril, documentada en
+`cmp-stage2-decoder/README.md`). O el "degenerado" no significa "vacío"
+sino "usa longitudes de código de 1 byte sin permutar" (una
+interpretación alternativa de `FUN_00426640` no descartada), o el mapeo
+canal↔índice-de-alfabeto no es 1:1 con el mapeo canal↔stream-de-salida
+que se acaba de confirmar arriba — **abierto, marcado explícitamente
+para no inventar una explicación**.
+
+### El decodificador de bits real, `FUN_00426af0` — desensamblado
+### completo, algoritmo simple y ahora entendido con confianza alta
+
+Contrario a lo asumido en sesiones anteriores ("árbol de Huffman de 2-3
+niveles"), el desensamblado real (VA `0x426af0`-`0x426bae`) muestra que
+**todos los códigos tienen longitud ≤ 8 bits** — no hace falta caminar
+ningún árbol, es una tabla de búsqueda directa de 256 entradas:
+
+```
+tabla: 512 bytes por canal = [0..255]=símbolo, [256..511]=longitud_de_código
+ventana = (byte[pos]<<8) | byte[pos+1]; pos += 2   # primera carga, 16 bits
+bitsDisponibles = 8   # contador con signo (ch, 1 byte)
+para cada uno de los `wantedLen` bytes de salida:
+    idx = (ventana >> 8) & 0xFF          # top byte de la ventana de 32 bits
+    símbolo = tabla[idx]; longitud = tabla[256+idx]
+    emitir(símbolo)
+    bitsViejos = bitsDisponibles
+    bitsDisponibles -= longitud
+    si bitsDisponibles < 0:              # hace falta recargar
+        ventana <<= bitsViejos            # consume los bits que SÍ había
+        nuevoByte = byte[pos++]
+        ventana = (ventana & ~0xFF) | nuevoByte   # solo el byte bajo
+        faltante = longitud - bitsViejos
+        bitsDisponibles += 8
+        ventana <<= faltante               # alinea el byte nuevo
+    si_no:
+        ventana <<= longitud
+devuelve: pos_final - pos_inicial   # bytes consumidos del stream comprimido
+```
+
+Esto reproduce exactamente el truco clásico LHA/LZH de acumulador de 32
+bits con recarga de 1 byte bajo demanda — pero SIN camino de "código
+largo" en absoluto (a diferencia de LHA genérico, que sí necesita
+manejar códigos >8 bits con una tabla de desbordamiento). Coincide con
+"cuenta de frecuencias por longitud 0-8" ya documentado.
+
+### Construcción de tabla (`FUN_00426640`/`FUN_004266f0`/`FUN_00426820`)
+### — reconocida como `make_table()` de LHA, PARCIALMENTE portada, con
+### un caso degenerado sin verificar
+
+`FUN_00426640` desempaqueta nibbles de 4 bits (2 por byte de entrada,
+uno por símbolo del alfabeto REDUCIDO de tamaño 81/49/22) y los
+dispersa en un array de 256 longitudes usando la tabla de permutación
+como índice destino — confirmado por desensamblado línea a línea.
+`FUN_004266f0` reconocida con alta confianza como el `make_table()`
+canónico de LHA (cuenta frecuencias por longitud, calcula
+`start[l+1]=(count[l]+start[l])·2`, asigna códigos en una 2ª pasada) —
+**con un caso especial degenerado** (`if sum<=1: return early`) cuyo
+comportamiento exacto en la fase de expansión (`FUN_00426820`) sólo se
+desensambló parcialmente: hay una rama "simple" (`[ebp+0xc]<=1`) que
+rellena la tabla de símbolos entera con el valor `0` — pero el caso
+GENERAL (>1 símbolo real) de `FUN_00426820`, que expande los códigos
+canónicos asignados en la tabla directa de 256 entradas, **se
+implementó siguiendo el patrón LHA de libro de texto (rellenar
+`2^(8-longitud)` ranuras consecutivas desde el código alineado a 8
+bits), no una traducción literal instrucción a instrucción del
+desensamblado** — riesgo real de estar sutilmente equivocado.
+
+### Intento de implementación Java: NO funcional todavía — el "avance
+### entre grupos" del bucle externo es la pieza que falla
+
+Con todo lo anterior, un prototipo en Java (no incluido en el repo,
+vivió en `/tmp` durante esta sesión) construyó las 4 tablas Huffman
+correctamente (el conteo de bytes consumidos para desempaquetar las
+longitudes — 41+25+0+11=77 bytes — coincide exacto con lo esperado para
+alfabetos 81/49/0/22), pero el bucle externo que debería leer, grupo a
+grupo, 5 campos de longitud (u16) y decodificar cada canal, **diverge
+después de 3-4 grupos**: los primeros grupos leen longitud 0 en los 5
+canales (plausible para un archivo casi todo plano como `test4b.cmp`,
+pero no verificado como correcto), y hacia el grupo 3-5 aparecen
+longitudes que exceden el presupuesto total de bytes del archivo
+(`lit=252` cuando sólo quedan ~287 bytes en todo el payload para
+`outer=16` grupos) — señal clara de que el avance de puntero entre
+grupos (asumido `+0x10=16` bytes, tomado literal del desensamblado de
+`getScanline`) y/o la posición exacta de los 5 campos de longitud
+dentro de esa estructura de 16 bytes **no está bien modelada todavía**
+— quedan 6 de los 16 bytes por grupo sin explicar (posiblemente más
+metadatos, o el conteo `outer=H/2` no es el número real de grupos).
+
+### Qué queda para la próxima sesión, con evidencia ya en mano
+
+1. Trazar en vivo (winedbg/gdb, entorno ya probado y funcional esta
+   sesión: `Xvfb` + `wineserver -k` + `winedbg --gdb` con breakpoints
+   temporales en la dirección de retorno, NO usar `finish` — no se
+   comporta como en gdb nativo bajo el proxy de winedbg, confirmado
+   esta sesión) un breakpoint en el TOPE del bucle externo de
+   `getScanline` (`0x442e05`/`0x442fab` en runtime, delta variable —
+   ver la nota de "gamma.dll's load base is NOT fixed" en el README del
+   harness) para capturar en vivo cuántos grupos se ejecutan de verdad
+   y qué contiene exactamente cada bloque de 16 bytes (los 2 campos u16
+   ya identificados en offsets 0 y 0xc de `dec_orig`, además de los 5
+   de longitud en offsets 2-11 — falta decodificar offsets 12-15 y
+   confirmar los 0/0xc).
+2. Verificar `FUN_00426820`'s caso general con desensamblado línea a
+   línea completo (esta sesión sólo lo leyó parcialmente) en vez de la
+   implementación de libro de texto usada en el prototipo.
+3. Resolver la anomalía del canal 2 (`streamFillIdx`) con alfabeto
+   degenerado — probablemente necesita trazarse en vivo para ver qué
+   construye realmente `FUN_00426930` cuando `alphabetSize=0`.
+4. Una vez el prototipo decodifique `test4b.cmp` byte-exacto contra
+   `assets/gammatutorial-samples/test4b.cmp` (comparando contra sus
+   streams ya verificados en `tools/gamma-dll-debug-harness/
+   cmp-stage2-decoder/test4b_stream_*.bin`), repetir contra
+   `rustwood.cmp`/`sball.cmp`, y sólo entonces intentar los 159
+   archivos reales de `assets/WorldsPlayer/GroundZero/content.zip`.
+
+**Nada de esto se conecta al pipeline de materiales** — ni un solo byte
+de las 159 texturas reales de GroundZero se decodificó esta sesión; el
+prototipo no llegó a producir salida verificable contra ningún archivo
+conocido. Documentado honestamente como investigación real pero
+incompleta, no como progreso funcional.
