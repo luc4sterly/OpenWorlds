@@ -2356,3 +2356,120 @@ acepta nick/password solo por argv). El guest no necesita registro.
 primario cuando un humano registre una cuenta en la URL de arriba —
 la misma sonda (argv nick/password) debería llegar a 12 por el camino
 `UserServer` modo 2; pendiente de esa cuenta, no de código.
+
+---
+
+### 🟢 Render — pipeline de materiales conectado a texturas reales por
+### nombre sobre la escena `.world` completa (2026-09-11)
+
+Objetivo de la sesión: que `GroundZero.world` (25 salas, 103 objetos,
+verificado en sesiones anteriores) cargara texturas `.cmp` REALES por
+objeto, no solo color plano. Se logró la mitad real y verificada de
+esto — el pipeline mismo — pero no la otra mitad (decodificar las
+texturas reales de la escena), documentado honestamente abajo, no
+maquillado.
+
+**Conectado y verificado**: `WorldViewer` ahora resuelve el `Texture`
+real de cada material contra `assets/WorldsPlayer/GroundZero/
+content.zip` (zip real de la instalación de 2001, ya versionado, 159
+`.cmp` reales bajo `tex/*.cmp`, misma convención de directorio que los
+`.rwx` de geometría ya extraídos), decodificando vía
+`net.freeworlds.cmp.CmpTexture` con fallback honesto a color plano
+(nunca una textura inventada) cuando la decodificación falla — contado
+y reportado por nombre y razón real, no descartado en silencio.
+`GL_NEAREST`, no `GL_LINEAR` (corregido también en la demo de
+`RwxViewer`): sin evidencia de que RenderWare 2 aplicara filtrado
+bilinear, se usa la opción conservadora sin inventar suavizado (regla
+de alcance explícita de esta sesión). **Sin regresión**: con 0 texturas
+decodificables (ver abajo), `Reception` renderiza AE=0, pixel-idéntico
+al `docs/renders/world_reception_fixed.png` ya committeado. Detalle
+completo en `docs/render-pipeline-reference.md`.
+
+**Cobertura real medida sobre la escena completa**: 47 nombres de
+textura únicos referenciados, 124 referencias de material en total
+(el denominador real de objetos de verdad colocados por el grafo de
+escena, no un grep estático de todos los `.rwx` del directorio — ese
+da 72, cuenta modelos nunca instanciados en esta escena).
+
+**Lo que NO se logró esta sesión, con evidencia real de por qué**: el
+decoder `.cmp` Stage 2 (símbolos → píxeles) está byte-exacto desde la
+sesión anterior, pero **Stage 1** (bytes crudos `.cmp` → esos símbolos
+— el decodificador Huffman en sí) nunca se había implementado; solo
+existían streams pre-capturados a mano para 3 archivos (`test4b`,
+`rustwood`, `sball`), y **ninguno de los 47 nombres reales de
+GroundZero coincide con esos 3**. Dos rondas reales de ingeniería
+inversa esta sesión (ver la sección `.cmp` correspondiente más abajo
+para el detalle completo: cabecera de 34 bytes resuelta, las 3 tablas
+de permutación de alfabeto extraídas del binario, el decodificador de
+bits `FUN_00426af0` desensamblado por completo, el mapeo canal↔stream
+confirmado con cross-check real contra el censo de ramas de una sesión
+anterior) — pero Stage 1 **no quedó funcional**: la ronda 2 descubrió
+que los datos comprimidos se leen a través de un objeto lector de
+stream con buffer interno, no un puntero plano al archivo — una pieza
+de ingeniería inversa genuinamente nueva, no un ajuste menor, y se
+paró ahí en vez de forzar un cierre falso.
+
+**Resultado honesto de cobertura**: **0 / 47 texturas reales de
+GroundZero decodificadas**. El pipeline está listo y probado
+(conectado, sin regresión, con fallback correcto) — el bloqueo es
+puramente la falta de Stage 1, no el pipeline de materiales. Por lo
+mismo, **no hay comparación visual "antes/después" que mostrar esta
+sesión**: las capturas de `Reception`/`IconViewRoom1`/`ReceptionView1`
+con el pipeline de texturas conectado son pixel-idénticas a las
+capturas "solo color plano" ya committeadas de sesiones anteriores,
+porque 0 texturas se resolvieron. Documentado así explícitamente en vez
+de forzar una captura "después" que no mostraría ningún cambio real.
+
+**Rendimiento**: la escena completa (25 salas, `WorldViewer ... ALL
+--screenshot-dir`) renderiza en ~4.7s reales, sin problema — pero esta
+cifra es del estado ACTUAL (0 decodificaciones reales de textura); no
+mide el coste real de decodificar+subir 47 texturas a GL, que solo se
+podrá medir cuando Stage 1 exista.
+
+**Siguiente paso concreto para una sesión futura** (con evidencia ya en
+mano, ver `docs/cmp-texture-format-reference.md`): desensamblar el
+objeto lector de stream (`0x42f460`) y su mecanismo de buffer/refill
+antes de retomar la traducción puntero→offset; una vez Stage 1
+decodifique `test4b.cmp`/`rustwood.cmp`/`sball.cmp` byte-exacto contra
+sus streams ya verificados, recién ahí intentar los 159 archivos reales
+de GroundZero — el pipeline de `WorldViewer` ya está listo para
+consumirlos sin ningún cambio adicional en ese lado.
+
+---
+
+### 🟡 `.cmp` — Stage 1 (decodificador Huffman real): arquitectura
+### completa entendida en dos rondas, sigue sin funcionar (2026-09-11)
+
+Ver la sección "Render — pipeline de materiales..." justo arriba para
+el motivo (decodificar texturas reales de `GroundZero` lo necesitaba) y
+el resumen del resultado. Detalle técnico completo, con direcciones
+reales, valores de bytes exactos y evidencia de trazado en vivo para
+cada hallazgo, en `docs/cmp-texture-format-reference.md` (dos secciones
+nuevas: "Sesión Stage 1" y "Ronda 2"). Resumen de lo real y verificado
+sin ejecutar nada más:
+
+- Cabecera de 34 bytes completa, verificada exacta contra los 3
+  archivos conocidos (campo de tamaño de payload = `fileSize - 34`
+  exacto en los tres).
+- Las 3 tablas de permutación de alfabeto fijo (81/49/22 bytes)
+  extraídas byte a byte directamente del binario — con el hallazgo de
+  que el índice de alfabeto 2 es degenerado (sin explicar todavía).
+- `FUN_00426af0` (el decodificador de bits real) desensamblado por
+  completo: más simple de lo asumido en sesiones anteriores — todos los
+  códigos son ≤8 bits, tabla de búsqueda directa de 256 entradas, sin
+  caminar ningún árbol.
+- El mapeo canal↔stream (`bits, streamA, streamFillIdx, streamCtrl,
+  streamLit`) confirmado por desensamblado, y cruzado con evidencia
+  REAL independiente: los valores capturados en vivo (`streamA=124,
+  streamCtrl=4`) coinciden exactos con el censo de ramas de una sesión
+  `.cmp` anterior para el mismo archivo.
+- Confirmado: un archivo de 32×32 solo tiene UN grupo de cabecera (no
+  16), lo que también resuelve una duda antigua ("¿por qué
+  `FUN_00457d88` solo se llama una vez?").
+- **Bloqueo real, no resuelto**: los datos comprimidos se leen a través
+  de un objeto lector de stream con buffer interno (`0x42f460`), no un
+  puntero plano mapeado al archivo — el modelo "un `pos` que avanza
+  linealmente" del prototipo es estructuralmente incorrecto, no solo un
+  offset mal calculado. Cero texturas reales decodificadas, nada
+  conectado al pipeline con esta pieza — solo lo ya byte-exacto de la
+  sesión anterior (`test4b`/`rustwood`/`sball`) sigue siendo válido.
