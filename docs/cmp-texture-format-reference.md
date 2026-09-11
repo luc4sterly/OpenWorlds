@@ -914,3 +914,84 @@ de las 159 texturas reales de GroundZero se decodificó esta sesión; el
 prototipo no llegó a producir salida verificable contra ningún archivo
 conocido. Documentado honestamente como investigación real pero
 incompleta, no como progreso funcional.
+
+### Ronda 2 (2026-09-11, la misma sesión continuada): el bucle externo
+### tiene UN SOLO grupo, no 16 — y se descubre un problema arquitectónico
+### más profundo (lector de stream con buffer, no un puntero plano al
+### archivo)
+
+Trazado en vivo (`winedbg`/`gdb`, breakpoint auto-continuo en
+`0x442e66` — justo DESPUÉS de que `eax` cargue el puntero `dec_orig`,
+no en `0x442e63` como en el primer intento, que capturaba el valor
+VIEJO de `eax` antes de la propia instrucción de carga) contra
+`test4b.cmp`:
+
+**Hallazgo 1 — sólo hay UN grupo, no `h/2=16`**: el breakpoint (que
+auto-continúa, así que habría capturado cualquier repetición real) sólo
+disparó **una vez** en todo el `loadImage()`. El contenido real de esos
+16 bytes fue `10 00 20 00 7c 00 04 00 04 00 05 00 00 00 00 00` —
+interpretados con el layout ya conocido (offset 0 y 0xc = campos sin
+identificar, offsets 2-11 = 5 longitudes u16): `bits=32 streamA=124
+streamFillIdx=4 streamCtrl=4 streamLit=5`. **Confirmación cruzada
+fuerte, no coincidencia**: `streamA=124` y `streamCtrl=4` coinciden
+EXACTO con el censo de ramas ya establecido independientemente en una
+sesión `.cmp` anterior para este mismo archivo ("real: 124 SINGLE + 4
+CTRL + 0 DUAL") — SINGLE consume un índice de `streamA` por iteración,
+CTRL un byte de `streamCtrl` — validando que la interpretación semántica
+de estos 5 campos es correcta. Esto también resuelve una duda antigua
+de sesiones `.cmp` anteriores ("¿por qué sólo una llamada real a
+`FUN_00457d88`?"): `FUN_00457d88` recibe TODOS los datos de canal de
+una vez (un solo grupo cubre la imagen entera) y loopea internamente
+sus `outer` pases usando ese buffer ya completo — no hace falta más de
+una llamada.
+
+**Hallazgo 2 — el mapeo dirección-de-memoria→offset-de-archivo NO es
+lineal, arquitectura más compleja de lo asumido**: buscando el
+contenido exacto de esos 16 bytes dentro del propio archivo
+`test4b.cmp`, aparece en el **offset 359** (de 398 totales) —
+confirmando que el grupo SÍ vive en algún lugar correlacionable con el
+archivo real. Pero al intentar la MISMA correlación para los punteros
+usados en la construcción de las tablas Huffman (capturados con un
+breakpoint en `FUN_00426640` y en el sitio de llamada a `FUN_004269c0`
+dentro del bucle de `FUN_00442750`), **los offsets calculados dan
+negativos** (usando `fileBase = addr_grupo - 359` como referencia) —
+es decir, esos punteros NO caen dentro del mismo espacio de direcciones
+lineal que el puntero del grupo. Esto indica que **los datos
+comprimidos no se leen como un buffer plano mapeado 1:1 con el
+archivo** — la cadena de llamadas ya documentada (`FUN_00442750` llama
+a `0x42f460`, identificado en sesiones anteriores como un
+`ReadBytes(readerObject, dest, size)`, no un simple `memcpy`) confirma
+que hay un **objeto lector de stream con su propio buffer interno**
+(probablemente `ReadFile` de Win32 con buffering), y las distintas
+fases (construcción de tablas, luego decodificación de canales) leen a
+través de ese lector, no de un array plano — así que "posición X en el
+puntero visto en memoria" y "offset X en el archivo" sólo coinciden
+quiere por casualidad de contenido (como con el grupo, encontrado por
+búsqueda de contenido, no por aritmética de punteros).
+
+**Implicación honesta**: mi modelo de "un `pos` que avanza linealmente
+sobre los bytes del archivo, consumido tanto por la construcción de
+tablas como por la decodificación de canales" (usado en el prototipo
+Java de la ronda 1) es **estructuralmente incorrecto** — no es sólo un
+offset mal calculado, es una arquitectura de lectura por stream con
+buffer que no se ha investigado todavía. Cerrar esto de verdad requiere
+entender el objeto lector (`0x42f460` y su contraparte de refill/buffer
+interno) antes de poder traducir "cuántos bytes consumió esta fase" en
+"dónde sigue el archivo" de forma fiable — no es una corrección menor
+de offsets, es una pieza nueva de ingeniería inversa.
+
+**Qué SÍ queda genuinamente ganado esta ronda**: el mapeo semántico de
+los 5 campos de longitud por grupo (con evidencia cruzada real e
+independiente para 2 de los 5: `streamA` y `streamCtrl`), y la
+confirmación de que sólo hay un grupo por imagen (no un grupo por par
+de filas) — ambos hechos reales y útiles para la próxima sesión,
+aunque el objeto lector de stream siga sin desensamblarse.
+
+**No se intentó** verificar `FUN_00426820` en detalle ni decodificar
+ningún archivo real de GroundZero — el hallazgo del lector de stream
+volvió esos pasos prematuros (siguiendo la instrucción explícita de no
+perseguir el canal 2 degenerado especulativamente antes de resolver lo
+anterior). Próximo paso concreto y acotado: desensamblar `0x42f460` (el
+lector) y su mecanismo de buffer/refill, con trazado en vivo del valor
+real de posición-de-archivo que mantiene internamente, ANTES de
+retomar la traducción puntero→offset.
