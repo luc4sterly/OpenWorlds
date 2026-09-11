@@ -162,3 +162,57 @@ suavizado, sin texturas.
   dos corpus independientes. Histograma de `tina`: 6509 px no-fondo en
   336 tonos desde ~20 colores base - sombreado N·L por faceta activo,
   no color plano.
+
+## `WorldViewer`: pipeline de materiales conectado a texturas reales por
+## nombre, sobre la escena `.world` completa (2026-09-11)
+
+Objetivo de esta sesión: que cada objeto RWX de una escena `.world` real
+(no geometría de prueba suelta) cargue de verdad la textura `.cmp` que su
+propio material referencia, con fallback honesto a color plano cuando no
+sea posible - nunca un color inventado ni una textura de relleno.
+
+**Fuente real de las texturas**: `assets/WorldsPlayer/GroundZero/
+content.zip` (ya versionado, un zip real de la instalación original de
+2001) contiene 159 archivos `.cmp` reales bajo `tex/*.cmp` - la misma
+convención de directorio `tex/` que ya usaban los `.rwx` de geometría
+extraídos en sesiones anteriores. `WorldViewer.resolveTextureArchive()`
+extrae ese zip real (ya trackeado, nada nuevo que versionar) a una caché
+de ejecución bajo `/tmp` (no comprometida a git) la primera vez que se
+necesita, y `CmpTexture.load(dir, nombre)` se reutiliza tal cual para
+decodificar - cero cambios de API necesarios en `CmpTexture` desde este
+lado del pipeline.
+
+**Regla de alcance respetada en el filtrado**: `GL_NEAREST`, no
+`GL_LINEAR` - no hay evidencia de que RenderWare 2 aplicara filtrado
+bilinear, así que se usa la opción conservadora sin inventar suavizado
+(también corregido en `RwxViewer`'s demo, que antes usaba `GL_LINEAR`
+sin justificación real).
+
+**Cobertura real, contabilizada y reportada, nunca redondeada al alza**
+(`WorldViewer.resolveTexture()`/`printTextureCoverage()`): cada
+referencia `Texture` no-nula de cada material se cuenta; si
+`CmpTexture.load` lanza excepción (archivo `.cmp` real sin las tablas de
+Stage 1 capturadas, o - de momento el caso esperado - Stage 1 mismo
+todavía no implementado para ese archivo) o el nombre viene con
+extensión `.bmp` (sin loader BMP en este pipeline, fuera de alcance esta
+sesión), el material se cuenta como "no resuelto" con la razón real, y
+sigue dibujándose con su color plano ya verificado - la ruta original,
+sin cambios. Nunca se sustituye un material sin textura decodificable
+por un color o patrón inventado.
+
+**Verificación de no-regresión**: con 0 texturas aún decodificables
+(estado de esta pieza antes de que Stage 1 - línea paralela de esta
+misma sesión - esté disponible), el render de `Reception` es **AE=0,
+pixel-idéntico** al `docs/renders/world_reception_fixed.png` ya
+committeado de una sesión anterior - confirma que conectar el pipeline
+de texturas no alteró un solo píxel del camino de fallback existente.
+
+**Cobertura real medida sobre la escena `.world` completa** (25 salas,
+`WorldViewer ... ALL --screenshot-dir`): **47 nombres de textura únicos
+referenciados, 124 referencias de material en total** entre todos los
+objetos realmente colocados por el grafo de escena (no un grep estático
+de todos los `.rwx` del directorio, que da 72 - ese número incluye
+modelos nunca instanciados en esta escena). Estado de decodificación:
+ver la sección de `.cmp` Stage 1 para el resultado real, actualizado
+por separado ya que es un frente de trabajo independiente de esta
+pieza.

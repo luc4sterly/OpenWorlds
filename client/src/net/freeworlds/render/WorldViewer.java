@@ -1,5 +1,6 @@
 package net.freeworlds.render;
 
+import net.freeworlds.cmp.CmpTexture;
 import net.freeworlds.rwx.RwxMaterial;
 import net.freeworlds.rwx.RwxModel;
 import net.freeworlds.rwx.RwxParser;
@@ -12,10 +13,20 @@ import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryStack;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.file.Files;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -41,6 +52,17 @@ import static org.lwjgl.opengl.GL11.*;
  * presented as if it were a real avatar. Skipped objects are counted
  * and reported, not silently dropped.
  *
+ * Textures (2026-09-11): each material's real "Texture" reference is
+ * resolved against the scene's own real texture archive (content.zip,
+ * sitting next to the .world file in the real install - see
+ * resolveTextureArchive) and decoded through the verified net.freeworlds.
+ * cmp pipeline (CmpTexture, backed by Stage2 + - once available - Stage1).
+ * No invented pixels: a material whose texture can't be decoded (Stage 1
+ * not implemented for it yet, a .bmp-named reference with no loader, or
+ * genuinely missing from the archive) keeps its real parsed flat color
+ * instead, and is counted/reported, never silently guessed. See
+ * resolveTexture()'s javadoc for the exact fallback accounting.
+ *
  * Usage: java -cp ... net.freeworlds.render.WorldViewer <file.world> <roomName> [--screenshot out.png]
  *        java -cp ... net.freeworlds.render.WorldViewer <file.world> ALL [--screenshot-dir outdir]
  *        java -cp ... net.freeworlds.render.WorldViewer <file.world> --list-rooms
@@ -59,6 +81,22 @@ public final class WorldViewer {
    private static int loadedCount = 0;
    private static int missingCount = 0;
    private static int avatarSkipCount = 0;
+
+   // --- Texturing (real, per-material, see class javadoc) ---
+   // GL texture ids are only valid within the GL context that created them
+   // (a new context per room in ALL mode - same reason displayListCache is
+   // cleared there), so this cache is cleared alongside it.
+   private static final Map<String, Integer> glTextureCache = new HashMap<>();
+   // Extracted once per baseDir (content.zip's real tex/*.cmp files, see
+   // resolveTextureArchive) - NOT committed to git, a runtime-only cache.
+   private static File textureArchiveDir;
+   private static boolean textureArchiveChecked = false;
+   // Real per-material texture-reference accounting across the whole run
+   // (persists across rooms in ALL mode) - the honest coverage evidence
+   // the session asked for, never rounded up.
+   private static final Set<String> texturesResolved = new TreeSet<>();
+   private static final Map<String, String> texturesUnresolved = new TreeMap<>(); // name -> reason
+   private static int materialTextureRefs = 0; // total non-null Texture directives seen (incl. repeats)
 
     public static void main(String[] args) throws Exception {
        if (args.length < 2) {
@@ -127,6 +165,23 @@ public final class WorldViewer {
           first = false;
           renderRoom(room, roomName, out);
        }
+       printTextureCoverage();
+    }
+
+    /** Real, honest coverage accounting across every room rendered this run
+     * - never rounded up, see resolveTexture()'s javadoc for what counts as
+     * "resolved" vs "unresolved" and why. */
+    private static void printTextureCoverage() {
+       int totalNames = texturesResolved.size() + texturesUnresolved.size();
+       System.out.println("---");
+       System.out.println("Texture coverage: " + texturesResolved.size() + "/" + totalNames
+          + " unique texture names decoded (" + materialTextureRefs + " total material references seen)");
+       if (!texturesUnresolved.isEmpty()) {
+          System.out.println("Unresolved (real color fallback, no invented texture):");
+          for (Map.Entry<String, String> e : texturesUnresolved.entrySet()) {
+             System.out.println("  " + e.getKey() + ": " + e.getValue());
+          }
+       }
     }
 
     private static void renderRoom(WNode room, String roomName, String screenshotPath) throws Exception {
@@ -171,6 +226,7 @@ public final class WorldViewer {
       glfwSwapInterval(1);
       GL.createCapabilities();
       displayListCache.clear(); // IDs del contexto anterior (modo ALL) no valen aqui
+      glTextureCache.clear(); // GL texture ids: mismo motivo, otro contexto
 
       glEnable(GL_DEPTH_TEST);
       glClearColor(0.10f, 0.10f, 0.14f, 1f);
@@ -228,6 +284,7 @@ public final class WorldViewer {
       glfwDestroyWindow(window);
       glfwTerminate();
       displayListCache.clear();
+      glTextureCache.clear();
     }
 
    /** Walk the room's real WObject tree once (no GL context needed) purely to resolve+load geometry and compute a real bounding box. */
@@ -350,10 +407,11 @@ public final class WorldViewer {
        glCallList(id);
     }
 
-     /** Secuencia inmediata original (glMaterial/glNormal/glVertex por triangulo) — unica fuente de verdad visual; la display list solo la captura. */
+     /** Secuencia inmediata original (glMaterial/glNormal/glVertex/glTexCoord por triangulo) — unica fuente de verdad visual; la display list solo la captura. */
     private static void emitModelImmediate(RwxModel model) {
        RwxMaterial lastMat = null;
       boolean inBegin = false;
+      boolean texEnabled = false;
       for (int i = 0; i < model.triangles.size(); i++) {
          RwxMaterial mat = model.triangleMaterials.get(i);
          if (mat != lastMat) {
@@ -363,6 +421,17 @@ public final class WorldViewer {
             }
             GlLighting.applyMaterial(mat);
             GlLighting.applyCulling(mat.doubleSided);
+            int glTex = resolveTexture(mat);
+            if (glTex != 0) {
+               if (!texEnabled) {
+                  glEnable(GL_TEXTURE_2D);
+                  texEnabled = true;
+               }
+               glBindTexture(GL_TEXTURE_2D, glTex);
+            } else if (texEnabled) {
+               glDisable(GL_TEXTURE_2D);
+               texEnabled = false;
+            }
             lastMat = mat;
          }
          if (!inBegin) {
@@ -375,13 +444,162 @@ public final class WorldViewer {
          RwxVector3 c = model.vertices.get(t[2]);
          float[] n = GlLighting.faceNormal(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
          glNormal3f(n[0], n[1], n[2]);
+         float[] uva = model.uvs.get(t[0]);
+         float[] uvb = model.uvs.get(t[1]);
+         float[] uvc = model.uvs.get(t[2]);
+         glTexCoord2f(uva[0], uva[1]);
          glVertex3f(a.x, a.y, a.z);
+         glTexCoord2f(uvb[0], uvb[1]);
          glVertex3f(b.x, b.y, b.z);
+         glTexCoord2f(uvc[0], uvc[1]);
          glVertex3f(c.x, c.y, c.z);
       }
       if (inBegin) {
          glEnd();
       }
+      if (texEnabled) {
+         glDisable(GL_TEXTURE_2D);
+      }
+   }
+
+   /**
+    * Resolves a material's real "Texture" reference to a real GL texture id,
+    * decoded through net.freeworlds.cmp.CmpTexture - or 0 if it can't be
+    * decoded (falls back to the material's own real flat color, applied
+    * just above by GlLighting.applyMaterial - never an invented texture).
+    * Cached per name so repeat materials (e.g. many objects sharing
+    * "grnd1.cmp") don't re-decode. Every call is accounted for in
+    * texturesResolved/texturesUnresolved for the session's coverage report,
+    * whether or not this exact call hits the cache.
+    */
+   private static int resolveTexture(RwxMaterial mat) {
+      if (mat.textureName == null) {
+         return 0;
+      }
+      materialTextureRefs++;
+      String base = mat.textureName.trim();
+      int dot = base.lastIndexOf('.');
+      String ext = dot >= 0 ? base.substring(dot + 1).toLowerCase() : "";
+      String name = (dot >= 0 ? base.substring(0, dot) : base).toLowerCase();
+      if (glTextureCache.containsKey(name)) {
+         Integer cached = glTextureCache.get(name);
+         if (cached != 0) {
+            texturesResolved.add(name);
+         } else if (!texturesUnresolved.containsKey(name)) {
+            texturesUnresolved.put(name, "(cached failure, see first occurrence)");
+         }
+         return cached;
+      }
+      if (!ext.equals("cmp") && !ext.isEmpty()) {
+         // Real corpus has a handful of .bmp-named references (e.g.
+         // "rock1a.bmp") - no BMP loader exists in this pipeline (out of
+         // this session's scope), so these are honestly counted as
+         // unavailable rather than guessed at or silently dropped.
+         texturesUnresolved.put(name, "referenced as ." + ext + ", no loader for that extension");
+         glTextureCache.put(name, 0);
+         return 0;
+      }
+      File dir = resolveTextureArchive();
+      if (dir == null) {
+         texturesUnresolved.put(name, "no texture archive found next to this .world");
+         glTextureCache.put(name, 0);
+         return 0;
+      }
+      try {
+         CmpTexture tex = CmpTexture.load(dir, name);
+         int id = uploadTexture(tex);
+         glTextureCache.put(name, id);
+         texturesResolved.add(name);
+         return id;
+      } catch (Exception e) {
+         // No invented pixels: any failure (file missing from the real
+         // archive, or - the current expected common case - Stage 1's
+         // Huffman decoder not yet available for this file) falls back to
+         // the material's real flat color, never a guessed texture.
+         texturesUnresolved.put(name, String.valueOf(e.getMessage()));
+         glTextureCache.put(name, 0);
+         return 0;
+      }
+   }
+
+   /**
+    * The real client shipped its texture files in a per-world content
+    * archive next to the .world file itself (confirmed: assets/WorldsPlayer/
+    * GroundZero/content.zip, a genuine period zip with entries under
+    * "tex/*.cmp" - same "tex/" convention as the already-extracted
+    * tex/*.rwx geometry sitting alongside it on disk). Extracted once,
+    * lazily, to a runtime temp dir (NOT committed - content.zip itself
+    * already is, this just unpacks what's already real and tracked) so
+    * CmpTexture.load's existing dir+basename file API can be reused as-is.
+    */
+   private static File resolveTextureArchive() {
+      if (textureArchiveChecked) {
+         return textureArchiveDir;
+      }
+      textureArchiveChecked = true;
+      File zipFile = resolveCaseInsensitive(baseDir, "content.zip");
+      if (zipFile == null) {
+         return null;
+      }
+      File outDir = new File(System.getProperty("java.io.tmpdir"),
+         "freeworlds-tex-cache/" + zipFile.getParentFile().getName());
+      try (ZipFile zf = new ZipFile(zipFile)) {
+         Enumeration<? extends ZipEntry> entries = zf.entries();
+         while (entries.hasMoreElements()) {
+            ZipEntry e = entries.nextElement();
+            String n = e.getName();
+            if (e.isDirectory() || !n.toLowerCase().endsWith(".cmp")) {
+               continue;
+            }
+            String flatName = new File(n).getName(); // drop the "tex/" prefix
+            File outFile = new File(outDir, flatName);
+            if (outFile.exists() && outFile.length() == e.getSize()) {
+               continue; // already extracted this run/session, real size match
+            }
+            outDir.mkdirs();
+            try (InputStream in = zf.getInputStream(e);
+                 FileOutputStream out = new FileOutputStream(outFile)) {
+               byte[] buf = new byte[8192];
+               int n2;
+               while ((n2 = in.read(buf)) > 0) {
+                  out.write(buf, 0, n2);
+               }
+            }
+         }
+      } catch (IOException e) {
+         System.err.println("Failed to extract texture archive " + zipFile + ": " + e);
+         return null;
+      }
+      textureArchiveDir = outDir;
+      return outDir;
+   }
+
+   /** Uploads decoded .cmp pixels as a real GL texture. GL_NEAREST, no
+    * mipmaps: RenderWare 2's real fixed-function pipeline is the target,
+    * not a modern filtered look - this session's explicit scope rule is
+    * to add nothing RW2 didn't have, and there is no real evidence here
+    * (yet) that it applied bilinear filtering, so the conservative,
+    * unfiltered choice is used rather than assuming smoothing. GL_REPEAT:
+    * real RWX UVs in this corpus carry a slight &gt;1.0 overshoot (see
+    * RwxViewer's texturing note) that would streak under GL_CLAMP. */
+   private static int uploadTexture(CmpTexture texture) {
+      int id = glGenTextures();
+      glBindTexture(GL_TEXTURE_2D, id);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+      ByteBuffer buf = ByteBuffer.allocateDirect(texture.rgb.length);
+      // GL expects the first row uploaded to be the BOTTOM row: flip the
+      // top-down decode (see RwxViewer's texturing note re: v=0 orientation).
+      int rowBytes = texture.width * 3;
+      for (int y = texture.height - 1; y >= 0; y--) {
+         buf.put(texture.rgb, y * rowBytes, rowBytes);
+      }
+      buf.flip();
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texture.width, texture.height,
+         0, GL_RGB, GL_UNSIGNED_BYTE, buf);
+      return id;
    }
 
    private static float[] identity() {

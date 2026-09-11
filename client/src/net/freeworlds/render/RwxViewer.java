@@ -246,13 +246,17 @@ public final class RwxViewer {
    }
 
    /** Uploads verified .cmp pixels as an OpenGL texture (RGB, no mipmaps -
-    * presentation detail, not a decode claim: LINEAR filtering, REPEAT wrap
-    * so the slight >1.0 UV overshoot real files carry doesn't streak). */
+    * GL_NEAREST, not LINEAR: RenderWare 2's real fixed-function pipeline is
+    * the target, and there is no real evidence it applied bilinear
+    * filtering, so the conservative unfiltered choice is used rather than
+    * assuming smoothing - see WorldViewer's uploadTexture for the same
+    * decision applied scene-wide. REPEAT wrap so the slight >1.0 UV
+    * overshoot real files carry doesn't streak). */
    private static int uploadTexture(CmpTexture texture) {
       int id = glGenTextures();
       glBindTexture(GL_TEXTURE_2D, id);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
       ByteBuffer buf = ByteBuffer.allocateDirect(texture.rgb.length);
