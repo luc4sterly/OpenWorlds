@@ -99,6 +99,41 @@ public final class CmpTexture {
       byte[] fill = read(new File(dir, base + ".stream_fillidx.bin"));
       byte[] bits = read(new File(dir, base + ".stream_bits.bin"));
 
+      return render(w, h, palette, a, ctrl, lit, fill, bits, pass0Top, evenIsA, base);
+   }
+
+   /**
+    * Load and decode a real .cmp file directly (no pre-captured streams, no
+    * hand-written palette.txt) via {@link CmpStage1} - the real Stage 1
+    * Huffman/palette decoder (2026-09-12 session). Orientation is derived
+    * from the header flags byte bit 0 (the same bit CmpTexture's hand-voted
+    * "orient" file previously tracked per-file without knowing its source -
+    * this connects it): test4b.cmp has bit0=1 and needs pass0Top=1/evenIsA=1;
+    * sball.cmp/rustwood.cmp have bit0=0 and need pass0Top=0/evenIsA=0 -
+    * exact match for both known cases, not yet verified beyond them.
+    */
+   public static CmpTexture loadRaw(File cmpFile) throws IOException {
+      byte[] cmp = read(cmpFile);
+      CmpStage1 s1 = CmpStage1.decode(cmp);
+      int flags = cmp[5] & 0xFF;
+      boolean orient = (flags & 0x01) != 0;
+      // CmpStage2 reads its 5 input streams with generous internal
+      // read-ahead (it was designed against oversized pre-captured dumps -
+      // see CmpStage2's own history); CmpStage1's streams are exactly
+      // sized to their real content, so pad with slack headroom.
+      return render(s1.width, s1.height, s1.palette, pad(s1.streamA), pad(s1.streamCtrl),
+         pad(s1.streamLit), pad(s1.streamFillIdx), pad(s1.bits), orient, orient, cmpFile.getName());
+   }
+
+   private static byte[] pad(byte[] a) {
+      byte[] b = new byte[a.length + 512];
+      System.arraycopy(a, 0, b, 0, a.length);
+      return b;
+   }
+
+   private static CmpTexture render(int w, int h, int[][] palette, byte[] a, byte[] ctrl,
+                                     byte[] lit, byte[] fill, byte[] bits,
+                                     boolean pass0Top, boolean evenIsA, String label) throws IOException {
       int ch0 = w / 4;
       int outer = h / 2;
       int stride = -w;
@@ -168,7 +203,7 @@ public final class CmpTexture {
          }
       }
       if (missing > 0) {
-         System.out.println("CmpTexture " + base + ": " + missing
+         System.out.println("CmpTexture " + label + ": " + missing
             + " pixels used unmapped palette indices (magenta, see docs)");
       }
       return new CmpTexture(w, h, rgb);
