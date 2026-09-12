@@ -36,6 +36,7 @@ import cmp_ground_truth as gt
 
 REPO_ROOT = "/home/lucas/FreeWorlds"
 CLI_CLASS = "CmpDecodeCli"
+CLI_CLASS_RAW = "CmpDecodeRawCli"
 
 
 def collect_files(args):
@@ -62,16 +63,17 @@ def collect_files(args):
     return out
 
 
-def decode_with_java(cmp_path, java_classes, work_dir):
+def decode_with_java(cmp_path, java_classes, work_dir, raw):
     d = os.path.dirname(os.path.abspath(cmp_path))
     base = os.path.basename(cmp_path)
     if base.lower().endswith(".cmp"):
         base = base[:-4]
     out_ppm = os.path.join(work_dir, base + "_decoded.ppm")
-    r = subprocess.run(
-        ["java", "-cp", java_classes, CLI_CLASS, d, base, out_ppm],
-        capture_output=True, text=True, timeout=30,
-    )
+    if raw:
+        cmd = ["java", "-cp", java_classes, CLI_CLASS_RAW, cmp_path, out_ppm]
+    else:
+        cmd = ["java", "-cp", java_classes, CLI_CLASS, d, base, out_ppm]
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     if r.returncode == 0:
         return out_ppm, None
     reason = (r.stderr or r.stdout).strip().splitlines()
@@ -79,7 +81,7 @@ def decode_with_java(cmp_path, java_classes, work_dir):
     return None, reason
 
 
-def run_one(cmp_path, java_classes, work_dir, wineprefix, display):
+def run_one(cmp_path, java_classes, work_dir, wineprefix, display, raw):
     name = os.path.basename(cmp_path)
     row = {"file": name, "path": cmp_path}
     try:
@@ -90,7 +92,7 @@ def run_one(cmp_path, java_classes, work_dir, wineprefix, display):
         return row
     row["w"], row["h"] = w, h
 
-    decoded_ppm, decode_err = decode_with_java(cmp_path, java_classes, work_dir)
+    decoded_ppm, decode_err = decode_with_java(cmp_path, java_classes, work_dir, raw)
     if decoded_ppm is None:
         row["status"] = "FAIL"
         row["reason"] = "decode: %s" % decode_err
@@ -98,24 +100,47 @@ def run_one(cmp_path, java_classes, work_dir, wineprefix, display):
 
     gt_ppm = os.path.join(work_dir, name + "_gt.ppm")
     gt.save_ppm(gt_ppm, w, h, gt_rgb)
-    cmp_res = subprocess.run(
-        ["compare", "-metric", "AE", decoded_ppm, gt_ppm, "/dev/null"],
-        capture_output=True, text=True,
-    )
-    ae_text = (cmp_res.stderr or cmp_res.stdout).strip().split()
-    try:
-        ae = int(ae_text[0]) if ae_text else -1
-    except ValueError:
-        ae = -1
+    # ImageMagick's `compare -metric AE` gave wildly wrong/impossible values
+    # in this environment (e.g. 4.4e7 for a 3072-byte image) for reasons
+    # never diagnosed - direct byte comparison of the two PPMs is the
+    # trustworthy method actually used to verify every fix this session.
+    diff_px = diff_ppm_bytes(decoded_ppm, gt_ppm)
     total_px = w * h
-    if ae == 0:
+    if diff_px == 0:
         row["status"] = "OK"
         row["reason"] = "byte-exact, 0/%d pixels differ" % total_px
     else:
         row["status"] = "FAIL"
-        row["reason"] = "decoded but %s/%d pixels differ from real cmpview.exe ground truth" % (
-            ae_text[0] if ae_text else "?", total_px)
+        row["reason"] = "decoded but ~%d/%d pixels differ from real cmpview.exe ground truth" % (
+            diff_px, total_px)
     return row
+
+
+def diff_ppm_bytes(path_a, path_b):
+    """Direct byte-for-byte PPM pixel diff (in whole pixels, not bytes)."""
+    a = read_ppm_pixels(path_a)
+    b = read_ppm_pixels(path_b)
+    n = min(len(a), len(b))
+    byte_diffs = sum(1 for i in range(n) if a[i] != b[i])
+    return (byte_diffs + 2) // 3  # approx whole-pixel count from byte diffs
+
+
+def read_ppm_pixels(path):
+    with open(path, "rb") as f:
+        data = f.read()
+    assert data[:2] == b"P6"
+    idx = 2
+    vals = []
+    while len(vals) < 3:
+        while data[idx] in b" \t\r\n":
+            idx += 1
+        start = idx
+        while data[idx] not in b" \t\r\n":
+            idx += 1
+        vals.append(int(data[start:idx]))
+    idx += 1
+    w, h, maxval = vals
+    return data[idx:idx + w * h * 3]
 
 
 def main():
@@ -126,6 +151,9 @@ def main():
     ap.add_argument("--wineprefix", default="/tmp/cmp-gt-wine")
     ap.add_argument("--display", default=":100")
     ap.add_argument("--work-dir", default="/tmp/cmp-coverage-work")
+    ap.add_argument("--raw", action="store_true",
+                     help="use CmpTexture.loadRaw (real Stage 1, CmpDecodeRawCli) "
+                          "instead of the legacy pre-captured-streams CmpDecodeCli")
     args = ap.parse_args()
 
     files = collect_files(args.inputs)
@@ -134,7 +162,7 @@ def main():
     t0 = time.time()
     for i, f in enumerate(files):
         t1 = time.time()
-        row = run_one(f, args.java_classes, args.work_dir, args.wineprefix, args.display)
+        row = run_one(f, args.java_classes, args.work_dir, args.wineprefix, args.display, args.raw)
         dt = time.time() - t1
         results.append(row)
         print("[%d/%d] %s: %s (%.1fs)" % (i + 1, len(files), row["file"], row["status"], dt),
