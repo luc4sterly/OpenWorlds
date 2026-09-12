@@ -168,9 +168,24 @@ public final class CmpStage1 {
          int slots = 1 << shift;
          for (int s = 0; s < slots; s++) {
             t.symbol[base + s] = i;
-            t.length[base + s] = len;
          }
       }
+      // Length table is indexed by SYMBOL VALUE, not by lookup-window slot -
+      // confirmed via live capture of gamma.dll's real table memory for
+      // sball.cmp (2026-09-12 session, second pass): the length half of the
+      // real 512-byte table object is nonzero only at symbol-value indices
+      // (e.g. table[256+0x55]=4 for PERM0's first real symbol), never at
+      // the many lookup slots that alias to that symbol. FUN_00426af0's
+      // real disassembly confirms why: `mov bl,[ebx]` loads the symbol into
+      // BL, the low byte of EBX - and since EBX is the 256-byte-aligned
+      // table pointer OR'd with the lookup index, this MUTATES ebx's low
+      // byte to the symbol value itself, so the immediately following
+      // `mov cl,[ebx+0x100]` reads length[symbol], not length[lookupIndex].
+      // This was invisible against test4b.cmp (whose real alphabets are
+      // all either degenerate-to-1-symbol or small enough that slot==symbol
+      // for the codes actually hit) but broke every real corpus file with
+      // a richer alphabet - see decodeChannel below for the matching fix.
+      System.arraycopy(lengths, 0, t.length, 0, 256);
       return t;
    }
 
@@ -220,7 +235,7 @@ public final class CmpStage1 {
       for (int i = 0; i < wantedLen; i++) {
          int idx = (window >> 8) & 0xFF;
          int symbol = table.symbol[idx];
-         int length = table.length[idx];
+         int length = table.length[symbol & 0xFF];
          out[i] = (byte) symbol;
          int oldBits = bitsAvail;
          bitsAvail -= length;
@@ -268,12 +283,14 @@ public final class CmpStage1 {
 
       byte[] tableRegion = new byte[tableRegionSize];
       System.arraycopy(cmp, 34, tableRegion, 0, tableRegionSize);
-      // +4 slack: the shared bit-window refill (decodeChannel) always peeks
-      // 1-2 bytes ahead of the logical cursor, and the LIT channel's real
-      // decode (see litOutPad below) needs to read exactly 1 byte past the
-      // true end of this file's last region - same generous-read-ahead
-      // pattern already established for CmpStage2's own inputs.
-      byte[] groupRegion = new byte[groupRegionSize + 4];
+      // +40 slack: the shared bit-window refill (decodeChannel) always peeks
+      // 1-2 bytes ahead of the logical cursor, the per-channel byte-realign
+      // (see `realign` below) backs the cursor up by 1 before every
+      // subsequent channel, and the LIT channel's real decode needs a
+      // couple of bytes past the true end of this file's last region -
+      // same generous-read-ahead pattern already established for
+      // CmpStage2's own inputs.
+      byte[] groupRegion = new byte[groupRegionSize + 40];
       System.arraycopy(cmp, 34 + tableRegionSize, groupRegion, 0, groupRegionSize);
 
       // Embedded palette: FUN_004426b0, 6-bit RGB components (<<2 to 8-bit),
@@ -333,41 +350,49 @@ public final class CmpStage1 {
       int[] wanted = new int[5];
       for (int i = 0; i < 5; i++) wanted[i] = u16(groupRegion, 2 + i * 2);
 
+      // Channel transition mode - live-capture-verified (2026-09-12 session,
+      // second pass) against test4b.cmp (flags=0x81, bit0=1) and sball.cmp
+      // (flags=0x80, bit0=0): when flags bit0=1, each channel's decode
+      // continues the previous channel's bit window exactly (mid-byte,
+      // "primed" stays true - the original BitCursor model). When flags
+      // bit0=0, the real gamma.dll caller instead re-primes with a 1-byte
+      // backed-up, byte-realigned window before each subsequent channel
+      // (bc.pos-=1; primed=false). Confirmed both ways: applying realign
+      // to test4b (bit0=1) breaks ctrl/lit; NOT applying it to sball
+      // (bit0=0) leaves streamA/fillIdx/ctrl 50-97% wrong.
+      boolean realign = (flags & 0x01) == 0;
       BitCursor bc = new BitCursor();
       bc.src = groupRegion;
       bc.pos = 16; // right after the 16-byte group header
       byte[] bitsOut = decodeChannel(bc, huff[0], wanted[0]);
+      if (realign) { bc.pos -= 1; bc.primed = false; }
       byte[] streamAOut = decodeChannel(bc, huff[1], wanted[1]);
+      if (realign) { bc.pos -= 1; bc.primed = false; }
       byte[] fillIdxOut = decodeChannel(bc, huff[2], wanted[2]);
+      if (realign) { bc.pos -= 1; bc.primed = false; }
       byte[] ctrlOut = decodeChannel(bc, huff[3], wanted[3]);
+      if (realign) { bc.pos -= 1; bc.primed = false; }
       // Channel 4 (LIT): table construction traced fully via disassembly
-      // this session (FUN_0044df50 is a plain memcpy of byteLen[4] raw
-      // bytes into a scratch buffer, later lazily fed through the SAME
+      // (FUN_0044df50 is a plain memcpy of byteLen[4] raw bytes into a
+      // scratch buffer, later lazily fed through the SAME
       // FUN_004269c0/FUN_00426930 canonical-Huffman-build path used for
       // channels 0-3, with permTablePtr=0 and alphabetSize=0 - i.e.
       // mechanically identical to channel 2's degenerate 256-identity
       // fallback, confirmed byte-for-byte against the real call site at
       // 0x442bc0/0x442bee).
       //
-      // KNOWN LIMITATION, honestly flagged (2026-09-12 session): for
-      // test4b.cmp (a small/degenerate LIT alphabet - only 4 real symbol
-      // values), decoding one extra leading symbol and discarding it makes
-      // this channel byte-exact end to end against real pixel ground truth
-      // (test4b.bmp / cmpview.exe capture, brute-force-confirmed against
-      // every other offset and orientation combination - this is the
-      // unique zero-diff answer, not a guess). This "+1" behavior does NOT
-      // generalize: brute-forcing the same offset search against
-      // sball.cmp (a rich LIT alphabet, byteLen[4]=128 vs test4b's 32) never
-      // reaches 0 diffs at any offset 0-6 or orientation (best found:
-      // ~74% of pixels still wrong) - so whatever the real extra-symbol
-      // mechanism is, it is not simply "always skip 1". Applying the +1
-      // skip here is a real, verified win for degenerate-alphabet files
-      // and doesn't regress anything else, but the general rich-alphabet
-      // case remains unsolved - do not trust streamLit output for files
-      // whose LIT alphabet isn't small/degenerate.
-      byte[] litOutPad = decodeChannel(bc, huff[4], wanted[4] + 1);
+      // The real stream decodes extra leading symbols beyond `wanted[4]`
+      // that must be discarded - 1 extra in continue-mode, 2 extra in
+      // realign-mode. Found via brute-force offset search against live-
+      // captured ground truth for both test4b.cmp and sball.cmp (rich
+      // alphabet, byteLen[4]=128) and verified byte-exact for both - not
+      // yet explained mechanistically (no matching extra read identified
+      // in FUN_00442750's disassembly), but exact and reproducible.
+      int litExtra = realign ? 2 : 1;
+      if (realign) { bc.pos -= 1; bc.primed = false; }
+      byte[] litOutPad = decodeChannel(bc, huff[4], wanted[4] + litExtra);
       byte[] litOut = new byte[wanted[4]];
-      System.arraycopy(litOutPad, 1, litOut, 0, wanted[4]);
+      System.arraycopy(litOutPad, litExtra, litOut, 0, wanted[4]);
 
       return new CmpStage1(w, h, palette, bitsOut, streamAOut, fillIdxOut, ctrlOut, litOut);
    }
