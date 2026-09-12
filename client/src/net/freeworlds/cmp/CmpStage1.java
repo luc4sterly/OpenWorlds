@@ -219,16 +219,20 @@ public final class CmpStage1 {
       boolean primed = false;
    }
 
-   /** FUN_00426af0: the real bit-level Huffman decoder, direct 256-entry lookup, codes <=8 bits. */
-   private static byte[] decodeChannel(BitCursor bc, HuffTable table, int wantedLen) {
-      byte[] out = new byte[wantedLen];
-      if (wantedLen == 0) return out;
+   private static void ensurePrimed(BitCursor bc) {
       if (!bc.primed) {
          bc.window = ((bc.src[bc.pos] & 0xFF) << 8) | (bc.src[bc.pos + 1] & 0xFF);
          bc.pos += 2;
          bc.bitsAvail = 8;
          bc.primed = true;
       }
+   }
+
+   /** FUN_00426af0: the real bit-level Huffman decoder, direct 256-entry lookup, codes <=8 bits. */
+   private static byte[] decodeChannel(BitCursor bc, HuffTable table, int wantedLen) {
+      byte[] out = new byte[wantedLen];
+      if (wantedLen == 0) return out;
+      ensurePrimed(bc);
       int pos = bc.pos;
       int window = bc.window;
       int bitsAvail = bc.bitsAvail;
@@ -290,7 +294,7 @@ public final class CmpStage1 {
       // couple of bytes past the true end of this file's last region -
       // same generous-read-ahead pattern already established for
       // CmpStage2's own inputs.
-      byte[] groupRegion = new byte[groupRegionSize + 40];
+      byte[] groupRegion = new byte[groupRegionSize + 64];
       System.arraycopy(cmp, 34 + tableRegionSize, groupRegion, 0, groupRegionSize);
 
       // Embedded palette: FUN_004426b0, 6-bit RGB components (<<2 to 8-bit),
@@ -381,18 +385,34 @@ public final class CmpStage1 {
       // fallback, confirmed byte-for-byte against the real call site at
       // 0x442bc0/0x442bee).
       //
-      // The real stream decodes extra leading symbols beyond `wanted[4]`
-      // that must be discarded - 1 extra in continue-mode, 2 extra in
-      // realign-mode. Found via brute-force offset search against live-
-      // captured ground truth for both test4b.cmp and sball.cmp (rich
-      // alphabet, byteLen[4]=128) and verified byte-exact for both - not
-      // yet explained mechanistically (no matching extra read identified
-      // in FUN_00442750's disassembly), but exact and reproducible.
-      int litExtra = realign ? 2 : 1;
+      // The real stream decodes extra leading LIT symbols beyond
+      // `wanted[4]` that must be discarded before the real ones. NOT a
+      // fixed count per mode (an earlier "1 in continue-mode, 2 in
+      // realign-mode" constant fit only 2 data points and broke on a 3rd
+      // real file, avdoor.cmp, which is realign-mode but needs only 1).
+      // The real rule, found by measuring each discarded symbol's actual
+      // Huffman code length rather than just counting symbols: discard
+      // whole LIT symbols one at a time until the number of bits consumed
+      // equals whatever was left in the bit window at LIT's entry
+      // (`bc.bitsAvail` right after priming) - i.e. LIT always starts
+      // reading its real wanted[4] symbols at a byte boundary, and the
+      // discarded symbol(s) are exactly what's needed to finish the
+      // current byte. Verified byte-exact against live-captured ground
+      // truth for 3 independent real files spanning both flags-bit0
+      // modes (test4b.cmp: 1 symbol/2 bits; sball.cmp: 2 symbols/8 bits;
+      // avdoor.cmp: 1 symbol/8 bits) - a mechanistically coherent rule,
+      // not a coincidence-fit constant. Root cause (why LIT specifically
+      // needs byte alignment) still not pinned to a disassembly
+      // instruction, but the empirical rule is exact and reproducible.
       if (realign) { bc.pos -= 1; bc.primed = false; }
-      byte[] litOutPad = decodeChannel(bc, huff[4], wanted[4] + litExtra);
-      byte[] litOut = new byte[wanted[4]];
-      System.arraycopy(litOutPad, litExtra, litOut, 0, wanted[4]);
+      ensurePrimed(bc);
+      int discardTargetBits = bc.bitsAvail;
+      int discardedBits = 0;
+      while (discardedBits < discardTargetBits) {
+         byte[] one = decodeChannel(bc, huff[4], 1);
+         discardedBits += huff[4].length[one[0] & 0xFF];
+      }
+      byte[] litOut = decodeChannel(bc, huff[4], wanted[4]);
 
       return new CmpStage1(w, h, palette, bitsOut, streamAOut, fillIdxOut, ctrlOut, litOut);
    }
