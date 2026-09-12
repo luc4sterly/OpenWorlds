@@ -995,3 +995,267 @@ anterior). Próximo paso concreto y acotado: desensamblar `0x42f460` (el
 lector) y su mecanismo de buffer/refill, con trazado en vivo del valor
 real de posición-de-archivo que mantiene internamente, ANTES de
 retomar la traducción puntero→offset.
+
+## Sesión Stage 1 real (2026-09-12): el "lector con buffer" era un
+## espejismo, Stage 1 implementado de verdad — 4/5 streams byte-exactos,
+## paleta embebida descubierta, un bug de mapeo de color sin resolver
+
+Objetivo de la sesión: resolver el bloqueo del "lector de stream con
+buffer" (encontrado la sesión anterior) y conseguir que Stage 1 funcione
+contra archivos reales del juego, no solo los 3 de prueba. Se construyó
+primero un arnés de verificación contra el corpus real completo (ver
+`docs/cmp-stage1-coverage.md`), y luego se resolvió el bloqueo con 3
+subagentes de solo lectura en paralelo.
+
+### El "lector de stream con buffer" no existe — era una comparación entre
+### punteros de dos allocaciones de heap distintas
+
+Tres subagentes de solo lectura, cada uno investigando una hipótesis
+distinta (estructura/inicialización del lector; mecanismo de refill;
+comparación cruzada entre los 3 archivos conocidos), confirmaron de forma
+independiente y consistente:
+
+- `FUN_0042f460` es literalmente `std::istream::read(buf, count)` de
+  MSVC/Dinkumware — sin complejidad de buffering propia más allá de lo que
+  ya hace la streambuf estándar. No hace falta modelar ningún objeto lector
+  especial.
+- Para `test4b.cmp` (398 bytes) hay exactamente 3 llamadas de lectura,
+  verificadas en vivo byte a byte: 34 bytes (cabecera, offset archivo
+  `[0,34)`), 325 bytes (región de construcción de tablas, `[34,359)`), y 39
+  bytes (región del grupo, `[359,398)`) — contiguas, sin huecos, sin
+  solapamiento.
+- La "paradoja del offset negativo" de la sesión anterior (punteros de
+  construcción de tablas no correlacionaban linealmente con el puntero del
+  grupo) se explica completamente: son dos allocaciones de heap
+  DIFERENTES (la región de 325 bytes va a un buffer, la región de 39 bytes
+  del grupo a otro) — nunca hubo un lector con ventana compleja, solo se
+  estaban restando punteros de memoria no relacionados.
+
+### Cabecera de 34 bytes — 2 campos nuevos decodificados con evidencia real
+
+```
+[28..29] tableRegionSize (u16 LE) — tamaño exacto de la 2ª lectura
+           (325 para test4b, 34+325=359 coincide exacto con el offset de
+           grupo ya conocido por búsqueda de contenido)
+[30..31] groupRegionSize (u16 LE) — tamaño exacto de la 3ª lectura (39
+           para test4b); tableRegionSize+groupRegionSize == payloadSize
+           siempre, verificado exacto
+[14..18] 5 bytes, uno por canal (0=bits,1=streamA,2=streamFillIdx,
+           3=streamCtrl,4=streamLit): byteLen exacto que ese canal
+           consume durante la construcción de su tabla Huffman en la
+           región de tablas — verificado exacto contra captura en vivo
+           (28,16,1,7,32 para test4b)
+```
+
+### El "lector con buffer" desapareció, pero apareció un preámbulo de
+### verdad: una paleta de color embebida, nunca antes decodificada
+
+Antes de las 4 construcciones de tabla Huffman, la región de tablas tiene
+un preámbulo (239 de 325 bytes para test4b) que se pensaba de ~7 bytes en
+sesiones anteriores. Desensamblado real de `FUN_00442750` (el tramo entre
+la 2ª lectura y el bucle de construcción de tablas) revela que es una
+**paleta de color embebida**, decodificada por `FUN_004426b0`:
+
+```
+count = header[12] (si es 0, 256)   -- 64 para test4b
+para cada una de las `count` entradas:
+    para cada uno de los 3 componentes (R,G,B en ese orden):
+        leer 6 bits del stream (MSB primero, acumulador de 1 byte con
+        refill por byte, igual mecanismo que FUN_00426af0 pero para 1
+        bit en vez de código completo)
+        componente = valor_6_bits << 2   (escala 6→8 bits)
+    escribir 3 bytes reales + 1 byte nulo de relleno (no cuenta para el
+    stream de bits, es solo el layout de memoria de gamma.dll)
+```
+
+Verificado bit a bit a mano contra los bytes crudos del archivo (no solo
+con el propio código): las 4 entradas reales de test4b (58→verde,
+60→rojo, 62→amarillo, 63→azul) coinciden exactamente extrayendo los bits
+manualmente con Python, confirmando que la extracción de bits es 100%
+correcta contra el archivo real — el problema (ver más abajo) no está en
+esta extracción.
+
+Después de la paleta, el cursor avanza condicionalmente según bits del
+byte de **modo** (offset 4, no flags) y del byte de **flags** (offset 5):
+
+```
+cursor = bytesConsumidos_por_paleta
+si (modo & 0x02) == 0: cursor += count
+si header[13] != 0: cursor += floor((header[13]*18+7)/8)
+si (flags & 0x01) != 0: cursor += floor(count/2) + count - 1
+si (modo & 0x08) != 0: cursor += 4
+si (modo & 0x80) != 0: groupCount = u16(cursor); cursor += 14
+si_no: groupCount = 1   (siempre el caso en los 3 archivos conocidos)
+```
+
+Para test4b: bit1 de modo=1 (no suma), header[13]=0 (no suma), bit0 de
+flags=1 (suma 95), bit3/bit7 de modo=0 (no suma) → cursor=144+95=239,
+exacto.
+
+### Las 4 tablas Huffman — algoritmo completo verificado con datos reales,
+### 2 bugs de implementación encontrados y corregidos
+
+`FUN_00426640` (desempaquetado de nibbles) desensamblado instrucción a
+instrucción: `effectiveCount = min(alphabetSize, 2*byteLen)` nibbles se
+leen (NO siempre `alphabetSize` nibbles como se asumía) — los símbolos del
+alfabeto reducido que quedan fuera de `effectiveCount` simplemente
+conservan longitud 0 (sin código). Confirmado exacto contra los 4
+`byteLen` reales de test4b.
+
+`FUN_004266f0`/`FUN_00426820` (asignación canónica + expansión a tabla
+directa de 256 entradas) — 2 bugs reales encontrados esta sesión al
+implementar en Java, ambos con síntomas claros:
+
+1. **Off-by-one en el array `start[]`**: `start[1] = 0` directamente (no
+   derivado de `count[0]`, que nunca participa — los símbolos de longitud
+   0 no tienen código). La implementación inicial calculaba
+   `start[1] = count[0]*2`, produciendo códigos que desbordaban la tabla
+   de 256 entradas (`ArrayIndexOutOfBoundsException` inmediato al
+   probar).
+2. **Longitud incorrecta en el caso degenerado** (un solo símbolo real):
+   la implementación inicial ponía `length=0` para todas las 256 entradas
+   de la tabla degenerada — pero la longitud real debe ser la del ÚNICO
+   símbolo real (ej. 1 bit), no 0. El síntoma fue invisible en el canal
+   degenerado mismo (`streamFillIdx`, que da el símbolo constante 0 sin
+   importar cuántos bits se consuman), pero desincronizaba el cursor de
+   bits COMPARTIDO para el siguiente canal (`streamCtrl`), que entonces
+   fallaba con síntomas que parecían un problema de alineación de bits.
+
+### El decodificador de bits necesita estado COMPARTIDO entre canales
+
+Confirmado empíricamente (no solo por lectura de la documentación previa,
+que era ambigua sobre esto): la ventana de 16 bits y el contador de bits
+disponibles de `FUN_00426af0` deben persistir entre las 5 llamadas por
+canal dentro de un grupo — SOLO el primer canal (`bits`) hace la carga
+fresca inicial de 16 bits; los canales 2-5 continúan desde donde el
+anterior dejó el estado (incluidos bits sueltos a mitad de byte). Probado
+explícitamente contra ambos modelos (recarga fresca por canal vs.
+continuación compartida) — solo el modelo compartido reproduce
+`streamA` (124 símbolos, con muchos refills reales) byte a byte exacto.
+
+### El misterio del "alfabeto degenerado" del canal 2 — resuelto
+
+Confirmado por desensamblado estático completo (subagente de solo
+lectura): NO es un canal vacío. `FUN_004269c0` comprueba
+`permTablePtr==0 || alphabetSize==0` y en ese caso sintetiza una
+permutación identidad de 256 símbolos (`0,1,2,...,255`) y fuerza
+`alphabetSize=256` ANTES de construir la tabla — así que el canal 2
+(`streamFillIdx`) se codifica con Huffman sobre el alfabeto COMPLETO de
+256 bytes en vez de uno de los 3 alfabetos reducidos (81/49/22), lo cual
+encaja perfectamente con que sea el único canal que necesita representar
+cualquier valor de byte (la máscara de selección de carril al/ah), no un
+opcode/escape de un conjunto pequeño y cerrado.
+
+### Verificado byte a byte contra los streams ya capturados de test4b.cmp
+
+`bits`, `streamA`, `streamFillIdx`, `streamCtrl`: **0 discrepancias**,
+byte exacto contra `tools/gamma-dll-debug-harness/cmp-stage2-decoder/
+test4b_stream_*.bin` (captura en vivo de sesiones anteriores, ground
+truth independiente). `streamLit` (canal 4, el mecanismo de escape
+literal, poco usado): muy cerca pero NO exacto — ver limitación abajo.
+
+### Dos limitaciones honestas, documentadas explícitamente en el código
+### (`CmpStage1.java`), NO resueltas esta sesión
+
+1. **`streamLit` (canal 4)**: el mecanismo real de construcción de su
+   tabla usa `FUN_0044df50` (un memcpy plano de 32 bytes), no
+   `FUN_004269c0` como los canales 0-3 — tratarlo igual que el caso
+   degenerado del canal 2 (alfabeto identidad de 256) da una salida MUY
+   cercana a la real (los mismos 4 valores de símbolo, mismas longitudes
+   de código) pero rotada exactamente una posición de código respecto al
+   valor esperado. Se probaron varias hipótesis (recarga fresca en vez de
+   continuar; intercambiar el orden con `ctrl`; tabla de índice directo de
+   5 bits) sin éxito — queda abierto.
+2. **Mapeo de índice de píxel decodificado → entrada de paleta**: la
+   extracción de bits de la paleta embebida se verificó 100% exacta
+   contra los bytes crudos del archivo (a mano, con Python, byte a byte),
+   y las regiones espaciales de la imagen decodifican perfectamente
+   (prueba independiente de que los streams de símbolos son correctos) —
+   pero el color final asignado a cada índice sale ROTADO entre las 4
+   entradas reales usadas (58,60,62,63 para test4b): el índice 58
+   necesita mostrar rojo pero `palette[58]` contiene verde (que
+   pertenece a otro índice). Se probaron varias hipótesis de
+   transformación (desplazamiento uniforme de índice, XOR, resta, orden
+   de lectura invertido, reordenación de componentes R/G/B) — ninguna
+   explica la rotación exacta observada. Documentado en detalle en el
+   comentario `KNOWN LIMITATION` de `CmpStage1.java`, no oculto.
+
+### `CmpTexture.loadRaw(File)` — integración real, sin regresión
+
+Se añadió `CmpTexture.loadRaw(File cmpFile)`, que decodifica un `.cmp`
+real usando `CmpStage1` y reutiliza el pipeline YA VERIFICADO de
+`CmpStage2` (el mismo código que `load()` ya usaba con streams
+precapturados). El path original `load()` (streams precapturados +
+`palette.txt` a mano) se probó sin cambios contra `sball.cmp` — sigue
+funcionando exacto, cero regresión.
+
+### Verificación contra el corpus real (criterio de cierre de esta sesión)
+
+Ver `docs/cmp-stage1-coverage.md` para el resultado numérico completo
+contra los 159 archivos reales de `content.zip` usando `loadRaw()` — dado
+el bug de mapeo de paleta sin resolver arriba, se espera que la mayoría
+de archivos NO decodifiquen a píxeles correctos todavía, pero el corpus
+completo se corrió igualmente para tener el número real, no una
+estimación.
+
+## Continuación (misma sesión, 2026-09-12): la paleta SÍ era correcta —
+## el bug real estaba en `streamLit`; `test4b.cmp` ya decodifica
+## píxel-exacto de punta a punta
+
+El "bug de mapeo de paleta" de la sección anterior era un diagnóstico
+equivocado. Lo real:
+
+1. **La paleta (lectura secuencial directa, `palette[i]` = i-ésima
+   entrada leída, sin desplazamiento) era correcta desde el principio.**
+   Verificado de dos formas independientes: extracción manual bit a bit
+   contra `test4b.cmp`, y comparación índice por índice contra el
+   `sball.palette.txt` ya votado a mano (16/16 entradas coinciden
+   exactas con indexación de identidad simple). Un intento de "+1"
+   dentro de esta misma sesión fue un callejón sin salida — coincidía
+   por poco con la evidencia dispersa de test4b pero no con la evidencia
+   densa de sball.
+2. **El bug real estaba en el canal 4 (`streamLit`)**: desensamblado
+   completo de `FUN_0044df50` (el "memcpy" de 32 bytes) y su llamador
+   diferido `FUN_00442bc0`/`FUN_00442bee` confirma que el canal 4 usa
+   MECÁNICAMENTE el mismo camino que el canal 2 (`FUN_004269c0` con
+   `permTablePtr=0`, `alphabetSize=0` → alfabeto identidad de 256), solo
+   que la construcción de tabla ocurre de forma diferida. Con eso
+   establecido, una búsqueda por fuerza bruta (deslizar la ventana de
+   símbolos decodificados contra el píxel real de `test4b.bmp`, probando
+   también las 4 combinaciones de orientación) encontró una única
+   respuesta con 0 diferencias: **descartar el primer símbolo decodificado
+   del canal LIT** (decodificar `wanted[4]+1` símbolos, quedarse con los
+   últimos `wanted[4]`). Confirmado como la ÚNICA combinación con 0
+   diferencias entre todos los desplazamientos y orientaciones probados,
+   no una coincidencia.
+3. **Este arreglo NO generaliza**: la misma búsqueda por fuerza bruta
+   contra `sball.cmp` (alfabeto LIT mucho más rico — `byteLen[4]=128`
+   contra los 32 de test4b) nunca llega a 0 diferencias en ningún
+   desplazamiento 0-6 ni orientación (mejor resultado: ~74% de píxeles
+   todavía incorrectos). El mecanismo real para alfabetos ricos sigue sin
+   resolverse — ver investigación en curso abajo. Es posible que el canal
+   2 (`streamFillIdx`) tenga el mismo bug latente para alfabetos ricos
+   (para `sball.cmp` también tiene `byteLen[2]=128`), nunca antes puesto a
+   prueba porque en `test4b.cmp` ese canal es degenerado.
+4. **Orientación (`pass0Top`) también estaba mal derivada**: la sesión
+   anterior la ligó al bit 0 de `flags`, ajuste hecho contra el decode de
+   LIT todavía roto. Con LIT arreglado, `test4b.cmp` necesita
+   `pass0Top=false` (lo opuesto de lo que ese bit daría) — igual que
+   `sball.cmp`. Ninguno de los 2 casos conocidos correlaciona con ese bit
+   bajo el entendimiento correcto, así que `CmpTexture.loadRaw` lo fija a
+   `false` por ahora, pendiente de más ejemplos reales.
+
+**Resultado verificado**: `test4b.cmp` decodifica byte-exacto (0/3072
+bytes, 0/1024 píxeles) de punta a punta contra el render real de
+`cmpview.exe`, a través del pipeline completo `loadRaw()` — sin streams
+precapturados, sin `palette.txt` a mano. `sball.cmp` y alfabetos LIT
+ricos en general quedan sin resolver — no se reclama cierre de corpus
+todavía; investigación activa vía trazado en vivo contra `sball.cmp` en
+curso al momento de escribir esto.
+
+También se corrigió el harness de cobertura: `compare -metric AE` de
+ImageMagick daba valores imposibles en este entorno (4.4e7 "píxeles"
+distintos para una imagen de 1024 píxeles) — reemplazado por comparación
+directa de bytes en Python en `cmp_stage1_coverage.py`, que sí da
+números confiables (confirmado: `test4b.cmp` reporta 0/1024 a través del
+harness, coincidiendo con la verificación independiente).
