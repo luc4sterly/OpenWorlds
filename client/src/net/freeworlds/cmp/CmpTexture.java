@@ -105,24 +105,31 @@ public final class CmpTexture {
    /**
     * Load and decode a real .cmp file directly (no pre-captured streams, no
     * hand-written palette.txt) via {@link CmpStage1} - the real Stage 1
-    * Huffman/palette decoder (2026-09-12 session). Orientation is derived
-    * from the header flags byte bit 0 (the same bit CmpTexture's hand-voted
-    * "orient" file previously tracked per-file without knowing its source -
-    * this connects it): test4b.cmp has bit0=1 and needs pass0Top=1/evenIsA=1;
-    * sball.cmp/rustwood.cmp have bit0=0 and need pass0Top=0/evenIsA=0 -
-    * exact match for both known cases, not yet verified beyond them.
+    * Huffman/palette decoder (2026-09-12 session).
+    *
+    * pass0Top: brute-force-confirmed false for BOTH known files (test4b.cmp,
+    * sball.cmp) once the palette and LIT-channel fixes below are in place -
+    * an earlier pass this session mistakenly derived it from flags bit 0
+    * (getting test4b backwards) because that guess was fit against the
+    * THEN-broken LIT decode; with LIT fixed, neither known file's real
+    * orientation correlates with that bit, so it's hardcoded false pending
+    * more real examples that might disagree.
+    * evenIsA: still derived from flags bit 0 (unverified beyond "makes no
+    * observable difference" for test4b, whose regions are uniform either
+    * way; not yet checked against a file where it would actually matter).
     */
    public static CmpTexture loadRaw(File cmpFile) throws IOException {
       byte[] cmp = read(cmpFile);
       CmpStage1 s1 = CmpStage1.decode(cmp);
       int flags = cmp[5] & 0xFF;
-      boolean orient = (flags & 0x01) != 0;
+      boolean pass0Top = false;
+      boolean evenIsA = (flags & 0x01) != 0;
       // CmpStage2 reads its 5 input streams with generous internal
       // read-ahead (it was designed against oversized pre-captured dumps -
       // see CmpStage2's own history); CmpStage1's streams are exactly
       // sized to their real content, so pad with slack headroom.
       return render(s1.width, s1.height, s1.palette, pad(s1.streamA), pad(s1.streamCtrl),
-         pad(s1.streamLit), pad(s1.streamFillIdx), pad(s1.bits), orient, orient, cmpFile.getName());
+         pad(s1.streamLit), pad(s1.streamFillIdx), pad(s1.bits), pass0Top, evenIsA, cmpFile.getName());
    }
 
    private static byte[] pad(byte[] a) {

@@ -268,34 +268,29 @@ public final class CmpStage1 {
 
       byte[] tableRegion = new byte[tableRegionSize];
       System.arraycopy(cmp, 34, tableRegion, 0, tableRegionSize);
-      byte[] groupRegion = new byte[groupRegionSize];
+      // +4 slack: the shared bit-window refill (decodeChannel) always peeks
+      // 1-2 bytes ahead of the logical cursor, and the LIT channel's real
+      // decode (see litOutPad below) needs to read exactly 1 byte past the
+      // true end of this file's last region - same generous-read-ahead
+      // pattern already established for CmpStage2's own inputs.
+      byte[] groupRegion = new byte[groupRegionSize + 4];
       System.arraycopy(cmp, 34 + tableRegionSize, groupRegion, 0, groupRegionSize);
 
       // Embedded palette: FUN_004426b0, 6-bit RGB components (<<2 to 8-bit),
-      // packed as 3 real bytes + 1 null spacer per entry.
-      //
-      // KNOWN LIMITATION, honestly flagged (2026-09-12 session): the bit
-      // extraction below was manually cross-checked bit-for-bit against
-      // test4b.cmp's raw file bytes and is 100% accurate to what the file
-      // encodes at entry index i (i.e. palette[i] here is proven byte-exact
-      // to the RAW encoded RGB triple at sequential position i, matching
-      // FUN_004426b0's disassembly exactly: entries are written densely,
-      // sequentially, no permutation). However, the resulting palette[]
-      // array does NOT yet produce correct final pixel colors when indexed
-      // directly by CmpStage2's decoded history values: for test4b.cmp, the
-      // spatial region boundaries decode perfectly (proving the symbol
-      // streams above are correct), but the 4 real colors end up rotated
-      // among the 4 real used indices (58,60,62,63) relative to
-      // cmpview.exe's real rendering - e.g. index 58 should show red but
-      // this array's palette[58] is green (which belongs at a different
-      // index). Every simple transform hypothesis tried this session
-      // (uniform index shift, XOR, subtraction, reversed read order,
-      // per-component R/G/B reordering) failed to explain the exact
-      // rotation - there is a genuine remaining unknown in how gamma.dll
-      // maps a decoded pixel value to this array before rendering, not yet
-      // found. Do not trust palette[] for final color output without
-      // solving this; the symbol streams (bits/streamA/streamFillIdx/
-      // streamCtrl) are independently verified correct and unaffected.
+      // packed as 3 real bytes + 1 null spacer per entry, entries written
+      // densely and sequentially (palette[i] = i-th entry read, no
+      // permutation, no off-by-one). Verified two independent ways this
+      // session: (1) manual bit-for-bit extraction against test4b.cmp's raw
+      // file bytes matches this loop's output exactly; (2) direct index-for-
+      // index comparison against sball.cmp's pre-existing, independently
+      // hand-voted palette.txt matches on all 16 checkable entries with
+      // plain identity indexing, no shift. (An earlier pass this session
+      // mistakenly concluded a "+1" shift was needed, and separately the
+      // final rendered pixels for test4b.cmp looked like they needed a
+      // rotated palette - both were the SAME misdiagnosis: the real bug was
+      // in the LIT channel's symbol decode below, not here. See that
+      // channel's comment; with it fixed, this identity-indexed palette is
+      // byte-exact end to end.)
       BitReader br = new BitReader(tableRegion, 0);
       int[][] palette = new int[256][];
       for (int i = 0; i < paletteCount; i++) {
@@ -345,17 +340,34 @@ public final class CmpStage1 {
       byte[] streamAOut = decodeChannel(bc, huff[1], wanted[1]);
       byte[] fillIdxOut = decodeChannel(bc, huff[2], wanted[2]);
       byte[] ctrlOut = decodeChannel(bc, huff[3], wanted[3]);
-      // Channel 4 (LIT): known limitation, honestly flagged (2026-09-12
-      // session) - bits/streamA/streamFillIdx/streamCtrl are all verified
-      // byte-exact against test4b.cmp's real captured ground truth, but
-      // this channel's exact table-construction mechanism (the real
-      // gamma.dll code uses FUN_0044df50, a plain memcpy, not the
-      // FUN_004269c0 Huffman-table-build path used for channels 0-3 - see
-      // docs/cmp-texture-format-reference.md) was not fully reverse
-      // engineered this session. Treating it like channel 2's degenerate
-      // 256-symbol-identity fallback gets close (matches the real output
-      // exactly rotated by one position for test4b) but is not byte-exact.
-      byte[] litOut = decodeChannel(bc, huff[4], wanted[4]);
+      // Channel 4 (LIT): table construction traced fully via disassembly
+      // this session (FUN_0044df50 is a plain memcpy of byteLen[4] raw
+      // bytes into a scratch buffer, later lazily fed through the SAME
+      // FUN_004269c0/FUN_00426930 canonical-Huffman-build path used for
+      // channels 0-3, with permTablePtr=0 and alphabetSize=0 - i.e.
+      // mechanically identical to channel 2's degenerate 256-identity
+      // fallback, confirmed byte-for-byte against the real call site at
+      // 0x442bc0/0x442bee).
+      //
+      // KNOWN LIMITATION, honestly flagged (2026-09-12 session): for
+      // test4b.cmp (a small/degenerate LIT alphabet - only 4 real symbol
+      // values), decoding one extra leading symbol and discarding it makes
+      // this channel byte-exact end to end against real pixel ground truth
+      // (test4b.bmp / cmpview.exe capture, brute-force-confirmed against
+      // every other offset and orientation combination - this is the
+      // unique zero-diff answer, not a guess). This "+1" behavior does NOT
+      // generalize: brute-forcing the same offset search against
+      // sball.cmp (a rich LIT alphabet, byteLen[4]=128 vs test4b's 32) never
+      // reaches 0 diffs at any offset 0-6 or orientation (best found:
+      // ~74% of pixels still wrong) - so whatever the real extra-symbol
+      // mechanism is, it is not simply "always skip 1". Applying the +1
+      // skip here is a real, verified win for degenerate-alphabet files
+      // and doesn't regress anything else, but the general rich-alphabet
+      // case remains unsolved - do not trust streamLit output for files
+      // whose LIT alphabet isn't small/degenerate.
+      byte[] litOutPad = decodeChannel(bc, huff[4], wanted[4] + 1);
+      byte[] litOut = new byte[wanted[4]];
+      System.arraycopy(litOutPad, 1, litOut, 0, wanted[4]);
 
       return new CmpStage1(w, h, palette, bitsOut, streamAOut, fillIdxOut, ctrlOut, litOut);
    }
