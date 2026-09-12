@@ -1259,3 +1259,79 @@ distintos para una imagen de 1024 píxeles) — reemplazado por comparación
 directa de bytes en Python en `cmp_stage1_coverage.py`, que sí da
 números confiables (confirmado: `test4b.cmp` reporta 0/1024 a través del
 harness, coincidiendo con la verificación independiente).
+
+## Continuación (misma sesión): baseline real del corpus (7/159) señala
+## la causa raíz, subagente de trazado en vivo la encuentra — 2 bugs
+## reales, `sball.cmp` también byte-exacto
+
+Con `test4b.cmp` cerrado, se corrió el corpus completo de 159 archivos
+reales de `content.zip` como baseline real (no estimado): **7/159 OK,
+152 FAIL** (de los cuales solo 2 son excepciones/crashes —
+`roofb.cmp` y `vendside2.cmp`, `ArrayIndexOutOfBoundsException`, sin
+investigar todavía; el resto decodifica sin fallar pero con píxeles
+incorrectos). `groupCount` fue 1 para los 159 archivos — el camino
+`mode&0x80` (múltiples grupos) sigue sin ejercitarse por ningún archivo
+real conocido.
+
+Cruce de los campos de cabecera de los 7 archivos que SÍ pasaron contra
+una muestra de 8 que fallaron reveló el patrón real: los 7 que pasan
+tienen `streamFillIdx` (canal 2) degenerado (`byteLen=1`, igual que
+`test4b.cmp`); los 8 que fallan tienen `streamFillIdx` RICO
+(`byteLen≈127-128`, igual que `sball.cmp`) — independientemente del
+`byteLen` de `streamLit` (canal 4), que es 128 en ambos grupos. Esto
+apuntaba a un bug latente en el canal 2 para alfabetos ricos, no
+(solo) en el canal 4 como se pensaba.
+
+Un subagente de trazado en vivo (gdb + wine, mismo método que
+`cmp_capture_stage1.py`) confirmó y resolvió esto con capturas reales de
+memoria de `gamma.dll` contra `sball.cmp`, encontrando **2 bugs reales**
+(no el parche "+1" anterior, que quedó superado):
+
+1. **La tabla de longitudes debe indexarse por VALOR DE SÍMBOLO, no por
+   la ranura de la ventana de lookup.** Captura en vivo de la tabla real
+   de 512 bytes (`[obj+4]`, 256 bytes símbolo + 256 bytes longitud) para
+   los 5 canales de `sball.cmp` confirma que la mitad de longitudes solo
+   tiene valores no-cero en los índices que son VALORES DE SÍMBOLO real
+   (ej. `table[256+0x55]=4` para el primer símbolo real de PERM0), nunca
+   en las muchas ranuras que aliasan a ese símbolo. Desensamblado real de
+   `FUN_00426af0` (`0x426b74-0x426b7b`) explica por qué: `mov bl,[ebx]`
+   carga el símbolo en BL — el byte bajo de EBX, que es el puntero de
+   tabla alineado a 256 bytes OR'd con el índice de lookup — así que esa
+   misma instrucción MUTA el byte bajo de EBX al valor del símbolo, y la
+   instrucción siguiente `mov cl,[ebx+0x100]` termina leyendo
+   `length[symbol]`, no `length[lookupIndex]`. Invisible contra
+   `test4b.cmp` (cuyos alfabetos reales son degenerados o lo bastante
+   pequeños para que ranura==símbolo en los códigos realmente usados)
+   pero rompía cualquier archivo real con alfabeto más rico — exactamente
+   la correlación con `streamFillIdx` encontrada en el baseline del
+   corpus.
+2. **La transición de bits entre canales está condicionada por el bit 0
+   de `flags`, no es siempre "continuar a mitad de byte":** con
+   `flags&1==1` (`test4b.cmp`) cada canal continúa la ventana del canal
+   anterior exactamente (el modelo `BitCursor` "primed" original, sin
+   cambios). Con `flags&1==0` (`sball.cmp`) el llamador real de
+   `gamma.dll` en cambio realinea a byte completo antes de cada canal
+   siguiente (retrocede 1 byte, recarga fresca de 16 bits). Confirmado en
+   ambos sentidos contra captura en vivo: aplicar el realineado a
+   `test4b.cmp` rompe `ctrl`/`lit`; no aplicarlo a `sball.cmp` deja
+   `streamA`/`fillIdx`/`ctrl` 50-97% incorrectos.
+
+Con ambos bugs corregidos, la peculiaridad de "símbolo extra al
+principio" del canal LIT (documentada como limitación honesta antes) se
+convierte en una constante limpia y verificada: **1 símbolo extra en
+modo continuación, 2 en modo realineado** — encontrado por búsqueda de
+fuerza bruta contra ground truth capturado en vivo para ambos archivos,
+no explicado mecanísticamente todavía (no se identificó la lectura extra
+correspondiente en el desensamblado de `FUN_00442750`), pero exacto y
+reproducible en ambos casos.
+
+**Resultado verificado**: `sball.cmp` ahora decodifica byte-exacto en
+los 5 streams de símbolos (bits 0/512, streamA 0/1940, fillIdx 0/593,
+ctrl 0/593, lit 0/997 discrepancias) contra ground truth capturado en
+vivo, y píxel-exacto de punta a punta contra el render real de
+`cmpview.exe` — igual que `test4b.cmp`. Alcance de la verificación: 2
+archivos (uno por cada valor de `flags` bit 0), con alta confianza por
+estar basado en desensamblado y coincidir exacto con volcados de
+memoria reales, pero pendiente de correr contra el corpus completo antes
+de reclamar cierre — ver `docs/cmp-stage1-coverage.md` para el número
+real actualizado.
