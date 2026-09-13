@@ -1335,3 +1335,107 @@ estar basado en desensamblado y coincidir exacto con volcados de
 memoria reales, pero pendiente de correr contra el corpus completo antes
 de reclamar cierre — ver `docs/cmp-stage1-coverage.md` para el número
 real actualizado.
+
+## Sesión siguiente: LIT pasa de "constante ajustada a 2 archivos" a
+## regla real de alineado a byte, harness de captura tenía fuga de
+## procesos wine, corpus completo alcanza 159/159
+
+La constante "1 símbolo extra en modo continuación, 2 en modo
+realineado" para el canal LIT (arriba) resultó estar ajustada a solo 2
+puntos de datos y se rompió al verificar contra más archivos reales:
+
+- `avdoor.cmp` (modo realineado) solo necesitaba 1 símbolo extra, no 2 —
+  refutando la constante fija. La regla real (primer reemplazo):
+  descartar símbolos completos, uno a la vez, decodificándolos a través
+  de la tabla Huffman real, hasta que la SUMA de sus longitudes de
+  código reales alcance `bc.bitsAvail`. Verificado contra 3 archivos.
+- `rkgrnd.cmp` y `unexit.cmp` (encontrados independientemente por dos
+  subagentes de investigación en paralelo) rompieron ESA regla también:
+  `rkgrnd.cmp` tiene símbolos LIT en longitudes mixtas 7 y 8 — descartar
+  por símbolo completo puede pasarse del límite de byte (un símbolo de 7
+  bits seguido de uno de 8 bits se pasa por 7 bits del objetivo de 8),
+  comiéndose datos reales de `wanted[4]`. `unexit.cmp` usa códigos de
+  5 bits exclusivamente, que nunca suman exactamente 8 con símbolos
+  completos. **Fix final**: `skipRawBits(bc, n)` — un descarte de bits
+  crudos que nunca pasa por la tabla Huffman en absoluto, sin ese caso
+  límite. Verificado byte-exacto contra 5 archivos reales independientes
+  que cubren ambos modos de `flags` bit0 y distribuciones de longitud de
+  código uniformes y mixtas: `test4b.cmp`, `sball.cmp`, `avdoor.cmp`,
+  `rkgrnd.cmp`, `unexit.cmp`.
+
+Con eso commiteado, se encontró y arregló un bug real y serio en el
+propio harness de verificación: `cmp_ground_truth.py` solo mataba
+confiablemente el proceso launcher `wine`, nunca el `cmpview.exe` (ni el
+`start.exe` interno que a veces lo envuelve) que realmente genera. A lo
+largo de una corrida de 159 archivos estos procesos huérfanos se
+acumulan, terminan dejando varias ventanas superpuestas en la sesión X —
+lo cual rompe silenciosamente el supuesto de "una sola ventana en el
+origen" del módulo y corrompe las capturas de pantalla (confirmado
+directamente: una captura completamente negra, y `ps aux` mostrando
+procesos de HORAS antes todavía vivos). Fix: `pkill -9 -f cmpview.exe` /
+`pkill -9 -f "start.exe /exec"` tanto antes como después de cada
+captura, no solo al final. **Toda cifra de cobertura del corpus medida
+antes de este fix en la misma sesión es sospechosa y no debe
+confiarse** — quedó re-medida honestamente después.
+
+Con el harness corregido, el corpus completo subió a 156/159, y tras
+descartar 2 fallas transitorias por contención de procesos wine
+concurrentes (`avdrrl.cmp`, `avflr1.cmp` — ambas OK al re-probarse
+aisladas) quedó en **158/159**, con `vendside2.cmp` como única falla
+real restante.
+
+### `vendside2.cmp`: el bug del alfabeto de un solo símbolo
+
+Investigación directa (streams `bits`/`streamA`/`streamFillIdx`/
+`streamCtrl` byte-exactos, solo `streamLit` divergía desde el byte 0) y
+fuerza bruta sobre el punto de entrada de LIT (desplazamiento de byte
+×  bits descartados, 81 combinaciones) no encontró ninguna alineación
+simple que funcionara — señal de que el bug no era de alineación de LIT
+en sí, sino algo estructural aguas arriba.
+
+Causa real: el canal `streamCtrl` (canal 3) de este archivo cae en el
+caso degenerado de un solo símbolo de `buildFromLengths` (`sum<=1`) —
+un alfabeto Huffman de un solo símbolo real. El código emitía la
+longitud de código EXACTAMENTE como se leía del nibble de cabecera
+(siempre 1 en cada ocurrencia real del corpus), cuando un alfabeto de un
+solo símbolo necesita **0 bits** por código — no hay nada que
+desambiguar. Un escaneo del corpus completo mostró que 9/159 archivos
+caen en este caso exacto (`byteLen=1`, `onlyLen=1`, `flags=0x80`), pero
+en 8 de ellos el canal solo pide 1 símbolo (`wanted[3]=1`) — ni 0 ni 1
+bit de costo alcanza nunca a disparar una recarga de byte, así que el
+bug es matemáticamente invisible ahí. `vendside2.cmp` pide 63 símbolos
+(`wanted[3]=63`) — con longitud 1 (bug), decodificarlos avanza el cursor
+de bits compartido ~7 bytes que nunca debieron consumirse, corrompiendo
+cada símbolo LIT siguiente.
+
+Fix de dos partes: (1) el caso degenerado de un solo símbolo emite
+longitud 0, no `lengths[only]`. (2) un campo nuevo
+`reloadedDuringChannel` en `BitCursor`, marcado cuando el bucle interno
+de `decodeChannel` realmente recarga un byte — un canal que consume
+verdaderamente 0 bits nunca toca su propio prefetch de 2 bytes, así que
+el retroceso estándar de "1 byte" antes del siguiente canal se pasa por
+1 byte en ese caso; necesita retroceder 2. La transición específica
+LIT-tras-ctrl ya tenía un retroceso doble preexistente y verificado
+("LIT necesita 1 byte extra más allá de lo normal") — ese se dejó sin
+tocar (sigue siendo `-1` incondicional) y el ajuste condicional se
+aplicó solo a la transición normal justo antes, para no duplicar la
+corrección.
+
+**Verificado**: `vendside2.cmp` byte-exacto en `streamLit` (0/126) y en
+los 16384 píxeles finales contra el render real de `cmpview.exe`. Corpus
+completo re-confirmado en 4 lotes de ~40 archivos (correr los 159 de una
+sola vez resultó intermitentemente inestable esta sesión —
+probablemente contención de recursos de Wine/X bajo ejecuciones largas,
+no relacionado con el decodificador — los lotes de ~40 archivos
+resultaron confiables): **159/159 OK, byte-exacto, 0 regresiones.**
+
+## Estado final: cobertura completa del corpus real (159/159)
+
+El decodificador Stage 1 de `.cmp` (`CmpStage1.java` +
+`CmpStage2.java`) decodifica byte-exacto, píxel a píxel, contra el
+render real de `cmpview.exe` para los 159 archivos `.cmp` reales de
+`GroundZero/content.zip` — no una muestra, no una estimación, el corpus
+completo. El camino `mode&0x80` (grupos múltiples, `groupCount>1`)
+sigue sin ejercitarse por ningún archivo real conocido y por lo tanto
+sin verificar; se lanza `IOException` explícita si algún archivo futuro
+lo activa, en vez de asumir un comportamiento no probado.
