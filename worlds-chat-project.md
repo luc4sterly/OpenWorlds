@@ -2473,3 +2473,104 @@ sin ejecutar nada más:
   offset mal calculado. Cero texturas reales decodificadas, nada
   conectado al pipeline con esta pieza — solo lo ya byte-exacto de la
   sesión anterior (`test4b`/`rustwood`/`sball`) sigue siendo válido.
+
+---
+
+### 🟢 `.cmp` Stage 1 — CIERRE: 159/159 del corpus real byte-exacto,
+### pipeline de materiales reconectado con texturas reales (2026-09-13)
+
+Objetivo de la sesión: subir la cobertura real del corpus de 159
+archivos `.cmp`, priorizando primero el cluster de fallos casi totales,
+con la misma disciplina de siempre (solo cuenta verificación
+byte-exacta real, nunca "se parece"). Arrancó confirmando el estado
+dejado por la sesión anterior (3 fixes commiteados, 70/159 OK antes de
+un corte por rate limit) y terminó **cerrando el arco completo**:
+decodificador Stage 1 al 100% del corpus real, y el pipeline de
+materiales de `WorldViewer` reconectado a texturas reales por primera
+vez. Detalle técnico completo, con evidencia y offsets reales, en
+`docs/cmp-texture-format-reference.md` ("Sesión siguiente" y "Estado
+final") y `docs/render-pipeline-reference.md` ("Reconexión final").
+
+**Cluster prioritario resuelto** (los ~20+ archivos con fallos casi
+totales): la constante ajustada a mano para el "símbolo extra" del
+canal LIT (1 en modo continuación / 2 en modo realineado, fijada a solo
+2 archivos en la sesión anterior) se rompió contra archivos con
+alfabetos de código de longitud mixta o de 5 bits. Reemplazada por
+`skipRawBits` — un descarte de bits crudos que nunca pasa por la tabla
+Huffman, sin el caso límite de "un símbolo decodificado se pasa del
+límite de byte objetivo". Verificado byte-exacto contra 5 archivos
+reales independientes (`test4b`, `sball`, `avdoor`, `rkgrnd`, `unexit`).
+Un bug real y serio del propio harness de verificación (procesos
+`cmpview.exe`/`wine` huérfanos acumulándose y corrompiendo capturas de
+pantalla entre archivos) también se encontró y arregló en el camino —
+**toda cifra de cobertura medida antes de ese fix en la sesión es
+sospechosa**, según se documentó explícitamente en el commit.
+
+Con eso, el corpus subió a 156/159, y tras descartar 2 fallas
+transitorias por contención de Wine (`avdrrl.cmp`, `avflr1.cmp` — OK al
+reaislarlas), quedó en 158/159 con `vendside2.cmp` como única falla
+real.
+
+**Cluster secundario**: efectivamente resuelto como efecto colateral del
+fix de LIT de arriba — no hizo falta una investigación separada, tal
+como se anticipó en las instrucciones de la sesión ("puede que ya esté
+resuelto como efecto del fix prioritario, re-chequear antes de invertir
+más tiempo ahí").
+
+**Último archivo, `vendside2.cmp`**: causa real encontrada tras
+descartar fuerza bruta simple de alineación (81 combinaciones sin
+mejora) — su canal `streamCtrl` cae en el caso degenerado de un solo
+símbolo Huffman, y el código emitía la longitud de código leída del
+header (siempre 1) en vez de la longitud real de un alfabeto de un
+símbolo (0 bits — no hay nada que desambiguar). Invisible en 8/9
+archivos reales del corpus que caen en este mismo caso porque su
+conteo de símbolos pedidos era demasiado bajo (1) para que el bug
+tuviera efecto alguno; `vendside2.cmp` pide 63, suficiente para
+desincronizar el cursor de bits compartido en varios bytes antes de
+LIT. Fix de dos partes (longitud 0 para el caso degenerado + ajuste del
+retroceso de byte cuando un canal no consumió ningún bit real) —
+verificado byte-exacto en streamLit y en los 16384 píxeles finales.
+
+**Verificación continua, honesta sobre la inestabilidad real
+encontrada**: correr los 159 archivos de una sola vez resultó
+intermitentemente inestable esta sesión (fallos instantáneos sin salida
+real, tanto en primer plano como en segundo plano — causa no
+identificada con certeza, probablemente contención de recursos
+Wine/X bajo ejecuciones largas, no relacionado con el propio
+decodificador). Se resolvió corriendo el corpus en 4 lotes de ~40
+archivos, cada uno confiable — **resultado real y final: 159/159 OK,
+byte-exacto, sin duplicados ni omisiones** (verificado contando filas
+únicas de los 4 reportes).
+
+**Cierre de sesión (punto 4 de las instrucciones)**: con cobertura
+100% real, se reconectó `WorldViewer.resolveTexture()` de la ruta legacy
+(`CmpTexture.load`, streams pre-capturados a mano, solo 3 archivos
+tutorial) a la ruta real (`CmpTexture.loadRaw`, Stage 1 completo, sin
+archivos auxiliares) — cambio de una sola línea en el punto de
+resolución. Renderizando la escena completa de `groundzero.world` (25
+salas): **47/47 nombres de textura únicos decodificados (124/124
+referencias de material)**, subiendo de 0/47 en la sesión que conectó
+el pipeline por primera vez. Confirmado visualmente (no solo por el
+contador): nuevas capturas en `docs/renders/world_reception_textured.png`
+y `docs/renders/world_iconviewroom1_textured.png` muestran variación
+real de textura por superficie, con un diff de píxeles real y no-cero
+contra el baseline de solo-color-plano de la sesión anterior. El
+encuadre/escala de cámara de esas capturas (salas pequeñas y lejanas en
+el cuadro) es un problema preexistente de cámara, no de texturas, y
+quedó fuera de alcance de esta sesión — anotado honestamente, no
+maquillado.
+
+**Commits de esta sesión** (cada uno con verificación byte-exacta real
+antes de commitear, disciplina pedida explícitamente): fix del harness
+de captura (procesos huérfanos), fix `skipRawBits` de LIT (5 archivos),
+fix `vendside2.cmp` (caso degenerado de un símbolo), dos actualizaciones
+de documentación, y la reconexión del pipeline de `WorldViewer`.
+
+**Esto cierra el arco completo de `.cmp`/Stage 1** abierto varias
+sesiones atrás: de "0 texturas reales decodificables, arquitectura
+entendida pero no funcional" a "159/159 del corpus real byte-exacto,
+pipeline de materiales end-to-end verificado con textura real
+aplicada". No queda ningún archivo `.cmp` real sin resolver en el
+corpus disponible; el único camino sin ejercitar es `mode&0x80`
+(`groupCount>1`), que ningún archivo real conocido activa — lanza
+`IOException` explícita en vez de asumir comportamiento no probado.
