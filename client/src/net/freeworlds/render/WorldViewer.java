@@ -505,17 +505,23 @@ public final class WorldViewer {
          glTextureCache.put(name, 0);
          return 0;
       }
+      File cmpFile = new File(dir, name + ".cmp");
       try {
-         CmpTexture tex = CmpTexture.load(dir, name);
+         // CmpTexture.loadRaw: the real Stage 1 Huffman/palette decoder
+         // (net.freeworlds.cmp.CmpStage1), verified byte-exact against the
+         // real cmpview.exe rendering for all 159 .cmp files in this same
+         // GroundZero content.zip (docs/cmp-texture-format-reference.md,
+         // "Estado final" section) - no pre-captured streams or hand-voted
+         // palette needed, unlike the legacy CmpTexture.load used before.
+         CmpTexture tex = CmpTexture.loadRaw(cmpFile);
          int id = uploadTexture(tex);
          glTextureCache.put(name, id);
          texturesResolved.add(name);
          return id;
       } catch (Exception e) {
          // No invented pixels: any failure (file missing from the real
-         // archive, or - the current expected common case - Stage 1's
-         // Huffman decoder not yet available for this file) falls back to
-         // the material's real flat color, never a guessed texture.
+         // archive, or a real decode error) falls back to the material's
+         // real flat color, never a guessed texture.
          texturesUnresolved.put(name, String.valueOf(e.getMessage()));
          glTextureCache.put(name, 0);
          return 0;

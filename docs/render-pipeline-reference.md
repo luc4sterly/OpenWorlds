@@ -216,3 +216,42 @@ modelos nunca instanciados en esta escena). Estado de decodificación:
 ver la sección de `.cmp` Stage 1 para el resultado real, actualizado
 por separado ya que es un frente de trabajo independiente de esta
 pieza.
+
+## Reconexión final: Stage 1 completo, texturas reales en la escena
+## (2026-09-13)
+
+Con `.cmp` Stage 1 en 159/159 del corpus real (ver
+`docs/cmp-texture-format-reference.md`, "Estado final"),
+`WorldViewer.resolveTexture()` se cambió de `CmpTexture.load(dir,
+nombre)` (el camino legacy que exigía streams pre-capturados a mano,
+solo disponibles para 3 archivos tutorial) a
+`CmpTexture.loadRaw(archivo.cmp)` (el decodificador Stage 1 real, sin
+archivos auxiliares) - un cambio de una sola línea en el punto de
+resolución, cero cambios en el resto del pipeline (caché, contabilidad
+de cobertura, fallback a color plano, subida a GL).
+
+**Resultado real, medido, no estimado**: renderizando las 25 salas de
+`groundzero.world` (`WorldViewer ... ALL --screenshot-dir`), el log
+imprime `Texture coverage: 47/47 unique texture names decoded (124
+total material references seen)` - **cobertura completa**, de 0/47 a
+47/47 en la misma escena real, sin fallback a color plano por textura
+faltante en ningún material.
+
+**Confirmado visualmente, no solo por el contador**: capturas nuevas en
+`docs/renders/world_reception_textured.png` y
+`docs/renders/world_iconviewroom1_textured.png` muestran variación de
+color/textura real por superficie (pisos con tono madera/rojizo,
+paredes más oscuras) donde antes había un único color plano por
+material. Diff de píxeles directo contra el `world_reception_fixed.png`
+de la sesión de conexión del pipeline (cuando 0 texturas decodificaban):
+4158/786432 píxeles distintos - un cambio real y esperado, no ruido
+(la sala es pequeña en cuadro - ver nota de alcance abajo - así que la
+mayoría del cuadro sigue siendo fondo/geometría sin textura visible a
+esa escala, pero la fracción de píxeles con textura real cambió
+exactamente donde se esperaba).
+
+**Fuera de alcance, notado honestamente**: el encuadre/escala de cámara
+de estas capturas (la sala aparece pequeña y lejana, ya así en el
+`_fixed.png` de referencia de la sesión anterior) es un problema
+preexistente de cámara/framing, no relacionado con `.cmp` ni con este
+cambio - no se tocó esta sesión.
