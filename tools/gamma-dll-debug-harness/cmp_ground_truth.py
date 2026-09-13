@@ -85,6 +85,23 @@ def capture(cmp_path, work_dir, wineprefix, display, settle_s=3.0, max_wait_s=9.
     env = ensure_wineprefix(wineprefix)
     env["DISPLAY"] = display
 
+    # Wine's process model means the "wine" launcher PID is often NOT the
+    # actual cmpview.exe process (it forks/execs through its own machinery,
+    # sometimes via an internal start.exe wrapper) - proc.terminate() below
+    # only ever reliably killed the launcher, leaving real cmpview.exe (and
+    # start.exe) processes running. Across a 159-file corpus run those
+    # orphans accumulate, eventually leaving multiple overlapping top-level
+    # windows on screen - which silently breaks the "one window at origin"
+    # assumption this module's docstring depends on (the screenshot then
+    # captures stale/wrong/occluded content - a real bug found and fixed
+    # this session after it silently corrupted a full corpus run's ground
+    # truth (every file came back a false FAIL, not a true one).
+    # Belt-and-suspenders fix: kill any leftover instances BEFORE starting
+    # a new one, not just after.
+    _run(["pkill", "-9", "-f", "cmpview.exe"])
+    _run(["pkill", "-9", "-f", "start.exe /exec"])
+    time.sleep(0.2)
+
     proc = subprocess.Popen(
         ["wine", CMPVIEW_EXE, base], cwd=work_dir, env=env,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -121,6 +138,12 @@ def capture(cmp_path, work_dir, wineprefix, display, settle_s=3.0, max_wait_s=9.
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.wait(timeout=3)
+        # See the pre-launch cleanup above: proc.terminate()/kill() only
+        # ever reliably kills the "wine" launcher, not the real cmpview.exe
+        # (and possible start.exe wrapper) it spawns - clean those up by
+        # name too so they never survive into the next file's capture.
+        _run(["pkill", "-9", "-f", "cmpview.exe"])
+        _run(["pkill", "-9", "-f", "start.exe /exec"])
 
 
 def _read_ppm(path):
