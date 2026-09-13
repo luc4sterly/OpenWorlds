@@ -219,6 +219,29 @@ public final class CmpStage1 {
       boolean primed = false;
    }
 
+   /** Skip n<=8 raw bits from the shared window without any table lookup. */
+   private static void skipRawBits(BitCursor bc, int n) {
+      if (n <= 0) return;
+      int pos = bc.pos;
+      int window = bc.window;
+      int bitsAvail = bc.bitsAvail;
+      int oldBits = bitsAvail;
+      bitsAvail -= n;
+      if (bitsAvail < 0) {
+         window = (window << oldBits) & 0xFFFF;
+         int newByte = bc.src[pos++] & 0xFF;
+         window = (window & 0xFF00) | newByte;
+         int missing = n - oldBits;
+         bitsAvail += 8;
+         window = (window << missing) & 0xFFFF;
+      } else {
+         window = (window << n) & 0xFFFF;
+      }
+      bc.pos = pos;
+      bc.window = window;
+      bc.bitsAvail = bitsAvail;
+   }
+
    private static void ensurePrimed(BitCursor bc) {
       if (!bc.primed) {
          bc.window = ((bc.src[bc.pos] & 0xFF) << 8) | (bc.src[bc.pos + 1] & 0xFF);
@@ -385,33 +408,30 @@ public final class CmpStage1 {
       // fallback, confirmed byte-for-byte against the real call site at
       // 0x442bc0/0x442bee).
       //
-      // The real stream decodes extra leading LIT symbols beyond
-      // `wanted[4]` that must be discarded before the real ones. NOT a
-      // fixed count per mode (an earlier "1 in continue-mode, 2 in
-      // realign-mode" constant fit only 2 data points and broke on a 3rd
-      // real file, avdoor.cmp, which is realign-mode but needs only 1).
-      // The real rule, found by measuring each discarded symbol's actual
-      // Huffman code length rather than just counting symbols: discard
-      // whole LIT symbols one at a time until the number of bits consumed
-      // equals whatever was left in the bit window at LIT's entry
-      // (`bc.bitsAvail` right after priming) - i.e. LIT always starts
-      // reading its real wanted[4] symbols at a byte boundary, and the
-      // discarded symbol(s) are exactly what's needed to finish the
-      // current byte. Verified byte-exact against live-captured ground
-      // truth for 3 independent real files spanning both flags-bit0
-      // modes (test4b.cmp: 1 symbol/2 bits; sball.cmp: 2 symbols/8 bits;
-      // avdoor.cmp: 1 symbol/8 bits) - a mechanistically coherent rule,
-      // not a coincidence-fit constant. Root cause (why LIT specifically
-      // needs byte alignment) still not pinned to a disassembly
-      // instruction, but the empirical rule is exact and reproducible.
+      // LIT always starts reading its real wanted[4] symbols at a byte
+      // boundary: whatever bits are left in the shared window at LIT's
+      // entry (`bc.bitsAvail` right after priming) must be skipped first.
+      // This is a RAW bit-skip (skipRawBits), not "decode and discard
+      // whole Huffman symbols via the table until enough bits are
+      // consumed" - an earlier version of this fix did the latter and
+      // broke on rkgrnd.cmp, whose real LIT alphabet has a genuinely
+      // mixed code-length distribution ([5,0,0,0,0,0,0,5,246] symbols at
+      // lengths 0/7/8): discarding by decoded-symbol-length can overshoot
+      // the byte boundary (e.g. a 7-bit symbol then an 8-bit symbol
+      // blows past an 8-bit target by 7 bits), silently eating real
+      // wanted[4] data. A raw bit-skip has no such edge case. Verified
+      // byte-exact against live-captured ground truth for 4 independent
+      // real files spanning both flags-bit0 modes and both uniform and
+      // mixed LIT code-length distributions: test4b.cmp (continue-mode,
+      // target=2 bits), avdoor.cmp (realign-mode, uniform length-8,
+      // target=8), sball.cmp (realign-mode, mixed lengths, target=8),
+      // rkgrnd.cmp (realign-mode, mixed lengths, target=8 - the file
+      // that exposed the bug). Root cause (why LIT specifically needs
+      // byte alignment) still not pinned to a disassembly instruction,
+      // but the empirical rule is exact and reproducible.
       if (realign) { bc.pos -= 1; bc.primed = false; }
       ensurePrimed(bc);
-      int discardTargetBits = bc.bitsAvail;
-      int discardedBits = 0;
-      while (discardedBits < discardTargetBits) {
-         byte[] one = decodeChannel(bc, huff[4], 1);
-         discardedBits += huff[4].length[one[0] & 0xFF];
-      }
+      skipRawBits(bc, bc.bitsAvail);
       byte[] litOut = decodeChannel(bc, huff[4], wanted[4]);
 
       return new CmpStage1(w, h, palette, bitsOut, streamAOut, fillIdxOut, ctrlOut, litOut);
