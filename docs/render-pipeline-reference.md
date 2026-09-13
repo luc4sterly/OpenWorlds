@@ -126,6 +126,102 @@ java -cp out:../tools/lwjgl/*.jar net.freeworlds.render.RwgViewer <archivo.rwg> 
 java -cp out:../tools/lwjgl/*.jar net.freeworlds.render.BodViewer <archivo.bod> --screenshot out.png [--wireframe] [--unlit] [--angle N]
 ```
 
+## `WorldViewer`: ventana interactiva GroundZero (2026-09-13)
+
+```
+# ventana visible e interactiva (ESC para salir), sala real de groundzero.world
+DISPLAY=:100 java -cp out:../tools/lwjgl/*.jar net.freeworlds.render.WorldViewer <archivo.world> <sala> --window
+# + captura del primer frame, dejando la ventana abierta
+... <archivo.world> <sala> --window --screenshot out.png
+# batch sin cambios (ventana oculta, 1 frame): <sala> --screenshot out.png, ALL --screenshot-dir dir, --list-rooms
+# cámara interior voladora (W/S volar, A/D strafe, flechas girar/cabecear, E/Q subir/bajar, ESC salir)
+... <archivo.world> <sala> --inside [--eye x,y,z] [--look x,y,z] [--up x,y,z] [--screenshot out.png]
+```
+
+## Lanzador con log: `tools/run-game.sh` (2026-09-13)
+
+`tools/run-game.sh [sala] [args del WorldViewer...] [--log-dir dir]
+[--display :N] [--build] [--no-shot]` — compila si se pide (`--build`),
+reutiliza `DISPLAY` si hay X o levanta un Xvfb propio (100-110, con
+limpieza al salir), añade `--screenshot` automático salvo `--no-shot`
+o modos con salida propia (`ALL`/`--list-rooms`), y guarda todo en
+`logs/worldviewer-<sala>-<fecha>.log` (cabecera: fecha, git rev, java,
+comando + resumen final con exit code). `logs/` está gitignored.
+
+## Texturas bien: modelo de material de la referencia (2026-09-13)
+
+Dos reglas de `three-rwx-loader` (`RWXLoader.js:531-582`, hechos de
+código, no interpretación) que el pipeline violaba y oscurecían toda
+superficie texturizada (LizCave a ~5/255 de media):
+
+1. **Texturizada → base blanca** (`tint` nunca se activa en la
+   práctica): el `Color` del archivo se ignora con textura, no se
+   multiplica. En el corpus real las 297 refs `.cmp` son todas no-`Lit`
+   (`Foreshorten`); `Lit` solo existe con `Texture NULL`.
+2. **Surface gateada por `Lit`**: sin `Lit`, tripleta default AW 2.2
+   `[0.69, 0, 0]`; `brightnessRatio = max(surface)` escala la base en
+   ambos casos (con y sin textura).
+
+Implementado en `RwxMaterial` (`textureModes`, `effectiveAmbient/
+effectiveDiffuse`, `brightnessRatio()`, `baseColor()`) +
+`RwxParser` (caso `texturemodes`) + `GlLighting.applyMaterial`
+(misma base escalada a ambiente Y difuso). El ambient de luz se
+retunó de 1.0× a **0.15×** por luz (con 1.0× todo clipeaba a blanco
+sin sombrear, medido 19.8% en Auditorium): heurística documentada en
+`GlLighting`, sin ground truth iluminada del original. Resultado
+medido: 2-3× brillo, más colores en las 4 salas de referencia, 0%
+clip, 25/25 salas GL 0.
+
+## Z-up + spawn real (2026-09-13)
+
+El cliente es Z-up (`Transform.raise=+Z`, `yaw` sobre Z) y su spawn
+está en `worlds.ini` (`Reception@1872,1229,150,yaw125` — formato
+confirmado en `Pilot.getURL()`): `WorldViewer` usa Z-up por defecto
+(órbita exterior sobre Z, interior con yaw en x/y; `--up 0,1,0`
+restaura Y-up). `./tools/run-game.sh` sin args abre la ventana en
+ese spawn mirando al kiosko (la dirección del yaw admite dos signos;
+se eligió la que muestra contenido, documentado en
+`worlds-chat-project.md`).
+
+## Rects: el contenido real de las salas (2026-09-13)
+
+Paredes/suelos/carteles son nodos `Rect` (374 en GroundZero), no
+Shapes: plano unitario local **X/Z** (verificado contra far-corners
+reales) con UV u/v+offsets y `Material` propio (URL de textura en
+v2+). Texturas: `dtex/*.cmp` absolutas (12 en
+`assets/.../GroundZero/dtex/`, del servidor vivo) + `tex/*`
+relativas (sufijo anim `2h*2v*`); cobertura 42/55 URLs (los 13
+`.mov` son otro contenedor — fallback plano). Dibujado: quads con
+UV/tiling real, doble cara + `GL_LIGHT_MODEL_TWO_SIDE`, misma
+base-blanca/ratio que RWX. Los 147 Rects teal planos son color real
+del stream, no default.
+
+## Cobertura total: `.mov` + sufijos anim + BMP (2026-09-13)
+
+- `.mov`: `CmpStage1.decodeMovFrame0` (misma cabecera, tablas
+  multi-frame localizadas por firma `field0==64`, solo grupo/frame
+  0) + `CmpTexture.loadMov` (índice 255→blanco). Verificado
+  byte-exacto vs `cmpview.exe` (`windr1`, `cbirda4` 16384/16384).
+- URLs con sufijo de animación (`cbirda42h*2v*`→`cbirda4`,
+  `time2h*`→`time`, `winwin12h*2v*`→`winwin1`: un dígito + h/v,
+  stem exacto siempre primero) y case-insensitive en Linux.
+- `.bmp`→`.cmp` del mismo stem si existe gemelo (`cstgbs3`;
+  `pceil2` sin gemelo queda plano, honesto).
+- Medido en escena completa: `Texture 47/47` + `Rect 55/55`
+  (187 refs) — cero texturas con loader sin cargar. `.mov` con
+  contenido verificado en escena (bandera f3 en RV1).
+- Abierto: 36 `RectPatch` (material nulo + cadena de versiones
+  dudos) — evaluado, no implementado.
+
+Sin `--window` todo sigue igual que antes (ventana oculta,
+screenshot de una pasada — verificado md5-idéntico tras el cambio).
+Bajo XWayland sin GLX útil (`DISPLAY=:0` en esta máquina) el render
+sale negro aunque GL error sea 0 — usar Xvfb (`:100`) para
+verificación repetible. Nota honesta: las salas texturizadas se ven
+más oscuras que el baseline plano (p. ej. `LizCave` media 132.7 →
+14.2, ver `worlds-chat-project.md`) — `GL_MODULATE` apilado, sin
+ground truth del cliente original para decir si RW2 hacía lo mismo.
+
 ## `.bod`: ensamblado por placeholders + render en bind pose (2026-09-10)
 
 Implementado en `client/src/net/freeworlds/render/BodViewer.java` - era
@@ -255,3 +351,82 @@ de estas capturas (la sala aparece pequeña y lejana, ya así en el
 `_fixed.png` de referencia de la sesión anterior) es un problema
 preexistente de cámara/framing, no relacionado con `.cmp` ni con este
 cambio - no se tocó esta sesión.
+
+## Fondo infinito con seguimiento de camara (2026-09-13)
+
+`WorldViewer` dibujaba el `infiniteBackground` de cada sala con su
+transform estatico de archivo, como el resto del grafo. La documentacion
+oficial (`GammaDocs/Gamma_Overview.html`, "Sky, Ground, and Infinite
+Background") define que el fondo infinito es "una habitacion en el
+espacio exterior que rodea la habitacion principal" cuya "escala nunca
+parece cambiar" - una vista "infinitamente distante", es decir, sin
+paralaje al moverse la camara. Con geometria estatica, el fondo tenia
+paralaje normal de objeto cercano (verificado: al desplazar el ojo
++500x en Reception, la cobertura de muros de fondo `skyXX` cambiaba de
+extension en pantalla).
+
+**Cambio** (`WorldViewer.drawInfiniteBackground`): en modo `--inside`,
+el subarbol de fondo se dibuja trasladado por `(ojo - ref)`, donde `ref`
+es el ojo del frame 0. En el frame 0 el offset es exactamente 0 -
+verificado md5-identico contra el render estatico previo, tanto en
+exterior (`Reception` batch) como interior (vista spawn
+`1872,1229,150`); al volar, el fondo acompana a la camara (distancia
+infinita efectiva). El modo exterior orbita/maniquete conserva la
+colocacion estatica verificada antes. `skyColor`/`groundColor` son null
+en las 25 salas reales (el cliente no dibuja nada en ese caso, solo
+ahorra un draw - segun la misma doc oficial), asi que el color de
+borrado oscuro se conserva como fallback documentado, no como color
+"real" de cielo.
+
+## Fondo infinito: estatico por defecto, `--infinite-follow` opcional
+## (2026-09-13, correccion)
+
+El seguimiento de camara del fondo infinito se habia activado siempre en
+`--inside`, pero al caminar se veia al terreno exterior "seguir" al
+usuario (reportado como bug — y con razon): el anillo de cielo de
+GroundZero esta modelado a medida de la sala (Reception: x -700..2100,
+y -1100..1000, z -100..250), no es una cascara infinitamente grande, asi
+que al fijarlo a la camara los muros cercanos del decorado se desplazan
+con el caminante en vez de quedarse quietos.
+
+**Cambio**: colocacion estatica por defecto (como el resto del mundo);
+`--infinite-follow` lo fija a la camara solo si se pide explicito
+(aspecto "infinitamente distante", paralaje cero). Frame 0 identico en
+ambos modos (offset exactamente 0 — verificado md5-identico al render
+estatico previo en vista spawn y exterior, GL error 0).
+
+## Fondo infinito como camara en el origen + bumpers invisibles
+## (2026-09-13, revision de cabo a rabo del mapa)
+
+**Fondo (sustituye las dos secciones de follow anteriores).**
+Auditoria con numeros: solo 2 de 25 salas tienen `infiniteBackground`
+no vacio (Reception 34 Rects, ReceptionView1 33); las otras 23 lo traen
+vacio (el autor lo dejo en blanco "para acelerar el render", doc
+oficial). Dibujado en coordenadas absolutas, el anillo quedaba a
+(-2561,-974) del centro en Reception y (-6253,+1019) en RV1: literalmente
+tirado en una esquina. La doc oficial (`Gamma_Procedures.html`,
+"Infinite Backgrounds") resuelve la duda: el fondo "se ve desde una
+camara en 0,0,0" y el autor centra el decorado en el origen (por eso va
+agrupado en un WObject). `drawInfiniteBackground` ahora traslada el
+subarbol por la posicion de la camara viva, conservando su orientacion:
+el anillo rodea al espectador en todas direcciones con paralaje cero de
+traslacion. Verificado: spawn de Reception con cielo nublado arriba y
+colinas alrededor (E/O/N), RV1 con horizonte completo, 25/25 salas GL 0,
+cobertura 51/51 + 101/101. Limites honestos: huecos de cielo donde el
+autor no puso paneles (sectores sin geometria = vacio, no se inventa
+nada); en vista orbita exterior el anillo queda fuera del plano near
+(maqueta sin fondo, solo sala).
+
+**Bumpers invisibles (hallazgo de la misma auditoria).** LizCave se veia
+llena de cristales teal gigantes: son `Rect942CyanBump` (40), muros de
+colision con color teal real #00FCF8 y `flags=2` (bumpable, NO visible;
+bit 0 = visible verificado en `WObject.getVisible()` del decompilado).
+El parser tiraba los flags y el visor los dibujaba. Ahora `WNode.flags`
+guarda el int real y el visor salta hojas invisibles al dibujar y al
+encuadrar (hojas solo: nunca se oculta un subarbol por el flag de un
+grupo, propagacion nativa no verificada). Validacion cruzada: todo lo
+invisible se llama `*Bump` (88 en RV1, 26 en IconViewRoom1, 21
+RectPatch en Garden MazeC7b...) y los RectPatch v0 traen flags=0 (confirma
+por segunda via que v0 = invisible). Reception tiene 0 invisibles: su
+vista spawn es md5-identica antes/despues. LizCave pasa de 48 a 7 objetos
+(roca + 5 estalagmitas + cartel): cueva de musgo sin teal.

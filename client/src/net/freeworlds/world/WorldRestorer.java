@@ -461,7 +461,7 @@ public final class WorldRestorer {
          case 0:
          case 1:
             readTransform(node);
-            restoreInt(); // flags
+            node.flags = restoreInt();
             restoreMaybeNull();
             contents = restoreVectorMaybeNull();
             restoreVectorMaybeNull(); // handlers
@@ -469,7 +469,7 @@ public final class WorldRestorer {
          case 2:
          case 3:
             readTransform(node);
-            restoreInt(); // flags
+            node.flags = restoreInt();
             contents = restoreVectorMaybeNull();
             restoreVectorMaybeNull(); // handlers
             restoreVectorMaybeNull(); // actions
@@ -479,7 +479,7 @@ public final class WorldRestorer {
             break;
          case 4:
             readTransform(node);
-            restoreInt();
+            node.flags = restoreInt(); // WObject.flags (bit0=visible)
             contents = restoreVectorMaybeNull();
             restoreVectorMaybeNull();
             restoreVectorMaybeNull();
@@ -491,7 +491,7 @@ public final class WorldRestorer {
          case 7:
          case 8:
             readTransform(node);
-            restoreInt();
+            node.flags = restoreInt(); // WObject.flags (bit0=visible)
             contents = restoreVectorMaybeNull();
             restoreVectorMaybeNull();
             restoreVectorMaybeNull();
@@ -503,7 +503,7 @@ public final class WorldRestorer {
             break;
          case 9:
             readTransform(node);
-            restoreInt();
+            node.flags = restoreInt(); // WObject.flags (bit0=visible)
             contents = restoreVectorMaybeNull();
             restoreVectorMaybeNull();
             restoreVectorMaybeNull();
@@ -514,7 +514,7 @@ public final class WorldRestorer {
          case 10:
             readTransform(node);
             trace("after transform");
-            restoreInt();
+            node.flags = restoreInt(); // WObject.flags (bit0=visible)
             trace("after flags");
             contents = restoreVectorMaybeNull();
             trace("after contents");
@@ -582,12 +582,12 @@ public final class WorldRestorer {
          case 0:
             readWObject(node);
             // Material.restore(var1) internally does restoreMaybeNull() (see Material.restore static helper) - a leading bool IS present here.
-            restoreMaybeNull();
+            node.material = restoreMaybeNull();
             break;
          case 1:
             readWObject(node);
             // real source: `this.setMaterial((Material)var1.restore());` - a DIRECT restore(), no leading maybe-null bool (unlike case 0's Material.restore() helper).
-            restore();
+            node.material = restore();
             break;
          default:
             throw new IOException("unknown Surface version " + v);
@@ -606,27 +606,27 @@ public final class WorldRestorer {
             restoreFloat();
             restoreFloat();
             restoreFloat();
-            restoreFloat();
-            restoreFloat();
+            node.rectU = restoreFloat();
+            node.rectV = restoreFloat();
             break;
          case 2:
             readSurface(node, "NET.worlds.scape.Surface");
-            restoreFloat();
-            restoreFloat();
+            node.rectU = restoreFloat();
+            node.rectV = restoreFloat();
             break;
          case 3:
             readSurface(node, "NET.worlds.scape.Surface");
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
+            node.rectU = restoreFloat();
+            node.rectV = restoreFloat();
+            node.rectUOff = restoreFloat();
+            node.rectVOff = restoreFloat();
             break;
          case 4:
             readSurface(node, "NET.worlds.scape.Surface");
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
+            node.rectU = restoreFloat();
+            node.rectV = restoreFloat();
+            node.rectUOff = restoreFloat();
+            node.rectVOff = restoreFloat();
             restoreBoolean();
             break;
          default:
@@ -713,27 +713,28 @@ public final class WorldRestorer {
 
    private void readRectPatch(WNode node) throws IOException {
       int v = restoreVersion("NET.worlds.scape.RectPatch");
+      node.rpVersion = v;
       switch (v) {
          case 0:
             readWObject(node);
-            restoreFloat();
-            restoreFloat();
+            node.rpXDim = restoreFloat();
+            node.rpYDim = restoreFloat();
             for (int i = 0; i < 4; i++) {
-               restoreFloat();
+               node.rpZ[i] = restoreFloat();
             }
             break;
          case 1:
             readWObject(node);
-            restoreFloat();
-            restoreFloat();
+            node.rpXDim = restoreFloat();
+            node.rpYDim = restoreFloat();
             for (int i = 0; i < 4; i++) {
-               restoreFloat();
+               node.rpZ[i] = restoreFloat();
             }
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
-            restoreMaybeNull(); // Material.restore(var1) - has an internal leading bool
+            node.rpXTile = restoreFloat();
+            node.rpXTileOff = restoreFloat();
+            node.rpYTile = restoreFloat();
+            node.rpYTileOff = restoreFloat();
+            node.material = restoreMaybeNull(); // this.setMaterial(Material.restore(var1))
             restoreMaybeNull();
             restoreMaybeNull();
             restoreMaybeNull();
@@ -741,16 +742,16 @@ public final class WorldRestorer {
             break;
          case 2:
             readWObject(node);
-            restoreFloat();
-            restoreFloat();
+            node.rpXDim = restoreFloat();
+            node.rpYDim = restoreFloat();
             for (int i = 0; i < 4; i++) {
-               restoreFloat();
+               node.rpZ[i] = restoreFloat();
             }
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
-            restoreMaybeNull(); // Material.restore(var1)
+            node.rpXTile = restoreFloat();
+            node.rpXTileOff = restoreFloat();
+            node.rpYTile = restoreFloat();
+            node.rpYTileOff = restoreFloat();
+            node.material = restoreMaybeNull(); // this.setMaterial(Material.restore(var1))
             break;
          default:
             throw new IOException("unknown RectPatch version " + v);
@@ -777,7 +778,7 @@ public final class WorldRestorer {
             restore(); // defaultOrientationAxis
             restoreFloat();
             restoreVector();
-            restore(); // environment
+            node.environment = restore(); // environment
             break;
          case 1:
          case 2:
@@ -791,7 +792,7 @@ public final class WorldRestorer {
             restore();
             restore();
             restoreFloat();
-            restore(); // environment
+            node.environment = restore(); // environment
             break;
          case 3:
          case 4:
@@ -807,8 +808,8 @@ public final class WorldRestorer {
             restore();
             restore();
             restoreFloat();
-            restore(); // environment
-            restore(); // infiniteBackground
+            node.environment = restore(); // environment
+            node.infiniteBackground = restore(); // infiniteBackground
             break;
          case 5:
          case 6:
@@ -834,9 +835,9 @@ public final class WorldRestorer {
             }
             node.lightColorRGB = restoreInt();
             trace("Room: after lightColor");
-            restore(); // environment
+            node.environment = restore(); // environment
             trace("Room: after environment");
-            restore(); // infiniteBackground
+            node.infiniteBackground = restore(); // infiniteBackground
             trace("Room: after infiniteBackground");
             if (v >= 6) {
                restoreString(); // teleportChain
@@ -937,47 +938,49 @@ public final class WorldRestorer {
 
    private void readMaterial(WNode node) throws IOException {
       int v = restoreVersion("NET.worlds.scape.Material");
+      node.matVersion = v;
       switch (v) {
          case 0:
          case 1:
             if (v == 1) {
                readSuperRoot(node);
             }
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
-            restoreInt();
-            restoreInt();
-            restoreInt();
-            restoreMaybeNull();
+            node.matAmbient = restoreFloat();
+            node.matDiffuse = restoreFloat();
+            node.matSpecular = restoreFloat();
+            node.matOpacity = restoreFloat();
+            node.matColorRGB = packRGB(restoreInt(), restoreInt(), restoreInt());
+            restoreMaybeNull(); // Texture object (v0 state is empty - no name in-stream)
             break;
          case 2:
          case 3:
          case 4:
             readSuperRoot(node);
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
+            node.matAmbient = restoreFloat();
+            node.matDiffuse = restoreFloat();
+            node.matSpecular = restoreFloat();
+            node.matOpacity = restoreFloat();
             if (v > 3) {
                restoreBoolean();
                restoreBoolean();
             }
-            restoreInt();
-            restoreInt();
-            restoreInt();
-            String texUrl = restoreString();
+            node.matColorRGB = packRGB(restoreInt(), restoreInt(), restoreInt());
+            node.matTextureUrl = restoreString(); // URL.restore: raw string form
             if (v > 2) {
                restoreBoolean();
             }
-            if (texUrl == null) {
+            if (node.matTextureUrl == null) {
                restoreMaybeNull();
             }
             break;
          default:
             throw new IOException("unknown Material version " + v);
       }
+   }
+
+   /** Packs 3 restored ints (real source passes them to new Color(r,g,b)) into 0xRRGGBB. */
+   private static int packRGB(int r, int g, int b) {
+      return ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
    }
 
    private void readScapePicTexture(WNode node) throws IOException {

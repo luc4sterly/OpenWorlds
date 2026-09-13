@@ -184,6 +184,22 @@ public final class RwxParser {
             currentMaterial.textureName = tok[1].equalsIgnoreCase("null") ? null : tok[1];
             currentMaterial.maskName = (tok.length > 2 && !tok[2].equalsIgnoreCase("null")) ? tok[2] : null;
             break;
+         case "texturemode":
+         case "texturemodes":
+            // Real corpus: every textured material declares this (Foreshorten
+            // in all 297 textured refs; Lit only ever with Texture NULL).
+            // The parsed surface triple only applies under Lit (see
+            // RwxMaterial) — without this, all textured materials would
+            // wrongly keep their parsed surface instead of the AW default.
+            currentMaterial = currentMaterial.copy();
+            currentMaterial.textureModes.clear();
+            for (int ti = 1; ti < tok.length; ti++) {
+               String m = tok[ti].toUpperCase();
+               if (m.equals("LIT")) currentMaterial.textureModes.add(RwxMaterial.TextureMode.LIT);
+               else if (m.equals("FORESHORTEN")) currentMaterial.textureModes.add(RwxMaterial.TextureMode.FORESHORTEN);
+               else if (m.equals("FILTER")) currentMaterial.textureModes.add(RwxMaterial.TextureMode.FILTER);
+            }
+            break;
          case "materialmode":
          case "materialmodes":
             // Real corpus evidence: assets/GROUNDZERO/YARD_TABLE.RWX has

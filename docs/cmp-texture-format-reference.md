@@ -1436,6 +1436,28 @@ El decodificador Stage 1 de `.cmp` (`CmpStage1.java` +
 render real de `cmpview.exe` para los 159 archivos `.cmp` reales de
 `GroundZero/content.zip` — no una muestra, no una estimación, el corpus
 completo. El camino `mode&0x80` (grupos múltiples, `groupCount>1`)
-sigue sin ejercitarse por ningún archivo real conocido y por lo tanto
-sin verificar; se lanza `IOException` explícita si algún archivo futuro
-lo activa, en vez de asumir un comportamiento no probado.
+YA está ejercitado y verificado — por los `.mov` (ver sección
+siguiente); en `.cmp` ningún archivo real conocido lo activa y se
+mantiene el `IOException` explícito para ese caso.
+
+## `.mov`: mismo códec, contenedor multi-frame (2026-09-13)
+
+Los 13 `.mov` reales de `content.zip` (`tex/*.mov`, referenciados
+desde Rects con sufijos de animación `2h*2v*`) son LzH2 con los
+mismos offsets de cabecera que `.cmp`, modos `0x82`/`0x86`, paleta
+`byte12=0xFF` (=255 genuino, probado: forzar 256 desincroniza).
+Diferencias: región de tablas mucho mayor (tablas multi-frame; el
+u16 de 28 NO es su tamaño) — se localiza por firma de header de
+grupo (`field0==64`, único por archivo, incl. `windr3` con
+`wanted[0]=624`, `h=154`) — y `groupCount>1` (frames): solo se
+decodifica el grupo 0 (frame estático para el visor; el tiling
+`2h*2v*`/multi-archivo f1-f8 es animación por UV/tiempo, fuera de
+alcance). Índice 255 = fondo transparente → blanco (canvas de
+cmpview; solo `.mov`, los `.cmp` conservan su entrada real).
+Verificación contra `cmpview.exe`: `windr1` y `cbirda4`
+16384/16384 byte-exactos; resto con artwork real correcto (banderas
+f1-f8 en fases de onda sucesivas, pájaro, logos, interiores).
+Implementación: `CmpStage1.decodeMovFrame0` + `CmpTexture.loadMov`.
+Límites honestos: frame 0 estático (sin animación temporal);
+ventana de película de cmpview incluye UI propia (poste/seek) que no
+es contenido — no confundir al verificar.

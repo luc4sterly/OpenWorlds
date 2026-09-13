@@ -18,6 +18,16 @@ public final class WNode {
    public final String className;
    /** From SuperRoot.name - may be null. */
    public String name;
+   /** WObject.flags as saved (bit 0 = visible, bit 1 = bumpable — verified
+    * against the decompiled client: WObject.getVisible() = (flags & 1),
+    * default flags = 3). Invisible nodes (collision bumpers like
+    * Rect942CyanBump in LizCave) are parsed to keep the byte stream in
+    * sync but never drawn. */
+   public int flags = 3;
+   /** WObject.getVisible() replica: bit 0. */
+   public boolean isVisible() {
+      return (flags & 1) != 0;
+   }
    /** 16-float column-major transform matrix from Transform.getGuts()/setGuts() - null for non-Transform classes (Action, Sensor, Point3, Material...). */
    public float[] matrix;
    public float xScale = 1f, yScale = 1f, zScale = 1f;
@@ -32,9 +42,37 @@ public final class WNode {
    public Integer lightColorRGB;
    public Integer skyColorRGB;
    public Integer groundColorRGB;
-   /** World-specific: room name -> Room node, from World.roomHash. */
-   public final Map<String, WNode> roomsByName = new LinkedHashMap<>();
-   public String defaultRoomName;
+    /** World-specific: room name -> Room node, from World.roomHash. */
+    public final Map<String, WNode> roomsByName = new LinkedHashMap<>();
+    public String defaultRoomName;
+    /** Room.environment + Room.infiniteBackground subtrees (parsed but
+     * historically discarded; the sky Rects live here). Null when the
+     * stream had none. */
+    public WNode environment;
+    public WNode infiniteBackground;
+    /** Surface.material — the node's own Material child (Surface/Rect/...),
+     * null when the stream had none. Material nodes themselves carry the
+     * fields below (see readMaterial). */
+    public WNode material;
+    /** Material fields (only meaningful on Material nodes): scalars as saved
+     * (ambient/diffuse/specular/opacity), packed 0xRRGGBB color, and the raw
+     * texture URL string when the stream carried one (Material v2+; v0/v1
+     * reference a Texture object with no name in-stream, so stays null). */
+    public float matAmbient, matDiffuse, matSpecular, matOpacity = 1f;
+    public int matColorRGB = 0xFFFFFF;
+    public int matVersion = -1;
+    public String matTextureUrl;
+    /** Rect UV extent/offset (u/v/uOff/vOff from Rect.restoreState; defaults
+     * match the decompiled field initializers u=v=1). The live spin/scale is
+     * already inside matrix — only UVs need storing. */
+    public float rectU = 1f, rectV = 1f, rectUOff, rectVOff;
+    /** RectPatch dims (xDim/yDim + 4 corner heights + tile UVs; defaults
+     * match the decompiled initializers). v0 patches are explicitly
+     * invisible in the client (setVisible(false)) and carry no material. */
+    public int rpVersion = -1;
+    public float rpXDim, rpYDim;
+    public final float[] rpZ = new float[4];
+    public float rpXTile = 1f, rpXTileOff, rpYTile = 1f, rpYTileOff;
 
    public WNode(String className) {
       this.className = className;

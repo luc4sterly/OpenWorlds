@@ -25,6 +25,9 @@ editor/worldsplayer_source_editor-main/out/
 # New Java client (RWX parser, later the renderer) build output
 /client/out/
 
+# run-game.sh launch logs + auto-screenshots (local run evidence, not corpus)
+/logs/
+
 # Third-party documentation (Worlds Inc.'s official GammaDocs, provided
 # directly by the user, mirrored via HTTrack from dev.worlds.net/private/
 # GammaDocs) - kept locally for reference, not versioned: it's not our
@@ -47,3 +50,6 @@ GammaDocs.zip
 assets/WorldsPlayer/cachedir/*.LOG
 assets/WorldsPlayer/cachedir/cache.index
 assets/WorldsPlayer/cachedir/*.lst
+
+__pycache__/
+*.pyc

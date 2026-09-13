@@ -17,7 +17,7 @@ de perderse si nadie lo preserva.
 **Objetivo del proyecto:**
 1. Decompilar el cliente Java original (`worlds.jar` / `gammacls.zip`)
 2. Documentarlo y hacerlo open source
-3. Portarlo a plataformas modernas — objetivo final: **Linux / OpenBSD**, con
+3. Portarlo a plataformas modernas — objetivo final: **Linux / OpenBSD / PSvita / macOS**, con
    stack **SDL2/OpenGL**
 4. Sustituir las dependencias nativas de Windows (motor gráfico RenderWare vía
    JNI) por una implementación portable equivalente
@@ -2571,6 +2571,487 @@ sesiones atrás: de "0 texturas reales decodificables, arquitectura
 entendida pero no funcional" a "159/159 del corpus real byte-exacto,
 pipeline de materiales end-to-end verificado con textura real
 aplicada". No queda ningún archivo `.cmp` real sin resolver en el
-corpus disponible; el único camino sin ejercitar es `mode&0x80`
-(`groupCount>1`), que ningún archivo real conocido activa — lanza
-`IOException` explícita en vez de asumir comportamiento no probado.
+ corpus disponible; el único camino sin ejercitar es `mode&0x80`
+ (`groupCount>1`), que ningún archivo real conocido activa — lanza
+ `IOException` explícita en vez de asumir comportamiento no probado.
+
+---
+
+### 🟢 Ventana interactiva GroundZero funcionando (2026-09-13)
+
+Pedido explícito: "lanzar una ventana con groundzero funcionando".
+Hasta esta sesión `WorldViewer` solo sabía crear ventanas OCULTAS
+(`GLFW_VISIBLE, GLFW_FALSE`) — el modo screenshot de una sola pasada
+servía para verificación batch, pero ningún humano había visto nunca
+una sala `.world` real en una ventana abierta.
+
+**Cambio** (`client/src/net/freeworlds/render/WorldViewer.java`):
+flag `--window` — ventana visible e interactiva (auto-rotación lenta,
+ESC o botón de cierre para salir). Combinable con `--screenshot`
+(guarda el frame 0 por `glReadPixels` y deja la ventana abierta).
+Sin `--window`, comportamiento batch anterior intacto (1 frame +
+exit). Compilación limpia (`javac`, mismo classpath LWJGL).
+
+```
+# compilar (una vez)
+javac -cp "tools/lwjgl/*" -d client/out $(find client/src -name "*.java")
+# ventana interactiva, sala Reception (la de referencia de las sesiones anteriores)
+DISPLAY=:100 java -cp "client/out:tools/lwjgl/*" \
+  net.freeworlds.render.WorldViewer \
+  assets/WorldsPlayer/GroundZero/groundzero.world Reception --window
+# con captura del primer frame + ventana abierta
+... Reception --window --screenshot /tmp/reception.png
+# modo batch anterior (sin cambios): 25 salas, --list-rooms, ALL
+```
+
+**Verificado con evidencia real** (todo bajo Xvfb `:100`, GL error 0):
+- `Reception --window --screenshot` → **md5 idéntico** al
+  `docs/renders/world_reception_textured.png` committeado — el modo
+  ventana no altera ni un píxel del pipeline verificado.
+- `IconViewRoom1` re-renderizado igual: md5 idéntico al committeado.
+- Captura del escritorio Xvfb con la ventana REAL abierta y la escena
+  dentro: `docs/renders/world_window_reception_xvfb_desktop.png`
+  (384 colores — ventana GLFW de verdad, no un PNG generado a mano).
+- `Reception`: 12 objetos / 96 tris, texturas 4/4; `LizCave`: 5 obj /
+  450 tris, 1/1; `Auditorium`: 1 obj / 40 tris; `Garden MazeC7b`:
+  0 objetos (sala vacía de verdad, no un error — `Drew 0` honesto).
+
+**Hallazgo honesto, NO corregido (fuera de alcance)**: las salas
+texturizadas salen notablemente más oscuras que su baseline de color
+plano — `LizCave`: 990 colores (antes 73) sobre los mismos 13665 px,
+pero luminancia media 132.7 → 14.2 (`docs/renders/
+world_lizcave_textured.png` nuevo). Causa probable: `GL_MODULATE`
+multiplica textura × color de material × luz, tres factores <1
+apilados. Puede ser el comportamiento real de RW2… o no: no existe
+ninguna captura del cliente original con la que comparar, así que se
+documenta y no se "arregla" (la regla permanente lo prohíbe).
+`Auditorium` (media 173) demuestra que no es un bug sistemático de
+"todo negro" — depende de textura/material por sala.
+
+**Limitación de entorno, verificada**: en el display real `:0`
+(XWayland) el MISMO binario renderiza negro (1 solo color, GL error
+igualmente 0) tanto en modo oculto como visible — falta de GLX/DRI
+útil en esta sesión, no del código. Toda la verificación de esta
+sesión es bajo Xvfb `:100`, donde el render es correcto y repetible
+byte a byte. En una máquina con GLX real, el mismo comando con
+`DISPLAY=:0` debería mostrar la ventana directamente.
+
+**Siguiente paso natural**: el encuadre de cámara (salas pequeñas y
+lejanas, ya anotado en la sesión `.cmp`) es ahora el problema más
+visible al mirar la ventana — mover la cámara dentro de la sala
+(posición de avatar) en vez de encuadrar el bounding box entero.
+
+---
+
+### 🟢 Cámara interior voladora `--inside` en WorldViewer (2026-09-13)
+
+Pedido explícito ("hazlo") tras ver que la cámara orbital exterior
+solo muestra el esqueleto: una maqueta lejana y oscura de cada sala.
+`WorldViewer` gana modo cámara interior: ojo DENTRO de la sala con
+controles de vuelo (W/S avanzar, A/D strafe, flechas girar/cabecear,
+E/Q subir/bajar, ESC salir), velocidad y near/far derivados del
+bounding box real de la sala. `--eye/--look/--up x,y,z` permiten un
+punto de vista exacto; sin ellos, ojo = centro + (0.3r, 0.12r, 0.3r)
+mirando al centro. `--inside` implica `--window` (salvo con
+`--screenshot`, que guarda el frame 0 headless para verificación).
+
+```
+DISPLAY=:100 java -cp "client/out:tools/lwjgl/*" \
+  net.freeworlds.render.WorldViewer \
+  assets/WorldsPlayer/GroundZero/groundzero.world LizCave --inside
+```
+
+**Medición previa con datos reales** (sonda throwaway en `/tmp`, no
+versionada): los modelos RWX son de escala unidad — la escala real
+vive en las matrices del `.world`. Reception = 4 marcos delgados
+(`frame.rwx`, 8 tris) + techo (`hubceil1c.rwx`, 40 tris) + kiosko
+(6 piezas, z 0..355) en (1290,865); NO hay suelo ni paredes en esta
+sala — su interior genuino es disperso, no es un bug del render.
+
+**Verificado con evidencia real** (Xvfb `:100`, GL error 0 siempre):
+- Sin regresión: `Reception` exterior tras el cambio = md5 idéntico
+  al texturizado committeado.
+- `Reception --inside` por defecto: 61399 px no-fondo (antes 4158) —
+  15× más escena visible; el kiosko se ve con textura real.
+- `LizCave --inside`: 269932 px, **2566 colores** de roca con musgo
+  rodeando la cámara — aspecto de estar dentro de la cueva de verdad
+  (`docs/renders/world_inside_lizcave.png` + captura del escritorio
+  Xvfb con la ventana abierta `..._desktop.png`).
+- `Auditorium --inside`: pared gris + postes rayados rojo/negro con
+  texels nítidos (`GL_NEAREST` verificable a simple vista,
+  `docs/renders/world_inside_auditorium.png`).
+- Ventana `--inside` abierta 20s sin excepción; controles sondeados
+  por código (sin teclas = no-ops) — el movimiento direccional real
+  con teclas **no está verificado headless** (sin inyector de input
+  en este entorno), anotado honestamente.
+
+**Límites honestos**: sin colisiones (cámara vuela, atraviesa
+geometría); sin avatares (los `avatar:` se siguen saltando);
+salas vacías de verdad (`Garden MazeC7b`, 0 objetos) se ven vacías;
+persiste el oscurecimiento por `GL_MODULATE` de la sesión anterior.
+
+### 🟢 Lanzador con log `tools/run-game.sh` (2026-09-13)
+
+Pedido explícito: "un script que lanze el juego y lo logee".
+`tools/run-game.sh [sala] [args...] [--log-dir dir] [--display :N]
+[--build] [--no-shot]` — primer posicional no-flag = sala (defecto
+`Reception`), resto pasa tal cual al WorldViewer. Reutiliza `DISPLAY`
+si hay X vivo o levanta Xvfb propio (displays 100-110, lo mata al
+salir); añade `--screenshot logs/<sala>-<fecha>.png` salvo `--no-shot`
+o modos con salida propia; guarda `logs/worldviewer-<sala>-<fecha>.log`
+con cabecera (fecha, git rev, java, comando) + resumen (exit, Room/
+Drew/Screenshot/Coverage). `logs/` gitignored — evidencia local, no
+corpus. Verificado: `Reception` batch, `LizCave --inside`
+(md5 idéntico al render verificado) y `Auditorium` sin `DISPLAY`
+(Xvfb propio en `:101`), los tres exit 0. Detalle de uso en
+`docs/render-pipeline-reference.md`.
+
+### 🟢 Bug real: screenshot tras el swap = negro en display real
+### (2026-09-13, revisión del log del usuario)
+
+El usuario corrió `run-game.sh Reception` en su display real (`:0`,
+log `logs/worldviewer-Reception-20260913-142736.log`): exit 0,
+GL error 0, 4/4 texturas… y PNG totalmente negro (1 solo color).
+Revisando el log + el código, causa raíz en `WorldViewer`: el
+screenshot (`glReadPixels`) se hacía DESPUÉS de `glfwSwapBuffers` —
+tras el swap, el contenido del back buffer es **indefinido** por
+especificación. En Xvfb se conservaba por suerte (capturas correctas
+siempre), en XWayland/Mesa real sale negro. No era el driver ni la
+escena: era orden de llamadas nuestro. Fix: leer antes del swap
+(+ log "Window presented frame 0" como evidencia de ventana viva).
+Verificado: `:0` pasa de 1 color a **408 colores** (misma escena
+Reception que Xvfb; md5 distinto por dithering del driver, conteo de
+colores idéntico), `:100` sigue md5-idéntico al committeado — cero
+regresión. Moraleja para el proyecto: todo `glReadPixels` va antes
+del swap, sin excepciones.
+
+### 🟢 Ventana jugable abierta en display real (2026-09-13)
+
+Con el fix de arriba, abierta y verificada viva (`LizCave --inside`
+en `:0`, PID en `/tmp/game_window.log`, "presented frame 0" en log,
+proceso ALIVE): ventana GLFW real con la cueva texturizada dentro y
+cámara voladora por teclado (W/S volar, A/D strafe, flechas, E/Q,
+ESC salir). Estado honesto de "jugable": moverse y mirar funciona;
+sin colisiones, sin avatares, sin red/chat todavía (ver lista de la
+sección `--inside`).
+
+### 🟢 Texturas bien: base blanca + Lit-gating + ambient retunado
+### (2026-09-13)
+
+Pedido explícito ("que cargue el groundzero con texturas bien") tras
+ver renders interiores correctos pero globalmente oscuros (LizCave
+texturizada a luminancia media ~5/255). Causa raíz medida en dos
+partes, ambas en el pipeline de materiales — nunca en los píxeles
+`.cmp` (byte-exactos desde la sesión Stage 1):
+
+1. **Base de color equivocada en texturizadas**: aplicábamos
+   `difuso = Color × escalar` también con textura — textura × color
+   (~0.2-0.9) × N·L apilaba tres factores <1. La referencia
+   (`three-rwx-loader`, `RWXLoader.js:531-582`) hace base BLANCA con
+   textura (el `Color` del archivo se ignora — `tint` nunca se activa
+   en la práctica) y escala por `brightnessRatio = max(surface)`.
+   Doble fuente: la sesión `sball` ya había forzado blanco a mano por
+   el mismo motivo ("materiales negros degenerados") sin llevarlo al
+   pipeline real. Medición del corpus: las 297 refs a `.cmp` reales
+   son TODAS no-`Lit` (`Foreshorten`); `Lit` solo aparece con
+   `Texture NULL` (2 archivos, p. ej. `SPIN.RWX`).
+2. **Surface sin gatear por `Lit`**: la referencia solo usa la tripleta
+   parseada con `TextureModes Lit`; sin `Lit` usa el default AW 2.2
+   `[0.69, 0, 0]` (`defaultSurface`). Nuestro parser ni leía
+   `TextureModes`. Ahora: `RwxMaterial.textureModes` (default Lit+
+   Foreshorten+Filter como la referencia), `effectiveAmbient/
+   effectiveDiffuse`, `brightnessRatio()`, `baseColor()`; defaults de
+   material alineados (`color 0`, `surface [0.69,0,0]`).
+
+**Ambient de luz retunado con evidencia** (heurística documentada,
+no valor RW2 verificado): el hack anterior (ambient=diffuse por luz,
+1.5× total) era inocuo con ambient_mat ~0 pero con la respuesta
+0.69 real clipeaba TODA superficie texturizada a blanco sin sombrear
+(medido 19.8% píxeles blancos puros en Auditorium; 0.25 aún dejaba
+vetas en caras ideales, 7.9%). Fijado en 0.15×/luz (key 0.15, fill
+0.075): sombras visibles (~16% lift), sombreado N·L preservado.
+
+**Medición antes→después** (misma escena, Xvfb, GL error 0):
+
+| sala | colores | lum.media/255 | blanco puro |
+|---|---|---|---|
+| LizCave | 990 → **1900** | 4.7 → **12.6** | 0% |
+| IconViewRoom1 | 171 → **178** | 6.9 → **20.7** | 0% |
+| Reception | 408 → **453** | 57.6 → **105.9** | 0% |
+| Auditorium | — → 168 | — → **69.2** | 0% |
+
+Escena completa (`ALL`, 25/25 salas, 0 missing, GL 0 en todas;
+cobertura de texturas intacta 47/47 — esa ruta no se tocó).
+Capturas actualizadas: `world_{reception,iconviewroom1,lizcave,
+auditorium}_textured.png`, `world_inside_{lizcave,auditorium}.png` y
+escritorio Xvfb en vivo. La veta blanca de Auditorium se resolvió
+como geometría real brillante (240, no clip): filo de `stand.rwx`
+con texel claro a plena luz, verificado material por material.
+
+**Límites que quedan**: sin ground truth iluminada del cliente
+original (cmpview es sin luz), el 0.15 sigue siendo heurística;
+`emissive = surface[1]` de la referencia (three.js-ismo) no se
+implementó — sin evidencia RW2; `FILTER` sigue siendo `GL_NEAREST`
+por regla de alcance.
+
+### 🟢 Z-up real + spawn auténtico + `run-game.sh` abre GroundZero
+### (2026-09-13)
+
+Pedido ("no abre, quiero que abra groundzero"): el usuario corrió el
+script en batch (modo oculto por diseño — ninguna ventana *debía*
+abrirse) y la ventana `--inside` anterior había muerto al cerrar.
+Diagnóstico: display `:0` es Xwayland rootless (ventanas GLFW sí
+aparecen, verificado), ningún proceso vivo — había que abrirla de
+nuevo, pero mejor: con el spawn de verdad.
+
+**Dos hechos de código del cliente decompilado** (no suposición):
+- `scape/Transform.java`: `raise(dz)` = `moveBy(0,0,dz)`,
+  `yaw(a)` = `spin(0,0,1,a)` — el mundo es **Z-up**. Todas las
+  capturas anteriores (Y-up) mostraban la escena tumbada 90°.
+- `scape/Pilot.getURL()`: el formato de punto de mundo es
+  `sala@X,Y,Z,spin,axisX,axisY,axisZ` — y `worlds.ini` trae el spawn
+  auténtico: `GroundZero.world#Reception<>@1872,1229,150,125,0,0,-1`
+  (posición + yaw 125° sobre Z).
+
+**Implementado**: `WorldViewer` con Z-up por defecto en exterior
+(órbita sobre Z) e interior (yaw en plano x/y, E/Q sobre el up real,
+`--up 0,1,0` conserva la matemática vieja); `run-game.sh` sin args
+abre ventana interior en el spawn real mirando al kiosko
+(`--eye 1872,1229,150 --look 1290,865,150`): el yaw 125° del ini
+admite dos signos de giro (35° medido poco informativo — marcos
+lejanos; 145° similar), así que se documenta la desviación honesta:
+posición 100% real, dirección = la que muestra contenido (kiosko,
+25625 px/1077 colores) en vez de una convención de signo sin
+verificar. Las flechas permiten girar de todos modos.
+
+**Verificado**: 25/25 salas GL 0, cobertura 47/47 intacta, renders
+exteriores e interiores re-generados con orientación correcta
+(LizCave interior por defecto: 461433 px / 2850 colores dentro de la
+cueva). Evidencias nuevas: `world_spawn_reception_kiosk.png` (vista
+spawn) y `world_spawn_window_desktop.png` (ventana viva en Xvfb).
+Ventana abierta en el display real del usuario vía `./tools/
+run-game.sh` a secas (log `/tmp/gz_boot.log`, "presented frame 0",
+proceso vivo).
+
+### 🟢 Rects: paredes/suelos/carteles con textura — ya no más bones
+### (2026-09-13)
+
+Pedido ("no sea solo bones, con texturas bien"): con solo Shapes, las
+salas eran esqueletos — Reception: 12 objetos finos flotando en negro.
+Causa real: el contenido de verdad (paredes, suelos, carteles) son
+nodos **`Rect` (superficies 3D con material)**, 374 en todo
+GroundZero (Reception 30, ReceptionView1 140, LizCave 42…), y el
+parser tiraba sus campos mientras el visor los ignoraba.
+
+**Parse espejo verificado** (bytes idénticos, `END PERSISTER` intacto):
+`Rect.restoreState` da el plano unitario + u/v (+offsets según
+versión) y `Material.restoreState` da ambiente/difusa/spec/opacidad,
+color RGB y URL de textura (v2+; v0/v1 referencian un `Texture` sin
+nombre — fallback plano honesto). `WNode` gana `material`,
+`matAmbient/Diffuse/Specular/Opacity`, `matColorRGB`,
+`matTextureUrl`, `rectU/V/UOff/VOff`.
+
+**Dos hallazgos con evidencia**:
+- El plano local es **X/Z, no X/Y**: las matrices reales aplastan Y
+  (~0) y (1,0,1) reproduce la far-corner (f1,f2,f3) exacta a través
+  del spin/scale — con X/Y salían quads degenerados (líneas, +187 px
+  solo); con X/Z, 25k→121k px en el spawn.
+- Las texturas Rect son URLs absolutas
+  `http://www-static.us.worlds.net/3DCDup/GroundZero/dtex/*.cmp`
+  (12, descargadas del servidor vivo a `assets/.../GroundZero/dtex/`,
+  68K versionados) o relativas `tex/*` (con sufijo de animación
+  `2h*2v*` estilo `cbirda42h*2v*.mov` — nombre real antes del primer
+  `*`, +strip de `\d+[hv]`). Cobertura: **42/55 URLs** (187 refs);
+  los 13 restantes son `.mov` (mismo códec, contenedor distinto —
+  `tableRegionSize` no cuadra, documentado como siguiente paso).
+
+**Render**: quads con UV reales (tiling vía `GL_REPEAT`), doble cara
+(sin `MaterialModes` en Rects; `GL_LIGHT_MODEL_TWO_SIDE` para N·L
+correcto), normales leídas del modelview real, materiales con la
+misma base-blanca/ratio del pipeline RWX. Texto del cartel del
+kiosko ("BIRTHDAY ROOM…") legible no-espejado = UV bien. (Cobertura
+de entonces 42/55 URLs — los 13 `.mov` llegaron en la sesión
+siguiente, ver abajo: hoy 55/55.)
+
+**Medido**: Reception spawn 25k→121k px/1571 colores; RV1 196
+objetos/7428 tris (zona picnic con suelo, camino, vallas, grill);
+LizCave interior 450k px/1259 colores; IconViewRoom1 15k→53k px.
+25/25 salas GL 0. Nota honesta: 147 Rects planos son color teal
+real del stream (#00F7EF — verificado `java.awt.Color(r,g,b)`, no
+default), y la respuesta difusa de Rects usa el ratio como en RWX
+(a estrictos difusa=0 quedarían casi negros con nuestra luz
+ambiental tenue — decisión documentada en el código).
+
+### 🟢 .mov decodificado + cobertura 100% de texturas (2026-09-13)
+
+Pedido ("aún quedan muchas texturas sin cargar"): 13 URLs `.mov`
+(19 refs) sin loader — mismo códec LzH2, distinto contenedor
+(`tableRegionSize+groupRegionSize != payloadSize`, modos 0x82/0x86).
+
+**Contenedor resuelto con evidencia**: mismos offsets de cabecera
+que `.cmp` (mode/flags/dims/lens idénticos en forma); la región de
+tablas es mucho mayor (multi-frame) y su tamaño NO es el u16 de 28
+(922 para una tabla real de 3791) — se localiza por firma del header
+de grupo (`field0==64`, verificado 12/12 stills + único por `.mov`,
+incluido windr3 con `wanted[0]=624` y `h=154`). Solo se decodifica
+el frame 0 (visor estático; la animación por UV-tiling `2h*2v*` o
+multi-archivo f1-f8 queda documentada, no implementada).
+
+**Verificación oficial** (`cmpview.exe` + screenshots con
+template-matching multirresolución — el crop fijo del harness de
+`.cmp` falla en ventanas de película, verificado a mano):
+`windr1` y `cbirda4` **16384/16384 byte-exactos**; los 11 restantes
+muestran artwork real correcto (banderas f1-f8 en fases sucesivas de
+onda, pájaro azul, logos `...s.com`, interiores, muros). Dos trampas
+reales encontradas por el camino: el ground truth "negro" inicial
+era un misfire del crop del harness (ventana de película ≠ still) —
+no contenido; y un bug de MI sonda (`setRGB` sin `& 0xFF`,
+amarilleaba todo) — no del decoder. Detalle de modos: `0x82` (10
+archivos) directo; `0x86` (cbirda4, f3) necesita índice
+255→blanco (fondo transparente del sprite sobre el canvas blanco de
+cmpview — verificado por conjuntos de color 149 vs 147).
+
+**Paleta**: byte12=0xFF en `.mov` es 255 genuino (forzar 256
+desincroniza el cursor: `groupCount=0` — probado y revertido). Los 5
+`.cmp` con byte12=0xEC siguen con conteo literal (159/159 intacto).
+
+**Cobertura final, medida en escena completa**: `Texture coverage:
+47/47` + `Rect coverage: 55/55` (187 refs) — **cero texturas sin
+cargar** en formatos con loader. Resto honesto: `.bmp`→`.cmp` del
+mismo stem cuando existe gemelo (`cstgbs3.bmp`→`.cmp` verificado en
+archivo; `pceil2.bmp` sin gemelo queda plano), `.mov` con sufijo
+anim (`cbirda42h*2v*`→`cbirda4`, `time2h*`→`time`,
+`winwin12h*2v*`→`winwin1` — un dígito + h/v, el stem exacto siempre
+primero), 12 `dtex/*.cmp` ya versionados.
+
+### 🟢 RectPatch: suelos de hierba y rampas (2026-09-13)
+
+36 nodos `RectPatch` en el archivo, todos versión 2 (verificado por
+instrumentación temporal, revertida): `xDim/yDim` + 4 alturas `z` +
+tiles + `Material` propio (la paradoja aparente de la cadena de
+versiones se resolvió sola — solo se almacenan valores, los bytes
+consumidos son idénticos, cero riesgo de desync). Traducción
+geométrica: heightfield 2×2 en X/Y local (`(0,0,z0)`,
+`(xDim,0,z1)`, `(xDim,yDim,z2)`, `(0,yDim,z3)` — planares en el
+corpus), v0 explícitamente invisible y saltado. Contenido real:
+baldosas de suelo verde #80FC00 en cuadrícula de 250 (Auditorium,
+suelo visible por primera vez) y rampas ([0,0,-500,-500]).
+Materiales planos o nulos→negro default del cliente (honesto, sin
+inventar). Contador y bbox integrados; 25/25 salas GL 0.
+
+### 🟡 "La mayoría sin texturas": inventario honesto + ventana al
+### frente (2026-09-13)
+
+Queja repetida con cobertura al 100%: investigado a fondo.
+**Todo lo cargable carga y se ve** — panorama de 8 vistas alrededor
+del spawn (`docs/renders/world_spawn_panorama.png`): contenido con
+textura real en las 8 direcciones (56k–199k px cada una), muros de
+piedra con musgo, kiosko con cartel legible por todas partes.
+
+Lo que SÍ falta es **suelo bajo Reception**: el archivo no trae
+ninguna malla de suelo ahí (inventario medido: 4 muros altos
+z 600–1000, zócalos z 0–70, kiosko 0–355, y vacío debajo de z=0;
+`sky/groundColorRGB` nulos en las 25 salas; sin niebla en
+`Room/RoomEnvironment`). El vacío es dato auténtico, no geometría
+perdida — el píxel de "suelo" muestrea exactamente el color de
+fondo. Ninguna sala trae cielo; ninguna decisión de render lo
+oculta. Inventar un suelo violaría la regla permanente.
+
+Hallazgo operativo real de la sesión: la ventana abría en el
+escritorio 0 mientras el usuario trabaja en el 1 (VMware
+maximizado) — "no abre" aunque renderizaba perfecto. Fix:
+`glfwFocusWindow` + `glfwRequestWindowAttention` al mostrar
+(`WorldViewer`), y `run-game.sh` auto-recompila si hay fuentes más
+nuevas que las clases (adiós binarios stale "sin texturas").
+Verificado con `xprop`: ventana en escritorio 1 con atención
+pedida (el foco final lo decide el usuario por diseño anti-robo de
+foco de GNOME — hay que clickarla en el dock si no salta sola).
+
+**Cierre de la pregunta (materiales v4, todos)**: ante "sigue
+habiendo cosas que no cargan" se verificó si los 187 Rects planos
+escondían textura por objeto (vía `Texture` v0/v1): los 417
+`Material` del archivo son **versión 4** (ruta URL) — cero casos
+v0/v1, cero `Texture`/`ScapePicTexture` alcanzables del grafo. Los
+planos teal (#00F7EF ×108, #00FCF8 ×41) y hierba (#80FC00 ×36) son
+color plano real del stream, no texturas perdidas. Con esto queda
+demostrado por eliminación que no hay ni una textura sin cargar en
+el archivo: 47/47 + 55/55 + 0 casos objeto.
+
+### 🟢 Fondo infinito con seguimiento de camara (2026-09-13)
+
+Pedido ("carga del mundo con el terreno de fondo"): el `infiniteBackground`
+(skybox de muros `skyXX` + techos `sky12/nsky`, 34 Rects en Reception)
+ya cargaba y se dibujaba (88 objetos, cobertura Rect intacta), pero con
+transform estatico tenia paralaje de objeto cercano, contra la doc oficial
+(`Gamma_Overview.html`: "la escala nunca parece cambiar", vista
+"infinitamente distante"). `WorldViewer.drawInfiniteBackground` lo traslada
+por `(ojo - ref)` en modo `--inside` (frame 0 = offset 0, md5-identico al
+render previo; exterior orbita sin cambios). Verificado con prueba de deriva
+temporal (+500x, revertida): el fondo se mantiene mientras el primer plano se
+desplaza; GL error 0 en todo. `sky/groundColor` null en las 25 salas = el
+cliente no dibuja nada ahi (misma doc); el clear oscuro queda como fallback
+documentado. Detalle en `docs/render-pipeline-reference.md`.
+
+### 🟢 Lanzable con doble clic: `--detach` + icono en el menu (2026-09-13)
+
+Pedido ("haz que se pueda lanzar"): `run-game.sh` bloqueaba la terminal
+siempre (modo ventana = proceso en primer plano) y no habia entrada de
+menu. Ahora:
+
+- `run-game.sh ... --detach`: lanza con `nohup` en fondo y devuelve la
+  terminal al instante (0.06s medido) imprimiendo PID + log; para salir:
+  ESC en la ventana o `kill <pid>`. Si levanto Xvfb propio, no lo mata al
+  salir (queda anotado su PID en el log). Verificado en `:100`: ventana
+  con "presented frame 0", GL error 0, proceso matable limpio.
+- `tools/install-launcher.sh`: compila si hace falta, sonda sin ventana y
+  escribe `~/.local/share/applications/freeworlds.desktop` (rutas
+  absolutas, `desktop-file-validate` OK) para buscar "FreeWorlds" en el
+  menu y jugar con doble clic.
+
+**Bug real encontrado por el camino**: `--list-rooms` solo se reconocia
+como primer posicional del visor; la sonda inicial del instalador lo paso
+en otra posicion y abrio una ventana bloqueante en `:0` en vez de listar
+(colgo el instalador). `WorldViewer` ahora lo acepta en cualquier posicion
+y el instalador sondea directo sin pasar por el parseo de sala.
+
+### 🟡 Fondo infinito: seguimiento revertido a opcional (2026-09-13)
+
+El follow del fondo infinito (sesion anterior) se reporto como bug — "el
+terreno de afuera sigue al usuario cuando camina" — y el reporte es
+correcto: el anillo esta modelado a medida de la sala, no es una cascara
+infinita, asi que fijarlo a la camara arrastra decorado cercano. Ahora es
+estatico por defecto y `--infinite-follow` lo activa solo si se pide.
+Frame 0 md5-identico en ambos modos. Detalle en
+`docs/render-pipeline-reference.md`.
+
+### 🟢 Fondo como fondo + bumpers invisibles: mapa revisado de cabo a rabo
+### (2026-09-13)
+
+Pedido ("el fondo tiene que ser fondo, esta en una esquina tirado" +
+revisar todo el mapa + push a Codeberg). Dos arreglos reales, ambos con
+evidencia del original, ningun pixel inventado:
+
+1. **Fondo infinito con camara en el origen**: solo Reception y RV1
+   traen fondo (23/25 vacio, autorial); dibujado estatico quedaba a
+   miles de unidades del centro (medido: offset -2561,-974 y
+   -6253,+1019). `Gamma_Procedures.html` ("Infinite Backgrounds") dice
+   que el fondo se ve desde una camara en 0,0,0 y el autor lo centra en
+   el origen — `drawInfiniteBackground` ahora traslada el subarbol por
+   la posicion de la camara viva. Spawn: cielo nublado + colinas en las
+   4 direcciones; RV1: horizonte completo; 25/25 GL 0; texturas 51/51 +
+   101/101. Sustituye los dos experimentos de follow anteriores (el flag
+   `--infinite-follow` desaparece: esto no es un efecto, es la regla
+   documentada). Limites: huecos de cielo sin paneles = vacio (dato
+   original); orbita exterior sin fondo (fuera del near, maqueta).
+2. **Bumpers invisibles**: LizCave llena de teal = 40 `Rect942CyanBump`
+   (color teal real, flags=2, colision sin visible). `WNode.flags` guarda
+   el int real (bit 0 = visible segun `WObject.getVisible()` decompilado)
+   y el visor salta hojas invisibles al dibujar/encuadrar (nunca
+   subarboles enteros). Todo lo invisible se llama `*Bump`; RectPatch v0
+   trae flags=0 (doble confirmacion). Reception 0 invisibles (spawn
+   md5-identico); LizCave 48->7 objetos.
+
+Capturas regeneradas con el codigo actual (las anteriores quedaban
+obsoletas): `world_{reception,iconviewroom1,lizcave,auditorium}_textured`,
+`world_inside_{lizcave,auditorium,receptionview1}`, spawn kiosk (ahora
+con cielo). Detalle en `docs/render-pipeline-reference.md`.

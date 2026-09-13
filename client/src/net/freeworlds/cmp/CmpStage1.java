@@ -312,13 +312,6 @@ public final class CmpStage1 {
       if (cmp.length < 34 || cmp[0] != 'L' || cmp[1] != 'z' || cmp[2] != 'H' || cmp[3] != '2') {
          throw new IOException("not a LzH2 .cmp file");
       }
-      int mode = u8(cmp, 4);
-      int flags = u8(cmp, 5);
-      if ((flags & 0x80) == 0) throw new IOException("flags bit7 must be 1");
-      if ((flags & 0x54) != 0) throw new IOException("flags bits 2/4/6 must be 0 (got 0x" + Integer.toHexString(flags) + ")");
-      int w = u16(cmp, 6);
-      int h = u16(cmp, 8);
-      if (cmp[19] != 0) throw new IOException("header byte 19 must be 0");
       int tableRegionSize = u16(cmp, 28);
       int groupRegionSize = u16(cmp, 30);
       int payloadSize = u16(cmp, 32);
@@ -328,22 +321,87 @@ public final class CmpStage1 {
       if (34 + payloadSize != cmp.length) {
          throw new IOException("34+payloadSize != file length (" + (34 + payloadSize) + " vs " + cmp.length + ")");
       }
+      byte[] groupRegion = new byte[groupRegionSize + 64];
+      System.arraycopy(cmp, 34 + tableRegionSize, groupRegion, 0, groupRegionSize);
+      return decodeRegions(cmp, tableRegionSize, groupRegion);
+   }
+
+   /**
+    * Movie (.mov) frame 0 decode. Same LzH2 container and header field
+    * offsets as .cmp (mode/flags/dims/lens all read at the same places),
+    * but the file holds a shared table region plus per-frame groups
+    * instead of one group (mode bit7 set, groupCount from the table
+    * cursor). Only frame 0 is decoded — the static viewer shows one
+    * frame per surface (animation over time is out of scope); the frame
+    * shown matches what cmpview.exe displays (verified pixel-exact, see
+    * docs/cmp-texture-format-reference.md ".mov" section).
+    */
+   public static CmpStage1 decodeMovFrame0(byte[] mov) throws IOException {
+      if (mov.length < 34 || mov[0] != 'L' || mov[1] != 'z' || mov[2] != 'H' || mov[3] != '2') {
+         throw new IOException("not a LzH2 .mov file");
+      }
+      // .mov table region is much bigger than a still's (multi-frame movie
+      // tables) and its size is NOT the u16 at 28 (that field reads 922 for
+      // a file whose real table runs 3791 bytes - meaning unknown). What IS
+      // reliable is the group header signature itself: field0 == 64 with
+      // trailing zero fields holds for every verified still (12/12
+      // sampled) and marks exactly one offset per .mov (verified across
+      // the .mov corpus, including windr3 whose wanted[0] is 624, not the
+      // usual 512, and whose height is 154, not 128). The table region is
+      // file[34..groupOff).
+      int groupOff = -1;
+      for (int o = 34; o + 16 <= mov.length; o++) {
+         if (u16(mov, o) == 64 && u16(mov, o + 12) == 0 && u16(mov, o + 14) == 0
+            && u16(mov, o + 2) > 0 && u16(mov, o + 2) < 12000
+            && u16(mov, o + 4) > 0 && u16(mov, o + 4) < 12000
+            && u16(mov, o + 6) > 0 && u16(mov, o + 6) < 12000
+            && u16(mov, o + 8) > 0 && u16(mov, o + 8) < 12000
+            && u16(mov, o + 10) > 0 && u16(mov, o + 10) < 12000) {
+            groupOff = o;
+            break;
+         }
+      }
+      if (groupOff < 0) {
+         throw new IOException("no group header (field0==64) found in .mov");
+      }
+      int tableRegionSize = groupOff - 34;
+      byte[] groupRegion = new byte[mov.length - groupOff + 64];
+      System.arraycopy(mov, groupOff, groupRegion, 0, mov.length - groupOff);
+      return decodeRegions(mov, tableRegionSize, groupRegion);
+   }
+
+   /** Shared .cmp/.mov Stage 1 core: header fields from file[0..33],
+    * table region = file[34..34+tableRegionSize), first group decoded
+    * from groupRegion[0..]. */
+   private static CmpStage1 decodeRegions(byte[] cmp, int tableRegionSize, byte[] groupRegion) throws IOException {
+      int mode = u8(cmp, 4);
+      int flags = u8(cmp, 5);
+      if ((flags & 0x80) == 0) throw new IOException("flags bit7 must be 1");
+      if ((flags & 0x54) != 0) throw new IOException("flags bits 2/4/6 must be 0 (got 0x" + Integer.toHexString(flags) + ")");
+      int w = u16(cmp, 6);
+      int h = u16(cmp, 8);
+      if (cmp[19] != 0) throw new IOException("header byte 19 must be 0");
       int[] byteLens = new int[5];
       for (int i = 0; i < 5; i++) byteLens[i] = u8(cmp, 14 + i);
-      int paletteCount = u8(cmp, 12) != 0 ? u8(cmp, 12) : 256;
+      // Palette entry count: 0 means full 256 (verified: 154/159 stills;
+      // other non-zero values, e.g. 0xEC in 5 stills, are literal counts).
+      // .mov files carry 0xFF here AND parse 255 entries cleanly (table
+      // cursor lands exactly on a valid groupCount; windr1.mov then
+      // renders byte-exact) - so 0xFF is a genuine 255, not an alias
+      // for 256 (forcing 256 desyncs the cursor: groupCount reads 0).
+      // cbirda4.mov's unmapped-index-255 pixels are a separate,
+      // file-specific matter (see .mov notes), not a count error.
+      int b12 = u8(cmp, 12);
+      int paletteCount = b12 != 0 ? b12 : 256;
       int byte13 = u8(cmp, 13);
 
       byte[] tableRegion = new byte[tableRegionSize];
       System.arraycopy(cmp, 34, tableRegion, 0, tableRegionSize);
-      // +40 slack: the shared bit-window refill (decodeChannel) always peeks
-      // 1-2 bytes ahead of the logical cursor, the per-channel byte-realign
-      // (see `realign` below) backs the cursor up by 1 before every
-      // subsequent channel, and the LIT channel's real decode needs a
-      // couple of bytes past the true end of this file's last region -
-      // same generous-read-ahead pattern already established for
-      // CmpStage2's own inputs.
-      byte[] groupRegion = new byte[groupRegionSize + 64];
-      System.arraycopy(cmp, 34 + tableRegionSize, groupRegion, 0, groupRegionSize);
+      // groupRegion arrives pre-sliced (with read-ahead slack) from the
+      // caller: exact single-group slice for .cmp, rest-of-file for .mov.
+      // (The old +64 slack comment's rationale still applies: the shared
+      // bit-window refill peeks 1-2 bytes ahead, per-channel realign backs
+      // up, and LIT needs a couple of bytes past the true end.)
 
       // Embedded palette: FUN_004426b0, 6-bit RGB components (<<2 to 8-bit),
       // packed as 3 real bytes + 1 null spacer per entry, entries written
@@ -384,9 +442,13 @@ public final class CmpStage1 {
       } else {
          groupCount = 1;
       }
-      if (groupCount != 1) {
-         throw new IOException("groupCount=" + groupCount + " (>1 not yet implemented/verified)");
+      if (groupCount < 1) {
+         throw new IOException("groupCount=" + groupCount + " (<1 invalid)");
       }
+      // groupCount > 1 = movie frames (.mov): only the first group (frame
+      // 0) is decoded - subsequent groups are per-frame data for animation
+      // over time, out of scope for the static viewer. .cmp enforces
+      // exactly 1 via its header size checks in decode().
 
       int[][] permTables = {PERM0, PERM1, null, PERM3, null};
       int[] alphaSizes = {81, 49, 0, 22, 0};

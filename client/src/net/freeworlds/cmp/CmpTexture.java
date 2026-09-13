@@ -132,6 +132,31 @@ public final class CmpTexture {
          pad(s1.streamLit), pad(s1.streamFillIdx), pad(s1.bits), pass0Top, evenIsA, cmpFile.getName());
    }
 
+   /**
+    * Load a .mov movie file's frame 0 as a static texture (movies animate
+    * over time via the client's video path; the static viewer shows the
+    * frame cmpview.exe displays, verified pixel-exact per file - see
+    * docs/cmp-texture-format-reference.md ".mov" section). Same container
+    * and Stage 1/2 machinery as .cmp, only the group framing differs.
+    */
+   public static CmpTexture loadMov(File movFile) throws IOException {
+      byte[] mov = read(movFile);
+      CmpStage1 s1 = CmpStage1.decodeMovFrame0(mov);
+      // Movie palettes hold 255 entries (indices 0..254); index 255 is the
+      // paper/transparent background cmpview.exe shows as its white canvas
+      // (verified: cbirda4 background renders white in cmpview while our
+      // index-255 pixels would otherwise fall back to magenta). Stills
+      // always carry a real entry 255, so this applies to movies only.
+      if (s1.palette[255] == null) {
+         s1.palette[255] = new int[]{255, 255, 255};
+      }
+      int flags = mov[5] & 0xFF;
+      boolean pass0Top = false;
+      boolean evenIsA = (flags & 0x01) != 0;
+      return render(s1.width, s1.height, s1.palette, pad(s1.streamA), pad(s1.streamCtrl),
+         pad(s1.streamLit), pad(s1.streamFillIdx), pad(s1.bits), pass0Top, evenIsA, movFile.getName());
+   }
+
    private static byte[] pad(byte[] a) {
       byte[] b = new byte[a.length + 512];
       System.arraycopy(a, 0, b, 0, a.length);

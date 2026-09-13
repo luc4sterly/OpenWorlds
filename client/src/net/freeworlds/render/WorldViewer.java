@@ -19,8 +19,10 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -63,9 +65,36 @@ import static org.lwjgl.opengl.GL11.*;
  * instead, and is counted/reported, never silently guessed. See
  * resolveTexture()'s javadoc for the exact fallback accounting.
  *
- * Usage: java -cp ... net.freeworlds.render.WorldViewer <file.world> <roomName> [--screenshot out.png]
+ * Usage: java -cp ... net.freeworlds.render.WorldViewer <file.world> <roomName> [--screenshot out.png] [--window]
  *        java -cp ... net.freeworlds.render.WorldViewer <file.world> ALL [--screenshot-dir outdir]
  *        java -cp ... net.freeworlds.render.WorldViewer <file.world> --list-rooms
+ *
+ * --window opens a real visible, interactive window for the room (ESC or
+ * close button exits; slow auto-rotation while open). Without it the
+ * window stays hidden (offscreen/Xvfb-friendly) and --screenshot saves a
+ * single frame and exits. --window can be combined with --screenshot to
+ * save the first frame and keep the window open afterwards.
+ *
+ * --fullscreen takes over the primary monitor (implies --window): for
+ * sessions where another maximized app covers everything and the window
+ * would otherwise render unseen behind it.
+ *
+ * --inside switches from the exterior orbit camera (a maquette view of
+ * the whole room bounding box) to an interior fly camera placed INSIDE
+ * the room itself: W/S fly forward/back, A/D strafe, arrows turn
+ * (Left/Right) and pitch (Up/Down), E/Q up/down, ESC exits. Implies
+ * --window unless --screenshot is given (then frame 0 is saved
+ * headless for verification, same as the exterior batch mode).
+ * --eye/--look/--up override the default interior viewpoint
+ * (which is derived from the room's real bounding box, see renderRoom).
+ *
+ * Infinite background (see drawInfiniteBackground): the room's exterior
+ * shell is rendered from a camera pinned at its own local origin, with
+ * the live camera's orientation — the documented client behavior
+ * (Gamma_Procedures.html, "Infinite Backgrounds": "the Infinite
+ * Background is viewed from a Camera at 0,0,0", authors center the shell
+ * on the origin via the grouping WObject). No flag: this is how the
+ * original client draws it, not an effect.
  */
 public final class WorldViewer {
    private static final Map<String, RwxModel> modelCache = new HashMap<>();
@@ -77,10 +106,12 @@ public final class WorldViewer {
    // del contexto GL actual — se limpia al crear/destruir cada ventana
    // (modo ALL crea un contexto por sala).
    private static final Map<RwxModel, Integer> displayListCache = new HashMap<>();
-   private static File baseDir;
-   private static int loadedCount = 0;
-   private static int missingCount = 0;
-   private static int avatarSkipCount = 0;
+    private static File baseDir;
+    private static int loadedCount = 0;
+    private static int missingCount = 0;
+    private static int avatarSkipCount = 0;
+    private static int rectCount = 0; // Rect surfaces placed (drawn as textured quads, see drawRect)
+    private static int rectPatchCount = 0; // RectPatch heightfields placed (see drawRectPatch)
 
    // --- Texturing (real, per-material, see class javadoc) ---
    // GL texture ids are only valid within the GL context that created them
@@ -94,32 +125,59 @@ public final class WorldViewer {
    // Real per-material texture-reference accounting across the whole run
    // (persists across rooms in ALL mode) - the honest coverage evidence
    // the session asked for, never rounded up.
-   private static final Set<String> texturesResolved = new TreeSet<>();
-   private static final Map<String, String> texturesUnresolved = new TreeMap<>(); // name -> reason
-   private static int materialTextureRefs = 0; // total non-null Texture directives seen (incl. repeats)
+    private static final Set<String> texturesResolved = new TreeSet<>();
+    private static final Map<String, String> texturesUnresolved = new TreeMap<>(); // name -> reason
+    private static int materialTextureRefs = 0; // total non-null Texture directives seen (incl. repeats)
+    // Same accounting, separately, for Rect surface materials (absolute
+    // dtex/*.cmp URLs + relative tex/* URLs, some .mov = no loader yet).
+    private static final Set<String> rectTexturesResolved = new TreeSet<>();
+    private static final Map<String, String> rectTexturesUnresolved = new TreeMap<>();
+    private static int rectTextureRefs = 0;
 
-    public static void main(String[] args) throws Exception {
-       if (args.length < 2) {
-          System.err.println("Usage: WorldViewer <file.world> <roomName|ALL|--list-rooms> [--screenshot out.png] [--screenshot-dir outdir]");
-          System.exit(2);
-       }
-       File worldFile = new File(args[0]);
-       String roomArg = args[1];
-       String screenshotPath = null;
-       String screenshotDir = null;
+     public static void main(String[] args) throws Exception {
+        if (args.length < 2) {
+           System.err.println("Usage: WorldViewer <file.world> <roomName|ALL|--list-rooms> [--screenshot out.png] [--screenshot-dir outdir] [--window] [--fullscreen] [--inside] [--eye x,y,z] [--look x,y,z] [--up x,y,z]");
+           System.exit(2);
+        }
+        File worldFile = new File(args[0]);
+        String roomArg = args[1];
+        String screenshotPath = null;
+        String screenshotDir = null;
+        boolean windowed = false;
+        boolean inside = false;
+        boolean fullscreen = false;
+       float[] eyeArg = null, lookArg = null, upArg = null;
        for (int i = 2; i < args.length; i++) {
           if (args[i].equals("--screenshot") && i + 1 < args.length) {
              screenshotPath = args[++i];
           } else if (args[i].equals("--screenshot-dir") && i + 1 < args.length) {
              screenshotDir = args[++i];
+           } else if (args[i].equals("--window")) {
+              windowed = true;
+           } else if (args[i].equals("--fullscreen")) {
+              fullscreen = true;
+              windowed = true; // fullscreen es una ventana visible interactiva
+            } else if (args[i].equals("--inside")) {
+              inside = true;
+          } else if (args[i].equals("--eye") && i + 1 < args.length) {
+             eyeArg = parseVec(args[++i], "--eye");
+          } else if (args[i].equals("--look") && i + 1 < args.length) {
+             lookArg = parseVec(args[++i], "--look");
+          } else if (args[i].equals("--up") && i + 1 < args.length) {
+             upArg = parseVec(args[++i], "--up");
           }
        }
+       if (inside && screenshotPath == null) {
+          windowed = true; // interior interactivo necesita ventana visible
+       }
 
-       baseDir = worldFile.getParentFile();
-       byte[] data = Files.readAllBytes(worldFile.toPath());
-       WNode world = WorldRestorer.parse(data);
+        baseDir = worldFile.getParentFile();
+        byte[] data = Files.readAllBytes(worldFile.toPath());
+        WNode world = WorldRestorer.parse(data);
 
-       if (roomArg.equals("--list-rooms")) {
+        // --list-rooms vale en cualquier posición (no solo como sala):
+        // evita abrir una ventana bloqueante por un orden de args distinto.
+        if (roomArg.equals("--list-rooms") || java.util.Arrays.asList(args).contains("--list-rooms")) {
           java.util.List<String> names = new java.util.ArrayList<>(world.roomsByName.keySet());
           java.util.Collections.sort(names);
           for (String n : names) {
@@ -163,9 +221,25 @@ public final class WorldViewer {
              System.out.println("---");
           }
           first = false;
-          renderRoom(room, roomName, out);
+           renderRoom(room, roomName, out, windowed, inside, eyeArg, lookArg, upArg, fullscreen);
        }
        printTextureCoverage();
+    }
+
+    /** Parses "x,y,z" (floats, world units) for --eye/--look/--up. */
+    private static float[] parseVec(String s, String flag) {
+       String[] p = s.split(",");
+       if (p.length != 3) {
+          System.err.println(flag + " needs x,y,z (got \"" + s + "\")");
+          System.exit(2);
+       }
+       try {
+          return new float[]{Float.parseFloat(p[0]), Float.parseFloat(p[1]), Float.parseFloat(p[2])};
+       } catch (NumberFormatException e) {
+          System.err.println(flag + " needs numeric x,y,z (got \"" + s + "\")");
+          System.exit(2);
+          return null;
+       }
     }
 
     /** Real, honest coverage accounting across every room rendered this run
@@ -176,15 +250,25 @@ public final class WorldViewer {
        System.out.println("---");
        System.out.println("Texture coverage: " + texturesResolved.size() + "/" + totalNames
           + " unique texture names decoded (" + materialTextureRefs + " total material references seen)");
-       if (!texturesUnresolved.isEmpty()) {
-          System.out.println("Unresolved (real color fallback, no invented texture):");
-          for (Map.Entry<String, String> e : texturesUnresolved.entrySet()) {
-             System.out.println("  " + e.getKey() + ": " + e.getValue());
-          }
-       }
+        if (!texturesUnresolved.isEmpty()) {
+           System.out.println("Unresolved (real color fallback, no invented texture):");
+           for (Map.Entry<String, String> e : texturesUnresolved.entrySet()) {
+              System.out.println("  " + e.getKey() + ": " + e.getValue());
+           }
+        }
+        int rectTotal = rectTexturesResolved.size() + rectTexturesUnresolved.size();
+        System.out.println("Rect coverage: " + rectTexturesResolved.size() + "/" + rectTotal
+           + " unique rect texture URLs decoded (" + rectTextureRefs + " total rect references seen)");
+        if (!rectTexturesUnresolved.isEmpty()) {
+           System.out.println("Unresolved rects (flat color fallback):");
+           for (Map.Entry<String, String> e : rectTexturesUnresolved.entrySet()) {
+              System.out.println("  " + e.getKey() + ": " + e.getValue());
+           }
+        }
     }
 
-    private static void renderRoom(WNode room, String roomName, String screenshotPath) throws Exception {
+     private static void renderRoom(WNode room, String roomName, String screenshotPath, boolean visible,
+           boolean inside, float[] eyeArg, float[] lookArg, float[] upArg, boolean fullscreen) throws Exception {
        drawnTriangles = 0;
        drawnObjects = 0;
 
@@ -196,10 +280,20 @@ public final class WorldViewer {
        int loadedBefore = loadedCount;
        int missingBefore = missingCount;
        int avatarBefore = avatarSkipCount;
+       int rectBefore = rectCount;
+       int rectPatchBefore = rectPatchCount;
        preload(room, identity(), bbox, objectCount);
+       // Room shell lives in environment (walls/floors/ceilings missed for
+       // 6 sessions); infiniteBackground (sky) is infinite by definition
+       // and stays out of the bounding box.
+       if (room.environment != null) {
+          preload(room.environment, identity(), bbox, objectCount);
+       }
        System.out.println("Room \"" + roomName + "\": " + objectCount[0] + " objects placed, "
           + (loadedCount - loadedBefore) + " real geometry files loaded, " + (missingCount - missingBefore) + " missing on disk, "
-          + (avatarSkipCount - avatarBefore) + " avatar: refs skipped (not rendered - see class javadoc)");
+          + (avatarSkipCount - avatarBefore) + " avatar: refs skipped (not rendered - see class javadoc), "
+          + (rectCount - rectBefore) + " Rect surfaces (incl. environment), "
+          + (rectPatchCount - rectPatchBefore) + " RectPatch heightfields");
       float radius = Math.max(0.01f, distance(bbox));
       float cx = (bbox[0] + bbox[3]) / 2f;
       float cy = (bbox[1] + bbox[4]) / 2f;
@@ -213,7 +307,7 @@ public final class WorldViewer {
          throw new IllegalStateException("GLFW init failed");
       }
       glfwDefaultWindowHints();
-      glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+      glfwWindowHint(GLFW_VISIBLE, visible ? GLFW_TRUE : GLFW_FALSE);
       glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
       int width = 1024;
@@ -225,6 +319,33 @@ public final class WorldViewer {
       glfwMakeContextCurrent(window);
       glfwSwapInterval(1);
       GL.createCapabilities();
+       if (visible) {
+          glfwShowWindow(window);
+          if (fullscreen) {
+             // Pantalla completa real en el monitor primario: para sesiones
+             // donde otra app maximizada tapa todo (el usuario no ve la
+             // ventana aunque renderice bien). Solo si hay monitor (en
+             // Xvfb headless puede no haberlo: entonces se queda en ventana).
+             long monitor = glfwGetPrimaryMonitor();
+             if (monitor != 0) {
+                org.lwjgl.glfw.GLFWVidMode mode = glfwGetVideoMode(monitor);
+                glfwSetWindowMonitor(window, monitor, 0, 0, mode.width(), mode.height(), mode.refreshRate());
+                width = mode.width();
+                height = mode.height();
+             }
+          }
+          // Traer al frente en el escritorio del usuario: sin esto, en
+          // sesiones con varias áreas de trabajo la ventana puede abrirse
+          // en otra (el usuario no la ve aunque esté renderizando bien).
+          glfwFocusWindow(window);
+          glfwRequestWindowAttention(window);
+         // ESC or window close button exits the interactive viewer.
+         glfwSetKeyCallback(window, (win, key, scancode, action, mods) -> {
+            if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+               glfwSetWindowShouldClose(win, true);
+            }
+         });
+      }
       displayListCache.clear(); // IDs del contexto anterior (modo ALL) no valen aqui
       glTextureCache.clear(); // GL texture ids: mismo motivo, otro contexto
 
@@ -234,8 +355,81 @@ public final class WorldViewer {
       GlLighting.init();
 
       float angle = 30f;
-      int frames = screenshotPath != null ? 1 : Integer.MAX_VALUE;
+      // Interior fly camera state (only used with --inside): eye/look
+      // either explicit (--eye/--look) or derived from the room's real
+      // bounding box (inside it, looking at its center). The client's own
+      // convention is Z-up (Transform.raise = +Z, yaw spins about Z —
+      // verified in editor/.../scape/Transform.java), so that is the
+      // default; --up 0,1,0 keeps the legacy Y-up math.
+       float[] eye = null, up = null;
+       float yaw = 0f, pitch = 0f;
+      boolean upZ = true;
+      if (inside) {
+         up = upArg != null ? upArg.clone() : new float[]{0, 0, 1};
+         upZ = up[2] > 0.9f;
+         float[] look;
+         if (eyeArg != null && lookArg != null) {
+            eye = eyeArg.clone();
+            look = lookArg.clone();
+         } else if (upZ) {
+            eye = new float[]{cx + radius * 0.3f, cy + radius * 0.3f, cz + radius * 0.12f};
+            look = new float[]{cx, cy, cz};
+         } else {
+            eye = new float[]{cx + radius * 0.3f, cy + radius * 0.12f, cz + radius * 0.3f};
+            look = new float[]{cx, cy, cz};
+         }
+         float[] d = norm(new float[]{look[0] - eye[0], look[1] - eye[1], look[2] - eye[2]});
+         if (upZ) {
+            pitch = (float) Math.asin(clamp(d[2], -1f, 1f));
+            yaw = (float) Math.atan2(d[1], d[0]);
+         } else {
+            pitch = (float) Math.asin(clamp(d[1], -1f, 1f));
+            yaw = (float) Math.atan2(d[0], -d[2]);
+         }
+          System.out.println("Interior camera: eye=(" + eye[0] + "," + eye[1] + "," + eye[2] + ") yaw=" + yaw
+             + " pitch=" + pitch + " up=(" + up[0] + "," + up[1] + "," + up[2] + ")");
+         if (visible) {
+            System.out.println("Controls: W/S fly, A/D strafe, arrows turn/pitch, E/Q up/down, ESC exits");
+         }
+      }
+      // Hidden/offscreen mode: exactly 1 frame when a screenshot is asked
+      // for (batch/ALL use), infinite only if a human is expected to look
+      // at nothing (legacy behaviour, kept). Visible --window mode: run
+      // interactively until ESC/close; if --screenshot is also given, save
+      // frame 0 and keep the window open afterwards.
+      int frames;
+      if (visible) {
+         frames = Integer.MAX_VALUE;
+      } else {
+         frames = screenshotPath != null ? 1 : Integer.MAX_VALUE;
+      }
+      double lastTime = glfwGetTime();
       for (int frame = 0; frame < frames && !glfwWindowShouldClose(window); frame++) {
+         double now = glfwGetTime();
+         float dt = (float) Math.min(0.1, Math.max(1e-3, now - lastTime));
+         lastTime = now;
+         if (inside && visible) {
+            // Fly controls: 60 deg/s turn, radius*0.25/s fly speed (a
+            // ~6200-unit room crosses in a few seconds, a small prop room
+            // stays controllable - both scale from real scene data).
+            float turn = (float) Math.toRadians(60) * dt;
+            float speed = radius * 0.25f * dt;
+            if (isDown(window, GLFW_KEY_LEFT)) yaw -= turn;
+            if (isDown(window, GLFW_KEY_RIGHT)) yaw += turn;
+            if (isDown(window, GLFW_KEY_UP)) pitch = Math.min(1.55f, pitch + turn);
+            if (isDown(window, GLFW_KEY_DOWN)) pitch = Math.max(-1.55f, pitch - turn);
+            float[] fwd = fwdFromYawPitch(yaw, pitch, upZ);
+            float[] right = norm(new float[]{
+               fwd[1] * up[2] - fwd[2] * up[1],
+               fwd[2] * up[0] - fwd[0] * up[2],
+               fwd[0] * up[1] - fwd[1] * up[0]});
+            if (isDown(window, GLFW_KEY_W)) eye = add(eye, scale(fwd, speed));
+            if (isDown(window, GLFW_KEY_S)) eye = add(eye, scale(fwd, -speed));
+            if (isDown(window, GLFW_KEY_D)) eye = add(eye, scale(right, speed));
+            if (isDown(window, GLFW_KEY_A)) eye = add(eye, scale(right, -speed));
+            if (isDown(window, GLFW_KEY_E)) eye = add(eye, scale(up, speed));
+            if (isDown(window, GLFW_KEY_Q)) eye = add(eye, scale(up, -speed));
+         }
          glViewport(0, 0, width, height);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -252,9 +446,19 @@ public final class WorldViewer {
          // vertex by hand and finding ndc.z == 0.9999991). Fix: derive
          // near/far tightly around the actual eye-to-scene distance
          // instead of a generic multiple of radius alone.
-         float eyeDistance = (float) Math.sqrt(Math.pow(radius * 0.7, 2) + Math.pow(radius * 1.6, 2));
-         float near = Math.max(0.01f, eyeDistance - radius * 1.3f);
-         float far = eyeDistance + radius * 1.3f;
+          float eyeDistance = (float) Math.sqrt(Math.pow(radius * 0.7, 2) + Math.pow(radius * 1.6, 2));
+          float near;
+          float far;
+          if (inside) {
+             // Interior: the eye is among the geometry, so near must be
+             // small (room-scale units, not scene-diameter scale) while
+             // far still covers the whole room from any corner.
+             near = Math.max(0.5f, radius * 0.0005f);
+             far = radius * 3f;
+          } else {
+             near = Math.max(0.01f, eyeDistance - radius * 1.3f);
+             far = eyeDistance + radius * 1.3f;
+          }
 
           glMatrixMode(GL_PROJECTION);
           glLoadIdentity();
@@ -262,24 +466,61 @@ public final class WorldViewer {
 
           glMatrixMode(GL_MODELVIEW);
           glLoadIdentity();
-          GlUtil.lookAt(cx, cy + radius * 0.7f, cz + radius * 1.6f, cx, cy, cz, 0, 1, 0);
-         glTranslatef(cx, cy, cz);
-         glRotatef(angle, 0, 1, 0);
-         glTranslatef(-cx, -cy, -cz);
+          if (inside) {
+             float[] fwd = fwdFromYawPitch(yaw, pitch, upZ);
+             GlUtil.lookAt(eye[0], eye[1], eye[2], eye[0] + fwd[0], eye[1] + fwd[1], eye[2] + fwd[2], up[0], up[1], up[2]);
+          } else {
+             // Exterior orbit, Z-up like the client: eye starts out in +Y
+             // and above (+Z), and sweeps around the Z axis.
+             GlUtil.lookAt(cx, cy + radius * 1.6f, cz + radius * 0.7f, cx, cy, cz, 0, 0, 1);
+             glTranslatef(cx, cy, cz);
+             glRotatef(angle, 0, 0, 1);
+             glTranslatef(-cx, -cy, -cz);
+          }
 
-         drawNode(room);
+           drawNode(room);
+           if (room.environment != null) {
+              drawNode(room.environment);
+           }
+           if (room.infiniteBackground != null) {
+              // Exhibition camera position this frame (see below where the
+              // view is set): interior = fly eye; exterior = orbit eye
+              // (center + Rz(angle) applied to the (0, +1.6r, +0.7r)
+              // offset, mirroring the glTranslate/glRotate/glTranslate
+              // sequence used for the view).
+              float[] camEye;
+              if (inside) {
+                 camEye = eye;
+              } else {
+                 double a = Math.toRadians(angle);
+                 camEye = new float[]{
+                    (float) (cx - radius * 1.6f * Math.sin(a)),
+                    (float) (cy + radius * 1.6f * Math.cos(a)),
+                    cz + radius * 0.7f};
+              }
+              drawInfiniteBackground(room, camEye);
+           }
 
-         angle += 0.3f;
-         glfwSwapBuffers(window);
-         glfwPollEvents();
-      }
+          if (!inside) {
+             angle += 0.3f;
+          }
+          // Leer ANTES del swap: tras glfwSwapBuffers el contenido del
+          // back buffer es indefinido — en Xvfb se conservaba por suerte
+          // (capturas correctas) pero en el display real (:0/XWayland)
+          // salía negro con GL error 0. Bug real, no del driver.
+          if (screenshotPath != null && frame == 0) {
+             GlUtil.saveScreenshot(width, height, screenshotPath);
+             System.out.println("Screenshot written to " + screenshotPath
+                + (visible ? " (window stays open, ESC to exit)" : ""));
+          }
+          glfwSwapBuffers(window);
+          glfwPollEvents();
+          if (visible && frame == 0) {
+             System.out.println("Window presented frame 0 (interactive: ESC to exit)");
+          }
+       }
 
-      System.out.println("Drew " + drawnObjects + " objects, " + drawnTriangles + " triangles this frame. GL error: " + glGetError());
-
-      if (screenshotPath != null) {
-         GlUtil.saveScreenshot(width, height, screenshotPath);
-         System.out.println("Screenshot written to " + screenshotPath);
-      }
+       System.out.println("Drew " + drawnObjects + " objects, " + drawnTriangles + " triangles this frame. GL error: " + glGetError());
 
       glfwDestroyWindow(window);
       glfwTerminate();
@@ -287,58 +528,238 @@ public final class WorldViewer {
       glTextureCache.clear();
     }
 
-   /** Walk the room's real WObject tree once (no GL context needed) purely to resolve+load geometry and compute a real bounding box. */
-   private static void preload(WNode n, float[] parentToWorld, float[] bbox, int[] objectCount) {
-      float[] here = n.matrix != null ? multiply(parentToWorld, n.matrix) : parentToWorld;
-      if (n.geometryUrl != null) {
-         objectCount[0]++;
-         if (n.geometryUrl.startsWith("avatar:")) {
-            avatarSkipCount++;
-         } else {
-            RwxModel model = loadModel(n.geometryUrl);
-            if (model != null) {
-               for (RwxVector3 v : model.vertices) {
-                  float[] p = transformPoint(here, v.x, v.y, v.z);
-                  bbox[0] = Math.min(bbox[0], p[0]);
-                  bbox[1] = Math.min(bbox[1], p[1]);
-                  bbox[2] = Math.min(bbox[2], p[2]);
-                  bbox[3] = Math.max(bbox[3], p[0]);
-                  bbox[4] = Math.max(bbox[4], p[1]);
-                  bbox[5] = Math.max(bbox[5], p[2]);
-               }
-            }
-         }
-      }
-      for (WNode c : n.children) {
-         preload(c, here, bbox, objectCount);
-      }
-   }
+    /** Walk the room's real WObject tree once (no GL context needed) purely to resolve+load geometry and compute a real bounding box.
+     * Invisible leaves (bumpers) are still resolved/counted (placement
+     * stats) but excluded from the bounding box — the camera frames the
+     * visible scene, not collision volumes. */
+    private static void preload(WNode n, float[] parentToWorld, float[] bbox, int[] objectCount) {
+       float[] here = n.matrix != null ? multiply(parentToWorld, n.matrix) : parentToWorld;
+       if (n.geometryUrl != null) {
+          objectCount[0]++;
+          if (n.geometryUrl.startsWith("avatar:")) {
+             avatarSkipCount++;
+          } else {
+             RwxModel model = loadModel(n.geometryUrl);
+             if (model != null && n.isVisible()) {
+                for (RwxVector3 v : model.vertices) {
+                   extendBbox(bbox, transformPoint(here, v.x, v.y, v.z));
+                }
+             }
+          }
+       }
+       if (isRect(n)) {
+          if (n.isVisible()) {
+          // Rect walls/floors/ceilings/signs: unit X/Z plane through the
+          // live matrix (spin/scale already inside it - verified: wall
+          // scales like (2149,2,400) sit in real Rect matrices).
+          for (float[] c : RECT_CORNERS) {
+             extendBbox(bbox, transformPoint(here, c[0], c[1], c[2]));
+          }
+          }
+          rectCount++;
+       }
+       if (isRectPatch(n)) {
+          if (n.isVisible()) {
+          // Heightfield corners in local X/Y (see drawRectPatch).
+          extendBbox(bbox, transformPoint(here, 0, 0, n.rpZ[0]));
+          extendBbox(bbox, transformPoint(here, n.rpXDim, 0, n.rpZ[1]));
+          extendBbox(bbox, transformPoint(here, n.rpXDim, n.rpYDim, n.rpZ[2]));
+          extendBbox(bbox, transformPoint(here, 0, n.rpYDim, n.rpZ[3]));
+          }
+          rectPatchCount++;
+       }
+       for (WNode c : n.children) {
+          preload(c, here, bbox, objectCount);
+       }
+    }
+
+    private static void extendBbox(float[] bbox, float[] p) {
+       bbox[0] = Math.min(bbox[0], p[0]);
+       bbox[1] = Math.min(bbox[1], p[1]);
+       bbox[2] = Math.min(bbox[2], p[2]);
+       bbox[3] = Math.max(bbox[3], p[0]);
+       bbox[4] = Math.max(bbox[4], p[1]);
+       bbox[5] = Math.max(bbox[5], p[2]);
+    }
+
+    /** A Rect is a unit quad in its local X/Z plane (NOT X/Y: real
+     * matrices squash local Y to ~zero — e.g. wall scale (2149,2,400) —
+     * while (1,0,1) reproduces the decompiled far corner (f1,f2,f3)
+     * exactly through spin(atan2(f2,f1)) about Z + scale(len,f3,f3)).
+     * Verified corner-by-corner against groundzero.world Reception. */
+    private static final float[][] RECT_CORNERS = {{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}};
+
+    private static boolean isRect(WNode n) {
+       return n.className.endsWith(".Rect"); // RectPatch ends with "Patch", excluded on purpose
+    }
 
    static int drawnTriangles = 0;
    static int drawnObjects = 0;
 
-   private static void drawNode(WNode n) {
-      glPushMatrix();
-      if (n.matrix != null) {
-         try (MemoryStack stack = MemoryStack.stackPush()) {
-            FloatBuffer buf = stack.mallocFloat(16);
-            buf.put(n.matrix).flip();
-            glMultMatrixf(buf);
-         }
-      }
-      if (n.geometryUrl != null && !n.geometryUrl.startsWith("avatar:")) {
-         RwxModel model = loadModel(n.geometryUrl);
-         if (model != null) {
-            drawModel(model);
-            drawnTriangles += model.triangles.size();
-            drawnObjects++;
-         }
-      }
-      for (WNode c : n.children) {
-         drawNode(c);
-      }
-      glPopMatrix();
-   }
+    /** Draws the room's infinite background (exterior shell: sky walls,
+      * ceiling, distant scenery) the way the original client does: viewed
+      * from a camera pinned at the shell's own local origin, with the live
+      * camera's orientation (Gamma_Procedures.html, "Infinite Backgrounds":
+      * "the Infinite Background is viewed from a Camera at 0,0,0" — that
+      * is why authors group the shell in a WObject and move it so that
+      * 0,0,0 becomes its center). Implementation: translate the authored
+      * shell by the live camera position, keeping the live view rotation.
+      * The shell then surrounds the viewer in every compass direction with
+      * zero translation parallax — distant backdrop, never a corner prop.
+      * Rooms whose background is empty (23/25 in GroundZero — the author
+      * left them blank "to speed up rendering", same doc) draw nothing.
+      */
+    private static void drawInfiniteBackground(WNode room, float[] camEye) {
+       glPushMatrix();
+       glTranslatef(camEye[0], camEye[1], camEye[2]);
+       drawNode(room.infiniteBackground);
+       glPopMatrix();
+    }
+
+    private static void drawNode(WNode n) {
+       glPushMatrix();
+       if (n.matrix != null) {
+          try (MemoryStack stack = MemoryStack.stackPush()) {
+             FloatBuffer buf = stack.mallocFloat(16);
+             buf.put(n.matrix).flip();
+             glMultMatrixf(buf);
+          }
+       }
+       // Invisible nodes (WObject.flags bit0 clear — collision bumpers like
+       // LizCave's Rect942CyanBump, verified teal #00FCF8 in-stream) are
+       // parsed but never drawn. Leaf-only: grouping nodes always traverse
+       // (visibility propagation is native-side, unverified — never hide a
+       // whole subtree on a group's flag).
+       boolean visibleLeaf = n.isVisible();
+       if (n.geometryUrl != null && !n.geometryUrl.startsWith("avatar:")) {
+          if (visibleLeaf) {
+             RwxModel model = loadModel(n.geometryUrl);
+             if (model != null) {
+                drawModel(model);
+                drawnTriangles += model.triangles.size();
+                drawnObjects++;
+             }
+          }
+       }
+        if (isRect(n)) {
+           if (visibleLeaf) {
+              drawRect(n);
+           }
+        }
+        if (isRectPatch(n)) {
+           if (visibleLeaf) {
+              drawRectPatch(n);
+           }
+        }
+       for (WNode c : n.children) {
+          drawNode(c);
+       }
+       glPopMatrix();
+    }
+
+    private static boolean isRectPatch(WNode n) {
+       return n.className.endsWith(".RectPatch");
+    }
+
+    /** Draws one RectPatch heightfield quad (v1+ with material; v0 is
+     * explicitly invisible in the client and skipped). Corners in local
+     * X/Y with per-corner heights z[0..3] = (0,0),(xDim,0),(xDim,yDim),
+     * (0,yDim) — the only order consistent with a non-twisted grid;
+     * verified flat (all z equal) on the real corpus, where the order is
+     * unobservable. Null material = client default (black). */
+    private static void drawRectPatch(WNode n) {
+       if (n.rpVersion == 0) {
+          return; // explicitly invisible: setVisible(false) in restoreState
+       }
+       RwxMaterial mat = rectMaterial(n);
+       GlLighting.applyMaterial(mat);
+       glDisable(GL_CULL_FACE);
+       int glTex = resolveRectTexture(n.material != null ? n.material.matTextureUrl : null);
+       boolean texEnabled = false;
+       if (glTex != 0) {
+          glEnable(GL_TEXTURE_2D);
+          glBindTexture(GL_TEXTURE_2D, glTex);
+          texEnabled = true;
+       }
+       float u0 = n.rpXTileOff, v0 = n.rpYTileOff;
+       float u1 = u0 + n.rpXTile, v1 = v0 + n.rpYTile;
+       float[][] corners = {
+          {0, 0, n.rpZ[0]}, {n.rpXDim, 0, n.rpZ[1]},
+          {n.rpXDim, n.rpYDim, n.rpZ[2]}, {0, n.rpYDim, n.rpZ[3]}};
+       float[][] uvs = {{u0, v0}, {u1, v0}, {u1, v1}, {u0, v1}};
+       float[] ex = xformDir(n.rpXDim, 0, n.rpZ[1] - n.rpZ[0]);
+       float[] ey = xformDir(0, n.rpYDim, n.rpZ[3] - n.rpZ[0]);
+       float[] nn = GlLighting.faceNormal(0, 0, 0, ex[0], ex[1], ex[2], ey[0], ey[1], ey[2]);
+       glBegin(GL_QUADS);
+       glNormal3f(nn[0], nn[1], nn[2]);
+       for (int i = 0; i < 4; i++) {
+          glTexCoord2f(uvs[i][0], uvs[i][1]);
+          glVertex3f(corners[i][0], corners[i][1], corners[i][2]);
+       }
+       glEnd();
+       if (texEnabled) {
+          glDisable(GL_TEXTURE_2D);
+       }
+       glEnable(GL_CULL_FACE);
+       drawnTriangles += 2;
+       drawnObjects++;
+    }
+
+    /** Draws one Rect surface node as a textured (or flat) quad. The node's
+     * composed matrix (glMultMatrixf above) already places the unit quad;
+     * UVs come from the real u/v/uOff/vOff (tiling like (2,8.4) relies on
+     * GL_REPEAT, set at upload). Double-sided: Rect materials carry no
+     * MaterialModes and winding through arbitrary spins is unverified —
+     * from inside a closed room only inward faces are visible either way.
+     * Lighting is two-sided (see GlLighting.init) so backs get correct N·L. */
+    private static void drawRect(WNode n) {
+       RwxMaterial mat = rectMaterial(n);
+       GlLighting.applyMaterial(mat);
+       glDisable(GL_CULL_FACE);
+       int glTex = resolveRectTexture(n.material != null ? n.material.matTextureUrl : null);
+       boolean texEnabled = false;
+       if (glTex != 0) {
+          glEnable(GL_TEXTURE_2D);
+          glBindTexture(GL_TEXTURE_2D, glTex);
+          texEnabled = true;
+       }
+       float u0 = n.rectUOff, v0 = n.rectVOff;
+       float u1 = u0 + n.rectU, v1 = v0 + n.rectV;
+       float[][] uvs = {{u0, v0}, {u1, v0}, {u1, v1}, {u0, v1}};
+       // World-space normal: read back the real composed modelview (parent
+       // chain x node matrix, already current) and transform the two local
+       // edges through its linear part - exact with no matrix threading.
+       float[] ex = xformDir(1, 0, 0);
+       float[] ez = xformDir(0, 0, 1);
+       float[] nn = GlLighting.faceNormal(0, 0, 0, ex[0], ex[1], ex[2], ez[0], ez[1], ez[2]);
+       glBegin(GL_QUADS);
+       glNormal3f(nn[0], nn[1], nn[2]);
+       for (int i = 0; i < 4; i++) {
+          glTexCoord2f(uvs[i][0], uvs[i][1]);
+          glVertex3f(RECT_CORNERS[i][0], RECT_CORNERS[i][1], RECT_CORNERS[i][2]);
+       }
+       glEnd();
+       if (texEnabled) {
+          glDisable(GL_TEXTURE_2D);
+       }
+       // Restore the caller's culling expectation (shapes are single-sided).
+       glEnable(GL_CULL_FACE);
+       drawnTriangles += 2;
+       drawnObjects++;
+    }
+
+    /** Transforms a local direction by the current modelview's linear part
+     * (read back exactly as GL holds it - parent chain x node matrix). */
+    private static float[] xformDir(float x, float y, float z) {
+       try (MemoryStack stack = MemoryStack.stackPush()) {
+          FloatBuffer mv = stack.mallocFloat(16);
+          glGetFloatv(GL_MODELVIEW_MATRIX, mv);
+          return new float[]{
+             mv.get(0) * x + mv.get(4) * y + mv.get(8) * z,
+             mv.get(1) * x + mv.get(5) * y + mv.get(9) * z,
+             mv.get(2) * x + mv.get(6) * y + mv.get(10) * z};
+       }
+    }
 
    private static RwxModel loadModel(String url) {
       if (modelCache.containsKey(url)) {
@@ -462,9 +883,157 @@ public final class WorldViewer {
       }
    }
 
-   /**
-    * Resolves a material's real "Texture" reference to a real GL texture id,
-    * decoded through net.freeworlds.cmp.CmpTexture - or 0 if it can't be
+    /**
+     * Builds the GL material for one Rect surface from its real parsed
+     * fields (see WorldRestorer.readMaterial): file color + ambient /
+     * diffuse / specular / opacity scalars, texture URL when present.
+     * Rect materials have no TextureModes/Lit concept, so the parsed
+     * scalars apply directly (Lit-equivalent); textured ones get the
+     * white base like RWX textured materials (see RwxMaterial).
+     */
+    private static RwxMaterial rectMaterial(WNode n) {
+       RwxMaterial mat = new RwxMaterial();
+       WNode m = n.material;
+       if (m == null) {
+          return mat; // no material in-stream: AW default surface, black base
+       }
+       mat.colorR = ((m.matColorRGB >> 16) & 0xFF) / 255f;
+       mat.colorG = ((m.matColorRGB >> 8) & 0xFF) / 255f;
+       mat.colorB = (m.matColorRGB & 0xFF) / 255f;
+       mat.ambient = m.matAmbient;
+       mat.diffuse = m.matDiffuse;
+       mat.specular = m.matSpecular;
+       mat.opacity = m.matOpacity;
+       if (m.matTextureUrl != null) {
+          mat.textureName = rectTextureBase(m.matTextureUrl); // non-null = textured (white base)
+       }
+       return mat;
+    }
+
+    /**
+     * Resolves a Rect material's texture URL (absolute
+     * http://.../dtex/x.cmp or relative tex/x.cmp, the latter sometimes
+     * with an animation suffix like 2h*2v*) to a GL texture id, or 0 for
+     * the flat-color fallback. Search order: extracted content.zip tex/
+     * dir, real dtex/ + tex/ dirs next to the .world. .mov (same codec,
+     * different container - undecodable, see session notes) and missing
+     * files count as unresolved, never guessed.
+     */
+    private static int resolveRectTexture(String url) {
+       if (url == null) {
+          return 0;
+       }
+       rectTextureRefs++;
+       String base = rectTextureBase(url);
+       String key = "rect:" + base.toLowerCase();
+       if (glTextureCache.containsKey(key)) {
+          int cached = glTextureCache.get(key);
+          if (cached != 0) {
+             rectTexturesResolved.add(base);
+          } else if (!rectTexturesUnresolved.containsKey(base)) {
+             rectTexturesUnresolved.put(base, "(cached failure, see first occurrence)");
+          }
+          return cached;
+       }
+       // The extension lives at the very end (tex/cbirda42h*2v*.mov):
+       // animation tiling suffixes sit between stem and extension.
+       int dot = base.lastIndexOf('.');
+       String ext = dot >= 0 ? base.substring(dot + 1).toLowerCase() : "";
+       String stem = (dot >= 0 ? base.substring(0, dot) : base).toLowerCase();
+       int star = stem.indexOf('*');
+       if (star >= 0) {
+          stem = stem.substring(0, star);
+       }
+       if (!ext.equals("cmp") && !ext.equals("mov")) {
+          rectTexturesUnresolved.put(base, ext.isEmpty() ? "no extension" : "referenced as ." + ext + ", no loader for that container");
+          glTextureCache.put(key, 0);
+          return 0;
+       }
+       List<File> dirs = new ArrayList<>();
+       File archive = resolveTextureArchive();
+       if (archive != null) {
+          dirs.add(archive);
+       }
+       dirs.add(new File(baseDir, "dtex"));
+       dirs.add(new File(baseDir, "tex"));
+       // Animation tiling suffixes (tex/cbirda42h*2v*.mov = cbirda4 +
+       // 2h*2v*, tex/time2h* = time + 2h*, tex/winwin12h*2v* = winwin1 +
+       // 2h*2v*): the real file is the stem minus that suffix. Exactly ONE
+       // digit + h/v (winwin12h -> winwin1, not winwin); the unstripped
+       // stem is always tried first, so legit digit-ending names still hit.
+       String animStripped = stem.replaceFirst("\\dh$", "").replaceFirst("\\dv$", "");
+       for (String cand : new String[]{stem, animStripped}) {
+          for (File dir : dirs) {
+             File f = findIgnoreCase(dir, cand + "." + ext);
+             if (f != null) {
+                try {
+                   // .mov = same LzH2 codec, multi-frame container: frame 0
+                   // as the static texture (verified byte-exact vs
+                   // cmpview.exe, see CmpStage1.decodeMovFrame0).
+                   CmpTexture tex = ext.equals("mov") ? CmpTexture.loadMov(f) : CmpTexture.loadRaw(f);
+                   int id = uploadTexture(tex);
+                   glTextureCache.put(key, id);
+                   rectTexturesResolved.add(base);
+                   return id;
+                } catch (Exception e) {
+                   rectTexturesUnresolved.put(base, String.valueOf(e.getMessage()));
+                   glTextureCache.put(key, 0);
+                   return 0;
+                }
+             }
+          }
+       }
+       rectTexturesUnresolved.put(base, "not found in tex/ archive, dtex/ or tex/ dirs");
+       glTextureCache.put(key, 0);
+       return 0;
+    }
+
+    /** Case-insensitive file lookup (real .world URLs don't reliably match
+     * on-disk casing, same as geometry - see resolveCaseInsensitive). */
+    private static File findIgnoreCase(File dir, String name) {
+       File exact = new File(dir, name);
+       if (exact.isFile()) {
+          return exact;
+       }
+       File[] listing = dir.listFiles();
+       if (listing != null) {
+          for (File f : listing) {
+             if (f.isFile() && f.getName().equalsIgnoreCase(name)) {
+                return f;
+             }
+          }
+       }
+       return null;
+    }
+
+    /** Base filename of a Rect texture URL: after the last '/', animation
+     * tiling suffix (2h*2v* style, sitting between stem and extension in
+     * e.g. tex/cbirda42h*2v*.mov) stripped, extension preserved. */
+    private static String rectTextureBase(String url) {
+       String base = url.trim();
+       // Careful: absolute http:// URLs contain "://" - lastIndexOf(':')
+       // would hit the scheme... but they also contain '/', and the last
+       // '/' is always after the scheme, so prefer it when present.
+       int cut = base.lastIndexOf('/');
+       if (cut < 0) {
+          cut = base.lastIndexOf(':');
+       }
+       if (cut >= 0) {
+          base = base.substring(cut + 1);
+       }
+       int dot = base.lastIndexOf('.');
+       String ext = dot >= 0 ? base.substring(dot) : "";
+       String stem = dot >= 0 ? base.substring(0, dot) : base;
+       int star = stem.indexOf('*');
+       if (star >= 0) {
+          stem = stem.substring(0, star);
+       }
+       return stem + ext;
+    }
+
+    /**
+     * Resolves a material's real "Texture" reference to a real GL texture id,
+     * decoded through net.freeworlds.cmp.CmpTexture - or 0 if it can't be
     * decoded (falls back to the material's own real flat color, applied
     * just above by GlLighting.applyMaterial - never an invented texture).
     * Cached per name so repeat materials (e.g. many objects sharing
@@ -490,15 +1059,21 @@ public final class WorldViewer {
          }
          return cached;
       }
-      if (!ext.equals("cmp") && !ext.isEmpty()) {
-         // Real corpus has a handful of .bmp-named references (e.g.
-         // "rock1a.bmp") - no BMP loader exists in this pipeline (out of
-         // this session's scope), so these are honestly counted as
-         // unavailable rather than guessed at or silently dropped.
-         texturesUnresolved.put(name, "referenced as ." + ext + ", no loader for that extension");
-         glTextureCache.put(name, 0);
-         return 0;
-      }
+       if (!ext.equals("cmp") && !ext.isEmpty()) {
+          // Real corpus has a handful of .bmp-named references (e.g.
+          // "cstgbs3.bmp", "pceil2.bmp"). No BMP loader exists in this
+          // pipeline - but compimg's .cmp IS the compressed form of the
+          // same artwork, and same-stem .cmp files ship in the same
+          // archive (tex/cstgbs3.cmp verified present), so fall back to
+          // the same-stem .cmp explicitly as such rather than guessing
+          // pixels or silently dropping (pceil2 has no .cmp twin and
+          // stays honestly unresolved).
+          if (!ext.equals("bmp")) {
+             texturesUnresolved.put(name, "referenced as ." + ext + ", no loader for that extension");
+             glTextureCache.put(name, 0);
+             return 0;
+          }
+       }
       File dir = resolveTextureArchive();
       if (dir == null) {
          texturesUnresolved.put(name, "no texture archive found next to this .world");
@@ -553,10 +1128,10 @@ public final class WorldViewer {
          Enumeration<? extends ZipEntry> entries = zf.entries();
          while (entries.hasMoreElements()) {
             ZipEntry e = entries.nextElement();
-            String n = e.getName();
-            if (e.isDirectory() || !n.toLowerCase().endsWith(".cmp")) {
-               continue;
-            }
+             String n = e.getName();
+             if (e.isDirectory() || (!n.toLowerCase().endsWith(".cmp") && !n.toLowerCase().endsWith(".mov"))) {
+                continue;
+             }
             String flatName = new File(n).getName(); // drop the "tex/" prefix
             File outFile = new File(outDir, flatName);
             if (outFile.exists() && outFile.length() == e.getSize()) {
@@ -608,9 +1183,41 @@ public final class WorldViewer {
       return id;
    }
 
-   private static float[] identity() {
-      return new float[]{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-   }
+    private static float[] identity() {
+       return new float[]{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    }
+
+    /** Forward vector from yaw/pitch. Z-up (client convention): yaw spins
+     * in the x/y plane from +X, pitch raises toward +Z. Y-up legacy keeps
+     * the old formulas (only reachable via explicit --up 0,1,0). */
+    private static float[] fwdFromYawPitch(float yaw, float pitch, boolean upZ) {
+       if (upZ) {
+          return new float[]{(float) (Math.cos(pitch) * Math.cos(yaw)), (float) (Math.cos(pitch) * Math.sin(yaw)), (float) Math.sin(pitch)};
+       }
+       return new float[]{(float) (Math.cos(pitch) * Math.sin(yaw)), (float) Math.sin(pitch), (float) (-Math.cos(pitch) * Math.cos(yaw))};
+    }
+
+    /** Interior-camera small vector helpers (yaw/pitch fly controls). */
+    private static boolean isDown(long window, int key) {
+       return glfwGetKey(window, key) == GLFW_PRESS;
+    }
+
+    private static float[] add(float[] a, float[] b) {
+       return new float[]{a[0] + b[0], a[1] + b[1], a[2] + b[2]};
+    }
+
+    private static float[] scale(float[] a, float s) {
+       return new float[]{a[0] * s, a[1] * s, a[2] * s};
+    }
+
+    private static float[] norm(float[] a) {
+       float l = (float) Math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
+       return l > 0 ? scale(a, 1f / l) : new float[]{0, 0, -1};
+    }
+
+    private static float clamp(float v, float lo, float hi) {
+       return Math.max(lo, Math.min(hi, v));
+    }
 
    /** Column-major 4x4 multiply (a*b), matching the OpenGL/three.js convention RwxMatrix4 already uses - real semantics not yet independently confirmed for WObject's "guts" matrix beyond "the scene renders coherently", see docs/world-format-reference.md. */
    private static float[] multiply(float[] a, float[] b) {

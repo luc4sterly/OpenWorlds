@@ -28,11 +28,17 @@ import static org.lwjgl.opengl.GL11.*;
  * corresponding "ambient light color" anywhere in the decompiled client (no
  * separate ambient light source exists, only the two colored lights above) -
  * lacking real evidence for how RenderWare 2 combined ambient with these two
- * lights, this sets each GL light's AMBIENT component equal to its DIFFUSE
- * component (a common simplification), rather than inventing a separate
- * ambient constant. Likewise the specular shininess exponent (GL_SHININESS)
- * has no RWX-exposed equivalent - a conservative fixed value is used and
- * flagged below, not presented as verified.
+ * lights, each GL light gets an AMBIENT component of 0.15× its DIFFUSE
+ * (key 0.15, fill 0.075). History: this used to equal DIFFUSE (1.0/0.5),
+ * which was harmless while material ambient was ~zero — but once textured
+ * materials gained their real 0.69 white-based ambient response (see the
+ * "texturas bien" session), 1.5× total ambient clipped every textured
+ * surface to unshaded white (measured 19.8% pure-white pixels in
+ * Auditorium); 0.25 still left clipped streaks on ideally-lit faces
+ * (7.9%). 0.15 keeps shadowed faces visible while holding clipping to a
+ * trace — a documented heuristic, not a verified RW2 value. Likewise the specular shininess exponent
+ * (GL_SHININESS) has no RWX-exposed equivalent - a conservative fixed
+ * value is used and flagged below, not presented as verified.
  */
 final class GlLighting {
    private GlLighting() {
@@ -48,6 +54,7 @@ final class GlLighting {
       glEnable(GL_LIGHT1);
       glEnable(GL_NORMALIZE); // vertices may be transformed/rotated; keep lighting correct without renormalizing normals by hand
       glShadeModel(GL_FLAT); // no smoothing-group/vertex-normal data parsed yet (see docs) - flat per-face shading is honest about what we actually know, not smoothed-over guesswork
+      glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE); // Rect surfaces render double-sided (no MaterialModes on them, winding unverified) - two-sided lighting flips the normal for backfaces automatically; single-sided culled shapes are unaffected
       glLightModelfv(GL_LIGHT_MODEL_AMBIENT, new float[]{0f, 0f, 0f, 1f}); // no evidence of extra global ambient beyond the two lights themselves
       glEnable(GL_BLEND);
       glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // real RWX "Opacity" material attribute, applied via material alpha - simple alpha blending, not a modern OIT/premultiplied scheme
@@ -56,15 +63,15 @@ final class GlLighting {
       setLight(GL_LIGHT1, 1f, -1f, 1f, 0.5f, 0.5f, 0.5f);
    }
 
-   private static void setLight(int light, float dx, float dy, float dz, float r, float g, float b) {
-      // w=0 -> directional light (matches treating Room's lightPosition as a
-      // fixed direction rather than a point that would need real-world
-      // room-scale attenuation data we don't have).
-      glLightfv(light, GL_POSITION, new float[]{dx, dy, dz, 0f});
-      glLightfv(light, GL_DIFFUSE, new float[]{r, g, b, 1f});
-      glLightfv(light, GL_SPECULAR, new float[]{r, g, b, 1f});
-      glLightfv(light, GL_AMBIENT, new float[]{r, g, b, 1f}); // see class javadoc VERIFICAR note
-   }
+    private static void setLight(int light, float dx, float dy, float dz, float r, float g, float b) {
+       // w=0 -> directional light (matches treating Room's lightPosition as a
+       // fixed direction rather than a point that would need real-world
+       // room-scale attenuation data we don't have).
+       glLightfv(light, GL_POSITION, new float[]{dx, dy, dz, 0f});
+       glLightfv(light, GL_DIFFUSE, new float[]{r, g, b, 1f});
+       glLightfv(light, GL_SPECULAR, new float[]{r, g, b, 1f});
+       glLightfv(light, GL_AMBIENT, new float[]{r * 0.15f, g * 0.15f, b * 0.15f, 1f}); // see class javadoc VERIFICAR note
+    }
 
    /** Real per-material RWX pipeline state: opacity (alpha blending) + MaterialModes Double/Null (backface culling) - see RwxMaterial javadoc for the real-corpus evidence (assets/GROUNDZERO/YARD_TABLE.RWX). */
    static void applyCulling(boolean doubleSided) {
@@ -76,15 +83,24 @@ final class GlLighting {
       }
    }
 
-   static void applyMaterial(RwxMaterial mat) {
-      float[] ambient = {mat.colorR * mat.ambient, mat.colorG * mat.ambient, mat.colorB * mat.ambient, mat.opacity};
-      float[] diffuse = {mat.colorR * mat.diffuse, mat.colorG * mat.diffuse, mat.colorB * mat.diffuse, mat.opacity};
-      float[] specular = {mat.specular, mat.specular, mat.specular, mat.opacity};
-      glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient);
-      glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse);
-      glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular);
-      glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, SHININESS);
-   }
+    static void applyMaterial(RwxMaterial mat) {
+       // Reference material model (see RwxMaterial javadoc): the base is
+       // white for textured materials (file Color ignored) and the file
+       // Color otherwise, scaled in both cases by brightnessRatio =
+       // max(effective surface). The same scaled base feeds BOTH the
+       // ambient and the diffuse response — mirroring how the reference
+       // multiplies one three.js color into every light term — instead of
+       // the old color×scalar diffuse with a ~zero ambient that stacked
+       // texture×color×N·L into near-black on every textured surface.
+       float[] base = mat.baseColor();
+       float ratio = mat.brightnessRatio();
+       float[] ambDiff = {base[0] * ratio, base[1] * ratio, base[2] * ratio, mat.opacity};
+       float[] specular = {mat.specular, mat.specular, mat.specular, mat.opacity};
+       glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambDiff);
+       glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, ambDiff);
+       glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular);
+       glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, SHININESS);
+    }
 
    /** Flat per-triangle face normal from real vertex positions (no explicit vertex normals are parsed yet - see docs). */
    static float[] faceNormal(float ax, float ay, float az, float bx, float by, float bz, float cx, float cy, float cz) {
