@@ -137,10 +137,23 @@ public final class CmpStage1 {
             // with alphabetSize 0 unpacked to all-zero lengths and sum==0).
             return t;
          }
-         int onlyLen = lengths[only];
+         // A single-symbol alphabet needs 0 bits per code, not lengths[only]
+         // (whatever nibble value the encoder happened to write - always 1 in
+         // every real corpus occurrence, since sum<=1 here forces it) - there
+         // is nothing to disambiguate with only one possible symbol. This was
+         // invisible whenever the channel's own wanted-symbol count was too
+         // small to ever trigger a byte reload either way (8/9 real corpus
+         // occurrences of this exact case have wanted-count 1, where lengths
+         // 0 and 1 produce byte-identical cursor state) but broke
+         // vendside2.cmp, whose degenerate streamCtrl channel wants 63
+         // symbols - decoding it with length 1 spuriously advances the
+         // shared bit cursor by ~7 bytes it should never have consumed,
+         // corrupting every following LIT symbol. See the matching
+         // `reloadedDuringChannel` fix below for the other half of this bug
+         // (the byte-realign amount before the next channel).
          for (int i = 0; i < 256; i++) {
             t.symbol[i] = only;
-            t.length[i] = onlyLen;
+            t.length[i] = 0;
          }
          return t;
       }
@@ -217,6 +230,16 @@ public final class CmpStage1 {
       int window;
       int bitsAvail;
       boolean primed = false;
+      // Whether decodeChannel's per-symbol loop ever had to refill the
+      // window from bc.src (i.e. consumed more than the 1 byte the initial
+      // ensurePrimed prefetch already covers). A channel whose every symbol
+      // costs 0 bits (the single-symbol-degenerate case above, when its
+      // wanted-count is large enough to matter, e.g. vendside2.cmp's 63-
+      // symbol streamCtrl) never touches its own prefetched 2nd byte at
+      // all - so the standard "back up 1 byte" before the next channel's
+      // byte-realign over-corrects by exactly 1 byte in that case. See use
+      // below.
+      boolean reloadedDuringChannel = false;
    }
 
    /** Skip n<=8 raw bits from the shared window without any table lookup. */
@@ -256,6 +279,7 @@ public final class CmpStage1 {
       byte[] out = new byte[wantedLen];
       if (wantedLen == 0) return out;
       ensurePrimed(bc);
+      bc.reloadedDuringChannel = false;
       int pos = bc.pos;
       int window = bc.window;
       int bitsAvail = bc.bitsAvail;
@@ -273,6 +297,7 @@ public final class CmpStage1 {
             int missing = length - oldBits;
             bitsAvail += 8;
             window = (window << missing) & 0xFFFF;
+            bc.reloadedDuringChannel = true;
          } else {
             window = (window << length) & 0xFFFF;
          }
@@ -392,13 +417,13 @@ public final class CmpStage1 {
       bc.src = groupRegion;
       bc.pos = 16; // right after the 16-byte group header
       byte[] bitsOut = decodeChannel(bc, huff[0], wanted[0]);
-      if (realign) { bc.pos -= 1; bc.primed = false; }
+      if (realign) { bc.pos -= (bc.reloadedDuringChannel ? 1 : 2); bc.primed = false; }
       byte[] streamAOut = decodeChannel(bc, huff[1], wanted[1]);
-      if (realign) { bc.pos -= 1; bc.primed = false; }
+      if (realign) { bc.pos -= (bc.reloadedDuringChannel ? 1 : 2); bc.primed = false; }
       byte[] fillIdxOut = decodeChannel(bc, huff[2], wanted[2]);
-      if (realign) { bc.pos -= 1; bc.primed = false; }
+      if (realign) { bc.pos -= (bc.reloadedDuringChannel ? 1 : 2); bc.primed = false; }
       byte[] ctrlOut = decodeChannel(bc, huff[3], wanted[3]);
-      if (realign) { bc.pos -= 1; bc.primed = false; }
+      if (realign) { bc.pos -= (bc.reloadedDuringChannel ? 1 : 2); bc.primed = false; }
       // Channel 4 (LIT): table construction traced fully via disassembly
       // (FUN_0044df50 is a plain memcpy of byteLen[4] raw bytes into a
       // scratch buffer, later lazily fed through the SAME
@@ -428,7 +453,14 @@ public final class CmpStage1 {
       // rkgrnd.cmp (realign-mode, mixed lengths, target=8 - the file
       // that exposed the bug). Root cause (why LIT specifically needs
       // byte alignment) still not pinned to a disassembly instruction,
-      // but the empirical rule is exact and reproducible.
+      // but the empirical rule is exact and reproducible. This is a
+      // SEPARATE, additional backup on top of the normal channel-transition
+      // one just above (LIT needs 1 extra byte of backup beyond every other
+      // channel, verified unconditionally across all 5 originally-fixed
+      // files) - so it stays a plain, unconditional -1 here; the
+      // reloadedDuringChannel adjustment for a fully zero-consumption
+      // preceding channel (vendside2.cmp's degenerate 63-symbol streamCtrl)
+      // is already applied once, on the transition above.
       if (realign) { bc.pos -= 1; bc.primed = false; }
       ensurePrimed(bc);
       skipRawBits(bc, bc.bitsAvail);
