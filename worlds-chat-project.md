@@ -3079,3 +3079,31 @@ que se vea el avatar y este todo bien"). Tres piezas, todo verificado:
    `--detach` verificados en `:100` (ventana, frame 0, kill limpio).
 
 Detalle en `docs/render-pipeline-reference.md`.
+
+### 🟢 Modo juego `--play`: tercera persona, suelo, colisión, avatar (2026-09-14)
+
+Pedido ("yo no veo ningun avatar, implementa ya el modo juego, no la
+camara libre sino el juego, planificalo antes de hacerlo y usa
+subagentes"). Planificado con 4 subagentes en paralelo (cámara/input
+actual, lógica del cliente original, mundo/colisiones, avatares/3ª
+persona) antes de escribir una línea. Todo verificado:
+
+- **Tercera persona** como el original (`HoloPilot` BEHIND/modos 3-8):
+  cámara tras la cabeza (pies+150 = `eyeHeight` real, dist 220 =
+  WIDESHOT), avatar `aura.bod` (default real) en bind pose con las 2
+  luces. Spawn `RestartAt` mirando al kiosko. W/S caminar, A/D strafe,
+  flechas girar/pitch, ESC salir. `run-game.sh` sin args = `--play`.
+- **Suelo** como `Room.floorHeight` (piso más alto <= pies+escalón 30,
+  de `HoloPilot.stepHeight`); **colisión** AABB x radio 30 (medio ancho
+  del bound box real) con slide por ejes; velocidad 250 (entre
+  `maxdvLR=166` y `maxdvFB=300` reales). Reception: 14 suelos, 28
+  bloqueantes, 8 portales.
+- **Verificado**: spawn 89 objetos/1 avatar/GL 0
+  (`docs/renders/world_play_spawn_thirdperson.png` — Aura de espaldas
+  ante el kiosko, colinas detrás); IconViewRoom1a 7 obj/2 avatares/GL
+  0; fly y ALL 25/25 sin regresión.
+- **Límites**: forward del .bod heurístico (acertó: mira al kiosko);
+  AABB no quads finos; portales solo se anuncian (fase 2);
+  bind pose sin animación.
+
+Detalle en `docs/render-pipeline-reference.md`.

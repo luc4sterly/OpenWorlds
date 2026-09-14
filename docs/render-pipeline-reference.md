@@ -459,3 +459,36 @@ RectPatch en Garden MazeC7b...) y los RectPatch v0 traen flags=0 (confirma
 por segunda via que v0 = invisible). Reception tiene 0 invisibles: su
 vista spawn es md5-identica antes/despues. LizCave pasa de 48 a 7 objetos
 (roca + 5 estalagmitas + cartel): cueva de musgo sin teal.
+
+## Modo juego `--play` (2026-09-14, tercera persona, ya no camara libre)
+
+**`WorldViewer --play`**: el juego en vez del visor. Tercera persona
+como el original (`HoloPilot` BEHIND por defecto, modos 3-8 del
+decompilado): camara detras de la cabeza (pies+150 = `eyeHeight` real
+de `SmoothDriver`/`HoloPilot.loadInit`, dist 220 = WIDESHOT modo 8)
+mirando al frente; avatar `aura.bod` (default real del cliente,
+`PosableShape.defaultURL`) en bind pose con las 2 luces, pies en el
+suelo. Spawn real `worlds.ini RestartAt` (Reception 1872,1229,150
+mirando al kiosko). Controles: W/S caminar, A/D strafe, flechas
+girar/pitch, ESC salir. `run-game.sh` sin args ya lanza `--play`.
+
+**Suelo**: `floorHeight` como `Room.floorHeight` del original (piso
+mas alto <= pies+escalon) sobre Rect/RectPatch visibles en coords
+mundo; sin caida libre (el original tampoco la tiene: `SmoothDriver`
+mantiene Z=eyeHeight+suelo cada frame). **Colision**: muros = Rects
+no-piso + bumpers invisibles como AABB expandidos por radio 30 (medio
+ancho del bound box real `setLocalBoundBox(-30,...)` de `HoloPilot`);
+movimiento por ejes con slide. Constantes reales documentadas en el
+codigo (`PLAY_EYE_HEIGHT/CAM_DIST/WALK_SPEED/RADIUS/STEP`).
+
+**Verificado**: Reception 14 suelos/28 bloqueantes/8 portales, 89
+objetos (1 avatar jugador), GL 0 (`world_play_spawn_thirdperson.png`:
+Aura de espaldas ante el kiosko texturizado, colinas detras);
+IconViewRoom1a 7 objetos (2 avatares: estatua + jugador), GL 0; modo
+fly y ALL 25/25 sin regresion (GL 0 en todo).
+
+**Limites honestos**: forward del .bod no verificado (se rota +X local
+al yaw — acertó a la primera: Aura mira al kiosko); AABB en vez de
+quads finos; portales fase 1 (se anuncian a <150, el `changeRoom` con
+farSide es fase 2, `WNode` ni modela destinos todavia); sin
+skin/animacion (bind pose, como las estatuas).

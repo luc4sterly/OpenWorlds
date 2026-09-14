@@ -188,18 +188,19 @@ public final class WorldViewer {
     private static File avatarDir;
     private static boolean avatarDirChecked = false;
 
-     public static void main(String[] args) throws Exception {
-        if (args.length < 2) {
-           System.err.println("Usage: WorldViewer <file.world> <roomName|ALL|--list-rooms> [--screenshot out.png] [--screenshot-dir outdir] [--window] [--fullscreen] [--inside] [--eye x,y,z] [--look x,y,z] [--up x,y,z]");
-           System.exit(2);
-        }
-        File worldFile = new File(args[0]);
-        String roomArg = args[1];
-        String screenshotPath = null;
-        String screenshotDir = null;
-        boolean windowed = false;
-        boolean inside = false;
-        boolean fullscreen = false;
+      public static void main(String[] args) throws Exception {
+         if (args.length < 2) {
+            System.err.println("Usage: WorldViewer <file.world> <roomName|ALL|--list-rooms> [--screenshot out.png] [--screenshot-dir outdir] [--window] [--fullscreen] [--inside] [--play] [--eye x,y,z] [--look x,y,z] [--up x,y,z]");
+            System.exit(2);
+         }
+         File worldFile = new File(args[0]);
+         String roomArg = args[1];
+         String screenshotPath = null;
+         String screenshotDir = null;
+         boolean windowed = false;
+         boolean inside = false;
+         boolean play = false;
+         boolean fullscreen = false;
        float[] eyeArg = null, lookArg = null, upArg = null;
        for (int i = 2; i < args.length; i++) {
           if (args[i].equals("--screenshot") && i + 1 < args.length) {
@@ -212,8 +213,14 @@ public final class WorldViewer {
               fullscreen = true;
               windowed = true; // fullscreen es una ventana visible interactiva
             } else if (args[i].equals("--inside")) {
+               inside = true;
+           } else if (args[i].equals("--play")) {
+              // Modo juego (tercera persona): implica camara interior +
+              // ventana, spawn en RestartAt, avatar del jugador, suelo y
+              // colision. Ver javadoc de clase y renderRoom.
+              play = true;
               inside = true;
-          } else if (args[i].equals("--eye") && i + 1 < args.length) {
+           } else if (args[i].equals("--eye") && i + 1 < args.length) {
              eyeArg = parseVec(args[++i], "--eye");
           } else if (args[i].equals("--look") && i + 1 < args.length) {
              lookArg = parseVec(args[++i], "--look");
@@ -275,7 +282,7 @@ public final class WorldViewer {
              System.out.println("---");
           }
           first = false;
-           renderRoom(room, roomName, out, windowed, inside, eyeArg, lookArg, upArg, fullscreen);
+            renderRoom(room, roomName, out, windowed, inside, eyeArg, lookArg, upArg, fullscreen, play);
        }
        printTextureCoverage();
     }
@@ -322,7 +329,7 @@ public final class WorldViewer {
     }
 
      private static void renderRoom(WNode room, String roomName, String screenshotPath, boolean visible,
-           boolean inside, float[] eyeArg, float[] lookArg, float[] upArg, boolean fullscreen) throws Exception {
+            boolean inside, float[] eyeArg, float[] lookArg, float[] upArg, boolean fullscreen, boolean play) throws Exception {
        drawnTriangles = 0;
        drawnObjects = 0;
        avatarDrawnCount = 0;
@@ -331,6 +338,12 @@ public final class WorldViewer {
        // Pre-load all geometry referenced in this room so we can report
        // real counts before opening a window (and compute a scene bounding
        // box from REAL loaded vertex data, not a guess).
+       // Estado del jugador (modo --play): pies en el mundo, yaw de facing.
+       // Spawn real del cliente: worlds.ini RestartAt =
+       // GroundZero.world#Reception<>@1872,1229,150,125,... El yaw 125 del
+       // .ini admite dos signos (ver run-game.sh): aqui se mira al kiosko
+       // (1290,865) igual que el default sin args, yaw=atan2(-364,-582).
+       float px = 1872f, py = 1229f, pz = 150f;
        float[] bbox = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
        int[] objectCount = {0};
        int loadedBefore = loadedCount;
@@ -354,6 +367,24 @@ public final class WorldViewer {
           if (bgCount[0] == 0) {
              bgBbox = null; // fondo vacio (23/25 en GroundZero): sin pasada propia
           }
+       }
+       // Terreno jugable (modo --play): suelos = Rect/RectPatch visibles
+       // (piso = Room.floorHeight del original: el mas alto <= z); muros =
+       // Rects no-piso + bumpers invisibles (*Bump, flags bit0=0);
+       // portales = nodos .Portal (fase 1: solo se anuncian, el cambio de
+       // sala real es fase 2). El fondo infinito es backdrop, no pisable.
+       List<float[][]> floorQuads = new ArrayList<>();
+       List<float[]> blockerBoxes = new ArrayList<>();
+       List<String> portalNames = new ArrayList<>();
+       List<float[]> portalPos = new ArrayList<>();
+       if (play) {
+          collectPlayfield(room, identity(), floorQuads, blockerBoxes, portalNames, portalPos);
+          if (room.environment != null) {
+             collectPlayfield(room.environment, identity(), floorQuads, blockerBoxes, portalNames, portalPos);
+          }
+          pz = floorHeightAt(floorQuads, px, py, pz + PLAY_STEP);
+          System.out.println("Playfield: " + floorQuads.size() + " floor quads, "
+             + blockerBoxes.size() + " blockers, " + portalNames.size() + " portals");
        }
        System.out.println("Room \"" + roomName + "\": " + objectCount[0] + " objects placed, "
           + (loadedCount - loadedBefore) + " real geometry files loaded, " + (missingCount - missingBefore) + " missing on disk, "
@@ -434,6 +465,12 @@ public final class WorldViewer {
       if (inside) {
          up = upArg != null ? upArg.clone() : new float[]{0, 0, 1};
          upZ = up[2] > 0.9f;
+         if (play) {
+            yaw = (float) Math.atan2(865f - 1229f, 1290f - 1872f);
+            pitch = 0f;
+            System.out.println("Play mode: spawn Reception (1872,1229,150) facing kiosk, yaw=" + yaw
+               + " avatar=aura.bod (default real del cliente)");
+         } else {
          float[] look;
          if (eyeArg != null && lookArg != null) {
             eye = eyeArg.clone();
@@ -455,9 +492,14 @@ public final class WorldViewer {
          }
           System.out.println("Interior camera: eye=(" + eye[0] + "," + eye[1] + "," + eye[2] + ") yaw=" + yaw
              + " pitch=" + pitch + " up=(" + up[0] + "," + up[1] + "," + up[2] + ")");
-         if (visible) {
-            System.out.println("Controls: W/S fly, A/D strafe, arrows turn/pitch, E/Q up/down, ESC exits");
          }
+          if (visible) {
+             if (play) {
+                System.out.println("Controls (play): W/S walk, A/D strafe, arrows turn/pitch camera, ESC exits");
+             } else {
+                System.out.println("Controls: W/S fly, A/D strafe, arrows turn/pitch, E/Q up/down, ESC exits");
+             }
+          }
       }
       // Hidden/offscreen mode: exactly 1 frame when a screenshot is asked
       // for (batch/ALL use), infinite only if a human is expected to look
@@ -487,7 +529,39 @@ public final class WorldViewer {
          double now = glfwGetTime();
          float dt = (float) Math.min(0.1, Math.max(1e-3, now - lastTime));
          lastTime = now;
-         if (inside && visible) {
+         if (play && visible) {
+            // Modo juego: arcade como SmoothDriver del original (fuerzas
+            // con damping -> aqui velocidad constante honesta y simple):
+            // flechas L/R giran, W/S caminan sobre el plano, A/D strafe,
+            // sin volar (E/Q no hacen nada). Movimiento por ejes con slide
+            // contra bloqueantes; pies pegados al suelo (Room.floorHeight:
+            // el original tampoco tiene caida libre global).
+            float turn = (float) Math.toRadians(60) * dt;
+            if (isDown(window, GLFW_KEY_LEFT)) yaw -= turn;
+            if (isDown(window, GLFW_KEY_RIGHT)) yaw += turn;
+            if (isDown(window, GLFW_KEY_UP)) pitch = Math.min(1.55f, pitch + turn);
+            if (isDown(window, GLFW_KEY_DOWN)) pitch = Math.max(-1.55f, pitch - turn);
+            float fx = (float) Math.cos(yaw), fy = (float) Math.sin(yaw);
+            float rx = -fy, ry = fx;
+            float step = PLAY_WALK_SPEED * dt;
+            float dx = 0f, dy = 0f;
+            if (isDown(window, GLFW_KEY_W)) { dx += fx * step; dy += fy * step; }
+            if (isDown(window, GLFW_KEY_S)) { dx -= fx * step; dy -= fy * step; }
+            if (isDown(window, GLFW_KEY_D)) { dx += rx * step; dy += ry * step; }
+            if (isDown(window, GLFW_KEY_A)) { dx -= rx * step; dy -= ry * step; }
+            if (dx != 0f || dy != 0f) {
+               float nx = px + dx;
+               if (!hitsBlocker(blockerBoxes, nx, py, pz)) {
+                  px = nx;
+               }
+               float ny = py + dy;
+               if (!hitsBlocker(blockerBoxes, px, ny, pz)) {
+                  py = ny;
+               }
+               pz = floorHeightAt(floorQuads, px, py, pz + PLAY_STEP);
+               checkPortals(portalNames, portalPos, px, py, pz);
+            }
+         } else if (inside && visible) {
             // Fly controls: 60 deg/s turn, radius*0.25/s fly speed (a
             // ~6200-unit room crosses in a few seconds, a small prop room
             // stays controllable - both scale from real scene data).
@@ -525,7 +599,7 @@ public final class WorldViewer {
              GlUtil.perspective(60f, (float) width / height, bgNear, bgFar);
              glMatrixMode(GL_MODELVIEW);
              glLoadIdentity();
-             if (inside) {
+          if (inside) {
                 float[] fwdBg = fwdFromYawPitch(yaw, pitch, upZ);
                 GlUtil.lookAt(0, 0, 0, fwdBg[0], fwdBg[1], fwdBg[2], up[0], up[1], up[2]);
              } else {
@@ -577,7 +651,17 @@ public final class WorldViewer {
 
           glMatrixMode(GL_MODELVIEW);
           glLoadIdentity();
-          if (inside) {
+          if (play) {
+             // Tercera persona como el original (HoloPilot BEHIND):
+             // camara detras de la cabeza (pies+150 = eyeHeight real
+             // de SmoothDriver/HoloPilot) mirando hacia adelante; las
+             // flechas UP/DOWN (pitch) la suben/bajan.
+             float[] fwd = fwdFromYawPitch(yaw, pitch, true);
+             float hx = px, hy = py, hz = pz + PLAY_EYE_HEIGHT;
+             GlUtil.lookAt(hx - fwd[0] * PLAY_CAM_DIST, hy - fwd[1] * PLAY_CAM_DIST,
+                hz - fwd[2] * PLAY_CAM_DIST, hx + fwd[0] * 10f, hy + fwd[1] * 10f,
+                hz + fwd[2] * 10f, 0, 0, 1);
+          } else if (inside) {
              float[] fwd = fwdFromYawPitch(yaw, pitch, upZ);
              GlUtil.lookAt(eye[0], eye[1], eye[2], eye[0] + fwd[0], eye[1] + fwd[1], eye[2] + fwd[2], up[0], up[1], up[2]);
           } else {
@@ -592,6 +676,20 @@ public final class WorldViewer {
            drawNode(room);
            if (room.environment != null) {
               drawNode(room.environment);
+           }
+           if (play) {
+              // Avatar del jugador (aura.bod = default real del cliente,
+              // PosableShape.defaultURL): pies en (px,py,pz), bind pose con
+              // las 2 luces como cualquier otro avatar. El eje forward del
+              // .bod no esta verificado: se rota el +X local al yaw
+              // (HEURISTICA DOCUMENTADA, igual nivel que BOD_WORLD_SCALE).
+              glPushMatrix();
+              glTranslatef(px, py, pz);
+              glRotatef((float) Math.toDegrees(yaw), 0, 0, 1);
+              if (drawAvatar(PLAY_AVATAR_URL)) {
+                 drawnObjects++;
+              }
+              glPopMatrix();
            }
 
           if (!inside) {
@@ -615,6 +713,9 @@ public final class WorldViewer {
 
        System.out.println("Drew " + drawnObjects + " objects (" + avatarDrawnCount + " avatars, "
           + avatarFallbackCount + " via aura.bod fallback), " + drawnTriangles + " triangles this frame. GL error: " + glGetError());
+       if (play) {
+          System.out.println("Player at (" + px + "," + py + "," + pz + ") yaw=" + yaw);
+       }
 
       glfwDestroyWindow(window);
       glfwTerminate();
@@ -1608,6 +1709,158 @@ public final class WorldViewer {
 
     private static float[] identity() {
        return new float[]{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    }
+
+    // --- Modo juego (--play): constantes del cliente original ---
+    // PLAY_EYE_HEIGHT=150: SmoothDriver.eyeHeight / HoloPilot.loadInit.
+    // PLAY_CAM_DIST=220: HoloPilot WIDESHOT (modo 8) moveTo(0,-220,-40).
+    // PLAY_WALK_SPEED=250: entre maxdvLR=166 y maxdvFB=300 de SmoothDriver.
+    // PLAY_RADIUS=30: medio ancho del bound box real setLocalBoundBox(
+    // -30,-30,-v / 30,50,20) de HoloPilot. PLAY_STEP=30: stepHeight real.
+    private static final float PLAY_EYE_HEIGHT = 150f;
+    private static final float PLAY_CAM_DIST = 220f;
+    private static final float PLAY_WALK_SPEED = 250f;
+    private static final float PLAY_RADIUS = 30f;
+    private static final float PLAY_STEP = 30f;
+    private static final String PLAY_AVATAR_URL = "avatar:Aura.rwg";
+    private static final java.util.Set<String> announcedPortals = new java.util.HashSet<>();
+
+    /** Recorre el arbol real y clasifica geometria jugable (ver llamada en
+     * renderRoom): suelos = Rect/RectPatch visibles (quads en coords mundo);
+     * bloqueantes = AABB mundo de Rects no-piso + TODO Rect invisible
+     * (bumper, visible o no: un bumper nunca se pisa); portales = nodos
+     * .Portal con su posicion mundo (fase 1: solo anuncio). */
+    private static void collectPlayfield(WNode n, float[] parentToWorld,
+          List<float[][]> floors, List<float[]> blockers,
+          List<String> portalNames, List<float[]> portalPos) {
+       float[] here = n.matrix != null ? multiply(parentToWorld, n.matrix) : parentToWorld;
+       if (n.className.endsWith("Portal")) {
+          float[] p = transformPoint(here, 0, 0, 0);
+          portalNames.add(n.className + (n.name != null ? "[" + n.name + "]" : ""));
+          portalPos.add(p);
+       }
+       if (isRect(n)) {
+          float[][] q = new float[4][];
+          for (int i = 0; i < 4; i++) {
+             q[i] = transformPoint(here, RECT_CORNERS[i][0], RECT_CORNERS[i][1], RECT_CORNERS[i][2]);
+          }
+          if (n.isVisible() && isFloorQuad(q)) {
+             floors.add(q);
+          } else {
+             blockers.add(quadAabb(q));
+          }
+       }
+       if (isRectPatch(n) && n.rpVersion != 0) {
+          float[][] q = new float[][]{
+             transformPoint(here, 0, 0, n.rpZ[0]),
+             transformPoint(here, n.rpXDim, 0, n.rpZ[1]),
+             transformPoint(here, n.rpXDim, n.rpYDim, n.rpZ[2]),
+             transformPoint(here, 0, n.rpYDim, n.rpZ[3])};
+          if (n.isVisible()) {
+             floors.add(q);
+          } else {
+             blockers.add(quadAabb(q));
+          }
+       }
+       for (WNode c : n.children) {
+          collectPlayfield(c, here, floors, blockers, portalNames, portalPos);
+       }
+    }
+
+    /** Un quad es piso si su normal apunta a +-Z (los muros de Reception
+     * traen escala (2149,2,400): normal horizontal; los suelos son planos
+     * X/Y en mundo). Umbral 0.7 honesto y documentado. */
+    private static boolean isFloorQuad(float[][] q) {
+       float[] ux = {q[1][0] - q[0][0], q[1][1] - q[0][1], q[1][2] - q[0][2]};
+       float[] vx = {q[3][0] - q[0][0], q[3][1] - q[0][1], q[3][2] - q[0][2]};
+       float nx = ux[1] * vx[2] - ux[2] * vx[1];
+       float ny = ux[2] * vx[0] - ux[0] * vx[2];
+       float nz = ux[0] * vx[1] - ux[1] * vx[0];
+       float l = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+       return l > 0 && Math.abs(nz / l) > 0.7f;
+    }
+
+    private static float[] quadAabb(float[][] q) {
+       float[] b = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE,
+          -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+       for (float[] c : q) {
+          b[0] = Math.min(b[0], c[0]); b[1] = Math.min(b[1], c[1]); b[2] = Math.min(b[2], c[2]);
+          b[3] = Math.max(b[3], c[0]); b[4] = Math.max(b[4], c[1]); b[5] = Math.max(b[5], c[2]);
+       }
+       return b;
+    }
+
+    /** Room.floorHeight del original: el techo de piso mas alto que no
+     * este por encima de los pies + escalon. Si no hay nada debajo, se
+     * conserva z (sin caida libre: el original tampoco la tiene). El
+     * techo del quad se aproxima por su esquina mas alta (documentado). */
+    private static float floorHeightAt(List<float[][]> floors, float x, float y, float z) {
+       float best = Float.NEGATIVE_INFINITY;
+       boolean found = false;
+       for (float[][] q : floors) {
+          float top = q[0][2];
+          for (int i = 1; i < 4; i++) {
+             top = Math.max(top, q[i][2]);
+          }
+          if (top > z) {
+             continue;
+          }
+          if (pointInQuad2D(q, x, y) && (!found || top > best)) {
+             best = top;
+             found = true;
+          }
+       }
+       return found ? best : z;
+    }
+
+    private static boolean pointInQuad2D(float[][] q, float x, float y) {
+       return pointInTri2D(q[0], q[1], q[2], x, y) || pointInTri2D(q[0], q[2], q[3], x, y);
+    }
+
+    private static boolean pointInTri2D(float[] a, float[] b, float[] c, float x, float y) {
+       float d1 = sign2D(x, y, a, b);
+       float d2 = sign2D(x, y, b, c);
+       float d3 = sign2D(x, y, c, a);
+       boolean neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+       boolean pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+       return !(neg && pos);
+    }
+
+    private static float sign2D(float x, float y, float[] a, float[] b) {
+       return (x - b[0]) * (a[1] - b[1]) - (a[0] - b[0]) * (y - b[1]);
+    }
+
+    /** Colision como AABB expandido por PLAY_RADIUS (aproximacion
+     * documentada: los muros/bumpers reales son quads finos, no cajas).
+     * Se ignoran bloqueantes por encima de la cabeza o bajo los pies. */
+    private static boolean hitsBlocker(List<float[]> blockers, float x, float y, float feetZ) {
+       for (float[] b : blockers) {
+          if (b[2] > feetZ + PLAY_EYE_HEIGHT + PLAY_STEP) {
+             continue; // por encima de la cabeza
+          }
+          if (b[5] < feetZ + PLAY_STEP) {
+             continue; // bajo los pies (suelo cercano, no muro)
+          }
+          if (x > b[0] - PLAY_RADIUS && x < b[3] + PLAY_RADIUS
+             && y > b[1] - PLAY_RADIUS && y < b[4] + PLAY_RADIUS) {
+             return true;
+          }
+       }
+       return false;
+    }
+
+    /** Fase 1 de portales: anunciar cercania (<150, radio del bound box
+     * x altura de ojo). El cambio de sala real (changeRoom + farSide) es
+     * fase 2: WNode ni siquiera modela los destinos todavia. */
+    private static void checkPortals(List<String> names, List<float[]> pos, float x, float y, float z) {
+       for (int i = 0; i < names.size(); i++) {
+          float[] p = pos.get(i);
+          float dx = p[0] - x, dy = p[1] - y, dz = p[2] - z;
+          if (dx * dx + dy * dy + dz * dz < 150f * 150f && announcedPortals.add(names.get(i))) {
+             System.out.println("Portal cerca: " + names.get(i)
+                + " (cambio de sala: fase 2, aun no implementado)");
+          }
+       }
     }
 
     /** Forward vector from yaw/pitch. Z-up (client convention): yaw spins

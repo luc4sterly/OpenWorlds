@@ -112,9 +112,9 @@ fi
 # contra el VMware maximizado en esta maquina) + auto-focus via
 # bring_to_front.py al aparecer.
 if [ ${#ARGS[@]} -eq 0 ] && [ "$ROOM" = "Reception" ]; then
-   ARGS=(--inside --window --eye 1872,1229,150 --look 1290,865,150)
+   ARGS=(--play)
    AUTOSHOT=0
-   echo "[run-game] sin args: ventana GroundZero (spawn real Reception, mirando al kiosko; ESC para salir)"
+   echo "[run-game] sin args: modo juego en spawn real Reception (avatar, WASD; ESC para salir)"
 fi
 HAS_OUT=0
 for a in "${ARGS[@]}"; do
