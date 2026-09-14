@@ -492,3 +492,28 @@ al yaw — acertó a la primera: Aura mira al kiosko); AABB en vez de
 quads finos; portales fase 1 (se anuncian a <150, el `changeRoom` con
 farSide es fase 2, `WNode` ni modela destinos todavia); sin
 skin/animacion (bind pose, como las estatuas).
+
+## Modo juego: bug del vuelo al cielo encontrado y corregido (2026-09-14)
+
+**Bug real**: al andar, el jugador salia volando (`Player at z=2250`).
+Causa raiz con matematica exacta: `floorHeightAt` devolvia su parametro
+`z` cuando no habia suelo, y se la llamaba con `z=pies+30` — cada frame
+andando sobre vacio sumaba +30 (180+69x30=2250 exactos del log).
+Arreglo: el contrato ahora es `floorHeightAt(x,y,pies)` (+STEP dentro,
+pies si no hay nada). Verificado con harness headless (`/tmp/WalkTest`:
+800 pasos hacia el kiosko con el codigo real por reflexion): antes
+180->1890, ahora z clavado + parada por muro.
+
+**Colision de props**: el mobiliario (kiosko) son props `.rwx` sin
+Rect — se atravesaban. `collectPlayfield` ahora recoge sus triangulos
+en coords mundo (100 en Reception): suelo exacto por plano baricentrico
++ AABB por prop que para si supera pies+STEP (si no, se pisa: escalon
+fiel). Efecto colateral bueno: el suelo visual del spawn ES prop (z=0;
+el `150` de RestartAt era altura de ojo, no pies). Bumpers invisibles
+paran siempre (flag b[6]); empotrado contra muro ya no re-fija suelo
+(no mas ratchet). Ventana 20s quieta: pos exacta al milimetro.
+
+**Ventana**: `--play` no activaba `bring_to_front.py` (patron sin
+`--play`) y podia abrirse oculta en el escritorio — anadido.
+Contadores `Drew/N avatars` ahora por frame (acumulaban la sesion:
+"272 avatars" = 1x272 frames).

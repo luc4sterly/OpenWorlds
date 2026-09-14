@@ -375,16 +375,24 @@ public final class WorldViewer {
        // sala real es fase 2). El fondo infinito es backdrop, no pisable.
        List<float[][]> floorQuads = new ArrayList<>();
        List<float[]> blockerBoxes = new ArrayList<>();
+       // Triangulos de props (.rwx/.rwg, coords mundo, 9 floats): el
+       // mobiliario tambien es suelo y tambien estorba. Se recogen aqui
+       // (modelos ya en cache por preload) en vez de re-leer disco.
+       List<float[]> propTris = new ArrayList<>();
        List<String> portalNames = new ArrayList<>();
        List<float[]> portalPos = new ArrayList<>();
        if (play) {
-          collectPlayfield(room, identity(), floorQuads, blockerBoxes, portalNames, portalPos);
+          collectPlayfield(room, identity(), floorQuads, blockerBoxes, propTris, portalNames, portalPos);
           if (room.environment != null) {
-             collectPlayfield(room.environment, identity(), floorQuads, blockerBoxes, portalNames, portalPos);
+             collectPlayfield(room.environment, identity(), floorQuads, blockerBoxes, propTris, portalNames, portalPos);
           }
-          pz = floorHeightAt(floorQuads, px, py, pz + PLAY_STEP);
+          pz = floorHeightAt(floorQuads, propTris, px, py, pz);
           System.out.println("Playfield: " + floorQuads.size() + " floor quads, "
+             + propTris.size() + " prop tris, "
              + blockerBoxes.size() + " blockers, " + portalNames.size() + " portals");
+          if (hitsBlocker(blockerBoxes, px, py, pz)) {
+             System.out.println("WARNING: el spawn (" + px + "," + py + "," + pz + ") nace dentro de un bloqueante");
+          }
        }
        System.out.println("Room \"" + roomName + "\": " + objectCount[0] + " objects placed, "
           + (loadedCount - loadedBefore) + " real geometry files loaded, " + (missingCount - missingBefore) + " missing on disk, "
@@ -529,6 +537,12 @@ public final class WorldViewer {
          double now = glfwGetTime();
          float dt = (float) Math.min(0.1, Math.max(1e-3, now - lastTime));
          lastTime = now;
+         // Contadores POR FRAME (antes acumulaban toda la sesion y el
+         // resumen final mentia: "272 avatars" = 1 avatar x 272 frames).
+         drawnTriangles = 0;
+         drawnObjects = 0;
+         avatarDrawnCount = 0;
+         avatarFallbackCount = 0;
          if (play && visible) {
             // Modo juego: arcade como SmoothDriver del original (fuerzas
             // con damping -> aqui velocidad constante honesta y simple):
@@ -550,16 +564,27 @@ public final class WorldViewer {
             if (isDown(window, GLFW_KEY_D)) { dx += rx * step; dy += ry * step; }
             if (isDown(window, GLFW_KEY_A)) { dx -= rx * step; dy -= ry * step; }
             if (dx != 0f || dy != 0f) {
+               boolean movedX = false, movedY = false;
                float nx = px + dx;
                if (!hitsBlocker(blockerBoxes, nx, py, pz)) {
                   px = nx;
+                  movedX = true;
                }
                float ny = py + dy;
                if (!hitsBlocker(blockerBoxes, px, ny, pz)) {
                   py = ny;
+                  movedY = true;
                }
-               pz = floorHeightAt(floorQuads, px, py, pz + PLAY_STEP);
-               checkPortals(portalNames, portalPos, px, py, pz);
+               // Sin snap si el muro te paro en seco: re-fijar el suelo
+               // contra geometria que te rodea es lo que lanzaba al
+               // jugador al cielo (empotrado + ratchet, 2026-09-14).
+               if (movedX || movedY) {
+                  pz = floorHeightAt(floorQuads, propTris, px, py, pz);
+                  checkPortals(portalNames, portalPos, px, py, pz);
+               }
+            }
+            if (frame % 300 == 0) {
+               System.out.println("Player at (" + px + "," + py + "," + pz + ") yaw=" + yaw + " frame=" + frame);
             }
          } else if (inside && visible) {
             // Fly controls: 60 deg/s turn, radius*0.25/s fly speed (a
@@ -868,7 +893,6 @@ public final class WorldViewer {
              if (aura != null) {
                 av = assembleAvatar(aura, true);
                 if (av != null) {
-                   avatarFallbackCount++;
                    System.out.println("Avatar \"" + url + "\": no hay .bod propio, usando aura.bod (default real del cliente)");
                 }
              }
@@ -1088,6 +1112,9 @@ public final class WorldViewer {
        glEnable(GL_CULL_FACE);
        drawnTriangles += av.tris.size();
        avatarDrawnCount++;
+       if (av.usedFallback) {
+          avatarFallbackCount++;
+       }
        return true;
     }
 
@@ -1726,18 +1753,46 @@ public final class WorldViewer {
     private static final java.util.Set<String> announcedPortals = new java.util.HashSet<>();
 
     /** Recorre el arbol real y clasifica geometria jugable (ver llamada en
-     * renderRoom): suelos = Rect/RectPatch visibles (quads en coords mundo);
-     * bloqueantes = AABB mundo de Rects no-piso + TODO Rect invisible
-     * (bumper, visible o no: un bumper nunca se pisa); portales = nodos
-     * .Portal con su posicion mundo (fase 1: solo anuncio). */
+     * renderRoom): suelos = Rect/RectPatch visibles (quads en coords mundo)
+     * + triangulos de props; bloqueantes = AABB mundo (b[6]=1 si es bumper
+     * invisible: esos paran SIEMPRE) de Rects no-piso + invisibles + AABB
+     * por prop; portales = nodos .Portal con su posicion mundo (fase 1:
+     * solo anuncio). El fondo infinito es backdrop, no pisable. */
     private static void collectPlayfield(WNode n, float[] parentToWorld,
-          List<float[][]> floors, List<float[]> blockers,
+          List<float[][]> floors, List<float[]> blockers, List<float[]> propTris,
           List<String> portalNames, List<float[]> portalPos) {
        float[] here = n.matrix != null ? multiply(parentToWorld, n.matrix) : parentToWorld;
        if (n.className.endsWith("Portal")) {
           float[] p = transformPoint(here, 0, 0, 0);
           portalNames.add(n.className + (n.name != null ? "[" + n.name + "]" : ""));
           portalPos.add(p);
+       }
+       if (n.geometryUrl != null && !n.geometryUrl.startsWith("avatar:")) {
+          // Props (.rwx/.rwg): el mobiliario tambien es suelo y tambien
+          // estorba. Sin esto se atraviesa el kiosko andando y el snap de
+          // suelo encadena superficies hasta el cielo (bug real 2026-09-14:
+          // Player at z=2250). Modelos ya en cache por preload.
+          RwxModel model = loadModel(n.geometryUrl);
+          if (model != null) {
+             float[] box = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE,
+                -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, 0f};
+             for (int[] t : model.triangles) {
+                float[] a = transformPoint(here, model.vertices.get(t[0]).x,
+                   model.vertices.get(t[0]).y, model.vertices.get(t[0]).z);
+                float[] b = transformPoint(here, model.vertices.get(t[1]).x,
+                   model.vertices.get(t[1]).y, model.vertices.get(t[1]).z);
+                float[] c = transformPoint(here, model.vertices.get(t[2]).x,
+                   model.vertices.get(t[2]).y, model.vertices.get(t[2]).z);
+                propTris.add(new float[]{a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]});
+                for (float[] v : new float[][]{a, b, c}) {
+                   box[0] = Math.min(box[0], v[0]); box[1] = Math.min(box[1], v[1]); box[2] = Math.min(box[2], v[2]);
+                   box[3] = Math.max(box[3], v[0]); box[4] = Math.max(box[4], v[1]); box[5] = Math.max(box[5], v[2]);
+                }
+             }
+             if (box[0] <= box[3]) {
+                blockers.add(box);
+             }
+          }
        }
        if (isRect(n)) {
           float[][] q = new float[4][];
@@ -1747,7 +1802,11 @@ public final class WorldViewer {
           if (n.isVisible() && isFloorQuad(q)) {
              floors.add(q);
           } else {
-             blockers.add(quadAabb(q));
+             float[] b = quadAabb(q);
+             if (!n.isVisible()) {
+                b[6] = 1f; // bumper: pared invisible, nunca se pisa ni se salta
+             }
+             blockers.add(b);
           }
        }
        if (isRectPatch(n) && n.rpVersion != 0) {
@@ -1759,11 +1818,13 @@ public final class WorldViewer {
           if (n.isVisible()) {
              floors.add(q);
           } else {
-             blockers.add(quadAabb(q));
+             float[] b = quadAabb(q);
+             b[6] = 1f;
+             blockers.add(b);
           }
        }
        for (WNode c : n.children) {
-          collectPlayfield(c, here, floors, blockers, portalNames, portalPos);
+          collectPlayfield(c, here, floors, blockers, propTris, portalNames, portalPos);
        }
     }
 
@@ -1781,8 +1842,10 @@ public final class WorldViewer {
     }
 
     private static float[] quadAabb(float[][] q) {
+       // b[6]: 1 = bumper invisible (para SIEMPRE, aunque este a ras de
+       // suelo), 0 = geometria normal (se puede pisar si es baja).
        float[] b = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE,
-          -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+          -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, 0f};
        for (float[] c : q) {
           b[0] = Math.min(b[0], c[0]); b[1] = Math.min(b[1], c[1]); b[2] = Math.min(b[2], c[2]);
           b[3] = Math.max(b[3], c[0]); b[4] = Math.max(b[4], c[1]); b[5] = Math.max(b[5], c[2]);
@@ -1790,11 +1853,16 @@ public final class WorldViewer {
        return b;
     }
 
-    /** Room.floorHeight del original: el techo de piso mas alto que no
-     * este por encima de los pies + escalon. Si no hay nada debajo, se
-     * conserva z (sin caida libre: el original tampoco la tiene). El
-     * techo del quad se aproxima por su esquina mas alta (documentado). */
-    private static float floorHeightAt(List<float[][]> floors, float x, float y, float z) {
+    /** Room.floorHeight del original: el piso mas alto que no este por
+     * encima de los pies + escalon (stepHeight=30 real). Si no hay nada
+     * debajo, devuelve LOS PIES (no el limite consultado: devolver z
+     * con z=pies+STEP fue el bug que lanzaba al jugador al cielo a
+     * +30/frame al andar sobre vacio — 2026-09-14, Player at z=2250 =
+     * 180+69x30 exactos). Quads: techo = esquina mas alta (aproximacion
+     * documentada); tris de props: z interpolada en el plano (exacta). */
+    private static float floorHeightAt(List<float[][]> floors, List<float[]> tris,
+          float x, float y, float feetZ) {
+       float z = feetZ + PLAY_STEP;
        float best = Float.NEGATIVE_INFINITY;
        boolean found = false;
        for (float[][] q : floors) {
@@ -1810,7 +1878,36 @@ public final class WorldViewer {
              found = true;
           }
        }
-       return found ? best : z;
+       for (float[] t : tris) {
+          float tz = triHeightAt(t, x, y);
+          if (Float.isNaN(tz) || tz > z) {
+             continue;
+          }
+          if (!found || tz > best) {
+             best = tz;
+             found = true;
+          }
+       }
+       return found ? best : feetZ;
+    }
+
+    /** z del plano del triangulo en (x,y), o NaN si (x,y) cae fuera o el
+     * triangulo es vertical/degenerado en 2D. */
+    private static float triHeightAt(float[] t, float x, float y) {
+       float ax = t[0], ay = t[1], az = t[2];
+       float bx = t[3], by = t[4], bz = t[5];
+       float cx = t[6], cy = t[7], cz = t[8];
+       float den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+       if (Math.abs(den) < 1e-9f) {
+          return Float.NaN;
+       }
+       float wa = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / den;
+       float wb = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / den;
+       float wc = 1f - wa - wb;
+       if (wa < 0f || wb < 0f || wc < 0f) {
+          return Float.NaN;
+       }
+       return wa * az + wb * bz + wc * cz;
     }
 
     private static boolean pointInQuad2D(float[][] q, float x, float y) {
@@ -1831,15 +1928,24 @@ public final class WorldViewer {
     }
 
     /** Colision como AABB expandido por PLAY_RADIUS (aproximacion
-     * documentada: los muros/bumpers reales son quads finos, no cajas).
-     * Se ignoran bloqueantes por encima de la cabeza o bajo los pies. */
+     * documentada: la geometria real son quads/tris finos, no cajas).
+     * Regla por altura, fiel al stepHeight=30 real: lo que supera los
+     * pies + escalon para (muro/mueble), lo bajo se pisa, lo que esta
+     * por encima de la cabeza no existe. Los bumpers invisibles (b[6])
+     * paran SIEMPRE: son paredes de colision, nunca escalones. */
     private static boolean hitsBlocker(List<float[]> blockers, float x, float y, float feetZ) {
        for (float[] b : blockers) {
-          if (b[2] > feetZ + PLAY_EYE_HEIGHT + PLAY_STEP) {
-             continue; // por encima de la cabeza
-          }
-          if (b[5] < feetZ + PLAY_STEP) {
-             continue; // bajo los pies (suelo cercano, no muro)
+          if (b.length > 6 && b[6] == 1f) {
+             if (b[2] > feetZ + PLAY_EYE_HEIGHT) {
+                continue; // por encima de la cabeza
+             }
+          } else {
+             if (b[5] <= feetZ + PLAY_STEP) {
+                continue; // bajo o a ras de pies: se pisa, no para
+             }
+             if (b[2] > feetZ + PLAY_EYE_HEIGHT) {
+                continue; // por encima de la cabeza
+             }
           }
           if (x > b[0] - PLAY_RADIUS && x < b[3] + PLAY_RADIUS
              && y > b[1] - PLAY_RADIUS && y < b[4] + PLAY_RADIUS) {

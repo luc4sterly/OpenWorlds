@@ -3107,3 +3107,17 @@ persona) antes de escribir una línea. Todo verificado:
   bind pose sin animación.
 
 Detalle en `docs/render-pipeline-reference.md`.
+
+### 🟥 Modo juego roto y arreglado en la misma sesion (2026-09-14)
+
+El modo `--play` salia volando al andar (`Player at z=2250`) — con
+toda la razon del usuario ("no va ni de puta coña"). Causa raiz
+verificada con matematica exacta, no supuesta: `floorHeightAt`
+devolvia su parametro `z` si no habia suelo y se la llamaba con
+`z=pies+30` (+30/frame sobre vacio: 180+69x30=2250). Contrato
+corregido (devuelve los pies), mas: colision y suelo de props `.rwx`
+(el kiosko se atravesaba; 100 tris en Reception, suelo exacto
+baricentrico), bumpers que paran siempre, sin re-snap empotrado, foco
+de ventana para `--play`, contadores por frame. Verificado: harness
+headless 800 pasos (z clavado, parada por muro), batch GL 0, ventana
+20s quieta sin deriva. Detalle en `docs/render-pipeline-reference.md`.

@@ -147,7 +147,7 @@ echo "--- juego ---"
 # esta maquina). El focuser espera hasta 30s (cubre la decodificacion
 # de texturas al arrancar) y falla en silencio si no hay X.
 case " ${ARGS[*]} " in
-   *" --window "*|*" --fullscreen "*|*" --inside "*)
+   *" --window "*|*" --fullscreen "*|*" --inside "*|*" --play "*)
       (python3 "$ROOT/tools/bring_to_front.py" --title "FreeWorlds World Viewer" >>"$LOG" 2>&1 &) ;;
 esac
 if [ "$DETACH" = 1 ]; then
