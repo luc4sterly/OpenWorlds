@@ -705,12 +705,17 @@ public final class WorldViewer {
            if (play) {
               // Avatar del jugador (aura.bod = default real del cliente,
               // PosableShape.defaultURL): pies en (px,py,pz), bind pose con
-              // las 2 luces como cualquier otro avatar. El eje forward del
-              // .bod no esta verificado: se rota el +X local al yaw
-              // (HEURISTICA DOCUMENTADA, igual nivel que BOD_WORLD_SCALE).
+              // las 2 luces como cualquier otro avatar. Forward VERIFICADO:
+              // cara y puntas de pies en +Z local del .bod (Y-up), coleta y
+              // talones en -Z — medido en SPIN.RWX (cabeza z -0.006/+0.043,
+              // pie -0.005/+0.059) y en bytes de aura.bod (coleta -Z, cara
+              // +Z); RWXTOBOD.PL pasa ejes sin tocar (swap solo con flag).
+              // El +Z bod mapea a +Y mundo (drawAvatar), y tras glRotate(t)
+              // sobre Z el forward (0,1,0) va a (-sin t,cos t): igualar al
+              // facing (cos yaw,sin yaw) da t = yaw-90 (algebra, no prueba).
               glPushMatrix();
               glTranslatef(px, py, pz);
-              glRotatef((float) Math.toDegrees(yaw), 0, 0, 1);
+              glRotatef((float) Math.toDegrees(yaw) - 90f, 0, 0, 1);
               if (drawAvatar(PLAY_AVATAR_URL)) {
                  drawnObjects++;
               }

@@ -3121,3 +3121,23 @@ baricentrico), bumpers que paran siempre, sin re-snap empotrado, foco
 de ventana para `--play`, contadores por frame. Verificado: harness
 headless 800 pasos (z clavado, parada por muro), batch GL 0, ventana
 20s quieta sin deriva. Detalle en `docs/render-pipeline-reference.md`.
+
+### 🟢 Avatar de espaldas (facing real) + animacion mapeada sin inventar (2026-09-14)
+
+Queja ("se ve de lado"): correcta — la rotacion era una heuristica a
+90° del forward real. Investigado con 2 subagentes ANTES de tocar
+nada: forward anatomico +Z local del .bod (cara/puntas +Z, coleta -Z),
+medido en `SPIN.RWX` y bytes de `aura.bod`, con `RWXTOBOD.PL` pasando
+ejes sin tocar. Rotacion `yaw-90` (algebra, no prueba-error),
+verificada en captura (Aura de espaldas, coleta centrada).
+
+Animacion ("haz que tenga animaciones... NO inventarse las cosas"):
+extraido lo real — DOS sistemas (`Drone:359-364`): articulado
+(`.bod`+`.seq`+`avatars.dat`, todo el blending en `DroneAnimator`
+nativo) y holograma (`.mov` = video `LzH2`). Cabecera `.seq`
+verificada (version, nº joints, nombres: walk 44 mocap, wait 16,
+wave 4). El key-data por joint solo lo decodifica `gamma.dll`: NO hay
+playback inventado (ni walk cycle procedural ni bobbing) — seria
+exactamente lo prohibido. Siguiente paso: Ghidra sobre
+`DroneAnimator_animate/update`. Detalle en
+`docs/seq-animation-reference.md` (nuevo).

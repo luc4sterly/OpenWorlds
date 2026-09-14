@@ -517,3 +517,25 @@ paran siempre (flag b[6]); empotrado contra muro ya no re-fija suelo
 `--play`) y podia abrirse oculta en el escritorio — anadido.
 Contadores `Drew/N avatars` ahora por frame (acumulaban la sesion:
 "272 avatars" = 1x272 frames).
+
+## Avatar de espaldas + mapa de animacion real (2026-09-14, sin inventar)
+
+**Facing corregido con evidencia** (antes se veia de lado): el forward
+anatomico es +Z local del .bod (cara/puntas en +Z, coleta/talones en
+-Z — medido en `SPIN.RWX` y en bytes de `aura.bod`;
+`tools/gdk-sdk/RWXTOBOD.PL` pasa ejes sin tocar). Como el +Z bod mapea
+a +Y mundo, la rotacion es `yaw-90` (algebra). Verificado en captura:
+Aura de espaldas, coleta centrada, mirando al kiosko
+(`world_play_spawn_thirdperson.png` regenerada).
+
+**Animacion: extraida, no inventada** (ver
+`docs/seq-animation-reference.md`): el original tiene DOS sistemas
+(`Drone.java:359-364`): articulado (`.bod`+`.seq`+`avatars.dat`,
+`DroneAnimator` nativo) y holograma (`.mov` = video de texturas
+`LzH2`, `HoloDrone`). Cabecera `.seq` verificada (ver 0x01, nº joints,
+nombres, `1.0f` por joint; walk=44 joints mocap LifeForms,
+wait=16 Gamma, wave=4 parcial). El key-data por joint SOLO lo entiende
+`gamma.dll` — en Java no hay parseo: implementarlo sin Ghidra seria
+inventar poses. Siguiente paso real: desensamblar
+`DroneAnimator_animate/update` (exports en
+`docs/gamma-dll-exports.txt:209-224`).
