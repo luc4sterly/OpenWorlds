@@ -3166,3 +3166,24 @@ Single-user mode" (sin red de upgrade: esperado, honesto).
 `~/.freeworlds-client` (el original escribe logs/caches en su CWD y no
 debe ensuciar el repo), prefijo+fuentes+Xvfb si hace falta.
 Captura: `docs/renders/original_client_reception.png`.
+
+### 🟢 El juego, decompilado y versionado: Java pristino + `gamma.dll` en C (2026-09-14)
+
+Pedido ("quiero que decompiles el juego... haz original"): el
+decompilado existia pero NO estaba en el repo (`source/` ignorado,
+`analysis/` ignorado). Ahora si:
+
+1. **Java pristino** (`editor/.../source/`, 723 `.java`): regenerado
+   con Vineflower 1.12 desde `assets/worlds.jar` + `git apply
+   patches/fix_compilation_errors.patch` (solo fixes de compilacion).
+   Cero `NativeMock`, declara los `native` reales, `Gamma.java` carga
+   la `gamma.dll` real, compila limpio con `javac --release 8`.
+   El `.gitignore` anidado ya no excluye `source/` (sigue excluyendo
+   `out/` y `worlds.jar`). El flujo del mock no se rompe:
+   `apply_mock.sh` parte de este arbol limpio.
+2. **Nativo en C** (`decompiled-native/gamma_dll/`, 6.9 MB): 1656/1656
+   funciones de la `gamma.dll` original con Ghidra headless + script
+   propio versionado (`tools/ghidra-scripts/ExportAllDecompiled.java`),
+   exports JNI con nombre real — incluidos los 15 de `DroneAnimator`
+   (el decoder `.seq` que falta para animacion real) y `huffdcod`
+   (texturas `.cmp`). `INDEX.txt` para cruzar addr<->Ghidra.
