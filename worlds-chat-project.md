@@ -3141,3 +3141,28 @@ playback inventado (ni walk cycle procedural ni bobbing) — seria
 exactamente lo prohibido. Siguiente paso: Ghidra sobre
 `DroneAnimator_animate/update`. Detalle en
 `docs/seq-animation-reference.md` (nuevo).
+
+### 🟢 EL ORIGINAL CORRE: cliente 2004 genuino bajo Wine (2026-09-14)
+
+Pedido ("coge el original"): hecho literalmente. `assets/WorldsPlayer`
+trae el runtime completo (JRE 1.4.2 `bin/java.exe`, `gamma.dll`,
+`RWL21.DLL`, `lib/gammacls.zip`) y `run.exe` contiene su propia linea
+de arranque — ya no hace falta recompilar nada pristino, el `.zip` ES
+el cliente compilado:
+
+`bin\javaw.exe -Xbootclasspath:lib\i18ncls.zip;lib\rt.jar
+-cp .;lib\gammacls.zip NET.worlds.console.Gamma -home . -dllpath bin`
+
+Dos paredes, las dos de entorno (cero ingenieria inversa): Wine se niega
+a crear prefijos bajo `/tmp` (no es del usuario) → prefijo en
+`~/.wine-fw-orig`; el cliente aborta sin `C:\windows\Fonts` → TTFs
+Liberation del sistema. Con eso: carga `gamma.dll` real, driver
+`rwdlmd21`, hook `awt.dll`, y presenta **el juego de verdad**: UI
+completa (Help/Options/WorldsMall/Teleport/Actions/VIP, FRIENDS ONLINE,
+chat, logo), Reception 3D con RenderWare real (suelo texturizado con
+reflejos, muros, colinas, kiosko) y avatar real. Dialogo "Retry /
+Single-user mode" (sin red de upgrade: esperado, honesto).
+`tools/run-original.sh` (nuevo) automatiza todo: copia privada a
+`~/.freeworlds-client` (el original escribe logs/caches en su CWD y no
+debe ensuciar el repo), prefijo+fuentes+Xvfb si hace falta.
+Captura: `docs/renders/original_client_reception.png`.
