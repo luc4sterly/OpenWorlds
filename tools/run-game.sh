@@ -27,7 +27,21 @@
 set -u
 set -o pipefail
 
-ROOT="$(readlink -f "$(dirname "$0")/..")"
+# Portable repo-root resolution: readlink -f is GNU-only (fails on macOS).
+# macOS: plain readlink without -f; fallback to cd/dirname.
+resolve_root() {
+   local src="$1"
+   if command -v greadlink >/dev/null 2>&1; then
+      greadlink -f "$src/.."
+   elif readlink -f "$src/.." >/dev/null 2>&1; then
+      readlink -f "$src/.."
+   else
+      (cd "$src/.." && pwd -P)
+   fi
+}
+ROOT="$(resolve_root "$(dirname "$0")")"
+IS_MAC=0
+[ "$(uname -s)" = "Darwin" ] && IS_MAC=1
 WORLD="$ROOT/assets/WorldsPlayer/GroundZero/groundzero.world"
 ROOM="Reception"
 LOGDIR="$ROOT/logs"
@@ -79,7 +93,14 @@ if [ ! -f "$ROOT/client/out/net/freeworlds/render/WorldViewer.class" ]; then
 fi
 
 # --- display: usar el pedido / existente, o levantar Xvfb propio ---
+# macOS: GLFW abre ventana nativa (Cocoa), no hace falta X11/Xvfb nunca.
 XVFB_PID=""
+if [ "$IS_MAC" = 1 ]; then
+   if [ -n "$DISPLAY_WANT" ]; then
+      export DISPLAY="$DISPLAY_WANT"
+   fi
+   echo "[run-game] macOS detectado: ventana nativa Cocoa, sin Xvfb" | tee -a "$LOG"
+else
 # En --detach el juego sigue vivo al salir del script: no matar el Xvfb
 # propio (se deja anotado en el log para matarlo a mano).
 cleanup_xvfb() { [ "$DETACH" = 1 ] || { [ -n "$XVFB_PID" ] && kill "$XVFB_PID" 2>/dev/null; }; }
@@ -104,6 +125,7 @@ if [ -z "${DISPLAY:-}" ] || ! disp_ok "$DISPLAY"; then
    fi
 else
    echo "[run-game] usando DISPLAY=$DISPLAY existente" | tee -a "$LOG"
+fi
 fi
 
 # --- screenshot automatico (solo modos batch de 1 sala sin salida propia) ---
@@ -146,14 +168,20 @@ echo "--- juego ---"
 # puede abrirse en otro escritorio o detras - verificado con xprop en
 # esta maquina). El focuser espera hasta 30s (cubre la decodificacion
 # de texturas al arrancar) y falla en silencio si no hay X.
+# En macOS se omite: es X11-only, Cocoa trae su ventana al frente sola.
+if [ "$IS_MAC" = 0 ]; then
 case " ${ARGS[*]} " in
    *" --window "*|*" --fullscreen "*|*" --inside "*|*" --play "*)
       (python3 "$ROOT/tools/bring_to_front.py" --title "FreeWorlds World Viewer" >>"$LOG" 2>&1 &) ;;
 esac
+fi
 if [ "$DETACH" = 1 ]; then
    # Fondo: la terminal vuelve al instante. El log queda en $LOG.
+   # macOS: GLFW exige -XstartOnFirstThread en el hilo principal.
+   MAC_OPTS=""
+   [ "$IS_MAC" = 1 ] && MAC_OPTS="-XstartOnFirstThread"
    # shellcheck disable=SC2086
-   nohup java -cp "$ROOT/client/out:$ROOT/tools/lwjgl/*" \
+   nohup java $MAC_OPTS -cp "$ROOT/client/out:$ROOT/tools/lwjgl/*" \
       net.freeworlds.render.WorldViewer "$WORLD" "$ROOM" ${ARGS[@]+"${ARGS[@]}"} >>"$LOG" 2>&1 &
    PID=$!
    {
@@ -166,8 +194,13 @@ if [ "$DETACH" = 1 ]; then
    exit 0
 fi
 # shellcheck disable=SC2086
+if [ "$IS_MAC" = 1 ]; then
+   java -XstartOnFirstThread -cp "$ROOT/client/out:$ROOT/tools/lwjgl/*" \
+      net.freeworlds.render.WorldViewer "$WORLD" "$ROOM" ${ARGS[@]+"${ARGS[@]}"} 2>&1 | tee -a "$LOG"
+else
 java -cp "$ROOT/client/out:$ROOT/tools/lwjgl/*" \
    net.freeworlds.render.WorldViewer "$WORLD" "$ROOM" ${ARGS[@]+"${ARGS[@]}"} 2>&1 | tee -a "$LOG"
+fi
 CODE=${PIPESTATUS[0]}
 
 {

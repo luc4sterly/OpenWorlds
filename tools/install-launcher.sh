@@ -12,7 +12,19 @@
 #   P. ej.: tools/install-launcher.sh --room LizCave -- --inside
 #   (todo lo que vaya tras -- se guarda tal cual en el icono).
 set -u
-ROOT="$(readlink -f "$(dirname "$0")/..")"
+# readlink -f es GNU-only; en macOS se resuelve via cd/pwd.
+if command -v greadlink >/dev/null 2>&1; then
+   ROOT="$(greadlink -f "$(dirname "$0")/..")"
+elif readlink -f "$(dirname "$0")/.." >/dev/null 2>&1; then
+   ROOT="$(readlink -f "$(dirname "$0")/..")"
+else
+   ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
+fi
+if [ "$(uname -s)" = "Darwin" ]; then
+   echo "[launcher] macOS no usa .desktop. Usa Spotlight/Automator, o lanza:"
+   echo "  tools/run-game.sh $*"
+   echo "Sonda de compilación igualmente válida — continúo con build+sonda."
+fi
 ROOM="Reception"
 EXTRA=()
 while [ $# -gt 0 ]; do

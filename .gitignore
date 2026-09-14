@@ -53,3 +53,15 @@ assets/WorldsPlayer/cachedir/*.lst
 
 __pycache__/
 *.pyc
+
+# macOS (Finder + Xcode + ARM/x86 universal noise) — nada de esto se versiona
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+*.dmg
+*.pkg

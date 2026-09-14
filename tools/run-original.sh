@@ -19,7 +19,23 @@
 set -u
 set -o pipefail
 
-ROOT="$(readlink -f "$(dirname "$0")/..")"
+# readlink -f es GNU-only; en macOS se resuelve via cd/pwd.
+if command -v greadlink >/dev/null 2>&1; then
+   ROOT="$(greadlink -f "$(dirname "$0")/..")"
+elif readlink -f "$(dirname "$0")/.." >/dev/null 2>&1; then
+   ROOT="$(readlink -f "$(dirname "$0")/..")"
+else
+   ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
+fi
+if [ "$(uname -s)" = "Darwin" ]; then
+   echo "[run-original] macOS: el cliente original 2004 (x86 Win32 + gamma.dll)"
+   echo "  no corre con Wine vanilla en Apple Silicon. Opciones:"
+   echo "  - CrossOver / Whisky / Parallels + Windows ARM, o"
+   echo "  - usar tools/run-game.sh (visor portable, el camino principal)."
+   echo "  Sigo solo si pasas --force-macos con tu Wine ya configurado."
+   if [ "${1:-}" != "--force-macos" ]; then exit 2; fi
+   shift
+fi
 CLIENT_HOME="$HOME/.freeworlds-client"
 WINEPREFIX="$HOME/.wine-fw-orig"
 DISPLAY_WANT=""
