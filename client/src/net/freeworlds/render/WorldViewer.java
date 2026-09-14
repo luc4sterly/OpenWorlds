@@ -1,6 +1,10 @@
 package net.freeworlds.render;
 
 import net.freeworlds.cmp.CmpTexture;
+import net.freeworlds.bod.BodClump;
+import net.freeworlds.bod.BodFile;
+import net.freeworlds.bod.BodParser;
+import net.freeworlds.bod.BodVertex;
 import net.freeworlds.rwx.RwxMaterial;
 import net.freeworlds.rwx.RwxModel;
 import net.freeworlds.rwx.RwxParser;
@@ -22,6 +26,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,12 +52,35 @@ import static org.lwjgl.opengl.GL11.*;
  * real client's scene graph would - no manual matrix math, no invented
  * layout.
  *
- * avatar: URLs (PosableShape/avatar references) are skipped, not
- * rendered - the RWG parser (see docs/rwg-bod-format-reference.md) is
- * only verified for single-joint geometry, not real articulated
- * avatars, so rendering one here would risk showing something wrong
- * presented as if it were a real avatar. Skipped objects are counted
- * and reported, not silently dropped.
+ * Avatares (2026-09-13): las referencias "avatar:Nombre.rwg"
+ * (6 en GroundZero, todas en las galerias IconViewRoom1a/b/c/e/f/g)
+ * SI se dibujan, en bind pose con el mismo pipeline fijo de 2 luces.
+ * Resolucion real por nombre: "avatar:Roxanne.rwg" -> el .bod oficial
+ * del mismo nombre en assets/gammatutorial-samples/base-avatars/
+ * (jing/julie/paul/roxanne/simon existen ahi; Tre no existe y usa
+ * aura.bod, el default real del cliente segun
+ * PosableShape.defaultURL="avatar:aura.0PG.rwg"). Escala: los .bod
+ * decodifican a ~0.17 unidades de alto y el cliente espera avatares de
+ * ~189 (Drone.java avatarHeightChangedTo(189.0F)), asi que se aplica un
+ * factor global x1000 documentado como heuristica (las proporciones,
+ * colores por clump y colocacion por nodo son datos reales; solo la
+ * escala absoluta es normalizada). Los pies quedan en el origen del
+ * nodo y el eje +Y del .bod (up, verificado en BodViewer) se mapea a
+ * +Z (el cliente es Z-up). Sin skinning/animacion: bind pose.
+ *
+ * Infinite background (see drawInfiniteBackground): the room's exterior
+ * shell is drawn in its own pass with its own camera: positioned at the
+ * shell's local origin (0,0,0) with the live camera's orientation — the
+ * documented client behavior (Gamma_Procedures.html, "Infinite
+ * Backgrounds": "the Infinite Background is viewed from a Camera at
+ * 0,0,0"; authors center the shell on the origin via the grouping
+ * WObject, verified: Reception's 33 Rects span x[-2100,700] y[-1000,
+ * 1200], i.e. containing the origin). The room itself is drawn in a
+ * second pass with the live camera. Consequence, honestamente: el fondo
+ * no tiene paralaje de traslacion (escala "que nunca parece cambiar",
+ * Gamma_Overview) — al caminar se nota fijo/pegado en los muros
+ * cercanos porque el anillo esta modelado a medida de la sala; eso es
+ * lo que el cliente original hace, no un efecto del visor.
  *
  * Textures (2026-09-11): each material's real "Texture" reference is
  * resolved against the scene's own real texture archive (content.zip,
@@ -89,12 +117,9 @@ import static org.lwjgl.opengl.GL11.*;
  * (which is derived from the room's real bounding box, see renderRoom).
  *
  * Infinite background (see drawInfiniteBackground): the room's exterior
- * shell is rendered from a camera pinned at its own local origin, with
- * the live camera's orientation — the documented client behavior
- * (Gamma_Procedures.html, "Infinite Backgrounds": "the Infinite
- * Background is viewed from a Camera at 0,0,0", authors center the shell
- * on the origin via the grouping WObject). No flag: this is how the
- * original client draws it, not an effect.
+ * shell is drawn in its own pass with its own camera (see above) —
+ * static authored placement, never translated to follow the live
+ * camera position.
  */
 public final class WorldViewer {
    private static final Map<String, RwxModel> modelCache = new HashMap<>();
@@ -109,7 +134,9 @@ public final class WorldViewer {
     private static File baseDir;
     private static int loadedCount = 0;
     private static int missingCount = 0;
-    private static int avatarSkipCount = 0;
+    private static int avatarSkipCount = 0; // refs "avatar:" sin .bod resoluble (no deberia pasar: hay fallback a aura)
+    private static int avatarDrawnCount = 0; // refs "avatar:" dibujadas este frame (incluye fallback)
+    private static int avatarFallbackCount = 0; // de ellas, cuantas usan aura.bod por defecto
     private static int rectCount = 0; // Rect surfaces placed (drawn as textured quads, see drawRect)
     private static int rectPatchCount = 0; // RectPatch heightfields placed (see drawRectPatch)
 
@@ -133,6 +160,33 @@ public final class WorldViewer {
     private static final Set<String> rectTexturesResolved = new TreeSet<>();
     private static final Map<String, String> rectTexturesUnresolved = new TreeMap<>();
     private static int rectTextureRefs = 0;
+
+    // --- Avatares .bod (bind pose, ver javadoc de clase) ---
+    // Escala mundo real: Drone.java avatarHeightChangedTo(189.0F) = altura
+    // default de avatar en unidades mundo; los .bod decodifican a ~0.17
+    // (jing.bod: bbox y [-1.68,-1.51] medida con el propio BodViewer) asi
+    // que x1000 los deja en ~170-200, proporcion humana en salas de ~250
+    // de alto. HEURISTICA DOCUMENTADA (mismo nivel que el ambient 0.15
+    // de GlLighting): proporciones/colores/colocacion reales, escala
+    // absoluta normalizada.
+    private static final float BOD_WORLD_SCALE = 1000f;
+    /** Un triangulo ya ensamblado en coords locales .bod (Y-up). */
+    private static final class BodTri {
+       float ax, ay, az, bx, by, bz, cx, cy, cz;
+       float r, g, b;
+    }
+    /** Avatar ensamblado una vez por archivo .bod (bind pose). */
+    private static final class BodAvatar {
+       final List<BodTri> tris = new ArrayList<>();
+       // bbox local (Y-up, sin rebasear): para rebasear pies a origen.
+       float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, minZ = Float.MAX_VALUE;
+       float maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE, maxZ = -Float.MAX_VALUE;
+       boolean usedFallback; // este slot usa aura.bod por defecto
+       String sourceName; // archivo .bod realmente usado (para el reporte)
+    }
+    private static final Map<String, BodAvatar> bodCache = new HashMap<>();
+    private static File avatarDir;
+    private static boolean avatarDirChecked = false;
 
      public static void main(String[] args) throws Exception {
         if (args.length < 2) {
@@ -271,6 +325,8 @@ public final class WorldViewer {
            boolean inside, float[] eyeArg, float[] lookArg, float[] upArg, boolean fullscreen) throws Exception {
        drawnTriangles = 0;
        drawnObjects = 0;
+       avatarDrawnCount = 0;
+       avatarFallbackCount = 0;
 
        // Pre-load all geometry referenced in this room so we can report
        // real counts before opening a window (and compute a scene bounding
@@ -284,16 +340,27 @@ public final class WorldViewer {
        int rectPatchBefore = rectPatchCount;
        preload(room, identity(), bbox, objectCount);
        // Room shell lives in environment (walls/floors/ceilings missed for
-       // 6 sessions); infiniteBackground (sky) is infinite by definition
-       // and stays out of the bounding box.
+       // 6 sessions); avatars (.bod) now preload too (feet bbox included).
        if (room.environment != null) {
           preload(room.environment, identity(), bbox, objectCount);
        }
+       // Bbox SOLO del fondo (para el frustum de su propia pasada; el
+       // fondo nunca entra en el bbox de la sala ni en su camara).
+       float[] bgBbox = null;
+       if (room.infiniteBackground != null) {
+          bgBbox = new float[]{Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+          int[] bgCount = {0};
+          preloadBg(room.infiniteBackground, identity(), bgBbox, bgCount);
+          if (bgCount[0] == 0) {
+             bgBbox = null; // fondo vacio (23/25 en GroundZero): sin pasada propia
+          }
+       }
        System.out.println("Room \"" + roomName + "\": " + objectCount[0] + " objects placed, "
           + (loadedCount - loadedBefore) + " real geometry files loaded, " + (missingCount - missingBefore) + " missing on disk, "
-          + (avatarSkipCount - avatarBefore) + " avatar: refs skipped (not rendered - see class javadoc), "
+          + (avatarSkipCount - avatarBefore) + " avatar: refs unresolved (fallback covers the rest - see class javadoc), "
           + (rectCount - rectBefore) + " Rect surfaces (incl. environment), "
-          + (rectPatchCount - rectPatchBefore) + " RectPatch heightfields");
+          + (rectPatchCount - rectPatchBefore) + " RectPatch heightfields"
+          + (bgBbox != null ? ", infiniteBackground present" : ", infiniteBackground empty")); 
       float radius = Math.max(0.01f, distance(bbox));
       float cx = (bbox[0] + bbox[3]) / 2f;
       float cy = (bbox[1] + bbox[4]) / 2f;
@@ -404,6 +471,18 @@ public final class WorldViewer {
          frames = screenshotPath != null ? 1 : Integer.MAX_VALUE;
       }
       double lastTime = glfwGetTime();
+      // Frustum de la pasada de fondo (una vez por sala): cubre la
+      // cascara vista desde el origen con margen x2.
+      float bgNear = 1f, bgFar = 10000f;
+      float bgCx = 0f, bgCy = 0f, bgCz = 0f;
+      if (bgBbox != null) {
+         bgCx = (bgBbox[0] + bgBbox[3]) / 2f;
+         bgCy = (bgBbox[1] + bgBbox[4]) / 2f;
+         bgCz = (bgBbox[2] + bgBbox[5]) / 2f;
+         float bgR = distance(bgBbox) / 2f;
+         float bgDist = (float) Math.sqrt(bgCx * bgCx + bgCy * bgCy + bgCz * bgCz);
+         bgFar = (bgDist + bgR) * 2f + radius;
+      }
       for (int frame = 0; frame < frames && !glfwWindowShouldClose(window); frame++) {
          double now = glfwGetTime();
          float dt = (float) Math.min(0.1, Math.max(1e-3, now - lastTime));
@@ -430,8 +509,40 @@ public final class WorldViewer {
             if (isDown(window, GLFW_KEY_E)) eye = add(eye, scale(up, speed));
             if (isDown(window, GLFW_KEY_Q)) eye = add(eye, scale(up, -speed));
          }
-         glViewport(0, 0, width, height);
-         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+          glViewport(0, 0, width, height);
+
+          // PASADA 1 — fondo infinito con SU propia camara (ver javadoc):
+          // posicion fija en el origen local de la cascara, orientacion
+          // de la camara viva. Asi el anillo rodea al espectador (nunca
+          // en una esquina) sin tocar su colocacion de archivo. Sin
+          // depth contra la sala: se limpia la profundidad antes de la
+          // pasada 2 para que la sala siempre quede delante (el fondo
+          // es backdrop por definicion, como en el cliente original).
+          if (bgBbox != null) {
+             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+             glMatrixMode(GL_PROJECTION);
+             glLoadIdentity();
+             GlUtil.perspective(60f, (float) width / height, bgNear, bgFar);
+             glMatrixMode(GL_MODELVIEW);
+             glLoadIdentity();
+             if (inside) {
+                float[] fwdBg = fwdFromYawPitch(yaw, pitch, upZ);
+                GlUtil.lookAt(0, 0, 0, fwdBg[0], fwdBg[1], fwdBg[2], up[0], up[1], up[2]);
+             } else {
+                double abg = Math.toRadians(angle);
+                float ex = (float) (cx - radius * 1.6f * Math.sin(abg));
+                float ey = (float) (cy + radius * 1.6f * Math.cos(abg));
+                float ez = cz + radius * 0.7f;
+                float[] dir = norm(new float[]{cx - ex, cy - ey, cz - ez});
+                GlUtil.lookAt(0, 0, 0, dir[0], dir[1], dir[2], 0, 0, 1);
+             }
+             drawInfiniteBackground(room);
+             glClear(GL_DEPTH_BUFFER_BIT);
+          } else {
+             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+          }
+
+          // PASADA 2 — sala con la camara viva (sin cambios).
 
          // Real .world scenes are much bigger than a single RWX prop
          // (this room spans ~6200 units), so a generic small-near/
@@ -482,24 +593,6 @@ public final class WorldViewer {
            if (room.environment != null) {
               drawNode(room.environment);
            }
-           if (room.infiniteBackground != null) {
-              // Exhibition camera position this frame (see below where the
-              // view is set): interior = fly eye; exterior = orbit eye
-              // (center + Rz(angle) applied to the (0, +1.6r, +0.7r)
-              // offset, mirroring the glTranslate/glRotate/glTranslate
-              // sequence used for the view).
-              float[] camEye;
-              if (inside) {
-                 camEye = eye;
-              } else {
-                 double a = Math.toRadians(angle);
-                 camEye = new float[]{
-                    (float) (cx - radius * 1.6f * Math.sin(a)),
-                    (float) (cy + radius * 1.6f * Math.cos(a)),
-                    cz + radius * 0.7f};
-              }
-              drawInfiniteBackground(room, camEye);
-           }
 
           if (!inside) {
              angle += 0.3f;
@@ -520,7 +613,8 @@ public final class WorldViewer {
           }
        }
 
-       System.out.println("Drew " + drawnObjects + " objects, " + drawnTriangles + " triangles this frame. GL error: " + glGetError());
+       System.out.println("Drew " + drawnObjects + " objects (" + avatarDrawnCount + " avatars, "
+          + avatarFallbackCount + " via aura.bod fallback), " + drawnTriangles + " triangles this frame. GL error: " + glGetError());
 
       glfwDestroyWindow(window);
       glfwTerminate();
@@ -531,13 +625,19 @@ public final class WorldViewer {
     /** Walk the room's real WObject tree once (no GL context needed) purely to resolve+load geometry and compute a real bounding box.
      * Invisible leaves (bumpers) are still resolved/counted (placement
      * stats) but excluded from the bounding box — the camera frames the
-     * visible scene, not collision volumes. */
+     * visible scene, not collision volumes. Avatar ("avatar:") leaves
+     * resolve their real .bod and contribute their placed feet bbox. */
     private static void preload(WNode n, float[] parentToWorld, float[] bbox, int[] objectCount) {
        float[] here = n.matrix != null ? multiply(parentToWorld, n.matrix) : parentToWorld;
        if (n.geometryUrl != null) {
           objectCount[0]++;
           if (n.geometryUrl.startsWith("avatar:")) {
-             avatarSkipCount++;
+             BodAvatar av = resolveAvatar(n.geometryUrl);
+             if (av == null) {
+                avatarSkipCount++;
+             } else if (n.isVisible()) {
+                extendAvatarBbox(bbox, here, av);
+             }
           } else {
              RwxModel model = loadModel(n.geometryUrl);
              if (model != null && n.isVisible()) {
@@ -582,6 +682,330 @@ public final class WorldViewer {
        bbox[5] = Math.max(bbox[5], p[2]);
     }
 
+    /** Bbox walk SOLO para el fondo infinito: Rect/RectPatch visibles con
+     * su cadena de matrices, sin tocar contadores globales ni cargar
+     * modelos (el fondo real es 100% Rects; si algun dia trae un Shape,
+     * su bbox se ignora aqui pero IGUAL se dibuja en su pasada). */
+    private static void preloadBg(WNode n, float[] parentToWorld, float[] bbox, int[] count) {
+       float[] here = n.matrix != null ? multiply(parentToWorld, n.matrix) : parentToWorld;
+       if (isRect(n)) {
+          count[0]++;
+          if (n.isVisible()) {
+             for (float[] c : RECT_CORNERS) {
+                extendBbox(bbox, transformPoint(here, c[0], c[1], c[2]));
+             }
+          }
+       }
+       if (isRectPatch(n)) {
+          count[0]++;
+          if (n.isVisible() && n.rpVersion != 0) {
+             extendBbox(bbox, transformPoint(here, 0, 0, n.rpZ[0]));
+             extendBbox(bbox, transformPoint(here, n.rpXDim, 0, n.rpZ[1]));
+             extendBbox(bbox, transformPoint(here, n.rpXDim, n.rpYDim, n.rpZ[2]));
+             extendBbox(bbox, transformPoint(here, 0, n.rpYDim, n.rpZ[3]));
+          }
+       }
+       for (WNode c : n.children) {
+          preloadBg(c, here, bbox, count);
+       }
+    }
+
+    /** Extiende el bbox con las 8 esquinas del avatar ya colocado:
+     * caja local con pies en origen (ver drawAvatar) x escala, pasada
+     * por la matriz compuesta del nodo. */
+    private static void extendAvatarBbox(float[] bbox, float[] here, BodAvatar av) {
+       float w = (av.maxX - av.minX) * BOD_WORLD_SCALE;
+       float h = (av.maxY - av.minY) * BOD_WORLD_SCALE;
+       float d = (av.maxZ - av.minZ) * BOD_WORLD_SCALE;
+       if (!(w > 0) || !(h > 0) || !(d > 0)) {
+          return; // .bod degenerado: no ensancha el encuadre con basura
+       }
+       // Local (mundo-Z-up): x = bodX*s, y = bodZ*s, z = (bodY-minY)*s.
+       float lx0 = av.minX * BOD_WORLD_SCALE, lx1 = av.maxX * BOD_WORLD_SCALE;
+       float ly0 = av.minZ * BOD_WORLD_SCALE, ly1 = av.maxZ * BOD_WORLD_SCALE;
+       float lz1 = h;
+       float[] xs = {lx0, lx1};
+       float[] ys = {ly0, ly1};
+       float[] zs = {0f, lz1};
+       for (float x : xs) {
+          for (float y : ys) {
+             for (float z : zs) {
+                extendBbox(bbox, transformPoint(here, x, y, z));
+             }
+          }
+       }
+    }
+
+    /** Resuelve "avatar:Nombre.rwg" al .bod base oficial del mismo nombre
+     * (comparacion case-insensitive). Si no existe (Tre), usa aura.bod,
+     * el default real del cliente (PosableShape.defaultURL). null solo si
+     * ni siquiera hay fallback en disco. Conteo honesto via
+     * avatarFallbackCount. */
+    private static BodAvatar resolveAvatar(String url) {
+       BodAvatar cached = bodCache.get(url);
+       if (cached != null) {
+          return cached;
+       }
+       File dir = resolveAvatarDir();
+       BodAvatar av = null;
+       if (dir != null) {
+          String stem = url;
+          int colon = stem.indexOf(':');
+          if (colon >= 0) {
+             stem = stem.substring(colon + 1);
+          }
+          int dot = stem.indexOf('.');
+          if (dot >= 0) {
+             stem = stem.substring(0, dot);
+          }
+          File f = findIgnoreCase(dir, stem + ".bod");
+          if (f != null) {
+             av = assembleAvatar(f, false);
+          }
+          if (av == null) {
+             File aura = findIgnoreCase(dir, "aura.bod");
+             if (aura != null) {
+                av = assembleAvatar(aura, true);
+                if (av != null) {
+                   avatarFallbackCount++;
+                   System.out.println("Avatar \"" + url + "\": no hay .bod propio, usando aura.bod (default real del cliente)");
+                }
+             }
+          }
+       }
+       if (av != null) {
+          bodCache.put(url, av);
+       }
+       return av;
+    }
+
+    /** Localiza el directorio de avatares base oficiales una vez por
+     * ejecucion (ruta relativa a la instalacion, no al CWD). */
+    private static File resolveAvatarDir() {
+       if (avatarDirChecked) {
+          return avatarDir;
+       }
+       avatarDirChecked = true;
+       // baseDir = .../GroundZero ; los avatares viven en
+       // <root>/assets/gammatutorial-samples/base-avatars/
+       File[] candidates = {
+          new File(baseDir, "../gammatutorial-samples/base-avatars"),
+          new File(baseDir, "../../assets/gammatutorial-samples/base-avatars"),
+          new File("assets/gammatutorial-samples/base-avatars"),
+       };
+       for (File c : candidates) {
+          try {
+             if (c.isDirectory() && findIgnoreCase(c, "aura.bod") != null) {
+                avatarDir = c;
+                break;
+             }
+          } catch (Exception e) {
+             // probar el siguiente candidato
+          }
+       }
+       return avatarDir;
+    }
+
+    /** Ensambla un .bod en bind pose (MISMA regla que BodViewer, ver su
+     * javadoc: placeholders del padre + translacion propia; RAIZ incluida
+     * — reproducir exacto lo verificado, sin "arreglos"). */
+    private static BodAvatar assembleAvatar(File f, boolean fallback) {
+       BodAvatar av = new BodAvatar();
+       av.usedFallback = fallback;
+       av.sourceName = f.getName();
+       byte[] data;
+       try {
+          data = Files.readAllBytes(f.toPath());
+       } catch (IOException e) {
+          System.err.println("Avatar: no se pudo leer " + f + ": " + e);
+          return null;
+       }
+       BodFile bod;
+       try {
+          bod = BodParser.parse(data);
+       } catch (Exception e) {
+          System.err.println("Avatar: no se pudo parsear " + f + ": " + e);
+          return null;
+       }
+       Map<Integer, BodClump> partByTag = new HashMap<>();
+       for (BodClump p : bod.parts) {
+          partByTag.put(p.tag, p);
+       }
+       Set<Integer> referenced = new HashSet<>();
+       for (BodClump p : bod.parts) {
+          collectAvatarPlaceholders(p, referenced);
+       }
+       BodClump root = null;
+       for (BodClump p : bod.parts) {
+          if (!referenced.contains(p.tag)) {
+             root = p;
+             break;
+          }
+       }
+       if (root == null) {
+          root = partByTag.get(1); // pelvis(1) en todo el corpus real
+       }
+       if (root == null && !bod.parts.isEmpty()) {
+          root = bod.parts.get(0);
+       }
+       if (root == null) {
+          return null;
+       }
+       Set<Integer> visited = new HashSet<>();
+       int[] bad = {0};
+       collectAvatarClump(root, 0f, 0f, 0f, partByTag, visited, av, bad);
+       if (av.tris.isEmpty()) {
+          System.err.println("Avatar: " + f + " sin triangulos colocados");
+          return null;
+       }
+       return av;
+    }
+
+    private static void collectAvatarPlaceholders(BodClump c, Set<Integer> out) {
+       if (c.placeholder) {
+          out.add(c.tag);
+          return;
+       }
+       if (c.children != null) {
+          for (BodClump child : c.children) {
+             collectAvatarPlaceholders(child, out);
+          }
+       }
+    }
+
+    private static void collectAvatarClump(BodClump c, float ox, float oy, float oz,
+          Map<Integer, BodClump> partByTag, Set<Integer> visited, BodAvatar av, int[] bad) {
+       if (c.placeholder) {
+          return;
+       }
+       visited.add(c.tag);
+       float nx = ox + c.tx;
+       float ny = oy + c.ty;
+       float nz = oz + c.tz;
+       if (c.vertices != null && !c.vertices.isEmpty() && c.triangles != null && !c.triangles.isEmpty()) {
+          float r = (c.r & 0xFF) / 255f;
+          float g = (c.g & 0xFF) / 255f;
+          float b = (c.b & 0xFF) / 255f;
+          List<BodVertex> v = c.vertices;
+          for (int[] t : c.triangles) {
+             if (t[0] < 0 || t[1] < 0 || t[2] < 0
+                || t[0] >= v.size() || t[1] >= v.size() || t[2] >= v.size()) {
+                bad[0]++;
+                continue;
+             }
+             BodVertex a = v.get(t[0]);
+             BodVertex bb = v.get(t[1]);
+             BodVertex cc = v.get(t[2]);
+             BodTri p = new BodTri();
+             p.ax = a.x + nx; p.ay = a.y + ny; p.az = a.z + nz;
+             p.bx = bb.x + nx; p.by = bb.y + ny; p.bz = bb.z + nz;
+             p.cx = cc.x + nx; p.cy = cc.y + ny; p.cz = cc.z + nz;
+             p.r = r; p.g = g; p.b = b;
+             av.tris.add(p);
+             float[] px = {p.ax, p.bx, p.cx};
+             float[] py = {p.ay, p.by, p.cy};
+             float[] pz = {p.az, p.bz, p.cz};
+             for (int i = 0; i < 3; i++) {
+                av.minX = Math.min(av.minX, px[i]);
+                av.minY = Math.min(av.minY, py[i]);
+                av.minZ = Math.min(av.minZ, pz[i]);
+                av.maxX = Math.max(av.maxX, px[i]);
+                av.maxY = Math.max(av.maxY, py[i]);
+                av.maxZ = Math.max(av.maxZ, pz[i]);
+             }
+          }
+       }
+       if (c.children != null) {
+          for (BodClump child : c.children) {
+             if (child.placeholder) {
+                BodClump target = partByTag.get(child.tag);
+                if (target == null) {
+                   bad[0]++;
+                   continue;
+                }
+                collectAvatarClump(target, nx + child.tx, ny + child.ty, nz + child.tz,
+                   partByTag, visited, av, bad);
+             } else {
+                collectAvatarClump(child, nx, ny, nz, partByTag, visited, av, bad);
+             }
+          }
+       }
+    }
+
+    /** Dibuja un avatar .bod ya ensamblado bajo la matriz actual del nodo
+     * (la posicion/orientacion del PosableShape ya esta aplicada por
+     * drawNode): pies en el origen del nodo, +Y bod -> +Z mundo (el
+     * cliente es Z-up), escala global documentada. Colores planos por
+     * clump + 2 luces reales (el .bod no trae texturas ni normales:
+     * normal de cara + GL_FLAT como RWX, ambas caras visibles como RWG
+     * — winding sin verificar). Devuelve false si no habia nada que
+     * dibujar. */
+    private static boolean drawAvatar(String url) {
+       BodAvatar av = resolveAvatar(url);
+       if (av == null || av.tris.isEmpty()) {
+          return false;
+       }
+       float h = (av.maxY - av.minY) * BOD_WORLD_SCALE;
+       if (!(h > 0)) {
+          return false;
+       }
+       RwxMaterial lastMat = null;
+       boolean inBegin = false;
+       glDisable(GL_CULL_FACE);
+       for (BodTri t : av.tris) {
+          // Mapeo bod(Y-up) -> mundo(Z-up) + rebase de pies + escala.
+          float ax = t.ax * BOD_WORLD_SCALE;
+          float ay = t.az * BOD_WORLD_SCALE;
+          float az = (t.ay - av.minY) * BOD_WORLD_SCALE;
+          float bx = t.bx * BOD_WORLD_SCALE;
+          float by = t.bz * BOD_WORLD_SCALE;
+          float bz = (t.by - av.minY) * BOD_WORLD_SCALE;
+          float cx = t.cx * BOD_WORLD_SCALE;
+          float cy = t.cz * BOD_WORLD_SCALE;
+          float cz = (t.cy - av.minY) * BOD_WORLD_SCALE;
+          if (lastMat == null || lastMat.colorR != t.r || lastMat.colorG != t.g || lastMat.colorB != t.b) {
+             if (inBegin) {
+                glEnd();
+                inBegin = false;
+             }
+             lastMat = bodAvatarMaterial(t.r, t.g, t.b);
+             GlLighting.applyMaterial(lastMat);
+          }
+          if (!inBegin) {
+             glBegin(GL_TRIANGLES);
+             inBegin = true;
+          }
+          float[] n = GlLighting.faceNormal(ax, ay, az, bx, by, bz, cx, cy, cz);
+          glNormal3f(n[0], n[1], n[2]);
+          glVertex3f(ax, ay, az);
+          glVertex3f(bx, by, bz);
+          glVertex3f(cx, cy, cz);
+       }
+       if (inBegin) {
+          glEnd();
+       }
+       glEnable(GL_CULL_FACE);
+       drawnTriangles += av.tris.size();
+       avatarDrawnCount++;
+       return true;
+    }
+
+    /** Material plano por clump .bod (el formato no trae scalars: misma
+     * convencion placeholder que RwgViewer/BodViewer — ambient 0.3,
+     * diffuse 0.8, specular 0.1, opaco — marcada VERIFICAR igual que
+     * alli). */
+    private static RwxMaterial bodAvatarMaterial(float r, float g, float b) {
+       RwxMaterial mat = new RwxMaterial();
+       mat.colorR = r;
+       mat.colorG = g;
+       mat.colorB = b;
+       mat.ambient = 0.3f;
+       mat.diffuse = 0.8f;
+       mat.specular = 0.1f;
+       mat.opacity = 1f;
+       return mat;
+    }
+
     /** A Rect is a unit quad in its local X/Z plane (NOT X/Y: real
      * matrices squash local Y to ~zero — e.g. wall scale (2149,2,400) —
      * while (1,0,1) reproduces the decompiled far corner (f1,f2,f3)
@@ -596,24 +1020,17 @@ public final class WorldViewer {
    static int drawnTriangles = 0;
    static int drawnObjects = 0;
 
-    /** Draws the room's infinite background (exterior shell: sky walls,
-      * ceiling, distant scenery) the way the original client does: viewed
-      * from a camera pinned at the shell's own local origin, with the live
-      * camera's orientation (Gamma_Procedures.html, "Infinite Backgrounds":
-      * "the Infinite Background is viewed from a Camera at 0,0,0" — that
-      * is why authors group the shell in a WObject and move it so that
-      * 0,0,0 becomes its center). Implementation: translate the authored
-      * shell by the live camera position, keeping the live view rotation.
-      * The shell then surrounds the viewer in every compass direction with
-      * zero translation parallax — distant backdrop, never a corner prop.
-      * Rooms whose background is empty (23/25 in GroundZero — the author
-      * left them blank "to speed up rendering", same doc) draw nothing.
+    /** Draws the room's infinite background subtree AS-IS (authored
+      * transforms only). The "infinite" effect comes from the caller's
+      * dedicated background camera (position 0,0,0 + live orientation,
+      * see the render loop), NOT from touching this geometry — so this
+      * method deliberately takes no camera parameters and translates
+      * nothing. Rooms whose background is empty (23/25 in GroundZero —
+      * the author left them blank "to speed up rendering", Gamma_Overview)
+      * draw nothing.
       */
-    private static void drawInfiniteBackground(WNode room, float[] camEye) {
-       glPushMatrix();
-       glTranslatef(camEye[0], camEye[1], camEye[2]);
+    private static void drawInfiniteBackground(WNode room) {
        drawNode(room.infiniteBackground);
-       glPopMatrix();
     }
 
     private static void drawNode(WNode n) {
@@ -631,8 +1048,14 @@ public final class WorldViewer {
        // (visibility propagation is native-side, unverified — never hide a
        // whole subtree on a group's flag).
        boolean visibleLeaf = n.isVisible();
-       if (n.geometryUrl != null && !n.geometryUrl.startsWith("avatar:")) {
-          if (visibleLeaf) {
+       if (n.geometryUrl != null) {
+          if (n.geometryUrl.startsWith("avatar:")) {
+             if (visibleLeaf) {
+                if (drawAvatar(n.geometryUrl)) {
+                   drawnObjects++;
+                }
+             }
+          } else if (visibleLeaf) {
              RwxModel model = loadModel(n.geometryUrl);
              if (model != null) {
                 drawModel(model);

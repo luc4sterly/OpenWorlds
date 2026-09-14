@@ -395,27 +395,56 @@ con el caminante en vez de quedarse quietos.
 ambos modos (offset exactamente 0 — verificado md5-identico al render
 estatico previo en vista spawn y exterior, GL error 0).
 
-## Fondo infinito como camara en el origen + bumpers invisibles
-## (2026-09-13, revision de cabo a rabo del mapa)
+## Fondo infinito en dos pasadas + avatares `.bod` en sala (2026-09-13,
+## el juego corre)
 
-**Fondo (sustituye las dos secciones de follow anteriores).**
-Auditoria con numeros: solo 2 de 25 salas tienen `infiniteBackground`
+**Fondo (sustituye la version "trasladar por camara viva").** El
+`glTranslatef(camEye)` ataba el subarbol a la posicion del ojo en la
+misma pasada — en la practica el fondo "seguia" al caminante. Ahora el
+fondo se dibuja en SU propia pasada con SU propia camara: posicion fija
+en el origen local de la cascara + orientacion de la camara viva
+(`Gamma_Procedures.html`: "viewed from a Camera at 0,0,0"; verificado
+que el origen cae dentro del anillo: Reception x[-2100,700]
+y[-1000,1200]). La sala va en una segunda pasada con la camara viva
+(depth limpiado entre pasadas: la sala siempre delante, el fondo es
+backdrop). Efecto medido: spawn de Reception con colinas al E/O y cielo
+arriba en todas direcciones (`world_spawn_two_pass_bg.png`), nunca en
+una esquina y sin tocar la colocacion de archivo. 25/25 salas GL 0.
+Consecuencia honesta: sin paralaje de traslacion (la "escala que nunca
+parece cambiar" de la doc) — en muros cercanos modelados a medida se
+nota fijo al caminar; eso es lo documentado del original.
+
+**Avatares.** Las 6 refs `avatar:Nombre.rwg` (galerias IconViewRoom1a/b/
+c/e/f/g) ya se dibujan en bind pose con las 2 luces reales: resolucion
+por nombre al `.bod` base oficial del mismo nombre
+(`base-avatars/jing/julie/paul/roxanne/simon.bod`; Tre no existe y usa
+`aura.bod`, el default real del cliente). Escala global x1000
+documentada como heuristica (los `.bod` decodifican a ~0.17 de alto;
+el cliente espera ~189 — `Drone.java avatarHeightChangedTo(189.0F)`),
+pies en el origen del nodo, +Y bod a +Z mundo. Sin skinning/animacion.
+Verificado: Roxanne 2229 tris propios, Tre 588 via aura, 25/25 GL 0
+(`world_iconviewroom1a_roxanne.png`,
+`world_iconviewroom1g_aura_fallback.png`).
+
+**El juego corre:** `tools/run-game.sh` (sin args = spawn real de
+Reception en ventana interior) + `--detach` verificados en `:100`
+(ventana, frame 0, ESC/kill limpio).
+
+## Fondo infinito como camara en el origen + bumpers invisibles
+## (2026-09-13, revision de cabo a rabo del mapa — fondo SUPERSEDED)
+
+**Fondo: ver la seccion "dos pasadas" de arriba** (sustituye lo de
+abajo: el `glTranslatef` por la camara viva ataba el fondo al ojo en
+la misma pasada y al caminar se notaba que "seguia"). Auditoria con
+numeros (sigue valida): solo 2 de 25 salas tienen `infiniteBackground`
 no vacio (Reception 34 Rects, ReceptionView1 33); las otras 23 lo traen
 vacio (el autor lo dejo en blanco "para acelerar el render", doc
-oficial). Dibujado en coordenadas absolutas, el anillo quedaba a
-(-2561,-974) del centro en Reception y (-6253,+1019) en RV1: literalmente
-tirado en una esquina. La doc oficial (`Gamma_Procedures.html`,
-"Infinite Backgrounds") resuelve la duda: el fondo "se ve desde una
-camara en 0,0,0" y el autor centra el decorado en el origen (por eso va
-agrupado en un WObject). `drawInfiniteBackground` ahora traslada el
-subarbol por la posicion de la camara viva, conservando su orientacion:
-el anillo rodea al espectador en todas direcciones con paralaje cero de
-traslacion. Verificado: spawn de Reception con cielo nublado arriba y
-colinas alrededor (E/O/N), RV1 con horizonte completo, 25/25 salas GL 0,
-cobertura 51/51 + 101/101. Limites honestos: huecos de cielo donde el
-autor no puso paneles (sectores sin geometria = vacio, no se inventa
-nada); en vista orbita exterior el anillo queda fuera del plano near
-(maqueta sin fondo, solo sala).
+oficial). Dibujado en coordenadas absolutas con la camara de la sala,
+el anillo quedaba a (-2561,-974) del centro en Reception y
+(-6253,+1019) en RV1: literalmente tirado en una esquina — por eso la
+pasada propia con camara en el origen. Limites honestos: huecos de
+cielo donde el autor no puso paneles (sectores sin geometria = vacio,
+no se inventa nada).
 
 **Bumpers invisibles (hallazgo de la misma auditoria).** LizCave se veia
 llena de cristales teal gigantes: son `Rect942CyanBump` (40), muros de

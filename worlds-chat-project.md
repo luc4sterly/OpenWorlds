@@ -3055,3 +3055,27 @@ Capturas regeneradas con el codigo actual (las anteriores quedaban
 obsoletas): `world_{reception,iconviewroom1,lizcave,auditorium}_textured`,
 `world_inside_{lizcave,auditorium,receptionview1}`, spawn kiosk (ahora
 con cielo). Detalle en `docs/render-pipeline-reference.md`.
+
+### 🟢 Fondo en dos pasadas + avatares en sala: el juego corre (2026-09-13)
+
+Pedido ("el fondo esta en una esquina tirado; haz que el juego corra,
+que se vea el avatar y este todo bien"). Tres piezas, todo verificado:
+
+1. **Fondo en dos pasadas** (sustituye el `glTranslatef(camEye)`, que
+   ataba el subarbol al ojo y hacia que "siguiera" al caminar):
+   pasada 1 con camara propia en el origen + orientacion viva
+   (`Gamma_Procedures`: "viewed from a Camera at 0,0,0"; origen dentro
+   del anillo verificado), pasada 2 con la camara viva (depth limpiado
+   en medio). Spawn Reception con colinas E/O y cielo en todas
+   direcciones, nunca en esquina, sin tocar colocacion de archivo.
+   Honesto: sin paralaje de traslacion (lo documentado del original).
+2. **Avatares**: las 6 refs `avatar:` (galerias IconViewRoom1a/b/c/e/
+   f/g) se dibujan en bind pose con las 2 luces: `avatar:Roxanne.rwg`
+   -> `base-avatars/roxanne.bod` (5/6 por nombre; Tre -> `aura.bod`,
+   default real del cliente). Escala x1000 heuristica documentada
+   (bod ~0.17 vs cliente ~189, `Drone.java:106`), pies en el nodo,
+   +Y->+Z. Roxanne 2229 tris, Tre 588 via aura, 25/25 GL 0.
+3. **El juego corre**: `run-game.sh` sin args (spawn Reception) y
+   `--detach` verificados en `:100` (ventana, frame 0, kill limpio).
+
+Detalle en `docs/render-pipeline-reference.md`.
