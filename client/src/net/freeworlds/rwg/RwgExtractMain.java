@@ -53,6 +53,11 @@ public final class RwgExtractMain {
       System.out.println("matrix1 identity? " + isIdentity(a.matrix1));
       System.out.println("matrix2 identity? " + isIdentity(a.matrix2));
 
+      System.out.println("bbox corners (VLST records 0-7): " + a.boundingBoxCorners.size());
+      for (int i = 0; i < a.boundingBoxCorners.size(); i++) {
+         RwgVertex v = a.boundingBoxCorners.get(i);
+         System.out.printf("  [bbox %d] pos=(%.4f, %.4f, %.4f)%n", i, v.x, v.y, v.z);
+      }
       System.out.println("vertices: " + a.vertices.size());
       for (int i = 0; i < a.vertices.size(); i++) {
          RwgVertex v = a.vertices.get(i);

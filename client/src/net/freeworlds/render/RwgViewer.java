@@ -103,16 +103,13 @@ public final class RwgViewer {
          // see docs/rwg-bod-format-reference.md) - this is a placeholder
          // material, not a real parsed value. ⚠️ VERIFICAR.
          GlLighting.applyMaterial(placeholderMaterial());
-         // Winding convention unverified (see triangulate() javadoc) and,
-         // empirically, NOT consistent face-to-face in real data: enabling
-         // backface culling (tested against cube.rwg) removes the WRONG
-         // triangles on some faces (visible holes) rather than fixing
-         // anything, so both sides are kept visible. That still leaves a
-         // real, disclosed artifact on 2 of cube.rwg's 6 faces (a
-         // z-fighting-like grid pattern where the near and far side of the
-         // solid render at nearly the same depth from a raking angle) -
-         // ⚠️ VERIFICAR, not fixed this session. Core geometry (position +
-         // normal data) is unaffected and separately verified - see docs.
+         // Double-sided kept: the per-material cull mode of RWG (RWX
+         // MaterialModes equivalent) is not decoded yet - ⚠️ VERIFICAR.
+         // Winding itself IS consistent in the real data (fan-order normal
+         // == stored face normal for every polygon, see triangulate()); the
+         // old "holes with culling" and cube.rwg's z-fighting on 2 faces
+         // were both caused by the PLST index bug fixed in RwgParser
+         // (duplicated coplanar +-Z faces, missing +-Y faces).
          GlLighting.applyCulling(true);
       }
 
@@ -152,24 +149,20 @@ public final class RwgViewer {
    }
 
    private static int[][] triangulate(RwgAtom atom) {
-      // ⚠️ VERIFICAR: for the one real quad seen (IDLE.RWG), the 4 stored
-      // vertex indices are in GRID order (top-left, top-right,
-      // bottom-left, bottom-right), NOT boundary-loop order - confirmed
-      // by rendering: a plain fan (0,1,2)+(0,2,3) produced a concave
-      // "chevron" instead of the flat rectangle the real positions form.
-      // So for exactly 4 vertices we assume grid order and split as a
-      // strip (0,1,2)+(1,3,2); for any other count we fall back to a
-      // naive fan, unverified against real data.
+      // PLST polygons are boundary loops (RW polygon / RWX Quad semantics):
+      // plain fan (0,i,i+1). Verified against real bytes once indices are
+      // resolved past the 8 bounding-box records (RwgParser.parseAtom()):
+      // all 456 quads of table.rwg, 6/6 of cube.rwg and IDLE.RWG's quad are
+      // convex in loop order, and the fan-order normal equals the stored
+      // PLST face normal for all 3466 polygons of cube/ball/table/e3/IDLE.
+      // History: the old "grid order" quad split (0,1,2)+(1,3,2) was an
+      // artifact of indexing the bounding-box records, which are stored
+      // exactly in grid order (-x+y, +x+y, -x-y, +x-y).
       java.util.List<int[]> tris = new java.util.ArrayList<>();
       for (RwgPolygon p : atom.polygons) {
          int[] idx = p.vertexIndices;
-         if (idx.length == 4) {
-            tris.add(new int[]{idx[0], idx[1], idx[2]});
-            tris.add(new int[]{idx[1], idx[3], idx[2]});
-         } else {
-            for (int i = 1; i + 1 < idx.length; i++) {
-               tris.add(new int[]{idx[0], idx[i], idx[i + 1]});
-            }
+         for (int i = 1; i + 1 < idx.length; i++) {
+            tris.add(new int[]{idx[0], idx[i], idx[i + 1]});
          }
       }
       return tris.toArray(new int[0][]);
@@ -184,15 +177,12 @@ public final class RwgViewer {
          RwgVertex a = vertices.get(t[0]);
          RwgVertex b = vertices.get(t[1]);
          RwgVertex c = vertices.get(t[2]);
-         // ⚠️ Real-data finding (cube.rwg): the 8 "plain" vertices with no
-         // UV also have an all-zero parsed normal (0,0,0) - a missing-data
-         // placeholder, not a real direction - and 2 of the 6 cube faces
-         // reference exactly those vertices. Feeding a zero-length normal
-         // to GL_NORMALIZE is undefined and breaks lighting for that face
-         // (visible as a garbled/transparent-looking triangle before this
-         // fix). Same fallback discipline as RwxViewer: fall back to the
-         // real geometric (cross-product) face normal whenever the parsed
-         // per-vertex normal is degenerate, rather than trusting a zero.
+         // Defensive fallback only: the all-zero normals once seen here were
+         // the 8 bounding-box records (not vertices), which RwgParser no
+         // longer exposes as geometry - no real vertex of the 8 .rwg in the
+         // repo has a zero normal. A zero-length normal under GL_NORMALIZE
+         // is undefined, so fall back to the geometric face normal (same
+         // discipline as RwxViewer) rather than trusting it.
          float[] faceN = GlLighting.faceNormal(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
          emit(a, lit, faceN);
          emit(b, lit, faceN);

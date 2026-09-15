@@ -28,6 +28,8 @@ import java.util.List;
  */
 public final class RwgParser {
    private static final int MAGIC = 0x5A5A5A5B; // "ZZZ["
+   /** Leading VLST records that hold the clump's bounding box, not vertices - see parseAtom(). */
+   private static final int BBOX_RECORDS = 8;
 
    private final byte[] data;
    private int pos;
@@ -119,7 +121,7 @@ public final class RwgParser {
       float[] matrix1 = readMatx();
       float[] matrix2 = readMatx();
 
-      List<RwgVertex> vertices = new ArrayList<>();
+      List<RwgVertex> records = new ArrayList<>();
       List<RwgPolygon> polygons = new ArrayList<>();
 
       while (pos < atomEnd) {
@@ -127,7 +129,7 @@ public final class RwgParser {
          int len = readI32();
          int end = pos + len;
          if (tag.equals("VLST")) {
-            vertices.addAll(parseVlst(end));
+            records.addAll(parseVlst(end));
          } else if (tag.equals("PLST")) {
             polygons.addAll(parsePlst(end));
          }
@@ -135,7 +137,41 @@ public final class RwgParser {
       }
       pos = atomEnd;
 
-      return new RwgAtom(headerRaw, matrix1, matrix2, vertices, polygons);
+      // The first 8 VLST records are NOT geometry: they are the clump's
+      // local bounding box, stored as 8 corner records (position only, all
+      // other floats 0). Evidence:
+      //  - RenderWare 2.1 itself (assets/FIRST/RWL21.DLL, the library the
+      //    client ships and RWX2RWG links): RwGetClumpNumVertices
+      //    (0x10003fe0) returns the stored record count MINUS 8;
+      //    RwGetClumpLocalBBox (0x10008ab0) requires count > 8 and reads
+      //    the start of the same array; RwGetClumpVertex (0x100319f0) only
+      //    accepts a 1-based index n while n < count - 7.
+      //  - Real bytes, all 8 .rwg in the repo: records[0..7] equal EXACTLY
+      //    (error 0) the corners (-x+y+z, +x+y+z, -x-y+z, +x-y+z, -x+y-z,
+      //    +x+y-z, -x-y-z, +x-y-z) of the bbox of records[8..]; AVATAR.RWG
+      //    (0 polygons) has only those 8, with min=+FLT_MAX/max=-FLT_MAX
+      //    (an empty box). With PLST indices resolved against records[8..]
+      //    every polygon of cube/ball/table/e3/IDLE (3466 in total) has a
+      //    fan-order geometric normal equal to its stored PLST face normal;
+      //    against records[0..] (the old reading) only 167 did, and cube.rwg
+      //    ended up with the +-Z faces duplicated (the "z-fighting") and the
+      //    +-Y faces missing.
+      if (records.size() < BBOX_RECORDS) {
+         throw new IllegalArgumentException("VLST has " + records.size()
+            + " records, fewer than the " + BBOX_RECORDS + " bounding-box records RenderWare always stores first");
+      }
+      List<RwgVertex> bboxCorners = new ArrayList<>(records.subList(0, BBOX_RECORDS));
+      List<RwgVertex> vertices = new ArrayList<>(records.subList(BBOX_RECORDS, records.size()));
+      for (RwgPolygon p : polygons) {
+         for (int idx : p.vertexIndices) {
+            if (idx < 0 || idx >= vertices.size()) {
+               throw new IllegalArgumentException("PLST vertex index " + (idx + 1) + " out of range 1.."
+                  + vertices.size() + " (VLST records after the bounding box)");
+            }
+         }
+      }
+
+      return new RwgAtom(headerRaw, matrix1, matrix2, bboxCorners, vertices, polygons);
    }
 
    private float[] readMatx() {
@@ -237,7 +273,7 @@ public final class RwgParser {
          int vertCount = readI32();
          int[] indices = new int[vertCount];
          for (int j = 0; j < vertCount; j++) {
-            indices[j] = readI32() - 1; // file uses 1-based indices (RWX convention)
+            indices[j] = readI32() - 1; // 1-based (RWX convention), relative to the VLST records AFTER the 8 bounding-box records - see parseAtom()
          }
          int[] trailing = new int[trailingCount];
          for (int j = 0; j < trailingCount; j++) {

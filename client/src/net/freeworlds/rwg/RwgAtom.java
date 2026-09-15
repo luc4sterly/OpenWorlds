@@ -19,14 +19,22 @@ public final class RwgAtom {
    public final float[] matrix1;
    /** Second MATX, same caveats as matrix1. */
    public final float[] matrix2;
+   /**
+    * The first 8 VLST records: the clump's local bounding box as 8 corner
+    * positions (other floats 0), NOT geometry - RenderWare 2.1's
+    * RwGetClumpNumVertices subtracts them (see RwgParser.parseAtom()).
+    */
+   public final List<RwgVertex> boundingBoxCorners;
+   /** Real vertices (VLST records 8..): PLST index n (1-based) is vertices.get(n - 1). */
    public final List<RwgVertex> vertices;
    public final List<RwgPolygon> polygons;
 
-   public RwgAtom(int[] headerRaw, float[] matrix1, float[] matrix2,
+   public RwgAtom(int[] headerRaw, float[] matrix1, float[] matrix2, List<RwgVertex> boundingBoxCorners,
                    List<RwgVertex> vertices, List<RwgPolygon> polygons) {
       this.headerRaw = headerRaw;
       this.matrix1 = matrix1;
       this.matrix2 = matrix2;
+      this.boundingBoxCorners = boundingBoxCorners;
       this.vertices = vertices;
       this.polygons = polygons;
    }
