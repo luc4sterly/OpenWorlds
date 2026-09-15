@@ -42,6 +42,12 @@ resolve_root() {
 ROOT="$(resolve_root "$(dirname "$0")")"
 IS_MAC=0
 [ "$(uname -s)" = "Darwin" ] && IS_MAC=1
+# JDK portable de tools/setup-macos.sh (sin Homebrew) por delante del PATH:
+# en macOS /usr/bin/java es solo un stub que falla sin JDK instalado.
+if [ -x "$ROOT/tools/jdk/Contents/Home/bin/java" ]; then
+   export JAVA_HOME="$ROOT/tools/jdk/Contents/Home"
+   export PATH="$JAVA_HOME/bin:$PATH"
+fi
 WORLD="$ROOT/assets/WorldsPlayer/GroundZero/groundzero.world"
 ROOM="Reception"
 LOGDIR="$ROOT/logs"
@@ -139,11 +145,13 @@ if [ ${#ARGS[@]} -eq 0 ] && [ "$ROOM" = "Reception" ]; then
    echo "[run-game] sin args: modo juego en spawn real Reception (avatar, WASD; ESC para salir)"
 fi
 HAS_OUT=0
-for a in "${ARGS[@]}"; do
+# bash 3.2 de macOS + set -u: "${ARGS[@]}" vacio es "unbound variable";
+# de ahi ${ARGS[@]+...} / ${ARGS[*]:-} en todo lo que corre en Mac.
+for a in ${ARGS[@]+"${ARGS[@]}"}; do
    case "$a" in --screenshot|--screenshot-dir) HAS_OUT=1;; esac
 done
 if [ "$AUTOSHOT" = 1 ] && [ "$HAS_OUT" = 0 ]; then
-   case " ${ARGS[*]} " in
+   case " ${ARGS[*]:-} " in
       *" ALL "*|*" --list-rooms "*) ;;
       *) SHOT="$LOGDIR/${ROOM}-${STAMP}.png"
          ARGS+=(--screenshot "$SHOT");;
@@ -152,12 +160,12 @@ fi
 
 # --- cabecera del log ---
 {
-echo "=== FreeWorlds run-game $(date -Is) ==="
+echo "=== FreeWorlds run-game $(date +%Y-%m-%dT%H:%M:%S%z) ==="
 echo "room: $ROOM"
-echo "display: $DISPLAY"
+echo "display: ${DISPLAY:-(macOS, sin X11)}"
 echo "java: $(java -version 2>&1 | head -n 1)"
 echo "git: $(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo ?) $(git -C "$ROOT" status --short | head -n 5 | tr '\n' ';')"
-echo "cmd: java -cp client/out:tools/lwjgl/* net.freeworlds.render.WorldViewer $WORLD $ROOM ${ARGS[*]}"
+echo "cmd: java -cp client/out:tools/lwjgl/* net.freeworlds.render.WorldViewer $WORLD $ROOM ${ARGS[*]:-}"
 echo "log: $LOG"
 echo "--- juego ---"
 } | tee -a "$LOG"

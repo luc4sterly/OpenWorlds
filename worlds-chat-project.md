@@ -3187,3 +3187,47 @@ decompilado existia pero NO estaba en el repo (`source/` ignorado,
    exports JNI con nombre real — incluidos los 15 de `DroneAnimator`
    (el decoder `.seq` que falta para animacion real) y `huffdcod`
    (texturas `.cmp`). `INDEX.txt` para cruzar addr<->Ghidra.
+
+### 🟢 macOS Intel sin Homebrew: entorno portable + visores en Cocoa (2026-09-15)
+
+Pedido ("homebrew ya no soporta macs con intel, mira a ver que puedes
+hacer"). Maquina: MacBook Intel i5-7360U, macOS 15.7.9, bash 3.2 de
+sistema, sin JDK/brew/node/wine. El commit `b6f4df1` ("macos: setup +
+scripts portables") nunca habia corrido en un Mac real: cuatro paredes,
+todas de entorno, cero cambios de render:
+
+1. **`setup-macos.sh` sin Homebrew**: JDK 25 Temurin portable (tar.gz
+   de `api.adoptium.net`, SHA-256 verificado) en `tools/jdk/`
+   (gitignored, sin sudo) + solo los natives LWJGL de la arquitectura
+   (`.sha1` de Maven Central verificado). `run-game.sh` e
+   `install-launcher.sh` anteponen `tools/jdk` al `PATH` (`/usr/bin/java`
+   es un stub). node fuera (solo lo usa el harness RWX, ya 118/118).
+2. **X11 forzado en los 5 visores** (`glfwInitHint(GLFW_PLATFORM_X11)`):
+   GLFW en macOS no tiene backend X11 y `glfwInit()` falla. Ahora
+   `GlUtil.forceX11OnLinux()`.
+3. **bash 3.2 + `set -u`**: `"${ARGS[@]}"` vacio = "unbound variable"
+   (verificado en el bash del Mac) — rompia `run-game.sh LizCave` e
+   `install-launcher.sh` sin args; `$DISPLAY` sin definir mataba la
+   cabecera del log. Idiomas `${A[@]+...}`, `${A[*]:-}`, `${DISPLAY:-}`.
+4. `date -Is` no existe en el `date` BSD.
+
+**Verificado en el Mac** (OpenGL legacy 2.1 de Apple, funcion fija
+intacta): sonda 25 salas; `ALL` 25/25 GL error 0 con `Texture 51/51` +
+`Rect 101/101` (mismas cifras que en Linux); `--play` en ventana Cocoa
+real, jugado por el usuario (frame 0 presentado, jugador andando con z
+clavado al suelo, salida limpia con ESC). Captura `--play` contra
+`docs/renders/world_play_spawn_thirdperson.png` (mismo codigo de render:
+el unico commit posterior en `client/src` es `SeqParser`, sin usar): NO
+bit-identica — 14427/786432 px (1.8%) difieren, 88% con delta <=4 y
+solo 47 px >64. Mascara de diferencias revisada, no solo el
+histograma: (a) la unica zona compacta es la franja de vacio bajo el
+zocalo derecho = color de clear `glClearColor(0.10,0.10,0.14)`, Mac
+`191924` vs Linux `1A1A24` — 0.10x255=25.5 cae justo en la mitad y
+Apple trunca a 25 donde Mesa redondea a 26 (delta 1, azul 35.7 da 36 en
+ambos); (b) el resto son pixeles sueltos y costuras de 1 px entre
+paneles de textura del fondo. Redondeo/rasterizacion del driver (Apple
+GL frente a Mesa bajo Xvfb), no contenido distinto.
+`run-original.sh` sigue sin poder correr aqui (sin Wine). Menor visto
+de paso: en `--play` el contador "total rect references seen" acumula
+por frame (69000 = 69 x 1000 frames), igual que el de avatares
+corregido el 2026-09-14. Detalle en `docs/setup-macos.md`.

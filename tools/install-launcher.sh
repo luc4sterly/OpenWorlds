@@ -20,6 +20,11 @@ elif readlink -f "$(dirname "$0")/.." >/dev/null 2>&1; then
 else
    ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 fi
+# JDK portable de tools/setup-macos.sh (ver run-game.sh).
+if [ -x "$ROOT/tools/jdk/Contents/Home/bin/java" ]; then
+   export JAVA_HOME="$ROOT/tools/jdk/Contents/Home"
+   export PATH="$JAVA_HOME/bin:$PATH"
+fi
 if [ "$(uname -s)" = "Darwin" ]; then
    echo "[launcher] macOS no usa .desktop. Usa Spotlight/Automator, o lanza:"
    echo "  tools/run-game.sh $*"
@@ -57,7 +62,7 @@ APPDIR="$HOME/.local/share/applications"
 mkdir -p "$APPDIR"
 DESK="$APPDIR/freeworlds.desktop"
 ARGS_STR=""
-for a in "${EXTRA[@]}"; do ARGS_STR="$ARGS_STR $a"; done
+for a in ${EXTRA[@]+"${EXTRA[@]}"}; do ARGS_STR="$ARGS_STR $a"; done
 cat > "$DESK" <<EOF
 [Desktop Entry]
 Type=Application

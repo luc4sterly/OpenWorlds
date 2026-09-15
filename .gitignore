@@ -22,6 +22,10 @@ editor/worldsplayer_source_editor-main/out/
 # worlds-chat-project.md sec. 4/5 for exact version + module list)
 /tools/lwjgl/
 
+# Portable JDK for macOS (Temurin tar.gz from api.adoptium.net, installed by
+# tools/setup-macos.sh - Homebrew no longer supports Intel Macs)
+/tools/jdk/
+
 # New Java client (RWX parser, later the renderer) build output
 /client/out/
 
