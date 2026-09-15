@@ -17,6 +17,30 @@ cliente, ver más abajo). **No se inventó ningún dato** — donde la
 evidencia es insuficiente está marcado ⚠️ VERIFICAR explícitamente, no
 rellenado con suposiciones.
 
+> **Correcciones de la auditoría 2026-09-15 — prevalecen sobre el texto
+> histórico de abajo:**
+>
+> 1. **`VLST[0..7]` no son vértices: son las 8 esquinas de la bounding
+>    box local del clump**, y los índices 1-based de `PLST` cuentan a
+>    partir del registro 8. Evidencia: en `RWL21.DLL`,
+>    `RwGetClumpNumVertices` (0x10003fe0) devuelve count−8 y
+>    `RwGetClumpVertex` (0x100319f0, helper 0x10041c90) direcciona el
+>    registro n+7; en los 8 `.rwg` del repo las 8 primeras entradas son
+>    exactamente la bbox del resto (error 0), y contando desde 8 la normal
+>    geométrica en orden de abanico coincide con la normal de cara de
+>    `PLST` en 3466/3466 polígonos (167 si se cuenta desde 0).
+>    Consecuencias: `cube.rwg` tiene 24 vértices (no 32), `e3.rwg` 1371
+>    (no 1379); `AVATAR.RWG` no es "un cubo de centinelas" sino un clump
+>    vacío con bbox ±FLT_MAX; el "orden de rejilla" de los quads, las
+>    "normales (0,0,0)" y el "bobinado inconsistente" de `cube.rwg` eran
+>    efectos del mismo error: los polígonos son lazos convexos (abanico) y
+>    el bobinado es consistente. Corregido en `RwgParser` (commit
+>    `1cc135b5`); render en `docs/renders/cube_rwg_bbox_fix_lit.png`.
+> 2. **`.bod` está resuelto** (la sección final "NO resuelto" es
+>    histórica): ver `docs/bod-format-reference.md`.
+> 3. Hay **8 `.rwg` reales** en el repo (incluye `e3.rwg` y las copias de
+>    `AVATAR`/`IDLE` en `assets/WorldsPlayer/`), todos de un solo `ATOM`.
+
 ## Actualización importante: se encontró un corpus real más grande dentro
 ## del tutorial oficial de GammaDocs (`cube.rwg`, `ball.rwg`, `table.rwg` +
 ## `table.rwx` fuente, ahora en `assets/gammatutorial-samples/`)

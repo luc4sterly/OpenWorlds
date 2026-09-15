@@ -87,28 +87,21 @@ confirmados):
   (`floats[3:6)`, ver `docs/rwg-bod-format-reference.md`) — se usa
   directamente en vez de recalcularla, con una excepción real encontrada
   esta sesión:
-- ⚠️ **Hallazgo**: en `cube.rwg`, los 8 vértices "planos" (sin UV, ya
-  documentados) tienen normal parseada `(0,0,0)` — un valor de relleno
-  sin sentido geométrico, no una dirección real — y 2 de las 6 caras del
-  cubo los referencian. Alimentar una normal de longitud cero a
-  `GL_NORMALIZE` es comportamiento indefinido en OpenGL. Se implementó
-  un fallback: si la normal parseada tiene longitud ~0, se usa la normal
-  de cara calculada por producto cruzado para esa cara (mismo mecanismo
-  que RWX). Documentado en el código (`RwgViewer.drawTriangles`).
-- ⚠️ **Artefacto sin resolver**: aun con ese fallback, `cube.rwg`
-  muestra un patrón tipo z-fighting (bandas finas) en 2 de sus 6 caras
-  al renderizarlo con las 2 caras visibles (culling desactivado, ver
-  abajo). Se probó activar backface culling como diagnóstico: el
-  resultado fue PEOR (huecos reales, triángulos incorrectos ocultos),
-  lo que demuestra que **el sentido de bobinado (winding) no es
-  consistente entre caras en los datos reales** — no se pudo determinar
-  la convención correcta con la evidencia y el tiempo disponibles. Se
-  mantuvo la decisión original (ambas caras visibles) por ser la que
-  menos oculta geometría real, y el hallazgo queda documentado en vez de
-  forzarse una "solución" sin evidencia. La geometría de posición en sí
-  (ya verificada en la sesión anterior con captura de pantalla limpia
-  sin iluminación) no se ve afectada — es puramente un artefacto de
-  sombreado en 2 de 6 caras.
+- ✅ **Resuelto 2026-09-15** (texto anterior, histórico: "8 vértices
+  planos con normal (0,0,0)" y "z-fighting en 2 de 6 caras con bobinado
+  inconsistente"). No era z-fighting ni bobinado: `RwgParser` indexaba
+  `PLST` contra `VLST[0..]`, pero `VLST[0..7]` es la bounding box del
+  clump y los vértices reales empiezan en el registro 8 (RWL21.DLL:
+  `RwGetClumpNumVertices` = count−8, `RwGetClumpVertex` → registro n+7).
+  El índice mal resuelto duplicaba las caras ±Z (coplanares → las
+  bandas), dibujaba 2 caras sobre las esquinas de la bbox (las "normales
+  0") y dejaba sin dibujar las ±Y (los "huecos" con culling). Con los
+  índices correctos las normales guardadas coinciden con las geométricas
+  (3466/3466 polígonos en cube/ball/table/e3/IDLE), los quads son lazos
+  convexos (abanico) y el bobinado es consistente. El culling sigue a
+  doble cara porque el modo de material de RWG no está decodificado.
+  Render: `docs/renders/cube_rwg_bbox_fix_lit.png` / `_wire.png`. De
+  paso, `RwgViewer` captura antes del swap (en macOS salía negro).
 - `ball.rwg` (512 triángulos, esfera facetada): el patrón tipo
   "bowtie/diamante" grande que cruza la esfera en el render con
   iluminación es consistente con los triángulos-abanico de los polos de
