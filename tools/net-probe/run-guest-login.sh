@@ -28,6 +28,14 @@ if [ "${1:-}" = "--build-only" ]; then
   exit 0
 fi
 
+if [ -n "${4:-}" ]; then
+  # netdebug 1260 (lo fija la sonda) incluye el bit 4: UserServer.
+  # buildSessionInitCmd imprime "password = <en claro>" y el volcado
+  # send(SESSINIT ...) + hex del bit 128/1024 tambien lo contiene.
+  echo "AVISO: con password el log ($WORK/guest-login/guest-login.log) lo contiene EN CLARO." >&2
+  echo "       No lo publiques ni lo commitees sin borrarlo antes." >&2
+fi
+
 RUN="$WORK/guest-login"
 copy_install "$RUN/WorldsPlayer"
 LOG="$RUN/guest-login.log"

@@ -11,7 +11,11 @@
 #   JSTACK_AT      segundos (separados por espacio) en que volcar hilos
 #                  (defecto "20 50")
 # Salida en $WORK/gamma/: stdout.log (stdout+stderr), jstack-<s>.txt, y la
-# copia de la instalacion con lo que el cliente escribio (Gamma.Log, cachedir).
+# copia de la instalacion con lo que el cliente escribio (cachedir).
+# OJO tamano: con el mock actual el cliente vive en Main.mainLoop y cada
+# frame registra sus nativos: ~226 MB / 5,2 M lineas de stdout.log en 60 s.
+# Red: el cliente real resuelve y descarga de su upgradeServer
+# (us1.worlds.net, HTTP) - no abre ninguna conexion WorldServer ni login.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 . "$HERE/lib-build.sh"
