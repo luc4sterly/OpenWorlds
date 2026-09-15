@@ -1,2 +1,2 @@
-# 2026-09-15: versionar ABSOLUTAMENTE TODO en Codeberg por peticion explicita
-# del usuario. Reglas anteriores (out, worlds.jar) desactivadas.
+out
+worlds.jar
