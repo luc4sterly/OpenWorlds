@@ -440,7 +440,8 @@ cielo donde el autor no puso paneles (sectores sin geometria = vacio,
 no se inventa nada).
 
 **Bumpers invisibles (hallazgo de la misma auditoria).** LizCave se veia
-llena de cristales teal gigantes: son `Rect942CyanBump` (40), muros de
+llena de cristales teal gigantes: son `Rect942CyanBump` (41 con
+`flags=2` segun recuento de la auditoria 2026-09-15; decia 40), muros de
 colision con color teal real #00FCF8 y `flags=2` (bumpable, NO visible;
 bit 0 = visible verificado en `WObject.getVisible()` del decompilado).
 El parser tiraba los flags y el visor los dibujaba. Ahora `WNode.flags`
@@ -474,7 +475,10 @@ ancho del bound box real `setLocalBoundBox(-30,...)` de `HoloPilot`);
 movimiento por ejes con slide. Constantes reales documentadas en el
 codigo (`PLAY_EYE_HEIGHT/CAM_DIST/WALK_SPEED/RADIUS/STEP`).
 
-**Verificado**: Reception 14 suelos/28 bloqueantes/8 portales, 89
+**Verificado**: Reception 14 suelos/28 bloqueantes/8 portales
+(auditoria 2026-09-15: el log actual da 41 bloqueantes = esos 28 Rects
++ 13 AABB de props `.rwx`, anadidos en el arreglo del kiosko de la
+seccion siguiente; `WorldViewer.collectPlayfield`), 89
 objetos (1 avatar jugador), GL 0 (`world_play_spawn_thirdperson.png`:
 Aura de espaldas ante el kiosko texturizado, colinas detras);
 IconViewRoom1a 7 objetos (2 avatares: estatua + jugador), GL 0; modo
