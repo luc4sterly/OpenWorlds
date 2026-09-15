@@ -139,13 +139,15 @@ public final class RwxSceneViewer {
          }
 
          angle += 0.4f;
+         // Leer ANTES del swap (mismo arreglo que WorldViewer/RwgViewer): tras
+         // glfwSwapBuffers el back buffer es indefinido; en macOS salia negro.
+         // Con --screenshot el bucle hace un solo frame.
+         if (screenshotPath != null) {
+            GlUtil.saveScreenshot(width, height, screenshotPath);
+            System.out.println("Screenshot written to " + screenshotPath);
+         }
          glfwSwapBuffers(window);
          glfwPollEvents();
-      }
-
-      if (screenshotPath != null) {
-         GlUtil.saveScreenshot(width, height, screenshotPath);
-         System.out.println("Screenshot written to " + screenshotPath);
       }
 
       glfwDestroyWindow(window);
