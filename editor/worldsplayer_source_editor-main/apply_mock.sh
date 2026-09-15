@@ -381,7 +381,9 @@ PYEOF
 # indexing and arithmetic, never stored or serialized as a byte anywhere -
 # safe to widen uniformly. Found via:
 #   grep -rn "for (byte " --include="*.java" source
-grep -rl "for (byte " --include="*.java" source | xargs sed -i 's/for (byte /for (int /g'
+# perl -pi en vez de sed -i: `sed -i 's/..'` es sintaxis GNU y en el sed BSD
+# de macOS aborta el script aqui (set -e) con el mock a medio aplicar.
+grep -rl "for (byte " --include="*.java" source | xargs perl -pi -e 's/for \(byte /for (int /g'
 echo "Patched 11 byte-typed loop counters -> int (Vineflower decompiler bug, see worlds-chat-project.md sec. 4)"
 
 # "Smart" mock override for IniFile (section 7, tool #4 extension - see
