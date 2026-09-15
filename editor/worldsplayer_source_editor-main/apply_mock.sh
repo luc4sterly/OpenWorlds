@@ -25,20 +25,52 @@ public final class NativeMock {
    private NativeMock() {
    }
 
+   // Logging must never change control flow: the real gamma.dll natives do
+   // not log at all. Formatting an argument calls its toString(), and some
+   // of those call mocked natives again (Rect.toString -> getFarCornerLocal
+   // -> Point3Temp.times(Transform) whose argument is the Rect itself), which
+   // recursed log -> toString -> log until StackOverflowError killed Gamma
+   // Main. Nested log calls on the same thread therefore print arguments by
+   // class@identity only, and a throwing toString() is reported, not raised.
+   private static final ThreadLocal<Boolean> IN_LOG = new ThreadLocal<Boolean>();
+
+   private static String identity(Object o) {
+      return o == null ? "null" : o.getClass().getName() + "@" + Integer.toHexString(System.identityHashCode(o));
+   }
+
    public static void log(String className, String method, Object[] args) {
-      StringBuilder sb = new StringBuilder();
-      sb.append("[NATIVE-MOCK] ").append(className).append('.').append(method).append('(');
-
-      for (int i = 0; i < args.length; i++) {
-         if (i > 0) {
-            sb.append(", ");
-         }
-
-         sb.append(String.valueOf(args[i]));
+      boolean nested = IN_LOG.get() != null;
+      if (!nested) {
+         IN_LOG.set(Boolean.TRUE);
       }
 
-      sb.append(')');
-      System.err.println(sb.toString());
+      try {
+         StringBuilder sb = new StringBuilder();
+         sb.append("[NATIVE-MOCK] ").append(className).append('.').append(method).append('(');
+
+         for (int i = 0; i < args.length; i++) {
+            if (i > 0) {
+               sb.append(", ");
+            }
+
+            if (nested) {
+               sb.append(identity(args[i]));
+            } else {
+               try {
+                  sb.append(String.valueOf(args[i]));
+               } catch (RuntimeException e) {
+                  sb.append(identity(args[i])).append(" <toString threw ").append(e).append('>');
+               }
+            }
+         }
+
+         sb.append(')');
+         System.err.println(sb.toString());
+      } finally {
+         if (!nested) {
+            IN_LOG.remove();
+         }
+      }
    }
 
    /**
