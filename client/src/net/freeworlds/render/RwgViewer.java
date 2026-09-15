@@ -136,13 +136,15 @@ public final class RwgViewer {
          drawTriangles(atom.vertices, triangles, lit);
 
          angle += 0.6f;
+         // Leer ANTES del swap (mismo arreglo que WorldViewer): tras
+         // glfwSwapBuffers el back buffer es indefinido — en macOS/Cocoa
+         // con ventana invisible salía la captura entera en negro.
+         if (screenshotPath != null && frame == 0) {
+            GlUtil.saveScreenshot(width, height, screenshotPath);
+            System.out.println("Screenshot written to " + screenshotPath);
+         }
          glfwSwapBuffers(window);
          glfwPollEvents();
-      }
-
-      if (screenshotPath != null) {
-         GlUtil.saveScreenshot(width, height, screenshotPath);
-         System.out.println("Screenshot written to " + screenshotPath);
       }
 
       glfwDestroyWindow(window);
