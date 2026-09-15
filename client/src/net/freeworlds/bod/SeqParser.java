@@ -11,34 +11,42 @@ import java.util.Map;
 
 /**
  * Parser del formato `.seq` del cliente original (animacion articular),
- * deducido INTEGRO del C decompilado de gamma.dll (ver
- * docs/seq-animation-reference.md) y verificado byte a byte (leftover=0
- * en todo el corpus real):
+ * traducido del C decompilado de gamma.dll (ver
+ * docs/seq-animation-reference.md). Verificado 2026-09-15 con
+ * SeqExtractMain: 231/231 archivos reales consumidos enteros
+ * (base-avatars 96 v1; cachedir 98 v1 + 37 variante 0x7f).
+ *
+ * Primer byte 0x7f -> variante big-endian (FUN_00436610); cualquier otro
+ * -> v1 little-endian empaquetada (FUN_00436d50):
  *
  * <pre>
- * u8 version (=1)                                   [FUN_00436d50]
- * u8 nJoints                                        [local_4a9]
- * string nombre de figura (u8 len + bytes)          [FUN_0042f3b0]
+ * u8 version (=1 en todo el corpus)
+ * u8 nJoints (0 = error)                            [local_4a9]
+ * string figura (u8 len + bytes, sin NUL)           [FUN_0042f3b0]
  * u16le K (=nº de keyframes)                        [local_3a2[0]]
  * u8[K] diccionario de deltas de tiempo             [pbVar12]
- * u16le checksum (suma de bytes del dict; se lee, no se exige)
- * nJoints x { string nombre; track quat }           [bucle local_4c8]
- * u8 nExtra; nExtra tracks anonimos (los 3 primeros modo 4,
- *   el 4o (indice 3) modo quat)                     [bucle local_299]
+ *   (NO hay checksum en el archivo: la suma del diccionario se calcula
+ *   en memoria y se guarda como duracion en +0x214)
+ * nJoints x { string nombre; track 0x10 }           [bucle local_4c8]
+ * u8 nExtra; nExtra tracks (indice 3 = 0x10, resto = 4) [bucle local_299]
  * </pre>
  *
- * Track quat (sizeFlag 0x10, FUN_00437550): 4 floats base (quaternion
- * unitario verificado: norma 1.0000 en todos los joints reales) +
- * (K-1) grupos de 3 bytes con deltas empaquetados (indice 5 bits +
- * signo en codebook CB32). Tiempos = suma acumulada del diccionario
- * (monotonos verificados).
+ * Track 0x10 (FUN_00437550): 4 floats base en orden de archivo + (K-1)
+ * grupos de 3 bytes = 4 indices de 6 bits (5 de magnitud en CB32 + signo).
+ * Track 4: 1 float base + (K-1) bytes (7 bits en CB128 + signo). Tiempos
+ * = suma acumulada del diccionario. Base de norma 1 en todos los joints
+ * salvo 4 con base (0,0,0,0) real (common_g1_no, common_g3_spin).
  *
- * Track modo 4: 1 float base + (K-1) bytes (indice 7 bits + signo en
- * CB32... perdon, en CB128).
+ * Variante 0x7f7f7f7a: u16 duracion, u32 nJoints, string figura, string
+ * joint raiz (strings: u16 len + bytes con NUL), nJoints x {string; track},
+ * u32 nExtra, tracks. Track (FUN_004364e0/FUN_00436260): u32 sizeFlag
+ * (4/0xc/0x10), u32 nKeys, nKeys x {u32 tiempo; 1/3/4 floats}; 0xc se
+ * guarda como (0,a,b,c).
  *
  * Codebooks extraidos del binario original
  * (assets/WorldsPlayer/bin/gamma.dll, offsets de fichero 0x72a40 y
- * 0x729c0; RVA Ghidra 0x475c40/0x475bc0, base 0x400000).
+ * 0x729c0; RVA Ghidra 0x475c40/0x475bc0, base 0x400000) — 128/128 y
+ * 32/32 floats identicos bit a bit.
  */
 public final class SeqParser {
    private SeqParser() {
@@ -72,11 +80,17 @@ public final class SeqParser {
 
 
 
-   /** Un track: tiempos acumulados + valores por key. Quat = 4, modo4 = 1. */
+   /**
+    * Un track: tiempo por key + valores. sizeFlag como en el original
+    * (FUN_00437550 / FUN_00436260): 0x10 = 4 floats en el orden del
+    * archivo, 0xc = 3 floats guardados como (0,a,b,c), 4 = 1 float.
+    */
    public static final class Track {
+      public final int sizeFlag;
       public final int[] times;
       public final float[][] values;
-      Track(int[] t, float[][] v) {
+      Track(int sizeFlag, int[] t, float[][] v) {
+         this.sizeFlag = sizeFlag;
          times = t;
          values = v;
       }
@@ -85,12 +99,19 @@ public final class SeqParser {
       }
    }
 
-   /** Un .seq completo: figura, joints por nombre, extras anonimos. */
+   /** Un .seq completo: figura, joint raiz, duracion, joints por nombre, extras anonimos. */
    public static final class SeqData {
+      /** Primer byte (v1: 0x01) o 0x7f7f7f7a (variante big-endian sin empaquetar). */
+      public final int version;
       public final String figure;
+      /** +0x114: nombre del primer joint (v1) o campo propio (variante 0x7f). */
+      public String rootJoint;
+      /** +0x214 (short): v1 = suma de los K bytes del diccionario; variante 0x7f = u16 del archivo. */
+      public int duration;
       public final Map<String, Track> joints = new LinkedHashMap<>();
       public final List<Track> extras = new ArrayList<>();
-      SeqData(String f) {
+      SeqData(int version, String f) {
+         this.version = version;
          figure = f;
       }
    }
@@ -120,42 +141,36 @@ public final class SeqParser {
          p += n;
          return s;
       }
+      int u16be() {
+         int v = ((b[p] & 0xFF) << 8) | (b[p + 1] & 0xFF);
+         p += 2;
+         return v;
+      }
+      int u32be() {
+         int v = ((b[p] & 0xFF) << 24) | ((b[p + 1] & 0xFF) << 16) | ((b[p + 2] & 0xFF) << 8) | (b[p + 3] & 0xFF);
+         p += 4;
+         return v;
+      }
+      float f32be() {
+         return Float.intBitsToFloat(u32be());
+      }
+      /** u16 big-endian de longitud + bytes; el NUL final va dentro de la longitud. */
+      String stringBe() {
+         int n = u16be();
+         int end = p;
+         while (end < p + n && b[end] != 0) {
+            end++;
+         }
+         String s = new String(b, p, end - p, java.nio.charset.StandardCharsets.US_ASCII);
+         p += n;
+         return s;
+      }
    }
 
    public static SeqData parse(byte[] data) {
       Reader r = new Reader(data);
-      int ver = r.u8();
-      if (ver != 1) {
-         throw new IllegalArgumentException(".seq version no soportada: " + ver);
-      }
-      int nj = r.u8();
-      SeqData out = new SeqData(r.string());
-      int k = r.u16();
-      if (k < 1) {
-         throw new IllegalArgumentException(".seq sin keyframes");
-      }
-      int[] dict = new int[k];
-      int cks = 0;
-      for (int i = 0; i < k; i++) {
-         dict[i] = r.u8();
-         cks += dict[i];
-      }
-      r.u16(); // checksum (se lee; no se exige — sitio de validacion sin verificar)
-      for (int j = 0; j < nj; j++) {
-         String name = r.string();
-         out.joints.put(name, readQuatTrack(r, k, dict));
-      }
-      int n2 = r.u8();
-      for (int i = 0; i < n2; i++) {
-         if (i == 3) {
-            int[] times = new int[k];
-            float[][] vals = new float[k][];
-            readQuatInto(r, k, dict, times, vals);
-            out.extras.add(new Track(times, vals));
-         } else {
-            out.extras.add(readFloatTrack(r, k, dict));
-         }
-      }
+      int first = r.u8();
+      SeqData out = (first == 0x7f) ? parseBigEndian(r) : parseV1(r, first);
       if (r.p != data.length) {
          throw new IllegalArgumentException(".seq con " + (data.length - r.p)
             + " bytes sin consumir (formato deducido incompleto)");
@@ -163,11 +178,107 @@ public final class SeqParser {
       return out;
    }
 
+   /** FUN_00436d50, rama por defecto: little-endian con deltas empaquetados. */
+   private static SeqData parseV1(Reader r, int version) {
+      int nj = r.u8();
+      if (nj == 0) {
+         throw new IllegalArgumentException(".seq sin joints");
+      }
+      SeqData out = new SeqData(version, r.string());
+      int k = r.u16();
+      if (k < 1) {
+         throw new IllegalArgumentException(".seq sin keyframes");
+      }
+      int[] dict = new int[k];
+      int sum = 0;
+      for (int i = 0; i < k; i++) {
+         dict[i] = r.u8();
+         sum += dict[i];
+      }
+      // Sin checksum en el archivo: FUN_00436d50 suma los K bytes del
+      // diccionario en memoria y la guarda (short) en +0x214, no lee nada mas.
+      out.duration = (short) sum;
+      for (int j = 0; j < nj; j++) {
+         String name = r.string();
+         if (j == 0) {
+            out.rootJoint = name;
+         }
+         putJoint(out, name, readQuatTrack(r, k, dict));
+      }
+      int n2 = r.u8();
+      for (int i = 0; i < n2; i++) {
+         if (i == 3) {
+            out.extras.add(readQuatTrack(r, k, dict));
+         } else {
+            out.extras.add(readFloatTrack(r, k, dict));
+         }
+      }
+      return out;
+   }
+
+   /**
+    * FUN_00436610 (primer byte 0x7f): todo big-endian y sin empaquetar.
+    * u16 duracion, u32 nJoints, string figura, string joint raiz,
+    * nJoints x {string nombre; track}, u32 nExtra, nExtra x track.
+    * Strings: u16 longitud + bytes (el NUL va dentro de la longitud).
+    */
+   private static SeqData parseBigEndian(Reader r) {
+      int version = 0x7f000000 | (r.u8() << 16) | (r.u8() << 8) | r.u8();
+      int duration = (short) r.u16be();
+      if (duration < 1) {
+         throw new IllegalArgumentException(".seq 0x7f con duracion " + duration);
+      }
+      int nj = r.u32be();
+      if (nj <= 0) {
+         throw new IllegalArgumentException(".seq 0x7f sin joints: " + nj);
+      }
+      SeqData out = new SeqData(version, r.stringBe());
+      out.duration = duration;
+      out.rootJoint = r.stringBe();
+      for (int j = 0; j < nj; j++) {
+         String name = r.stringBe();
+         putJoint(out, name, readBigEndianTrack(r));
+      }
+      int n2 = r.u32be();
+      for (int i = 0; i < n2; i++) {
+         out.extras.add(readBigEndianTrack(r));
+      }
+      return out;
+   }
+
+   /** FUN_004364e0 + FUN_00436260: u32 sizeFlag, u32 nKeys, nKeys x {u32 tiempo, floats}. */
+   private static Track readBigEndianTrack(Reader r) {
+      int sizeFlag = r.u32be();
+      int n = r.u32be();
+      if (sizeFlag != 4 && sizeFlag != 0xc && sizeFlag != 0x10) {
+         throw new IllegalArgumentException(".seq 0x7f con sizeFlag " + sizeFlag);
+      }
+      int[] times = new int[Math.max(n, 0)];
+      float[][] vals = new float[times.length][];
+      for (int i = 0; i < times.length; i++) {
+         times[i] = r.u32be();
+         if (sizeFlag == 4) {
+            vals[i] = new float[]{r.f32be()};
+         } else if (sizeFlag == 0xc) {
+            vals[i] = new float[]{0f, r.f32be(), r.f32be(), r.f32be()};
+         } else {
+            vals[i] = new float[]{r.f32be(), r.f32be(), r.f32be(), r.f32be()};
+         }
+      }
+      return new Track(sizeFlag, times, vals);
+   }
+
+   private static void putJoint(SeqData out, String name, Track t) {
+      if (out.joints.put(name, t) != null) {
+         throw new IllegalArgumentException(".seq con joint duplicado: " + name);
+      }
+   }
+
    private static Track readQuatTrack(Reader r, int k, int[] dict) {
       int[] times = new int[k];
       float[][] vals = new float[k][];
       readQuatInto(r, k, dict, times, vals);
-      return new Track(times, vals);
+      return new Track(0x10, times, vals);
    }
 
    /** FUN_00437550 con sizeFlag 0x10: 4 floats + (K-1)x3B empaquetados. */
@@ -207,7 +318,7 @@ public final class SeqParser {
          times[i] = t;
          vals[i] = new float[]{x};
       }
-      return new Track(times, vals);
+      return new Track(4, times, vals);
    }
 
    /** Tabla oficial tag->nombre (tools/gdk-sdk/RWXTOBOD.PL %tags, :150-183). */
