@@ -71,7 +71,7 @@ public final class RwgViewer {
       float radius = Math.max(0.01f, distance(bbox));
 
       GLFWErrorCallback.createPrint(System.err).set();
-      glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+      GlUtil.forceX11OnLinux();
       if (!glfwInit()) {
          throw new IllegalStateException("GLFW init failed");
       }

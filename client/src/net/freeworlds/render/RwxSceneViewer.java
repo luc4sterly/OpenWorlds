@@ -89,7 +89,7 @@ public final class RwxSceneViewer {
       float sceneCz = ((objects.size() - 1) / cols) * cell / 2f;
 
       GLFWErrorCallback.createPrint(System.err).set();
-      glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+      GlUtil.forceX11OnLinux();
       if (!glfwInit()) {
          throw new IllegalStateException("GLFW init failed");
       }

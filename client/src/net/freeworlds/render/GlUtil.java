@@ -9,6 +9,9 @@ import javax.imageio.ImageIO;
 
 import org.lwjgl.system.MemoryStack;
 
+import static org.lwjgl.glfw.GLFW.GLFW_PLATFORM;
+import static org.lwjgl.glfw.GLFW.GLFW_PLATFORM_X11;
+import static org.lwjgl.glfw.GLFW.glfwInitHint;
 import static org.lwjgl.opengl.GL11.*;
 
 /**
@@ -22,6 +25,18 @@ import static org.lwjgl.opengl.GL11.*;
  */
 final class GlUtil {
    private GlUtil() {
+   }
+
+   /**
+    * Fuerza GLFW a X11 solo en Linux (sesion Wayland renderizando contra
+    * Xvfb, ver comentario en RwxViewer). En macOS GLFW no tiene backend
+    * X11 (solo Cocoa) y forzarlo hace fallar glfwInit(). Llamar antes de
+    * glfwInit().
+    */
+   static void forceX11OnLinux() {
+      if (System.getProperty("os.name", "").startsWith("Linux")) {
+         glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+      }
    }
 
    static void perspective(float fovYDeg, float aspect, float near, float far) {

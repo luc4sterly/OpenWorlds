@@ -147,7 +147,7 @@ public final class BodViewer {
       // X11 display for testing - GLFW's platform auto-detection prefers
       // Wayland when the env var is present and fails outright there
       // (no real compositor listening on that socket for this process).
-      glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+      GlUtil.forceX11OnLinux();
       if (!glfwInit()) {
          throw new IllegalStateException("GLFW init failed");
       }

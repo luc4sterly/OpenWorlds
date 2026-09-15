@@ -408,7 +408,7 @@ public final class WorldViewer {
          + "[" + bbox[0] + "," + bbox[1] + "," + bbox[2] + "] to [" + bbox[3] + "," + bbox[4] + "," + bbox[5] + "]");
 
       GLFWErrorCallback.createPrint(System.err).set();
-      glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+      GlUtil.forceX11OnLinux();
       if (!glfwInit()) {
          throw new IllegalStateException("GLFW init failed");
       }
