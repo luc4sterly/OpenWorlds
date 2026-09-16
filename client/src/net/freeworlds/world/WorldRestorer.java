@@ -634,6 +634,15 @@ public final class WorldRestorer {
       }
    }
 
+   /**
+    * Portal.restoreState (NET/worlds/scape/Portal.java:602-709). v8/v9 is
+    * what real GroundZero content uses (verified: WORLD_DEBUG trace shows
+    * version(NET.worlds.scape.Portal) = 9 the first time any Portal is
+    * restored) - the v0-7 branch is kept byte-accurate for completeness
+    * (other .world files could use it) but its fields beyond the mirror
+    * flag aren't separately modeled since they're superseded in v8/9 by
+    * the Rect-chain flags int already captured in node.flags.
+    */
    private void readPortal(WNode node) throws IOException {
       int v = restoreVersion("NET.worlds.scape.Portal");
       if (v >= 0 && v <= 7) {
@@ -647,40 +656,46 @@ public final class WorldRestorer {
             restoreFloat();
             restoreFloat();
          }
-         restoreBoolean();
-         if (v >= 4) {
-            restoreString(); // farSidePortalName
+         if (restoreBoolean()) {
+            node.flags |= 4; // Portal.java:629-631 (mirror bit, WObject.flags 1<<2)
          }
-         restoreMaybeNull(); // farSidePortal
+         if (v >= 4) {
+            node.portalFarSidePortalName = restoreString();
+         }
+         node.portalFarSidePortal = restoreMaybeNull(); // farSidePortal
          if (v == 1) {
             restoreString();
          } else if (v >= 3) {
-            restoreString(); // farSideWorld URL (restoreUrlString, always just a string)
-            restoreString(); // farSideRoomName
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
-            restoreFloat();
+            node.portalFarSideWorld = restoreString(); // farSideWorld URL (restoreUrlString, always just a string)
+            node.portalFarSideRoomName = restoreString();
+            node.portalFarX = restoreFloat();
+            node.portalFarY = restoreFloat();
+            node.portalFarZ = restoreFloat();
+            node.portalFarTheta = restoreFloat();
             restoreMaybeNull(); // Material.restore(var1) #1
             restoreMaybeNull(); // Material.restore(var1) #2
             if (v >= 5) {
-               restoreBoolean();
+               node.portalFarSideIsPortal = restoreBoolean();
             }
+         }
+         // Portal.java:701-703: v<=4 with a room name but no portal name/ref implies position mode.
+         if (v <= 4 && node.portalFarSideRoomName != null && node.portalFarSidePortal == null && node.portalFarSidePortalName == null) {
+            node.portalFarSideIsPortal = false;
          }
       } else if (v == 8 || v == 9) {
          readRect(node, "NET.worlds.scape.Rect");
-         restoreBoolean(); // farSideIsPortal
+         node.portalFarSideIsPortal = restoreBoolean(); // farSideIsPortal
          if (v >= 9) {
             restoreBoolean(); // allowDownload
          }
-         restoreString(); // farSidePortalName
-         restoreMaybeNull(); // farSidePortal
-         restoreString(); // farSideWorld
-         restoreString(); // farSideRoomName
-         restoreFloat();
-         restoreFloat();
-         restoreFloat();
-         restoreFloat();
+         node.portalFarSidePortalName = restoreString();
+         node.portalFarSidePortal = restoreMaybeNull(); // farSidePortal - direct object-graph reference
+         node.portalFarSideWorld = restoreString();
+         node.portalFarSideRoomName = restoreString();
+         node.portalFarX = restoreFloat();
+         node.portalFarY = restoreFloat();
+         node.portalFarZ = restoreFloat();
+         node.portalFarTheta = restoreFloat();
       } else {
          throw new IOException("unknown Portal version " + v);
       }
