@@ -26,6 +26,9 @@ editor/worldsplayer_source_editor-main/out/
 # tools/setup-macos.sh - Homebrew no longer supports Intel Macs)
 /tools/jdk/
 
+# Git worktrees that the Claude Code harness creates for background agents
+/.claude/worktrees/
+
 # New Java client (RWX parser, later the renderer) build output
 /client/out/
 
