@@ -2013,10 +2013,12 @@ fuera de alcance hoy, no inventar).
 > **0 ✅ completa**; **1 ✅ completa** (RWX 118/118 reverificado, `.world`
 > 25 salas/578 nodos/103 objetos, `.bod` 51/51, `.seq` 231/231 tras
 > corregir `SeqParser`, RWG con el índice de `VLST` corregido);
-> **2 🟢 ~85%** (texturas `.cmp`/`.mov` decodifican 159/159 y 52/52,
+> **2 🟢 ~90%** (texturas `.cmp`/`.mov` decodifican 159/159 y 52/52,
 > materiales, escena completa 25/25 salas sin errores GL, modo juego con
-> suelo y colisión, pose de avatares aplicada desde `.seq`; falta el
-> controlador de animación, los portales y el skinning);
+> suelo, colisión y **portales**, pose de avatares desde `.seq` con el
+> tiempo real del original y **texturas de avatar** desde su nombre; falta
+> la elección de secuencia/mezcla, llevar animación y texturas a
+> `WorldViewer` y las subimágenes de `.mov`);
 > **3 🟡 ~60%** (handshake y login guest reales contra servidor vivo con
 > el código del cliente; falta cuenta registrada para el primario y el
 > flujo real de `Gamma`/`Cache`/`NetUpdate`);
@@ -2257,7 +2259,10 @@ lento que hacerlo directo.
 >    leídos en las funciones recuperadas por vtable). Falta **qué
 >    secuencia y modo elige** el cliente en cada momento (`walk`/`wait`
 >    implícitos), la sincronía con la velocidad y la mezcla de 250.
-> 2. **Portales / cambio de sala** en `--play` (hoy solo se anuncian).
+> 2. ~~**Portales / cambio de sala**~~ ✅ resuelto el 2026-09-16: 56/87
+>    portales de GroundZero se cruzan en `--play` con la fórmula de
+>    `Portal.recomputeFarPosition()`; queda sin confirmar el signo del yaw
+>    de llegada (`getYaw()` es nativo) y los 2 portales a otros `.world`.
 > 3. **Login con cuenta real** en el servidor primario: bloqueado por una
 >    cuenta humana en `worlds.worlio.com/register` (no de código).
 > 4. **Flujo real del cliente**: `Gamma.main` con el mock ya arranca en
@@ -2267,8 +2272,9 @@ lento que hacerlo directo.
 > 5. **Texturas de avatar**: el lenguaje de nombre ya está decodificado
 >    (`net.freeworlds.avatar`, 146/148 avatares limpios), pero **solo se
 >    conservan 14 de las 210 texturas y 25 de los 141 `.bod`** que
->    referencian: la mayoría del vestuario no está en el corpus. Falta
->    aplicarlas en el visor y las subimágenes > 0 de `.mov`.
+>    referencian: la mayoría del vestuario no está en el corpus. Ya se
+>    aplican en `BodViewer --avatar` (subimagen 0); faltan las subimágenes
+>    > 0 de `.mov` y llevarlas a `WorldViewer`.
 > 6. **Fase 4 (UI)** y **fase 5 (OpenBSD/PSVita)**: sin empezar.
 > 7. Menores: `.mov` animado (hoy solo frame 0), `csq` sin ejemplar,
 >    herramienta #2 de la sección 7 (panel de progreso) sin construir,
@@ -3476,3 +3482,36 @@ Parte de la sesión de auditoría (subagente en worktree, integrado en
   avatar, solo en la personalización (`WearWall`, `AvMenu`).
 - **Pendiente**: aplicar las texturas en `BodViewer` (buen primer caso: la
   cara de `willy`, subimagen 0) y decodificar subimágenes > 0 de `.mov`.
+
+### 🟢 Portales reales en `--play` y texturas de avatar en el visor
+### (2026-09-16)
+
+Cierre de la parte 3 de la sesión de auditoría (dos subagentes en
+worktree, integrados y **reverificados ejecutando**):
+
+- **Portales** (`1f160724`, `04516925`): `WorldRestorer` ya no descarta la
+  conectividad de `Portal` v8/9 (`farSidePortal` es una referencia de
+  objeto, no un nombre) y `WorldViewer --play` cambia de sala al cruzar,
+  con la fórmula de `Portal.recomputeFarPosition()` y recargando suelo,
+  colisión y fondo de la sala destino. GroundZero: 87 portales, **56
+  conectados** dentro del mundo, 2 a otros `.world`, 29 desconectados en
+  el propio dato. Reejecutado: desde el spawn de Reception hasta
+  `EastPortal1Reception` se llega a **ChatHall en (0,750,0), yaw −π**
+  (sala de paso de 4 superficies y 0 objetos: la vista oscura es su
+  contenido real). Regresión ALL 25/25 sin cambios. Límite: signo del yaw
+  de llegada deducido, no ejecutado (`getYaw()` nativo, sin Wine).
+- **Texturas de avatar** (`76febbac`): `BodViewer --avatar <nombre>` usa
+  el decodificador del lenguaje de nombre para poner a cada limb su color
+  o textura (constantes de material del cliente, UV reales del `.bod`,
+  subimagen 0). Sin `--avatar` las capturas son md5-idénticas; con él la
+  cabeza de `willy` muestra su cara de `willy.mov` (los 515 píxeles que
+  cambian están todos en la cabeza). `ogre` pide la subimagen 3: se
+  informa como no aplicada.
+- **Tiempo de animación** (`bb1b6c47`, `e70178d9`): 30 keys/s y modos
+  bucle/último key, `BodViewer --seconds S [--hold]` verificado md5 contra
+  `--frame`.
+
+Lo que queda para ver avatares **animados y texturizados dentro del
+mundo**: decidir qué secuencia toca (la elección implícita `walk`/`wait`
+del original no está reconstruida) y llevar pose y texturas de `BodViewer`
+a `WorldViewer`.
