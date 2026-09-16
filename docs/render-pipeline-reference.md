@@ -203,8 +203,14 @@ del stream, no default.
 - Medido en escena completa: `Texture 47/47` + `Rect 55/55`
   (187 refs) — cero texturas con loader sin cargar. `.mov` con
   contenido verificado en escena (bandera f3 en RV1).
-- Abierto: 36 `RectPatch` (material nulo + cadena de versiones
-  dudos) — evaluado, no implementado.
+  - ⚠️ **Auditoría 2026-09-15**: hoy la misma escena mide `Texture 51/51`
+    + `Rect 101/101` (470 refs). Los denominadores crecieron con las
+    sesiones posteriores (fondo infinito, `RectPatch`, avatares), no hay
+    ninguna textura perdida; no se ha reconstruido el conteo exacto de
+    2026-09-13 para explicar la diferencia archivo por archivo.
+- ~~Abierto: 36 `RectPatch`~~ ✅ implementados el mismo día (ver la
+  sección "RectPatch: suelos de hierba y rampas" de
+  `worlds-chat-project.md`): versión 2, heightfield 2×2, v0 invisible.
 
 Sin `--window` todo sigue igual que antes (ventana oculta,
 screenshot de una pasada — verificado md5-idéntico tras el cambio).

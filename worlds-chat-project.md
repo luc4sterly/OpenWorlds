@@ -2248,6 +2248,39 @@ lento que hacerlo directo.
 
 ## 10. Cabos sueltos / preguntas abiertas
 
+> **Estado de los cabos sueltos tras la auditoría del 2026-09-15**
+> (lo de abajo es el historial; esto es el resumen vigente):
+>
+> **Abiertos de verdad, por orden de lo que desbloquean:**
+> 1. **Controlador de animación**: la pose de un `.seq` ya se aplica a un
+>    `.bod` (`BodViewer --seq/--frame`), pero el avance de tiempo, el
+>    bucle, la elección `walk`/`wait` y las transiciones viven en funciones
+>    que Ghidra **no exportó** (solo alcanzables por vtable, `0x00475200`).
+>    Sin eso, `WorldViewer` sigue en bind pose.
+> 2. **Portales / cambio de sala** en `--play` (hoy solo se anuncian).
+> 3. **Login con cuenta real** en el servidor primario: bloqueado por una
+>    cuenta humana en `worlds.worlio.com/register` (no de código).
+> 4. **Flujo real del cliente** (`Gamma`/`Cache`/`NetUpdate`): las sesiones
+>    de red han ido por sondas paralelas, nunca por el arranque real.
+> 5. **Texturas de avatar**: requieren decodificar el "lenguaje de nombre
+>    de avatar" (`PosableShape.createSubparts`); los `.bod` ya traen UV y
+>    hay 21 `.mov` de avatar en el corpus.
+> 6. **Fase 4 (UI)** y **fase 5 (OpenBSD/PSVita)**: sin empezar.
+> 7. Menores: `.mov` animado (hoy solo frame 0), `csq` sin ejemplar,
+>    herramienta #2 de la sección 7 (panel de progreso) sin construir,
+>    repos de Wirlaburla en 404, Starbright World sin investigar.
+>
+> **Cerrados que aquí figuraban abiertos:** versión de RenderWare (2.1),
+> RWG (`VLST[0..7]` es la bbox; no había z-fighting), `.bod` (resuelto vía
+> `RWXTOBOD.PL`), `.cmp`/`.mov` (159/159 y 52/52 decodifican), `.seq`
+> (231/231 tras corregir `SeqParser`), y el camino de renderizado: se
+> decidió de facto **Java + LWJGL con pipeline de función fija**, no un
+> cliente web.
+>
+> **No reproducible en el Mac actual** (no es lo mismo que "roto"):
+> comparación RWX contra three-rwx-loader (falta `node` de macOS),
+> ground truth `.cmp` contra `cmpview.exe` y el cliente original bajo Wine.
+
 - ✅ **RESUELTO (2026-09-08)**: es **RenderWare 2.1**. Confirmado por el
   propio nombre de las DLLs reales del cliente instalado
   (`assets/WorldsPlayer/bin/RWL21.DLL`, `RWDL6D21.DLL`, `RWDL8D21.DLL`,
