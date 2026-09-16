@@ -74,6 +74,22 @@ public final class WNode {
     public final float[] rpZ = new float[4];
     public float rpXTile = 1f, rpXTileOff, rpYTile = 1f, rpYTileOff;
 
+    /** Portal.restoreState fields (v8/v9 - see NET/worlds/scape/Portal.java:670-696).
+     * Only meaningful when className ends in ".Portal". farSidePortal is a
+     * DIRECT object-graph reference (restoreMaybeNull resolves to the same
+     * WNode instance the far room's own tree holds - no name lookup needed
+     * when non-null): this is what Portal.connected()/farSide() actually
+     * use at runtime (Portal.java:281-283, :265-267), not the persisted
+     * name/position floats, which the real client only falls back to when
+     * portalFarSideIsPortal is false (position/orientation mode,
+     * Portal.java:107-118) or when the reference didn't resolve. */
+    public boolean portalFarSideIsPortal = true;
+    public String portalFarSidePortalName;
+    public WNode portalFarSidePortal;
+    public String portalFarSideWorld;
+    public String portalFarSideRoomName;
+    public float portalFarX, portalFarY, portalFarZ, portalFarTheta;
+
    public WNode(String className) {
       this.className = className;
    }
