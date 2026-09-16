@@ -492,8 +492,8 @@ fly y ALL 25/25 sin regresion (GL 0 en todo).
 
 **Limites honestos**: forward del .bod no verificado (se rota +X local
 al yaw — acertó a la primera: Aura mira al kiosko); AABB en vez de
-quads finos; portales fase 1 (se anuncian a <150, el `changeRoom` con
-farSide es fase 2, `WNode` ni modela destinos todavia); sin
+quads finos; portales: ver la seccion "Portales" abajo (resuelto 2026-09-16; aqui
+decia "fase 1, solo se anuncian"); sin
 skin/animacion (bind pose, como las estatuas).
 
 ## Modo juego: bug del vuelo al cielo encontrado y corregido (2026-09-14)
@@ -542,3 +542,31 @@ wait=16 Gamma, wave=4 parcial). El key-data por joint SOLO lo entiende
 inventar poses. Siguiente paso real: desensamblar
 `DroneAnimator_animate/update` (exports en
 `docs/gamma-dll-exports.txt:209-224`).
+
+## Portales: cambio de sala real en `--play` (2026-09-16)
+
+`WNode` modela ya la conexion real de cada `Portal`: `portalFarSidePortal`
+como **referencia de objeto** (`restoreMaybeNull` resuelve por identidad,
+no por nombre), `portalFarSideWorld`/`RoomName` y el bit de espejo
+(`flags&4`). `crossPortal()` detecta el quad-AABB del portal (un Portal es
+un Rect) y cambia de sala con la formula de
+`Portal.recomputeFarPosition()` (`Portal.java:220-240`): posicion =
+traslacion real del portal lejano + `vectorTimes(1,0,1)` con el mismo
+espejo. La sala destino se recarga por el mismo camino que la inicial
+(suelo, colision, fondo propio).
+
+- **GroundZero**: 87 portales; **56 conectados dentro del mundo** (se
+  cruzan), 2 apuntan a otro `.world` (`AvatarGallery`, `Dcn`: fuera de
+  alcance) y 29 estan desconectados en el propio dato (igual en el cliente,
+  `Portal.unconnected()`).
+- **Verificado** (arnes `--spawn x,y,z,yaw --walk-to x,y
+  --screenshot-before/--screenshot-after`, reejecutado de forma
+  independiente): desde el spawn de Reception hasta `EastPortal1Reception`
+  (3722,380) se cruza a **ChatHall en (0,750,0) con yaw = -pi**.
+  ChatHall es una sala de paso con 0 objetos y 4 superficies: la vista
+  oscura tras el cruce es su contenido real (mismo resultado en las cuatro
+  orientaciones). Regresion ALL: 25/25, GL error 0, 51/51, 101/101.
+- ⚠️ **Limite**: la orientacion de llegada usa `getYaw()`, que es nativo;
+  su signo se dedujo de dos evidencias (vector de referencia `(0,1,0)` en
+  `gamma.dll` y la conversion compass->radianes de
+  `TrajectoryBehavior`/`VelocityBehavior`) sin poder ejecutar el original.

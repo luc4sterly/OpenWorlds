@@ -123,3 +123,19 @@ y, en cascada, todas las limbs → figura vacía.
   `createSubparts`, así que no afectan a la geometría/material del nombre.
 - No se ha comprobado visualmente que la parte N del `.bod` y su UV
   encajen con la subimagen resuelta.
+
+## Integración en `BodViewer` (2026-09-16)
+
+`BodViewer <x>.bod --avatar <nombre>` aplica el aspecto de cada limb a la
+raíz de su parte: color → RGB plano; textura → `CmpTexture` con las UV
+reales del `.bod`; `origMat` → sin cambio; los subclumps conservan el
+color del `.bod`. Material con las constantes del cliente (0.32 / 0.55 /
+0). Solo la subimagen 0 de `.mov` (lo que `CmpTexture.loadMov` decodifica).
+
+Comprobado visualmente: en `willy` los 515 píxeles que cambian respecto a
+la versión sin textura caen todos en la cabeza, y la cara (ojos, boca)
+aparece derecha y en la parte frontal
+(`docs/renders/bod_willy_avatar_face_texture_zoom.png`). `ogre` pide la
+subimagen 3 en 10 partes: no se aplica y se informa. ⚠️ Con textura el
+cliente pone `colorTable[3]` como color base; si RenderWare 2 tiñe la
+textura con él no está verificado (se dibuja sin tintar).

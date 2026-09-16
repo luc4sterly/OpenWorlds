@@ -322,3 +322,18 @@ de guardado del cliente original, que había que reconocer y descartar
 explícitamente. El pipeline `.world` → geometría real posicionada →
 render queda verificado en las 3 salas de prueba, incluyendo la que
 antes fallaba.
+
+### `Portal` v8/9: conectividad real (2026-09-16)
+
+Confirmado en GroundZero (version 9, `WORLD_DEBUG=1`): tras
+`farSideIsPortal` y `allowDownload` se lee `farSidePortalName` (string),
+`farSidePortal` (**referencia de objeto** via `restoreMaybeNull`: resuelve
+por identidad, no por nombre; `Restorer.java:165-175`, `Portal.java:689`),
+`farSideWorld`, `farSideRoomName` y `farx/fary/farz/fartheta`. Esos 4
+floats solo cuentan cuando `farSideIsPortal=false`: en las conexiones
+portal-a-portal valen 0.0 en el archivo porque el cliente los recalcula en
+`postRestore()` → `recomputeFarPosition()` (`Portal.java:711-722`,
+`220-240`). `WorldRestorer.readPortal` ya no los descarta; el stream se
+sigue consumiendo igual (578 nodos, `END PERSISTER` intacto). De los 87
+portales de GroundZero, 56 resuelven dentro del mundo, 2 apuntan a otro
+`.world` y 29 estan desconectados en el propio dato.
