@@ -2264,9 +2264,11 @@ lento que hacerlo directo.
 >    macOS y carga caché/tablas/avatar/sala; se para en el control
 >    ActiveX/Netscape embebido (`IUnknown.init`), ausencia estructural de
 >    COM. Los hilos `Cache`/`NetUpdate` **no** bloquean nada (resuelto).
-> 5. **Texturas de avatar**: requieren decodificar el "lenguaje de nombre
->    de avatar" (`PosableShape.createSubparts`); los `.bod` ya traen UV y
->    hay 21 `.mov` de avatar en el corpus.
+> 5. **Texturas de avatar**: el lenguaje de nombre ya está decodificado
+>    (`net.freeworlds.avatar`, 146/148 avatares limpios), pero **solo se
+>    conservan 14 de las 210 texturas y 25 de los 141 `.bod`** que
+>    referencian: la mayoría del vestuario no está en el corpus. Falta
+>    aplicarlas en el visor y las subimágenes > 0 de `.mov`.
 > 6. **Fase 4 (UI)** y **fase 5 (OpenBSD/PSVita)**: sin empezar.
 > 7. Menores: `.mov` animado (hoy solo frame 0), `csq` sin ejemplar,
 >    herramienta #2 de la sección 7 (panel de progreso) sin construir,
@@ -3439,3 +3441,38 @@ tiempo de la animación: **30 keys por segundo**, modo 2 = bucle
 (`t % (duración+1)`), modo 1 = último key (`FUN_0043b950`/`FUN_0043b5f0`,
 `SeqSampler.keyTime`). Queda por reconstruir qué secuencia y modo elige
 el cliente en cada momento y la mezcla de transición.
+
+### 🟢 Lenguaje de nombre de avatar decodificado — y el corpus de vestuario
+### está casi todo perdido (2026-09-16)
+
+Parte de la sesión de auditoría (subagente en worktree, integrado en
+`c21319d1`..`01850240`; cifras reverificadas ejecutando). Detalle en
+`docs/avatar-name-language.md`.
+
+- **`tables.dat`** (`assets/WorldsPlayer/tables/tables.dat`, ya versionado)
+  se descifra con el XOR encadenado de `ServerTableManager` y da 12
+  tablas; `permittedList` trae 148 avatares con su nombre codificado.
+- **Gramática**, portada de `PosableShape`: un nombre
+  `avatar:<base>.0<programa>.rwg` se procesa en dos fases. `findStarts`
+  reúne una paleta global de texturas `T<n><nombre>` (`<x>.mov` subimagen
+  n−1, o `.cmp` si n≤0) y colores `C` (`colorTable` o RGB en base64), y
+  luego se montan **17 limbs de tag y padre fijos** (P01 raíz, B02←P,
+  N03←B, H04←N, L11/M12/O13, R06/U07/V08, I19/J20/K21, W15/X16/Y17,
+  Z24←P) que cargan partes de `<base>.bod`, con escala `S`, cambio de
+  `.bod` `G`, subclumps y cambios de material temporizados (las
+  **expresiones**: p. ej. `willy` parpadea con 4 cambios cada 3648 ms).
+- **Verificado**: 146/148 nombres sin anomalías y 0 excepciones; las 2
+  anomalías (`achoo`, `tas`) son erratas de la propia tabla y el
+  decodificador hace lo mismo que el cliente. `AvatarNameMain --todos` lo
+  reproduce.
+- **Dato de preservación importante**: de lo que referencian esos 148
+  avatares, en el repo solo hay **14 de 210 texturas y 25 de 141 `.bod`**.
+  Las 14 texturas son `.mov` de `base-avatars`; ninguna de las `_dt*` del
+  vestuario de pago existe. `cachedir/` no cuenta porque sin su
+  `cache.index` no se sabe qué URL es cada fichero numerado.
+- De paso se corrige una creencia del documento: la URL por defecto
+  `avatar:aura.0PG.rwg` da una figura vacía (el `.bod` se resuelve por
+  otro camino), y `faceList`/`humanList` no intervienen al construir el
+  avatar, solo en la personalización (`WearWall`, `AvMenu`).
+- **Pendiente**: aplicar las texturas en `BodViewer` (buen primer caso: la
+  cara de `willy`, subimagen 0) y decodificar subimágenes > 0 de `.mov`.
