@@ -177,12 +177,31 @@ confirmado en `docs/native-methods-map.md:231-246`) hace el resto.
   `.seq` puede sustituirla), y recoloca por el COG (solo z si
   `COG=false`). Da evidencia al ×1000 y +Y→+Z que `WorldViewer` usaba como
   heurística.
-- **Tiempo**: los keys van en **1/30 s** — constante `DAT_00476ec0` = 1/30
-  en el constructor del reproductor (`FUN_0043b490`), coherente con los
-  datos (`common_walk` = 42 unidades = ciclo de 1,4 s). ⚠️ La conversión
-  exacta desde `Std.getRealTime()` (ms), el bucle y la sincronía con la
-  velocidad (`update` usa `10 / (scaleX · m00 · 1000)`) están tras el
-  despacho por vtable de `FUN_00433710`, sin reconstruir.
+- **Tiempo y bucle** (resuelto el 2026-09-16, tras recuperar con Ghidra las
+  funciones que solo se alcanzan por vtable): el reproductor guarda la
+  secuencia en `+0xc`, el **tiempo actual como short en `+0x14`**, el
+  tiempo transcurrido en `+0x18` y la duración en segundos en `+0x1c`
+  (`FUN_0043b490`: `duracion_keys · 1/30`, `DAT_00476ec0`). Las dos
+  variantes de avance — `FUN_0043b950` (tiempo {seg,ms}) y `FUN_0043b5f0`
+  (segundos en float) — coinciden en la regla:
+
+  ```
+  t = round(segundos * 30)                      // DAT_00476ec8 = 30.0
+  si t > duracion:  modo 2 -> t % (duracion + 1)   // bucle
+                    modo 1 -> duracion              // se queda en el ultimo key
+                    otro   -> la reproduccion termina
+  ```
+
+  Es decir, **los keys van a 30 por segundo exactos** (coherente con
+  `common_walk` = 42 keys = ciclo de 1,4 s). Traducido en
+  `SeqSampler.keyTime`. Las dos funciones que sacan la pose
+  (`FUN_0043b770`, `FUN_0043baa0`) se diferencian solo en el flag que
+  anula o conserva la z de la traslación de raíz — el `param_3` que antes
+  quedaba ⚠️.
+- ⚠️ **Del controlador sigue sin reconstruir**: quién elige el modo y la
+  secuencia (`walk`/`wait` implícitos según el movimiento), la sincronía
+  con la velocidad (`update` usa `10 / (scaleX · m00 · 1000)`) y la mezcla
+  de transición de 250.
 - **Transiciones**: `FUN_00432d10` crea una mezcla con constante 0xfa
   (250; unidad sin verificar) y `FUN_00439450` interpola entre poses (nlerp
   con inversión de hemisferio `FUN_004292a0`); la curva de cambio
@@ -195,14 +214,13 @@ confirmado en `docs/native-methods-map.md:231-246`) hace el resto.
    cuaternión, nombre→tag, retarget~~ ✅ (sección 5). ~~Fórmula de la LTM
    y pre/post de RenderWare 2.1~~ ✅ (sección 5). ~~Aplicar la pose a un
    `.bod`~~ ✅ `BodViewer --seq <f.seq> --frame T` (ver abajo).
-2. **Controlador** (lo que falta para animar de verdad en el motor):
-   tiempo real (ms de `Std.getRealTime()`) → t de key, bucle al final de
-   la secuencia, elección implícita `walk`/`wait` según movimiento,
+2. **Controlador**: ~~tiempo real → t de key y bucle~~ ✅ resuelto
+   (sección 5: 30 keys/s, modo 2 = bucle, modo 1 = último key).
+   **Falta** la elección implícita `walk`/`wait` según el movimiento, la
    sincronía con la velocidad (`update` usa `10 / (scaleX · m00 · 1000)`)
-   y transiciones de 250. Todo eso vive tras el despacho por vtable de
-   `FUN_00433710`, sin reconstruir. Hasta tenerlo, `WorldViewer` sigue
-   dibujando los avatares en bind pose: poner un bucle "a ojo" sería
-   inventar.
+   y la mezcla de transición de 250. Con lo resuelto ya se puede
+   reproducir en bucle una secuencia concreta sin inventar nada; lo que
+   no se puede es decidir *cuál* toca en cada momento como el original.
 3. Flag de la z de la traslación de raíz (`FUN_00438300` param_3) —
    irrelevante en `wait` (extras a 0), afecta a `walk`.
 4. `.mov` como vídeo de texturas (hoy solo frame 0). Menor: `csq` (citado

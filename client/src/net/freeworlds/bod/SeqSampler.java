@@ -38,6 +38,42 @@ public final class SeqSampler {
       "tail3", "tail4", "obj", "obj2", "obj3",
    };
 
+   /** Keys por segundo (DAT_00476ec8 = 30.0; su inversa DAT_00476ec0 = 1/30). */
+   public static final float KEYS_PER_SECOND = 30f;
+   /** Modo de fin de secuencia (campo +0x10 del reproductor): se queda en el ultimo key. */
+   public static final int MODE_HOLD = 1;
+   /** Modo de fin de secuencia: bucle, modulo (duracion + 1). */
+   public static final int MODE_LOOP = 2;
+
+   /**
+    * Tiempo de key a partir del tiempo transcurrido, traducido de
+    * FUN_0043b950 (variante con tiempo {seg,ms}) y FUN_0043b5f0 (variante
+    * con segundos en float), que coinciden en la regla:
+    *
+    * <pre>
+    * t = round(segundos * 30)
+    * si t &gt; duracion:  modo 2 -&gt; t % (duracion + 1)   (bucle)
+    *                   modo 1 -&gt; duracion              (ultimo key)
+    *                   otro   -&gt; la reproduccion termina
+    * </pre>
+    *
+    * Devuelve -1 cuando la reproduccion termina. El tiempo se guarda como
+    * short en el original (+0x14), asi que se trunca igual.
+    */
+   public static int keyTime(float seconds, int duration, int mode) {
+      int t = (short) Math.round(seconds * KEYS_PER_SECOND);
+      if (t > duration) {
+         if (mode == MODE_LOOP) {
+            t = duration + 1 > 0 ? t % (duration + 1) : 0;
+         } else if (mode == MODE_HOLD) {
+            t = duration;
+         } else {
+            return -1;
+         }
+      }
+      return (short) t;
+   }
+
    /** Pose de una figura en un instante: rotacion por tag + traslacion de raiz. */
    public static final class Pose {
       /** Indice = tag 1..30; null = sin track (el original aplica identidad). */
