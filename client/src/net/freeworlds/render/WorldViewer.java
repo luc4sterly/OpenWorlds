@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -188,6 +189,24 @@ public final class WorldViewer {
     private static File avatarDir;
     private static boolean avatarDirChecked = false;
 
+    // --- Portales (--play): conectividad real y transformacion entre
+    // salas, ver javadoc de crossPortal(). worldRoot + los dos mapas se
+    // llenan una sola vez en main() (collectPortalMatrices), antes de
+    // entrar a renderRoom - son estaticos para que el cruce de un
+    // portal (dentro del loop de renderRoom) pueda resolver la sala
+    // destino y la matriz-mundo real del portal lejano sin re-parsear
+    // ni re-recorrer el arbol por sala cada vez.
+    private static WNode worldRoot;
+    /** Portal WNode -> su matriz local-a-sala acumulada (NO local-a-mundo:
+     * cada Room es su propio espacio de coordenadas, como ya hace
+     * collectPlayfield/preload por sala - ver Portal.getPosition()
+     * devolviendo coords de la propia sala, no de un "mundo" global). */
+    private static final Map<WNode, float[]> portalRoomMatrix = new IdentityHashMap<>();
+    /** Portal WNode -> nombre de la sala que lo contiene (clave de
+     * world.roomsByName), para resolver a que WNode de sala saltar tras
+     * cruzar un portal conectado por referencia de objeto. */
+    private static final Map<WNode, String> portalOwnerRoom = new IdentityHashMap<>();
+
       public static void main(String[] args) throws Exception {
          if (args.length < 2) {
             System.err.println("Usage: WorldViewer <file.world> <roomName|ALL|--list-rooms> [--screenshot out.png] [--screenshot-dir outdir] [--window] [--fullscreen] [--inside] [--play] [--eye x,y,z] [--look x,y,z] [--up x,y,z]");
@@ -202,6 +221,14 @@ public final class WorldViewer {
          boolean play = false;
          boolean fullscreen = false;
        float[] eyeArg = null, lookArg = null, upArg = null;
+       // --spawn/--walk-to/--screenshot-before/--screenshot-after: solo
+       // para el arnes headless de verificacion de portales (ver
+       // PortalCrossHarness) - anaden un modo no-interactivo a --play sin
+       // tocar el camino interactivo existente (WASD real, ver el loop).
+       float[] spawnArg = null; // x,y,z,yawDeg
+       float[] walkToArg = null; // x,y (autopiloto de paso fijo hacia el objetivo)
+       String screenshotBeforePath = null;
+       String screenshotAfterPath = null;
        for (int i = 2; i < args.length; i++) {
           if (args[i].equals("--screenshot") && i + 1 < args.length) {
              screenshotPath = args[++i];
@@ -226,15 +253,25 @@ public final class WorldViewer {
              lookArg = parseVec(args[++i], "--look");
           } else if (args[i].equals("--up") && i + 1 < args.length) {
              upArg = parseVec(args[++i], "--up");
+          } else if (args[i].equals("--spawn") && i + 1 < args.length) {
+             spawnArg = parseVec4(args[++i], "--spawn");
+          } else if (args[i].equals("--walk-to") && i + 1 < args.length) {
+             walkToArg = parseVec2(args[++i], "--walk-to");
+          } else if (args[i].equals("--screenshot-before") && i + 1 < args.length) {
+             screenshotBeforePath = args[++i];
+          } else if (args[i].equals("--screenshot-after") && i + 1 < args.length) {
+             screenshotAfterPath = args[++i];
           }
        }
-       if (inside && screenshotPath == null) {
-          windowed = true; // interior interactivo necesita ventana visible
+       if (inside && screenshotPath == null && walkToArg == null) {
+          windowed = true; // interior interactivo necesita ventana visible (el autopiloto headless no)
        }
 
         baseDir = worldFile.getParentFile();
         byte[] data = Files.readAllBytes(worldFile.toPath());
         WNode world = WorldRestorer.parse(data);
+        worldRoot = world;
+        collectPortalMatrices(world);
 
         // --list-rooms vale en cualquier posición (no solo como sala):
         // evita abrir una ventana bloqueante por un orden de args distinto.
@@ -282,7 +319,8 @@ public final class WorldViewer {
              System.out.println("---");
           }
           first = false;
-            renderRoom(room, roomName, out, windowed, inside, eyeArg, lookArg, upArg, fullscreen, play);
+            renderRoom(room, roomName, out, windowed, inside, eyeArg, lookArg, upArg, fullscreen, play,
+               spawnArg, walkToArg, screenshotBeforePath, screenshotAfterPath);
        }
        printTextureCoverage();
     }
@@ -298,6 +336,38 @@ public final class WorldViewer {
           return new float[]{Float.parseFloat(p[0]), Float.parseFloat(p[1]), Float.parseFloat(p[2])};
        } catch (NumberFormatException e) {
           System.err.println(flag + " needs numeric x,y,z (got \"" + s + "\")");
+          System.exit(2);
+          return null;
+       }
+    }
+
+    /** Parses "x,y,z,yawDeg" for --spawn (arnes headless, ver crossPortal/PortalCrossHarness). */
+    private static float[] parseVec4(String s, String flag) {
+       String[] p = s.split(",");
+       if (p.length != 4) {
+          System.err.println(flag + " needs x,y,z,yawDeg (got \"" + s + "\")");
+          System.exit(2);
+       }
+       try {
+          return new float[]{Float.parseFloat(p[0]), Float.parseFloat(p[1]), Float.parseFloat(p[2]), Float.parseFloat(p[3])};
+       } catch (NumberFormatException e) {
+          System.err.println(flag + " needs numeric x,y,z,yawDeg (got \"" + s + "\")");
+          System.exit(2);
+          return null;
+       }
+    }
+
+    /** Parses "x,y" for --walk-to (arnes headless). */
+    private static float[] parseVec2(String s, String flag) {
+       String[] p = s.split(",");
+       if (p.length != 2) {
+          System.err.println(flag + " needs x,y (got \"" + s + "\")");
+          System.exit(2);
+       }
+       try {
+          return new float[]{Float.parseFloat(p[0]), Float.parseFloat(p[1])};
+       } catch (NumberFormatException e) {
+          System.err.println(flag + " needs numeric x,y (got \"" + s + "\")");
           System.exit(2);
           return null;
        }
@@ -329,7 +399,8 @@ public final class WorldViewer {
     }
 
      private static void renderRoom(WNode room, String roomName, String screenshotPath, boolean visible,
-            boolean inside, float[] eyeArg, float[] lookArg, float[] upArg, boolean fullscreen, boolean play) throws Exception {
+            boolean inside, float[] eyeArg, float[] lookArg, float[] upArg, boolean fullscreen, boolean play,
+            float[] spawnArg, float[] walkToArg, String screenshotBeforePath, String screenshotAfterPath) throws Exception {
        drawnTriangles = 0;
        drawnObjects = 0;
        avatarDrawnCount = 0;
@@ -343,6 +414,8 @@ public final class WorldViewer {
        // GroundZero.world#Reception<>@1872,1229,150,125,... El yaw 125 del
        // .ini admite dos signos (ver run-game.sh): aqui se mira al kiosko
        // (1290,865) igual que el default sin args, yaw=atan2(-364,-582).
+       // --spawn (solo arnes headless) sobreescribe px/py/pz/yaw abajo,
+       // tras fijar pitch=0 - ver el bloque "if (inside)" mas adelante.
        float px = 1872f, py = 1229f, pz = 150f;
        float[] bbox = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
        int[] objectCount = {0};
@@ -371,25 +444,26 @@ public final class WorldViewer {
        // Terreno jugable (modo --play): suelos = Rect/RectPatch visibles
        // (piso = Room.floorHeight del original: el mas alto <= z); muros =
        // Rects no-piso + bumpers invisibles (*Bump, flags bit0=0);
-       // portales = nodos .Portal (fase 1: solo se anuncian, el cambio de
-       // sala real es fase 2). El fondo infinito es backdrop, no pisable.
+       // portales = nodos .Portal reales (con conectividad resuelta via
+       // portalFarSidePortal - ver crossPortal). El fondo infinito es
+       // backdrop, no pisable.
        List<float[][]> floorQuads = new ArrayList<>();
        List<float[]> blockerBoxes = new ArrayList<>();
        // Triangulos de props (.rwx/.rwg, coords mundo, 9 floats): el
        // mobiliario tambien es suelo y tambien estorba. Se recogen aqui
        // (modelos ya en cache por preload) en vez de re-leer disco.
        List<float[]> propTris = new ArrayList<>();
-       List<String> portalNames = new ArrayList<>();
-       List<float[]> portalPos = new ArrayList<>();
+       List<WNode> portalNodes = new ArrayList<>();
+       List<float[][]> portalQuads = new ArrayList<>();
        if (play) {
-          collectPlayfield(room, identity(), floorQuads, blockerBoxes, propTris, portalNames, portalPos);
+          collectPlayfield(room, identity(), floorQuads, blockerBoxes, propTris, portalNodes, portalQuads);
           if (room.environment != null) {
-             collectPlayfield(room.environment, identity(), floorQuads, blockerBoxes, propTris, portalNames, portalPos);
+             collectPlayfield(room.environment, identity(), floorQuads, blockerBoxes, propTris, portalNodes, portalQuads);
           }
           pz = floorHeightAt(floorQuads, propTris, px, py, pz);
           System.out.println("Playfield: " + floorQuads.size() + " floor quads, "
              + propTris.size() + " prop tris, "
-             + blockerBoxes.size() + " blockers, " + portalNames.size() + " portals");
+             + blockerBoxes.size() + " blockers, " + portalNodes.size() + " portals");
           if (hitsBlocker(blockerBoxes, px, py, pz)) {
              System.out.println("WARNING: el spawn (" + px + "," + py + "," + pz + ") nace dentro de un bloqueante");
           }
@@ -478,6 +552,17 @@ public final class WorldViewer {
             pitch = 0f;
             System.out.println("Play mode: spawn Reception (1872,1229,150) facing kiosk, yaw=" + yaw
                + " avatar=aura.bod (default real del cliente)");
+            if (spawnArg != null) {
+               // Solo arnes headless (PortalCrossHarness): posiciona al
+               // jugador en una sala/posicion arbitraria para capturar
+               // screenshots antes/despues de un cruce real, sin tocar el
+               // spawn real (RestartAt) usado por defecto.
+               px = spawnArg[0];
+               py = spawnArg[1];
+               pz = spawnArg[2];
+               yaw = (float) Math.toRadians(spawnArg[3]);
+               System.out.println("--spawn: override a (" + px + "," + py + "," + pz + ") yaw=" + spawnArg[3] + "deg");
+            }
          } else {
          float[] look;
          if (eyeArg != null && lookArg != null) {
@@ -515,11 +600,16 @@ public final class WorldViewer {
       // interactively until ESC/close; if --screenshot is also given, save
       // frame 0 and keep the window open afterwards.
       int frames;
-      if (visible) {
+      if (visible || walkToArg != null) {
+         // walkToArg (arnes headless): necesita muchos ticks para caminar
+         // una sala real - el propio autopiloto corta el loop (ver
+         // autopilotDone) al cruzar un portal o al agotar su presupuesto.
          frames = Integer.MAX_VALUE;
       } else {
          frames = screenshotPath != null ? 1 : Integer.MAX_VALUE;
       }
+      boolean autopilotDone = false;
+      int autopilotTicks = 0;
       double lastTime = glfwGetTime();
       // Frustum de la pasada de fondo (una vez por sala): cubre la
       // cascara vista desde el origen con margen x2.
@@ -543,26 +633,53 @@ public final class WorldViewer {
          drawnObjects = 0;
          avatarDrawnCount = 0;
          avatarFallbackCount = 0;
-         if (play && visible) {
-            // Modo juego: arcade como SmoothDriver del original (fuerzas
-            // con damping -> aqui velocidad constante honesta y simple):
-            // flechas L/R giran, W/S caminan sobre el plano, A/D strafe,
-            // sin volar (E/Q no hacen nada). Movimiento por ejes con slide
-            // contra bloqueantes; pies pegados al suelo (Room.floorHeight:
-            // el original tampoco tiene caida libre global).
-            float turn = (float) Math.toRadians(60) * dt;
-            if (isDown(window, GLFW_KEY_LEFT)) yaw -= turn;
-            if (isDown(window, GLFW_KEY_RIGHT)) yaw += turn;
-            if (isDown(window, GLFW_KEY_UP)) pitch = Math.min(1.55f, pitch + turn);
-            if (isDown(window, GLFW_KEY_DOWN)) pitch = Math.max(-1.55f, pitch - turn);
-            float fx = (float) Math.cos(yaw), fy = (float) Math.sin(yaw);
-            float rx = -fy, ry = fx;
-            float step = PLAY_WALK_SPEED * dt;
+         boolean crossedThisFrame = false;
+         // autopilot: solo PortalCrossHarness (arnes headless, --walk-to)
+         // - paso fijo por tick (no atado a dt real, determinista incluso
+         // sin vsync/ventana), gira a mirar hacia el objetivo, y usa el
+         // MISMO camino de colision/suelo/cruce que el WASD real de abajo
+         // (nada especial para el arnes: si el cruce funciona aqui,
+         // funciona igual con teclado real). Se para solo tras el primer
+         // cruce (autopilotDone) o al agotar su presupuesto de ticks.
+         boolean autopilot = play && walkToArg != null;
+         if (play && (visible || autopilot) && !(autopilot && autopilotDone)) {
             float dx = 0f, dy = 0f;
-            if (isDown(window, GLFW_KEY_W)) { dx += fx * step; dy += fy * step; }
-            if (isDown(window, GLFW_KEY_S)) { dx -= fx * step; dy -= fy * step; }
-            if (isDown(window, GLFW_KEY_D)) { dx += rx * step; dy += ry * step; }
-            if (isDown(window, GLFW_KEY_A)) { dx -= rx * step; dy -= ry * step; }
+            if (!autopilot) {
+               // Modo juego: arcade como SmoothDriver del original (fuerzas
+               // con damping -> aqui velocidad constante honesta y simple):
+               // flechas L/R giran, W/S caminan sobre el plano, A/D strafe,
+               // sin volar (E/Q no hacen nada). Movimiento por ejes con slide
+               // contra bloqueantes; pies pegados al suelo (Room.floorHeight:
+               // el original tampoco tiene caida libre global).
+               float turn = (float) Math.toRadians(60) * dt;
+               if (isDown(window, GLFW_KEY_LEFT)) yaw -= turn;
+               if (isDown(window, GLFW_KEY_RIGHT)) yaw += turn;
+               if (isDown(window, GLFW_KEY_UP)) pitch = Math.min(1.55f, pitch + turn);
+               if (isDown(window, GLFW_KEY_DOWN)) pitch = Math.max(-1.55f, pitch - turn);
+               float fx = (float) Math.cos(yaw), fy = (float) Math.sin(yaw);
+               float rx = -fy, ry = fx;
+               float step = PLAY_WALK_SPEED * dt;
+               if (isDown(window, GLFW_KEY_W)) { dx += fx * step; dy += fy * step; }
+               if (isDown(window, GLFW_KEY_S)) { dx -= fx * step; dy -= fy * step; }
+               if (isDown(window, GLFW_KEY_D)) { dx += rx * step; dy += ry * step; }
+               if (isDown(window, GLFW_KEY_A)) { dx -= rx * step; dy -= ry * step; }
+            } else {
+               autopilotTicks++;
+               float tdx = walkToArg[0] - px, tdy = walkToArg[1] - py;
+               float dist = (float) Math.sqrt(tdx * tdx + tdy * tdy);
+               if (dist > 1f) {
+                  float aStep = Math.min(20f, dist); // paso fijo, no dt (ver comentario de arriba)
+                  dx = tdx / dist * aStep;
+                  dy = tdy / dist * aStep;
+                  yaw = (float) Math.atan2(tdy, tdx); // caminar mirando al objetivo
+               }
+               if (autopilotTicks > 3000) {
+                  System.out.println("PortalCrossHarness: autopiloto agoto su presupuesto (3000 ticks) "
+                     + "sin cruzar ningun portal hacia (" + walkToArg[0] + "," + walkToArg[1] + ") - "
+                     + "posicion final (" + px + "," + py + "," + pz + ")");
+                  autopilotDone = true;
+               }
+            }
             if (dx != 0f || dy != 0f) {
                boolean movedX = false, movedY = false;
                float nx = px + dx;
@@ -580,10 +697,54 @@ public final class WorldViewer {
                // jugador al cielo (empotrado + ratchet, 2026-09-14).
                if (movedX || movedY) {
                   pz = floorHeightAt(floorQuads, propTris, px, py, pz);
-                  checkPortals(portalNames, portalPos, px, py, pz);
+                  PortalCross cross = crossPortal(portalNodes, portalQuads, px, py, pz);
+                  if (cross != null) {
+                     System.out.println("Cruzando portal \"" + cross.srcName + "\" (sala \"" + roomName
+                        + "\", pos=" + px + "," + py + "," + pz + ") -> \"" + cross.farName
+                        + "\" (sala \"" + cross.destRoomName + "\")");
+                     room = cross.destRoom;
+                     roomName = cross.destRoomName;
+                     bbox = loadPlayRoom(room, floorQuads, blockerBoxes, propTris, portalNodes, portalQuads);
+                     radius = Math.max(0.01f, distance(bbox));
+                     cx = (bbox[0] + bbox[3]) / 2f;
+                     cy = (bbox[1] + bbox[4]) / 2f;
+                     cz = (bbox[2] + bbox[5]) / 2f;
+                     // Fondo infinito de la sala destino (misma logica que
+                     // la carga inicial, ver arriba - una sala nueva puede
+                     // no tener fondo, o uno distinto).
+                     bgBbox = null;
+                     if (room.infiniteBackground != null) {
+                        float[] freshBg = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+                        int[] bgCount = {0};
+                        preloadBg(room.infiniteBackground, identity(), freshBg, bgCount);
+                        if (bgCount[0] != 0) {
+                           bgBbox = freshBg;
+                        }
+                     }
+                     bgNear = 1f; bgFar = 10000f; bgCx = 0f; bgCy = 0f; bgCz = 0f;
+                     if (bgBbox != null) {
+                        bgCx = (bgBbox[0] + bgBbox[3]) / 2f;
+                        bgCy = (bgBbox[1] + bgBbox[4]) / 2f;
+                        bgCz = (bgBbox[2] + bgBbox[5]) / 2f;
+                        float bgR = distance(bgBbox) / 2f;
+                        float bgDist = (float) Math.sqrt(bgCx * bgCx + bgCy * bgCy + bgCz * bgCz);
+                        bgFar = (bgDist + bgR) * 2f + radius;
+                     }
+                     px = cross.x;
+                     py = cross.y;
+                     pz = floorHeightAt(floorQuads, propTris, cross.x, cross.y, cross.z);
+                     yaw = cross.yaw;
+                     System.out.println("  -> sala \"" + roomName + "\" pos=(" + px + "," + py + "," + pz
+                        + ") yaw=" + yaw + " (" + floorQuads.size() + " floor quads, " + blockerBoxes.size()
+                        + " blockers, " + portalNodes.size() + " portals)");
+                     if (autopilot) {
+                        autopilotDone = true;
+                        crossedThisFrame = true;
+                     }
+                  }
                }
             }
-            if (frame % 300 == 0) {
+            if (!autopilot && frame % 300 == 0) {
                System.out.println("Player at (" + px + "," + py + "," + pz + ") yaw=" + yaw + " frame=" + frame);
             }
          } else if (inside && visible) {
@@ -734,10 +895,27 @@ public final class WorldViewer {
              System.out.println("Screenshot written to " + screenshotPath
                 + (visible ? " (window stays open, ESC to exit)" : ""));
           }
+          // PortalCrossHarness (--walk-to): "before" se sobreescribe cada
+          // tick MIENTRAS no se haya cruzado (queda con el ultimo frame
+          // pre-cruce); "after" se guarda UNA vez, del mismo frame en que
+          // crossPortal() ya cambio de sala/posicion mas arriba - por eso
+          // ese mismo render ya muestra la sala destino real.
+          if (autopilot) {
+             if (!crossedThisFrame && screenshotBeforePath != null) {
+                GlUtil.saveScreenshot(width, height, screenshotBeforePath);
+             } else if (crossedThisFrame && screenshotAfterPath != null) {
+                GlUtil.saveScreenshot(width, height, screenshotAfterPath);
+                System.out.println("PortalCrossHarness: screenshots guardadas (" + screenshotBeforePath
+                   + " / " + screenshotAfterPath + ")");
+             }
+          }
           glfwSwapBuffers(window);
           glfwPollEvents();
           if (visible && frame == 0) {
              System.out.println("Window presented frame 0 (interactive: ESC to exit)");
+          }
+          if (autopilot && autopilotDone) {
+             break; // cruzado (o presupuesto agotado, ya logueado) - fin del arnes
           }
        }
 
@@ -1757,20 +1935,55 @@ public final class WorldViewer {
     private static final String PLAY_AVATAR_URL = "avatar:Aura.rwg";
     private static final java.util.Set<String> announcedPortals = new java.util.HashSet<>();
 
+    /** (Re)carga una sala completa para --play: preload real (geometria +
+     * bbox, igual que la carga inicial de renderRoom) + collectPlayfield
+     * (suelo/bloqueantes/props/portales), limpiando antes las listas de
+     * salida. Usado al cruzar un portal (crossPortal) para la sala
+     * destino - MISMO camino que la sala inicial, sin atajos: la sala a
+     * la que se llega por un portal se trata exactamente igual que la
+     * sala con la que arranca el visor. Devuelve el bbox real (para el
+     * frustum "inside"/near-far, ver el punto de llamada). */
+    private static float[] loadPlayRoom(WNode room, List<float[][]> floorQuads, List<float[]> blockerBoxes,
+          List<float[]> propTris, List<WNode> portalNodes, List<float[][]> portalQuads) {
+       floorQuads.clear();
+       blockerBoxes.clear();
+       propTris.clear();
+       portalNodes.clear();
+       portalQuads.clear();
+       float[] bbox = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+       int[] objectCount = {0};
+       preload(room, identity(), bbox, objectCount);
+       if (room.environment != null) {
+          preload(room.environment, identity(), bbox, objectCount);
+       }
+       collectPlayfield(room, identity(), floorQuads, blockerBoxes, propTris, portalNodes, portalQuads);
+       if (room.environment != null) {
+          collectPlayfield(room.environment, identity(), floorQuads, blockerBoxes, propTris, portalNodes, portalQuads);
+       }
+       return bbox;
+    }
+
     /** Recorre el arbol real y clasifica geometria jugable (ver llamada en
      * renderRoom): suelos = Rect/RectPatch visibles (quads en coords mundo)
      * + triangulos de props; bloqueantes = AABB mundo (b[6]=1 si es bumper
      * invisible: esos paran SIEMPRE) de Rects no-piso + invisibles + AABB
-     * por prop; portales = nodos .Portal con su posicion mundo (fase 1:
-     * solo anuncio). El fondo infinito es backdrop, no pisable. */
+     * por prop; portales = nodos .Portal reales (WNode, para resolver su
+     * conexion via portalFarSidePortal) + su quad mundo (4 esquinas, mismo
+     * RECT_CORNERS que cualquier otro Rect - un Portal ES un Rect, ver
+     * Portal.restoreState v8/9 en WorldRestorer.readPortal). El cruce real
+     * de sala se decide en crossPortal(), llamado desde el loop de juego
+     * con estas listas. El fondo infinito es backdrop, no pisable. */
     private static void collectPlayfield(WNode n, float[] parentToWorld,
           List<float[][]> floors, List<float[]> blockers, List<float[]> propTris,
-          List<String> portalNames, List<float[]> portalPos) {
+          List<WNode> portalNodes, List<float[][]> portalQuads) {
        float[] here = n.matrix != null ? multiply(parentToWorld, n.matrix) : parentToWorld;
        if (n.className.endsWith("Portal")) {
-          float[] p = transformPoint(here, 0, 0, 0);
-          portalNames.add(n.className + (n.name != null ? "[" + n.name + "]" : ""));
-          portalPos.add(p);
+          float[][] q = new float[4][];
+          for (int i = 0; i < 4; i++) {
+             q[i] = transformPoint(here, RECT_CORNERS[i][0], RECT_CORNERS[i][1], RECT_CORNERS[i][2]);
+          }
+          portalNodes.add(n);
+          portalQuads.add(q);
        }
        if (n.geometryUrl != null && !n.geometryUrl.startsWith("avatar:")) {
           // Props (.rwx/.rwg): el mobiliario tambien es suelo y tambien
@@ -1829,7 +2042,7 @@ public final class WorldViewer {
           }
        }
        for (WNode c : n.children) {
-          collectPlayfield(c, here, floors, blockers, propTris, portalNames, portalPos);
+          collectPlayfield(c, here, floors, blockers, propTris, portalNodes, portalQuads);
        }
     }
 
@@ -1960,17 +2173,132 @@ public final class WorldViewer {
        return false;
     }
 
-    /** Fase 1 de portales: anunciar cercania (<150, radio del bound box
-     * x altura de ojo). El cambio de sala real (changeRoom + farSide) es
-     * fase 2: WNode ni siquiera modela los destinos todavia. */
-    private static void checkPortals(List<String> names, List<float[]> pos, float x, float y, float z) {
-       for (int i = 0; i < names.size(); i++) {
-          float[] p = pos.get(i);
-          float dx = p[0] - x, dy = p[1] - y, dz = p[2] - z;
-          if (dx * dx + dy * dy + dz * dz < 150f * 150f && announcedPortals.add(names.get(i))) {
-             System.out.println("Portal cerca: " + names.get(i)
-                + " (cambio de sala: fase 2, aun no implementado)");
+    /** Resultado de cruzar un portal conectado este frame: sala destino
+     * (WNode real de world.roomsByName) + posicion/orientacion calculadas
+     * exactamente como el cliente original - ver crossPortal(). */
+    private static final class PortalCross {
+       final WNode destRoom;
+       final String destRoomName;
+       final String srcName, farName;
+       final float x, y, z, yaw;
+       PortalCross(WNode destRoom, String destRoomName, String srcName, String farName, float x, float y, float z, float yaw) {
+          this.destRoom = destRoom; this.destRoomName = destRoomName;
+          this.srcName = srcName; this.farName = farName;
+          this.x = x; this.y = y; this.z = z; this.yaw = yaw;
+       }
+    }
+
+    /**
+     * Detecta si (x,y,z) esta dentro del quad-AABB (+-PLAY_RADIUS en X/Y,
+     * +-PLAY_EYE_HEIGHT en Z) de algun portal de la sala actual y, si
+     * esta conectado, calcula sala+posicion+orientacion destino tal como
+     * el cliente original (NET/worlds/scape/Portal.java) lo hace en
+     * tiempo real. Un Portal ES un Rect (WorldRestorer.readPortal, v8/9);
+     * su AABB de cruce reusa el mismo quad ya calculado en collectPlayfield
+     * (misma aproximacion "posicion discreta por frame" que hitsBlocker,
+     * documentada ahi - no hay swept collision continua en este visor).
+     *
+     * Semantica real, con cita: para un portal portal-a-portal
+     * (farSideIsPortal=true, el caso real de los 56/87 portales
+     * conectados en GroundZero - ver PortalInspect), la posicion
+     * persistida en el .world (_farx/_fary/_farz/_fartheta,
+     * Portal.java:651-654 v8/9) NUNCA se usa: siempre vale 0.0 en
+     * GroundZero (verificado), porque postRestore() (Portal.java:711-722)
+     * llama newFarSide() -> recomputeFarPosition() (Portal.java:220-240)
+     * en cuanto el objeto se restaura, que la SOBRESCRIBE con la posicion
+     * VIVA del portal lejano:
+     *   var1 = Point3Temp.make(1,0,1).vectorTimes(farSidePortal);  [227]
+     *   var2 = farSidePortal.getPosition();                         [228]
+     *   if ((this.flags & 4) == 0) { var2.x+=var1.x; var2.y+=var1.y; } [229-232]
+     *   farx,fary,farz = var2.x,var2.y,var2.z                       [234-236]
+     *   fartheta = (-farSidePortal.getYaw() + 180) % 360             [237]
+     * getPosition() = Transform.getX/Y/Z (Transform.java:48-50), la
+     * columna de traslacion de la matriz-sala acumulada del portal lejano
+     * (portalRoomMatrix) - sin ambiguedad. vectorTimes() es nativo
+     * (Point3Temp.java:56) pero por nombre y por el propio uso citado en
+     * el javadoc de esta clase ("Transform.worldVecToObjectVec() calls
+     * Point3Temp.make(var1).vectorTimes(var2)") es un transform de VECTOR
+     * (solo rotacion/escala, sin traslacion) - reproducido aqui con la
+     * MISMA convencion de matriz ya verificada en todo este archivo
+     * (transformVector: columnas 0/1/2, sin sumar columna 3).
+     *
+     * getYaw() (Transform.java:76) tambien es nativo, y su convencion
+     * EXACTA no se pudo re-derivar con certeza total del pseudocodigo
+     * Ghidra (codigo x87 muy ofuscado, ver decompiled-native/gamma_dll/
+     * 00425440__..._Transform_getYaw_8.c) - LIMITE HONESTO, documentado
+     * en el informe final de la sesion. Lo que SI se pudo verificar:
+     * (a) su vector de referencia local es (0,1,0) - lei DAT_00471bf8=0.0
+     * y DAT_00471bfc=1.0 directamente de assets/WorldsPlayer/bin/gamma.dll
+     * (PE, seccion .data, sin ejecutar el binario); (b) DOS sitios
+     * decompilados independientes (TrajectoryBehavior.java:139 y
+     * VelocityBehavior.java:124) convierten un valor getYaw() a angulo
+     * matematico estandar con la MISMA formula exacta,
+     * "toRadians(360 - yaw + 90)". Componiendo esa formula (verificada
+     * dos veces) con Portal.java:237 algebraicamente da newYaw =
+     * -atan2(fwd.y,fwd.x) = atan2(-fwd.y,fwd.x), fwd = eje local +Y del
+     * portal lejano llevado a espacio-sala (transformVector) - el MISMO
+     * eje que getYaw() usa como referencia. Implementado asi, pero sin
+     * poder ejecutar el binario original (sin Wine) para confirmar el
+     * signo con un caso de prueba independiente.
+     */
+    private static PortalCross crossPortal(List<WNode> portalNodes, List<float[][]> portalQuads, float x, float y, float z) {
+       for (int i = 0; i < portalNodes.size(); i++) {
+          float[] b = quadAabb(portalQuads.get(i));
+          if (x < b[0] - PLAY_RADIUS || x > b[3] + PLAY_RADIUS) continue;
+          if (y < b[1] - PLAY_RADIUS || y > b[4] + PLAY_RADIUS) continue;
+          if (z < b[2] - PLAY_EYE_HEIGHT || z > b[5] + PLAY_EYE_HEIGHT) continue;
+          WNode src = portalNodes.get(i);
+          WNode far = src.portalFarSidePortal;
+          if (far == null) {
+             if (announcedPortals.add("unresolved:" + src.name)) {
+                String reason = src.portalFarSideWorld != null
+                   ? "otro mundo (" + src.portalFarSideWorld + "#" + src.portalFarSideRoomName + ") - fuera de alcance, no se parsea otro .world"
+                   : "desconectado en el propio .world (Portal.unconnected(), sin farSidePortal ni farSideRoomName resoluble)";
+                System.out.println("Portal \"" + src.name + "\": sin destino resoluble (" + reason + ") - no se atraviesa.");
+             }
+             continue;
           }
+          String destRoomName = portalOwnerRoom.get(far);
+          WNode destRoom = worldRoot.roomsByName.get(destRoomName);
+          if (destRoom == null) {
+             continue; // no deberia pasar (far viene de un recorrido real de roomsByName)
+          }
+          float[] FM = portalRoomMatrix.get(far);
+          float[] farPos = transformPoint(FM, 0, 0, 0); // Transform.getPosition() = traslacion pura
+          float[] offset = transformVector(FM, 1, 0, 1); // vectorTimes(1,0,1)
+          float destX = farPos[0], destY = farPos[1], destZ = farPos[2];
+          if ((src.flags & 4) == 0) { // Portal.java:229 - bit de mirror del portal FUENTE
+             destX += offset[0];
+             destY += offset[1];
+          }
+          float[] fwd = transformVector(FM, 0, 1, 0); // eje local +Y del portal lejano (referencia de getYaw())
+          float destYaw = (float) Math.atan2(-fwd[1], fwd[0]);
+          return new PortalCross(destRoom, destRoomName, src.name, far.name, destX, destY, destZ, destYaw);
+       }
+       return null;
+    }
+
+    /** Recorre TODAS las salas una vez (llamado desde main() tras parsear
+     * el mundo, antes de renderRoom) y guarda, por cada nodo Portal real,
+     * su matriz local-a-sala acumulada + el nombre de su sala dueña - ver
+     * portalRoomMatrix/portalOwnerRoom. Barato (578 nodos, sin GL). */
+    private static void collectPortalMatrices(WNode world) {
+       for (Map.Entry<String, WNode> e : world.roomsByName.entrySet()) {
+          walkPortalMatrices(e.getValue(), identity(), e.getKey());
+          if (e.getValue().environment != null) {
+             walkPortalMatrices(e.getValue().environment, identity(), e.getKey());
+          }
+       }
+    }
+
+    private static void walkPortalMatrices(WNode n, float[] parentToWorld, String roomName) {
+       float[] here = n.matrix != null ? multiply(parentToWorld, n.matrix) : parentToWorld;
+       if (n.className.endsWith("Portal")) {
+          portalRoomMatrix.put(n, here);
+          portalOwnerRoom.put(n, roomName);
+       }
+       for (WNode c : n.children) {
+          walkPortalMatrices(c, here, roomName);
        }
     }
 
@@ -2026,6 +2354,18 @@ public final class WorldViewer {
          m[0] * x + m[4] * y + m[8] * z + m[12],
          m[1] * x + m[5] * y + m[9] * z + m[13],
          m[2] * x + m[6] * y + m[10] * z + m[14]
+      };
+   }
+
+   /** Same convention as transformPoint but WITHOUT translation (column 3)
+    * - rotation+scale only, matching Point3Temp.vectorTimes(Transform)'s
+    * native "vector transform" semantics (see this class's own header doc
+    * quoting Transform.worldVecToObjectVec, and crossPortal()'s javadoc). */
+   private static float[] transformVector(float[] m, float x, float y, float z) {
+      return new float[]{
+         m[0] * x + m[4] * y + m[8] * z,
+         m[1] * x + m[5] * y + m[9] * z,
+         m[2] * x + m[6] * y + m[10] * z
       };
    }
 
