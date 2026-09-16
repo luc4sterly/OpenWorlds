@@ -255,3 +255,37 @@ primario, y esta línea NO inventa ni hardcodea credenciales**:
 con una cuenta propia cuando exista. Los tres hostnames
 (`worlds.worlio.com`, `worlio.com`, `gippsland.worlio.com`) resuelven
 a la misma IP (198.251.80.57).
+
+## macOS (2026-09-16): scripts reproducibles y primera pared de `Gamma.main`
+
+Reproducido en un MacBook Intel sin Xvfb (AWT nativo con Cocoa), con el
+JDK de `tools/jdk`. Todo se construye en un directorio temporal: ni
+`source/` ni `assets/WorldsPlayer/` se modifican.
+
+- **`tools/net-probe/run-guest-login.sh`** aplica el mock sobre una copia
+  del Java pristino, compila mock + sondas y ejecuta `GuestLoginProbe`
+  desde una copia de `assets/WorldsPlayer`. Contra
+  `gippsland.worlio.com:8265`: **estado 12 MAINLOOP estable 12 s,
+  `lastError=null`, exit 0**, con el intercambio real
+  PROPREQ → PROPUPD → SESSINIT y el texto de bienvenida (3 ejecuciones,
+  mismo resultado que en Linux el 2026-09-10). Trace:
+  `docs/net-guest-login-trace-macos.log`.
+- **`tools/net-probe/run-gamma-main.sh`** arranca el flujo REAL
+  `NET.worlds.console.Gamma` con el mock (timeout duro + `jstack`). Carga
+  bien mock, caché, tablas, avatar y sala; al montar la escena salta un
+  `Debug.dAssert(false)` genuino en `IUnknown.init`: el control
+  ActiveX/Netscape embebido, que no tiene equivalente fuera de Windows.
+  **No es un valor de mock corregible sino la ausencia de COM**: pared
+  estructural. El cliente lo captura con su propio try/catch y termina
+  solo (exit 0, 5-8 s). Trace: `docs/net-gamma-main-trace-macos.log`.
+- **Hilos `Cache`/`NetUpdate`**: `CacheEntry` ("File Downloader N"),
+  `NetUpdate` y `BackgroundLoader` corren en macOS sin bloqueos. El único
+  bloqueo observado es de diseño (`URLSelfLoader.syncBackgroundLoad` es
+  síncrono a propósito) y el proceso depende de un `Thread.join()` sin
+  timeout en `Gamma.main:221`; nada específico de macOS. Evidencia:
+  `docs/net-gamma-cache-netupdate-jstack-macos.txt`.
+- **Cuenta real**: requisitos exactos (registro web con email, modo 2
+  AUTHENTICATE de `LoginWizard.validateKnownUserInfo`, cómo pasar nick y
+  contraseña por argv al script) en
+  `docs/net-real-account-login-requisitos.md`. Sin ejecutar: no hay cuenta
+  ni se inventan credenciales.

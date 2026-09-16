@@ -3402,3 +3402,38 @@ avatares con su nombre codificado**. Se puede decodificar sin red.
 
 **Entorno**: todo lo anterior corre en un MacBook **Intel** sin Homebrew
 (ver la entrada anterior y `docs/setup-macos.md`).
+
+### 🟢 Red — reproducido en macOS: login guest estable, pared real de
+### `Gamma.main` (ActiveX) y los hilos sin bloqueo (2026-09-16)
+
+Parte de la misma sesión de auditoría (subagente en worktree aislado,
+integrado en `df4d7517`/`1c02e60e`/`199461e9`). Tres resultados:
+
+1. **Login guest real en macOS**: `tools/net-probe/run-guest-login.sh`
+   (bash 3.2, sin rutas Linux, todo en un directorio temporal) llega al
+   **estado 12 MAINLOOP estable** contra `gippsland.worlio.com:8265` con
+   el intercambio real PROPREQ → PROPUPD → SESSINIT y la bienvenida del
+   servidor, igual que el 2026-09-10 en Linux. Ya no hace falta Xvfb.
+2. **Primera pared del arranque REAL** (`run-gamma-main.sh`): el cliente
+   completo con el mock carga caché, tablas, avatar y sala, y se detiene
+   en un `dAssert(false)` genuino de `IUnknown.init` — el control
+   ActiveX/Netscape embebido. Es ausencia estructural de COM fuera de
+   Windows, no un mock mal puesto: para seguir por ese camino habría que
+   sustituir ese componente, no corregir un valor.
+3. **`Cache`/`NetUpdate`** (el "bloque de hilos" que la sección 10
+   dejaba abierto desde 2026-09-09): corren bien en macOS; el único
+   bloqueo es de diseño (carga síncrona a propósito y un `Thread.join()`
+   sin timeout en `Gamma.main:221`). **No hay problema de hilos que
+   resolver.**
+
+Para login con cuenta real solo falta la cuenta: requisitos exactos en
+`docs/net-real-account-login-requisitos.md`.
+
+Además, en la misma sesión se recuperaron **881 funciones** de
+`gamma.dll` que el volcado original no tenía (solo alcanzables por vtable;
+`tools/ghidra-scripts/ScanVtablesAndExport.java`, decompilador de Ghidra
+compilado desde fuente para macOS). Con ellas se leyó el controlador de
+tiempo de la animación: **30 keys por segundo**, modo 2 = bucle
+(`t % (duración+1)`), modo 1 = último key (`FUN_0043b950`/`FUN_0043b5f0`,
+`SeqSampler.keyTime`). Queda por reconstruir qué secuencia y modo elige
+el cliente en cada momento y la mezcla de transición.

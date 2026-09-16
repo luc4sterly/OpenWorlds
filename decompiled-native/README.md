@@ -9,16 +9,22 @@ avatares `.seq`), `huffdcod`/ScapePic (texturas `.cmp`/`.mov`),
 - `gamma_dll/`: 1656 funciones (`<addr>_<nombre>.c`, 0 fallos) +
   `INDEX.txt` (addr, fichero, nombre). Los exports JNI conservan su
   nombre real (`_Java_NET_worlds_...`).
-- ⚠️ **El volcado NO es exhaustivo** (auditoría 2026-09-15): faltan las
-  funciones que solo se alcanzan por despacho virtual, porque Ghidra no
-  las detecta como funciones. Caso comprobado: las 13 entradas de la
-  vtable del reproductor de animación (`0x00475200`: `0x00432010`,
-  `0x00431e90`, `0x00432020`, `0x00432070`, `0x00432090`, `0x004320b0`,
-  `0x00432550`, `0x00432790`, `0x004327b0`, `0x00432800`, `0x00432820`,
-  `0x00432830`, `0x00432840`) no están en `INDEX.txt`, y son justo las
-  del avance de tiempo, el bucle y las transiciones de animación. Para
-  completarlo hay que forzar función en las direcciones de las tablas de
-  punteros a `.text` antes de exportar.
+- **Funciones alcanzables solo por vtable** (añadidas 2026-09-16): el
+  primer volcado (1656) no las incluía porque Ghidra no detecta como
+  función un destino al que solo se salta por despacho virtual — entre
+  ellas las 13 de la vtable del reproductor de animación (`0x00475200`),
+  que resultaron ser el avance de tiempo y el bucle. El script
+  `tools/ghidra-scripts/ScanVtablesAndExport.java` recorre las tablas de
+  punteros a `.text` de `.data` (1216 candidatos), fuerza función donde no
+  la hay y exporta solo las nuevas: **881 funciones más**, `INDEX.txt`
+  pasa a 2537 entradas, sin tocar ningún fichero anterior. 268 candidatos
+  caían dentro de otra función y se omitieron; no se ha auditado a fondo
+  si alguno de los 881 es una jump-table en vez de una función.
+- **Ghidra en macOS Intel**: esta distribución (12.1.3) no trae el binario
+  nativo del decompilador para `mac_x86_64`; se compila desde el fuente
+  incluido (`Ghidra/Features/Decompiler/src/decompile/cpp`, target
+  `ghidra_opt`) con el `g++`/`bison`/`flex` de las Command Line Tools y se
+  copia a `os/mac_x86_64/decompile`. Arranca con el JDK de `tools/jdk`.
 - Regenerable: `tools/ghidra-scripts/ExportAllDecompiled.java` +
   `analyzeHeadless` (el proyecto Ghidra vive fuera del repo,
   `~/ghidra-fw`, ver `.gitignore` de `analysis/`).
