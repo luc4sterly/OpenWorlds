@@ -3314,3 +3314,91 @@ GL frente a Mesa bajo Xvfb), no contenido distinto.
 de paso: en `--play` el contador "total rect references seen" acumula
 por frame (69000 = 69 x 1000 frames), igual que el de avatares
 corregido el 2026-09-14. Detalle en `docs/setup-macos.md`.
+
+### 🟢 AUDITORÍA: los corpus reejecutados, tres afirmaciones falsas y la
+### animación reconstruida (2026-09-15/16)
+
+Sesión larga pedida explícitamente como auditoría: **no dar por buenos
+los números del historial, sino reejecutarlos** contra el código de hoy,
+y luego avanzar. Se usaron 6 subagentes de solo lectura en paralelo (uno
+por formato/pieza, sección 9) más varios de trabajo en worktrees
+aislados.
+
+**Lo que se reverificó ejecutando (macOS, JDK portable)**
+
+| Afirmación | Resultado hoy |
+|---|---|
+| RWX 118/118 | Los 118 `triangleCount` y `materialCount` del lado Java coinciden con la tabla. El lado JS **no es reproducible**: `tools/node` es un ELF de Linux |
+| `.world` 25 salas / 578 nodos / 103 objetos / 374 Rect / 36 RectPatch v2 / 417 Material v4 | Todo confirmado |
+| `.bod` 51/51 consumidos + `orphans=0 badIndices=0` | Confirmado |
+| `.cmp` 159/159 y `.mov` | 159/159 `.cmp` y **52/52** `.mov` decodifican sin excepción; el "byte-exacto contra `cmpview.exe`" **no es reproducible sin Wine** y no hay ground truth guardado |
+| Stage 2 determinista | `test4b` 256/256, `sball` y `rustwood` 4096/4096 |
+| Escena completa | 25/25 salas, GL error 0, `Texture 51/51` + `Rect 101/101` |
+
+**Tres afirmaciones del historial resultaron FALSAS (corregidas)**
+
+1. **`SeqParser` (commit `bcd60fd5`, "verificado, leftover=0") fallaba en
+   los 231 `.seq` reales.** Leía un `u16` de "checksum" que no existe:
+   `FUN_00436d50` suma los K bytes del diccionario en memoria y los
+   guarda como duración en `+0x214`. Quitado eso, y traducida además la
+   variante que el original desvía a `FUN_00436610` cuando el primer byte
+   es `0x7f` (big-endian, 37 archivos de `cachedir`): **231/231**
+   (`SeqExtractMain`, nuevo y reproducible). Los codebooks CB32/CB128 sí
+   eran correctos: 32/32 y 128/128 floats idénticos bit a bit a
+   `gamma.dll`.
+2. **El "z-fighting" de `cube.rwg`** (abierto desde 2026-09-09) no era
+   z-fighting ni bobinado inconsistente: `VLST[0..7]` es la **bounding
+   box** del clump y los índices de `PLST` cuentan desde el registro 8
+   (`RWL21.DLL`: `RwGetClumpNumVertices` = count−8, `RwGetClumpVertex` →
+   registro n+7; 3466/3466 normales coinciden contando desde 8, 167 desde
+   0). Caras ±Z duplicadas, "normales (0,0,0)" y "huecos con culling"
+   eran el mismo bug. `e3.rwg` son 1371 vértices, no 1379.
+3. **Las texturas de avatar no salen de `cachedir/45.dat`** (ese archivo
+   no tiene ni una cadena `.cmp`/`.mov`): salen del **nombre del avatar**
+   (`PosableShape.createSubparts` + `readTexture`/`scanTexture` →
+   `avatar:<nombre>.cmp` | `.mov`).
+
+**Cifras menores corregidas**: LizCave tiene 41 `Rect942CyanBump`, no 40;
+Reception da hoy 41 bloqueantes (28 Rects + 13 props del arreglo del
+kiosko), no 28; no todos los `.bod` son de 16 partes (`2v.bod` y
+`death.bod`, idénticos, tienen 8). `docs/cmp-stage1-coverage.md` seguía
+siendo el baseline 0/159 de `39e9f31c`: nunca se regeneró.
+
+**Animación de avatares: de "no hay ni una línea de parseo" a pose real**
+
+Reconstruida entera desde el C decompilado y desensamblando `RWL21.DLL`
+(detalle en `docs/seq-animation-reference.md` §5 y §6.1):
+muestreo por keys con **nlerp** (no slerp), cuaternión `(w,x,y,z)` con x
+e y negados (`FUN_004290c0`), tabla **nombre→tag propia de la DLL** (30
+nombres; los joints mocap que no están en ella se ignoran: **no existe
+retarget 44→16**), composición `LTM = Joint · Modelado · LTM_padre` en
+convención vector fila (modo 1 = sustituir), y `prepFigure` = rotación
+180° sobre (0,1,1) + escala ×1000, que es de donde salían el ×1000 y el
++Y→+Z que `WorldViewer` usaba como heurística. Tiempo de keys: 1/30 s.
+`BodViewer --seq f.seq --frame T` pone un `.bod` en la pose exacta; sin
+`--seq` las capturas siguen siendo md5-idénticas a bind pose.
+Verificación anatómica: `common_walk` frames 0 y 21 en oposición,
+`axelwave` levanta el brazo izquierdo (sus 4 tracks), `common_a_wait`
+frame 0 = bind pose exacta.
+
+**Dos huecos encontrados en las herramientas del propio proyecto**
+
+- El C decompilado **no incluye** las 13 funciones de la vtable del
+  reproductor de animación (`0x00475200`): Ghidra no las detectó porque
+  solo se alcanzan por despacho virtual. Son justo el avance de tiempo,
+  el bucle y las transiciones — por eso `WorldViewer` sigue en bind pose:
+  implementarlo sin ellas sería inventar.
+- Cuatro visores capturaban el framebuffer **después** de `glfwSwapBuffers`,
+  lo que en macOS produce PNG negros: una verificación "con captura"
+  podía dar por bueno un render vacío. Corregido en los cuatro.
+
+**Hallazgo que desbloquea las texturas de avatar**: las tablas que el
+cliente pide a `ServerTableManager` (`permittedList`, `faceList`,
+`humanList`…) **ya están en el repo**, en
+`assets/WorldsPlayer/tables/tables.dat` (45164 bytes, idéntico a
+`cachedir/44.dat`): `int32` de longitud + XOR encadenado
+(`dec[i]=enc[i]^enc[i-1]`) → texto con 12 tablas, incluidos **148
+avatares con su nombre codificado**. Se puede decodificar sin red.
+
+**Entorno**: todo lo anterior corre en un MacBook **Intel** sin Homebrew
+(ver la entrada anterior y `docs/setup-macos.md`).

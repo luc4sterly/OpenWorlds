@@ -261,3 +261,15 @@ available.
   files, one per base avatar. Connecting textures therefore needs that name
   language decoded first (which clump gets which texture); applying a
   texture to the whole body would be inventing.
+- **The tables that language needs are already in the repo** (found
+  2026-09-15): `PosableShape`'s `permittedList`/`faceList`/`humanList` come
+  from `ServerTableManager`, which downloads `tables/tables.dat` from the
+  upgrade server - and `assets/WorldsPlayer/tables/tables.dat` (45164 bytes,
+  byte-identical to `cachedir/44.dat`) is versioned here. Its format is a
+  big-endian `int32` length plus an XOR-chained payload
+  (`dec[0]=enc[0]; dec[i]=enc[i]^enc[i-1]`, `ServerTableManager.decrypt`)
+  that decodes to plain text with `private static String[] <name> = {...}`
+  blocks: 12 tables, including 148 avatars with their encoded names
+  (`permittedList`), 45 face-texture pairs (`faceList`) and gender flags
+  (`humanList`). So avatar appearance can be resolved offline; no server
+  needed.
