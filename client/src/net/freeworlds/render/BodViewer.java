@@ -44,8 +44,10 @@ import static org.lwjgl.opengl.GL11.*;
  * Deliberately conservative, following docs/render-pipeline-reference.md:
  * fixed-function pipeline only (glBegin/glEnd, GlLighting's real 2-light
  * model from Room.java/RoomEnvironment.addLight), flat per-clump RGB color
- * (.bod stores only flat RGB per clump, no textures - texture names live
- * in the separate animation registry cachedir/45.dat, not connected here),
+ * (.bod stores only flat RGB per clump; sus vertices SI traen UV, pero el
+ * nombre de textura sale del nombre del avatar via
+ * PosableShape.readTexture/scanTexture -> avatar:<nombre>.cmp/.mov, no de
+ * cachedir/45.dat como decia esta nota antes: ver docs/bod-format-reference.md),
  * face normals via cross product (.bod carries no normals at all, so
  * GL_FLAT like RwxViewer - no invented smoothing), both sides visible
  * (winding convention unverified, same discipline as RwgViewer).

@@ -39,10 +39,11 @@ hace falta reinventar el servidor.
     repo `Sgeo/rwg_to_rwx`, que distingue explícitamente entre **RenderWare
     2.0** (Worlds antiguo) y **RenderWare 2.1** ("modern WorldsPlayer" — la
     versión probablemente relevante para nosotros).
-  - **Pendiente de confirmar con evidencia directa**: correr
-    `strings *.dll | grep -i "renderware\|criterion"` sobre las DLLs reales de
-    la instalación para sacar la versión exacta, en vez de fiarnos solo de
-    fuentes de fans.
+  - ✅ **Confirmado** (ver sección 10): es RenderWare **2.1**, por los
+    nombres y las tablas de exports de las DLLs reales
+    (`docs/renderware21-api-exports.txt`). Desde 2026-09-15 hay además
+    desensamblado propio de `RWL21.DLL` (composición de matrices de
+    clump/joint, ver `docs/seq-animation-reference.md` §5).
 - **No existe SDK ni fuente de RenderWare 2 preservado en ningún sitio.** Solo
   hay abundante material de RenderWare 3.x (el de GTA), que es un formato
   binario **incompatible** con RWX — no sirve como atajo directo.
@@ -169,8 +170,15 @@ no copiar-pegar código directamente.
 
 ## 4. Herramientas y entorno de trabajo
 
+> ⚠️ **Entorno actual (desde 2026-09-15): macOS 15.7 en un MacBook
+> Intel** (i5-7360U), sin Homebrew (ya no soporta Intel), sin Wine y sin
+> node. El JDK es portable (`tools/jdk`, lo instala
+> `tools/setup-macos.sh`) y `bash` es el 3.2 del sistema. Ver
+> `docs/setup-macos.md`. Lo de abajo es el entorno Linux/WSL2 histórico,
+> que sigue siendo válido en esa máquina.
+
 - **Hardware**: Xeon 28 núcleos LGA2011, GTX 1060 6GB, 16GB RAM + zram/swap
-- **WSL2** — entorno principal de trabajo
+- **WSL2** — entorno principal de trabajo (histórico)
   - ⚠️ Si el repo se clona en el filesystem de Windows, aparece un error de
     fin de línea CRLF (`env: $'bash\r'`) al ejecutar `bin/decompile`. Fix:
     `dos2unix bin/decompile` (y cualquier otro script bash del repo si da el
@@ -1855,8 +1863,12 @@ para descartar errores de transcripción), corregido, y reverificado.
 reales descargados de un servidor vivo en una sesión anterior) más
 **25 archivos base oficiales nuevos** encontrados esta sesión dentro del
 instalador `Worlds1890.exe` (ver más abajo) — **51 / 51 consumidos
-completamente, byte a byte, sin excepción ni sobrante**, con estructura
-anatómicamente coherente en todos los casos de 16 partes: `pelvis(1)` →
+completamente, byte a byte, sin excepción ni sobrante** (reverificado en
+la auditoría 2026-09-15, más `orphans=0 badIndices=0` en los 51 al
+ensamblar), con estructura anatómicamente coherente. Corrección de esa
+auditoría: **no todos son de 16 partes** — `cachedir/2v.bod` y
+`base-avatars/death.bod` (bytes idénticos entre sí) tienen 8, sin
+caderas ni piernas. En los de 16 partes: `pelvis(1)` →
 `back(2)`, `rthip(15)`, `lfhip(19)`; `back(2)` → `neck(3)`,
 `rtshoulder(6)`, `lfshoulder(11)`; cadenas hombro/cadera correctas hasta
 codo/muñeca y rodilla/tobillo; `neck(3)` → `head(4)`.
@@ -1922,7 +1934,10 @@ pedidos explícitamente:
 - **`e3.rwg`** (172 KB, bajado de `jett.dacii.net`, el candidato más
   grande visto hasta ahora para un `.rwg` "real"): parseado con el
   `RwgParser` existente sin errores — **un solo ATOM, 1379 vértices,
-  2400 triángulos, un solo clump**. Esto **confirma, no contradice**, el
+  2400 triángulos, un solo clump**. (Corrección de la auditoría
+  2026-09-15: son **1371** vértices; los otros 8 registros de `VLST` son
+  la bounding box del clump, no vértices — ver el banner de
+  `docs/rwg-bod-format-reference.md`.) Esto **confirma, no contradice**, el
   hallazgo de sesiones anteriores: incluso un `.rwg` grande y detallado
   (176 KB) sigue siendo de un solo clump — `.rwg` nunca fue el formato
   multi-joint real, ni con archivos grandes. `.bod` es y siempre fue el
@@ -1993,6 +2008,22 @@ fuera de alcance hoy, no inventar).
 | Fase | Contenido | Dificultad | Tiempo estimado |
 |---|---|---|---|
 | 0 — Reconocimiento | Decompilar con `worldsplayer_source_editor`, `grep -r "native"` para mapear todos los métodos nativos, identificar DLLs cargadas | 🟢 Baja-media | 1–3 semanas |
+> ⚠️ **Tabla revisada en la auditoría del 2026-09-15** (ver la sesión de
+> auditoría al final del documento). Estado real por fase hoy:
+> **0 ✅ completa**; **1 ✅ completa** (RWX 118/118 reverificado, `.world`
+> 25 salas/578 nodos/103 objetos, `.bod` 51/51, `.seq` 231/231 tras
+> corregir `SeqParser`, RWG con el índice de `VLST` corregido);
+> **2 🟢 ~85%** (texturas `.cmp`/`.mov` decodifican 159/159 y 52/52,
+> materiales, escena completa 25/25 salas sin errores GL, modo juego con
+> suelo y colisión, pose de avatares aplicada desde `.seq`; falta el
+> controlador de animación, los portales y el skinning);
+> **3 🟡 ~60%** (handshake y login guest reales contra servidor vivo con
+> el código del cliente; falta cuenta registrada para el primario y el
+> flujo real de `Gamma`/`Cache`/`NetUpdate`);
+> **4 ⬜ 0%** (UI: chat, amigos, mapa, menús);
+> **5 ⬜ 0%** (OpenBSD/PSVita; solo se ha portado a macOS Intel).
+> Las celdas de abajo son el texto histórico de cada sesión.
+
 | 1 — Parsers de formato | ✅ **RWX (estático) HECHO (2026-09-09)** — 118/118 archivos reales verificados contra `three-rwx-loader`, ver sección 4. 🟡 **RWG parcial (2026-09-09)** — parser Java del contenedor de chunks y de un único ATOM (posición/UV de vértices + polígonos) verificado contra los 2 únicos `.rwg` reales disponibles y renderizado; jerarquía real de múltiples joints **NO verificada** (el corpus real no la demuestra) y `.bod` (formato binario de red, usado por los 26 avatares reales en caché) sigue sin descifrar — ver `docs/rwg-bod-format-reference.md`. ✅ **`.world` HECHO (2026-09-09)** — parser completo del protocolo de persistencia del cliente, verificado end-to-end contra un archivo real de 205KB (25 salas, 578 nodos, 103 objetos con geometría real) — ver `docs/world-format-reference.md` | 🟡 RWX fácil / RWG-BOD medio-alto (sin corpus real suficiente) / `.world` fácil (Java puro, sin nativo) | 2–6 semanas |
 | 2 — Renderizador | 🟡 **Profundizado (2026-09-09)** — iluminación (2 luces, verificada en Java real) y pipeline de materiales (opacidad, doble cara) implementados y verificados por píxel/histograma sobre pipeline de función fija; escena multi-objeto probada. Texturas `.cmp`: 🟡 **(2026-09-10)** árbol de símbolos completo mapeado con evidencia real (bit-tree, predictor dual, byte centinela `0x24` resuelto), decoder Java implementado (`tools/gamma-dll-debug-harness/cmp-stage2-decoder/`) pero verificado solo parcialmente (34/64 y 55/64 bytes exactos, no 100%) — sin conectar al pipeline hasta verificación completa, ver `docs/cmp-texture-format-reference.md` y `docs/render-pipeline-reference.md` | 🟡 Media (diseño entendido; falta cerrar verificación 100% + conectar) | 2–6 meses |
 | 3 — Red | Ya resuelto en gran parte — protocolo documentado por LibreWorlds/Xyem, implementado en `whirl` (Rust) y `munch` (Go) como referencias cruzadas | 🟢 Baja | Incluido en fase 0-1 |
@@ -2034,14 +2065,20 @@ part-time):**
 Orden de prioridad recomendado:
 
 ### Prioridad alta
-1. **Mapeador de métodos `native`** — recorre el código decompilado,
+1. ✅ **HECHO (2026-09-08)**, ver sección 4: `tools/native_mapper.py` +
+   `docs/native-methods-map.md` / `docs/native-methods-callers.md`.
+   **Mapeador de métodos `native`** — recorre el código decompilado,
    extrae cada método `native` (clase, firma, tipo de retorno) y lo cruza
    contra los símbolos exportados de las DLLs reales (`objdump -T` / `nm`).
    Salida: tabla "qué hay que reimplementar" + "qué sabemos ya por su firma".
-2. **Panel de progreso por módulo** — script que escanea el código en busca
+2. ⬜ **NO construido** (confirmado en la auditoría 2026-09-15).
+   **Panel de progreso por módulo** — script que escanea el código en busca
    de las etiquetas ⚠️ VERIFICAR y genera un dashboard (Markdown o JSON) con
    funciones verificadas vs. pendientes vs. dudosas, por clase/módulo.
-3. **Arnés de pruebas RWX Java vs. JS** — parsea el mismo `.rwx` con el
+3. ✅ **HECHO (2026-09-09)**: `tools/rwx-harness/` (`compare.py` +
+   `extract.mjs`), salida en `docs/rwx-parser-progress.md`. ⚠️ Hoy no se
+   puede ejecutar en macOS: `tools/node/` es un binario de Linux.
+   **Arnés de pruebas RWX Java vs. JS** — parsea el mismo `.rwx` con el
    parser Java en construcción y con `three-rwx-loader` (vía Node headless),
    compara la geometría resultante (vértices, caras, materiales)
    automáticamente.
@@ -2071,6 +2108,16 @@ Orden de prioridad recomendado:
 ---
 
 ## 8. Instrucciones para Claude Code
+
+> ⚠️ **Sección histórica (escrita al arrancar el proyecto).** Los pasos 2-4
+> de abajo (decompilar, construir el mapeador de nativos, priorizar el
+> parser RWX) **ya están hechos**. Orden de arranque hoy: (1) leer la
+> sesión de auditoría del 2026-09-15 al final de este documento y
+> `docs/setup-macos.md`; (2) en un Mac, `tools/setup-macos.sh` (JDK
+> portable, sin Homebrew) y `tools/run-game.sh`; (3) elegir frente de
+> trabajo entre los abiertos que lista esa auditoría. Lo que sigue
+> vigente de esta sección es la disciplina: nada se da por bueno sin
+> evidencia (sección 6) y el Paso 0 de reconocimiento antes de tocar nada.
 
 Si estás retomando este proyecto como Claude Code, este es el orden de
 arranque. **El paso 0 es obligatorio y va antes que nada más** — no
@@ -3043,7 +3090,8 @@ evidencia del original, ningun pixel inventado:
    `--infinite-follow` desaparece: esto no es un efecto, es la regla
    documentada). Limites: huecos de cielo sin paneles = vacio (dato
    original); orbita exterior sin fondo (fuera del near, maqueta).
-2. **Bumpers invisibles**: LizCave llena de teal = 40 `Rect942CyanBump`
+2. **Bumpers invisibles**: LizCave llena de teal = 41 `Rect942CyanBump`
+   (decía 40; recuento real de la auditoría 2026-09-15)
    (color teal real, flags=2, colision sin visible). `WNode.flags` guarda
    el int real (bit 0 = visible segun `WObject.getVisible()` decompilado)
    y el visor salta hojas invisibles al dibujar/encuadrar (nunca
@@ -3097,7 +3145,9 @@ persona) antes de escribir una línea. Todo verificado:
   de `HoloPilot.stepHeight`); **colisión** AABB x radio 30 (medio ancho
   del bound box real) con slide por ejes; velocidad 250 (entre
   `maxdvLR=166` y `maxdvFB=300` reales). Reception: 14 suelos, 28
-  bloqueantes, 8 portales.
+  bloqueantes, 8 portales. (Auditoría 2026-09-15: el log actual dice 41
+  bloqueantes — esos 28 Rects más 13 AABB de props `.rwx`, que se
+  añadieron en el arreglo del kiosko de la sesión siguiente.)
 - **Verificado**: spawn 89 objetos/1 avatar/GL 0
   (`docs/renders/world_play_spawn_thirdperson.png` — Aura de espaldas
   ante el kiosko, colinas detrás); IconViewRoom1a 7 obj/2 avatares/GL

@@ -245,7 +245,19 @@ available.
   not needed for decoding (they're encode-time input-normalization
   choices, baked into the file either way) but are worth knowing about if
   a future session needs to go the OTHER direction (encode a NEW avatar).
-- Texture names aren't stored per-vertex in `.bod` at all (only flat
-  RGB color) - real avatar textures come from a separate mechanism (the
-  animation registry found in an earlier session, `cachedir/45.dat`) not
-  yet connected to this parser's output.
+- Texture names aren't stored in `.bod` at all (clumps carry flat RGB
+  color), but vertices DO carry real UVs (audited 2026-09-15: aura.bod
+  135/348 vertices with non-zero UV, ogre.bod 426/565, tina.bod 608/1498).
+- **Correction (audit 2026-09-15)**: the claim that avatar texture names
+  live in the animation registry `cachedir/45.dat` is **wrong** - that file
+  has only `name=`, `geometry=` and animation keys (checked: zero
+  `.cmp`/`.mov`/`texture` strings in it). The real mechanism is the avatar
+  NAME: `PosableShape.createSubparts` parses the `avatar:<encoded>.rwg` URL
+  (the "avatar name language" of GammaDocs) and
+  `PosableShape.readTexture`/`scanTexture` (`PosableShape.java:248-270`)
+  build `avatar:<name>.cmp` or `avatar:<name><n>s*.mov`, with a real
+  material (`new Material(0.32f, 0.55f, 0.0f, colorTable[3], null, 1.0f,
+  true, false)`). The corpus matches: `base-avatars/` ships 21 `<name>.mov`
+  files, one per base avatar. Connecting textures therefore needs that name
+  language decoded first (which clump gets which texture); applying a
+  texture to the whole body would be inventing.
