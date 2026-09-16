@@ -1,0 +1,105 @@
+Evidencia de hilos (jstack) del modelo Cache/NetUpdate en macOS, real
+contra NET.worlds.console.Gamma.main con el mock, sin Xvfb. Dos fuentes,
+mismo Mac, mismo codigo:
+
+(A) Captura completa del 2026-09-15 (sesion anterior, mismo checkout):
+    jstack tomado mientras el proceso seguia vivo, ~3s tras arrancar,
+    build identica (737 clases, mismo apply_mock.sh). Rutas locales
+    recortadas a <workdir> (sin datos personales, solo el prefijo del
+    directorio temporal de sesion).
+
+"main" #3 in Object.wait()
+   at java.lang.Thread.join(Thread.java:1887) - locked <...> (a java.lang.Thread)
+   at java.lang.Thread.join(Thread.java:1963)
+   at NET.worlds.console.Gamma.main(Gamma.java:221)
+
+"Gamma Main" #28 daemon in Object.wait()
+   at NET.worlds.network.CacheFile.waitUntilLoaded(CacheFile.java:66)
+   - locked <0x0000000786ae0f78> (a NET.worlds.network.CacheEntry)
+   at NET.worlds.core.ServerTableManager.loadTableFile(ServerTableManager.java:70)
+   at NET.worlds.core.ServerTableManager.<init>(ServerTableManager.java:57)
+   at NET.worlds.core.ServerTableManager.instance(ServerTableManager.java:35)
+   at NET.worlds.scape.Drone.<clinit>(Drone.java:60)
+   at NET.worlds.console.Console.templateInit(Console.java:915)
+   at NET.worlds.console.Console.loadInit(Console.java:905)
+   at NET.worlds.console.DefaultConsole.loadInit(DefaultConsole.java:255)
+   at NET.worlds.console.Console.load(Console.java:967)
+   at NET.worlds.scape.World.setWorldServerURL(World.java:1124)
+   at NET.worlds.scape.World.restorePreRooms(World.java:865)
+   at NET.worlds.scape.World.incRestore(World.java:928)
+   at NET.worlds.scape.URLSelfLoader.syncBackgroundLoad(URLSelfLoader.java:117)
+   at NET.worlds.scape.BackgroundLoaderElement.syncLoad(BackgroundLoaderElement.java:63)
+   at NET.worlds.scape.BackgroundLoaderElement.read(BackgroundLoaderElement.java:41)
+   at NET.worlds.scape.BackgroundLoaderElement.<init>(BackgroundLoaderElement.java:30)
+   at NET.worlds.scape.BackgroundLoader.get(BackgroundLoader.java:22)
+   at NET.worlds.scape.URLSelfLoader.<init>(URLSelfLoader.java:74)
+   at NET.worlds.scape.URLSelfLoader.load(URLSelfLoader.java:40)
+   at NET.worlds.scape.World.load(World.java:104)
+   at NET.worlds.scape.TeleportAction.startTeleport(TeleportAction.java:224)
+   at NET.worlds.scape.TeleportAction.teleport(TeleportAction.java:73)
+   at NET.worlds.console.Gamma.mainCallback(Gamma.java:491)
+   at NET.worlds.console.Main.mainLoop(Main.java:31)
+   at NET.worlds.console.Gamma.run(Gamma.java:436)
+
+"Thread-0" #29 daemon TIMED_WAITING (sleeping)
+   at NET.worlds.network.NetUpdate.timeToUpdate(NetUpdate.java:188)
+   at NET.worlds.network.NetUpdate.run(NetUpdate.java:787)
+
+"Thread-1" #30 daemon WAITING (on object monitor)
+   at NET.worlds.scape.BackgroundLoaderQueue.getItem(BackgroundLoaderQueue.java:91)
+   - locked <0x000000078703dfa0> (a NET.worlds.scape.BackgroundLoaderQueue)
+   at NET.worlds.scape.BackgroundLoader.run(BackgroundLoader.java:48)
+
+"File Downloader 4" #38 daemon RUNNABLE
+   at sun.nio.ch.SocketDispatcher.read0(Native Method)
+   ... (java.net.Socket$SocketInputStream.read -> BufferedInputStream.fill
+        -> MeteredStream.read -> HttpURLConnection$HttpInputStream.read) ...
+   at NET.worlds.network.CacheEntry.run(CacheEntry.java:299)
+
+"Keep-Alive-Timer" daemon TIMED_WAITING (sleeping)
+   at sun.net.www.http.KeepAliveCache.run(KeepAliveCache.java:224)
+
+(B) Tres corridas frescas del 2026-09-16 (esta sesion, mismo checkout,
+    via tools/net-probe/run-gamma-main.sh, ver docs/net-gamma-main-trace-
+    macos.log): ninguna llego a bloquearse en CacheFile.waitUntilLoaded -
+    las tres terminaron solas con exit 0 a los ~4-8s, justo despues del
+    muro de ActiveX/Netscape (docs/net-gamma-main-trace-macos.log), sin
+    necesitar kill ni jstack de emergencia. jstack a los ~3s en dos de
+    ellas no capturo nada relevante (proceso aun en el arranque de la
+    JVM, "not ready to participate in attach handshake") o el proceso ya
+    habia terminado.
+
+CONCLUSION (evidencia real, sin inventar el porque exacto de la
+diferencia de timing entre (A) y (B) - depende de la respuesta de red al
+intentar cargar la tabla de servidor de GroundZero/GroundZero.world, un
+mundo multiusuario real (RestartAt en worlds.ini), no de un bug de
+hilos):
+
+1. El modelo de hilos de Cache/NetUpdate SI corre nativamente en macOS
+   sin Xvfb: "File Downloader N" (CacheEntry.run) hace E/S de red real
+   via NIO (SocketDispatcher.read0), "Thread-0" (NetUpdate.run) hace su
+   poll periodico propio via Thread.sleep, "Thread-1"
+   (BackgroundLoader.run) espera en su cola - los tres arrancan y
+   corren sin excepciones nativas ni fallos de AWT/threading especificos
+   de macOS. No hay evidencia de deadlock: cada wait() en la traza tiene
+   un notify() correspondiente en el codigo (CacheFile.waitUntilLoaded
+   lo libera CacheEntry al terminar la descarga - visto en (B), donde
+   el mismo camino de codigo se ejecuta y el proceso sigue adelante en
+   vez de congelarse).
+2. Lo que SI bloquea (por diseño, no por bug) es el hilo de aplicacion
+   "Gamma Main": URLSelfLoader.syncBackgroundLoad hace, literalmente,
+   una carga SINCRONA sobre un background loader - bloquea a proposito
+   esperando el resultado de una descarga real antes de seguir armando
+   la consola. Si esa descarga tarda o el servidor no responde, el
+   arranque entero de Gamma se queda ahi (visto en (A)); si resuelve
+   rapido (fallo rapido o exito rapido), sigue (compatible con (B), que
+   no llega a imprimir mas texto entre el muro ActiveX y el exit, pero
+   tampoco se cuelga).
+3. La JVM entera depende de esto porque el hilo "main" real (el que
+   invoca java) hace Gamma.main -> Thread.join() SIN timeout sobre el
+   hilo de trabajo "Gamma Main" (Gamma.java:221) - ese join es lo que
+   mantiene vivo el proceso mientras "Gamma Main" siga vivo, y es
+   coherente con exit 0 en (B): en cuanto "Gamma Main" termina su
+   iteracion (con o sin ventana mostrada), el join se libera y el
+   proceso sale limpio - nada de esto es especifico de macOS, es el
+   diseño real del cliente de 2004.

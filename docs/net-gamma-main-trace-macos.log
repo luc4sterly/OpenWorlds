@@ -1,0 +1,112 @@
+Trace real de `tools/net-probe/run-gamma-main.sh` en macOS Intel (sin
+Xvfb/Wine, AWT nativo via Cocoa), JDK Temurin 25.0.4.1 portable, contra
+una copia limpia de assets/WorldsPlayer/ como CWD (worlds.ini real, con
+RestartAt=home:GroundZero/GroundZero.world). Objetivo: arrancar
+NET.worlds.console.Gamma.main tal cual (sin argv), ver hasta donde llega
+hoy en Mac. Tres ejecuciones independientes (2026-09-16), misma pared en
+las tres. Recortado: se colapsan las lineas repetidas
+`[NATIVE-MOCK] Transform.makeIdentity()/setGuts(...)/Material.paramChange()`
+del setup de escena (avatar/sala por defecto), sin quitar nada de las
+fases de arranque (mock, cache, DNS, tablas) ni las excepciones finales.
+
+== compilando el mock (--release 8) ==
+compiladas 737 clases
+== lanzando NET.worlds.console.Gamma (max 60s) ==
+User running java version 25.0.4.1 from vendor Eclipse Adoptium
+Loading: <workdir>/gamma-cwd/gamma.dll
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by NET.worlds.console.Gamma in an unnamed module
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+[NATIVE-MOCK] gamma.dll not loaded (java.lang.UnsatisfiedLinkError: Can't load library: <workdir>/gamma-cwd/gamma.dll) - every native method now runs as a logging stub, see NET.worlds.core.NativeMock
+[NATIVE-MOCK] IniFile.nativeInit()
+[NATIVE-MOCK] IniFile.getIniInt(MULTIRUN, 0)
+[NATIVE-MOCK] Startup.synchronizeStartup(null, false)
+[NATIVE-MOCK] skipping System.loadLibrary("net") - collides with the JDK's own libnet.so on modern JDKs and crashes Swing later
+[NATIVE-MOCK] Window.hookWinAPIs(winawt)
+[NATIVE-MOCK] IniFile.getIniString(PRODUCT_NAME, Worlds.com - The 3D Entertainment Portal)
+... (worlds.ini: splash, proxy, upgrade timeouts, DISABLESHAPER, avatar http url) ...
+System Locale is es_IC
+... (idiomas, InstalledWorld0..49 vacios: sin mundos instalados localmente) ...
+[NATIVE-MOCK] IniFile.getIniString(file, )
+Reading file:u:<workdir>/gamma-cwd/redir.txt got java.io.FileNotFoundException: ... (No such file or directory)
+[NATIVE-MOCK] FastDataInput.nativeInit()
+[NATIVE-MOCK] FastDataInput.read(u:<workdir>/gamma-cwd/newworld.world)
+... (bundle/cursor init) ...
+Loading action manager
+Initializing cache...
+Verifying cache was closed properly...
+Marking cache as open...
+Restoring cache...
+java.io.FileNotFoundException: <workdir>\gamma-cwd\cachedir\cache.index (No such file or directory)
+Flushing cache index.
+[NATIVE-MOCK] IniFile.getIniInt(NetCacheEntries, 1000)
+[NATIVE-MOCK] IniFile.getIniInt(NetCacheThreads, 2)
+[NATIVE-MOCK] DNSLookup.gethostbyname(us1.worlds.net)
+... (colores UI, avatar/pilot/transform init) ...
+[NATIVE-MOCK] IniFile.getIniString(ServerTableFile, tables/tables.dat)
+Adding table actionAliases
+Adding table avatarAliases
+Adding table employeeAccounts
+Adding table faceList
+Adding table graphicList
+Adding table hiddenActions
+Adding table humanHoloList
+Adding table humanList
+Adding table invList
+Adding table permittedHoloList
+Adding table permittedList
+Adding table secretList
+... (avatar por defecto avatar:pengo.mov, camara, sala/RoomEnvironment,
+     ~8 Transform/Material.paramChange del setup de la sala por defecto,
+     colapsados) ...
+[NATIVE-MOCK] Window.isActivated()
+[NATIVE-MOCK] IniFile.getIniInt(DISABLEACTIVEX, 0)
+[NATIVE-MOCK] ActiveX.initActiveX()
+[NATIVE-MOCK] ActiveX.getClassFClsID(Netscape.Registry.1, {00020400-0000-0000-C000-000000000046})
+[NATIVE-MOCK] NSProtocolHandler.createLocal()
+NET.worlds.console.OLEInvalidObjectException
+	at NET.worlds.console.IUnknown.Release(IUnknown.java:107)
+	at NET.worlds.console.Netscape.mainCallback(Netscape.java:40)
+	at NET.worlds.console.Main.mainLoop(Main.java:31)
+	at NET.worlds.console.Gamma.run(Gamma.java:436)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+NET.worlds.core.AssertionException
+	at NET.worlds.core.Debug.dAssert(Debug.java:20)
+	at NET.worlds.console.IUnknown.init(IUnknown.java:15)
+	at NET.worlds.console.NSProtocolHandler.<init>(NSProtocolHandler.java:10)
+	at NET.worlds.console.Netscape.mainCallback(Netscape.java:22)
+	at NET.worlds.console.Main.mainLoop(Main.java:31)
+	at NET.worlds.console.Gamma.run(Gamma.java:436)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+== Gamma terminado solo (sin necesitar kill) tras ~5-8s, exit=0 ==
+
+PRIMERA PARED REAL (reproducida 3/3 veces, 2026-09-16): al montar la
+escena por defecto, mainCallback intenta traer un control ActiveX de
+Netscape embebido (Netscape.mainCallback -> NSProtocolHandler ->
+IUnknown.init) - mecanismo COM/ActiveX exclusivo de Windows, sin
+equivalente en el mock. IUnknown.init(IUnknown.java:15) abre con
+Debug.dAssert(false) (marcador "no implementado" del propio codigo de
+los 90, igual patron que el dAssert de WorldServer.state_XMIT_SI
+documentado en README.md), lanza AssertionException (unchecked). Se
+propaga hasta Netscape.mainCallback y de ahi a IUnknown.Release, que a
+su vez lanza OLEInvalidObjectException al intentar liberar un objeto
+que nunca se inicializo - ambas excepciones se imprimen (try/catch con
+printStackTrace en el propio codigo del cliente, NO en el mock) y el
+hilo "Gamma Main" sigue vivo. El proceso termina solo con exit 0 pocos
+segundos despues sin mas salida por consola: no hay ventana Frame
+visible en ningun momento del log (ni un solo "GammaFrame"/"setVisible"
+antes de este punto), asi que cuando "Gamma Main" acaba su iteracion de
+mainCallback y no hay ninguna ventana AWT mostrada reteniendo la JVM, el
+proceso sale limpio en cuanto el hilo "main" real (bloqueado en
+Object.wait, ver mas abajo) se libera.
+
+Alcance honesto: este assert NO mata el mainloop (esta cazado con
+try/catch en el propio Netscape.java, codigo real de 2004, no un
+artefacto del mock) y NO impide que el resto del arranque (tablas,
+avatar, sala, cache) haya ocurrido correctamente antes. Es una pared
+real pero acotada: cualquier funcionalidad que dependa de ese control
+Netscape/ActiveX (contenido HTML embebido en la consola, tipico de la
+UI de 2004) no funcionara nunca via mock sin reimplementar ese
+subsistema entero - no es candidato a fix de mock (no hay "valor real"
+que devolver: es una ausencia estructural de COM en macOS/Linux, no un
+getter con un valor nativo por descubrir), documentado tal cual.
