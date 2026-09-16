@@ -1,0 +1,90 @@
+Trace real de `tools/net-probe/run-guest-login.sh` en macOS Intel, sin
+Xvfb/Wine (AWT nativo via Cocoa), JDK Temurin 25.0.4.1 portable
+(tools/jdk/Contents/Home/bin). Reproduce en Mac la corrida ya documentada
+en tools/net-probe/README.md (2026-09-10, Linux+Xvfb): mismo resultado,
+mismo servidor vivo. Recortado (se han colapsado las lineas repetidas
+`[NATIVE-MOCK] Std.nativeGetMillis()` del polling de perFrame, sin quitar
+ninguna linea con contenido de protocolo/estado/error). Sin datos
+personales: el nick "FWProbe174" lo genera la propia sonda al azar
+(GuestLoginProbe.main, sin argv), no es una cuenta real.
+
+Comando: tools/net-probe/run-guest-login.sh <workdir-temporal>
+(construye el mock + las sondas en el workdir, copia assets/WorldsPlayer
+a un CWD limpio, ejecuta GuestLoginProbe gippsland.worlio.com 8265).
+
+== [3/6] javac --release 8 del cliente mockeado (out/) ==
+compiladas 737 clases
+== [4/6] javac --release 8 de las sondas (NetProbe + NET/worlds/network/*Probe*) ==
+sondas compiladas OK
+== [6/6] ejecutando GuestLoginProbe contra gippsland.worlio.com:8265 ==
+[NATIVE-MOCK] IniFile.nativeInit()
+netdebug(harness-override)=1260
+[NATIVE-MOCK] Std.getClientVersion()
+[NATIVE-MOCK] DNSLookup.gethostbyname(gippsland.worlio.com)
+Connected to 198.251.80.57
+connectedHost=198.251.80.57 state=5 XMIT_PROPREQ
+[0] AutoServer(gippsland.worlio.com:8265): send(PROPREQ  255[gippsland.worlio.com:8265] )
+AutoServer(gippsland.worlio.com:8265): send[3 ff a ]
+sent propReq, state=6 RCV_PROPS
+autoserver state -> 6 RCV_PROPS
+AutoServer(gippsland.worlio.com:8265): recv(PROPUPD  255[gippsland.worlio.com:8265] (#8 [DBSTORE /POSSESS ] 1000000 #25 [DBSTORE /POSSESS ] http://files.worlio.com/cgi-bin/ #24 [DBSTORE /POSSESS ] http://files.worlio.com/ #15 [DBSTORE /POSSESS ] 4 #3 [DBSTORE /POSSESS ] 24 #1 [DBSTORE /POSSESS ] Gippsland ))
+autoserver state -> 7 XMIT_SI
+AutoServer(gippsland.worlio.com:8265): AutoServer detected server type 4
+Galaxy[worldserver://gippsland.worlio.com:8265/AutoServer/]: killServer(AutoServer(gippsland.worlio.com:8265))
+DEBUG -- a server tried to murder another!
+Caller = AutoServer(gippsland.worlio.com:8265)
+Victim = null
+java.lang.Exception
+	at NET.worlds.network.ServerTracker.killServer(ServerTracker.java:182)
+	at NET.worlds.network.Galaxy.killServer(Galaxy.java:188)
+	at NET.worlds.network.AutoServer.state_XMIT_SI(AutoServer.java:58)
+	at NET.worlds.network.WorldServer.perFrame(WorldServer.java:586)
+	at NET.worlds.network.GuestLoginProbe.main(GuestLoginProbe.java:129)
+LWDB: brought up LoginWizard0 in setGalaxyType
+autoserver state -> 17 DISCONNECTED
+autoserver final state=17 DISCONNECTED
+tracker entries=1
+tracker holds: gippsland.worlio.com:8265 class=NET.worlds.network.AnonRoomServer
+live server class=NET.worlds.network.AnonRoomServer state=0 PRECONNECTED version=24
+prop #1=Gippsland
+prop #3=24
+prop #15=4
+prop #25=http://files.worlio.com/cgi-bin/
+prop #26=null
+prop #27=null
+override _clientVersion=null -> "2004080500"
+setAuthInfo(nick=FWProbe174 password=null mode=2 AUTHENTICATE)
+preseedWizard: loginUserName=FWProbe174 loginFrom=0 on LoginWizard0
+loginMode=2 chatname=FWProbe174
+live state -> 3 INITIALIZING
+live state -> 7 XMIT_SI
+Galaxy[worldserver://gippsland.worlio.com:8265/AutoServer/]: addPendingServer(gippsland.worlio.com:8265)
+gippsland.worlio.com:8265: sending AnonRoomServer sessionInit.
+  username = "FWProbe174"
+[0] gippsland.worlio.com:8265: send(SESSINIT (VAR_PROTOCOL=24 VAR_CLIENT=2004080500 VAR_AVATARS=24 VAR_USERNAME=FWProbe174 ))
+gippsland.worlio.com:8265: send[23 1 6 3 2 32 34 9 a 32 30 30 34 30 38 30 35 30 30 7 2 32 34 2 a 46 57 50 72 6f 62 65 31 37 34 ]
+live state -> 8 RCV_SI_ACK
+gippsland.worlio.com:8265: recv(SESSINIT (VAR_ERROR=0 VAR_SERVERTYPE=4 VAR_UPDATETIME=1000000 VAR_PROTOCOL=24 VAR_CHANNEL=dimension-1 ))
+live state -> 11 XMIT_PROPS
+Galaxy[worldserver://gippsland.worlio.com:8265/AutoServer/]: addActiveServer(gippsland.worlio.com:8265)
+LWDB: calling LoginWizard0 setConnected
+live state -> 12 MAINLOOP
+gippsland.worlio.com:8265: recv(TEXT     Gippsland: Welcome to WorlioWorlds Gippsland, an anonymous free-for-all. Be wary of links, impersonation, and spam. Keep your mute buttons greased. )
+[... ~65 lineas "[NATIVE-MOCK] Std.nativeGetMillis()" del polling de
+     perFrame cada 200ms durante los 12s de estabilidad, colapsadas ...]
+MAINLOOP stable 12s, stopping
+live final state=12 MAINLOOP lastError=null
+closed cleanly
+== GuestLoginProbe exit=0 ==
+
+RESULTADO: estado 12 MAINLOOP alcanzado y estable 12s, lastError=null,
+cierre limpio, exit 0 - identico en sustancia al resultado del
+2026-09-10 documentado en tools/net-probe/README.md (esa vez bajo Linux
+con Xvfb). Confirma que el camino real del cliente decompilado
+(AutoServer -> AnonRoomServer -> sessionInit -> MAINLOOP) no depende de
+Xvfb ni de nada especifico de Linux: en macOS con AWT nativo (Cocoa) el
+mismo codigo, contra el mismo servidor vivo, produce el mismo resultado.
+El "a server tried to murder another!" es el mismo aviso benigno ya
+documentado (ServerTracker.killServer solo imprime, no lanza - la sonda
+GuestLoginProbe hereda AutoServer sin registrarse via findOrMake, un
+artefacto propio del harness, no del cliente real).
