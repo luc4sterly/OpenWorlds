@@ -49,6 +49,27 @@ tools/run-game.sh Reception --screenshot /tmp/r.png   # batch sin ventana
 tools/run-game.sh --build          # recompila antes de lanzar
 ```
 
+Herramientas de verificación (todas con el JDK de `tools/jdk`, y los
+visores con `-XstartOnFirstThread`):
+
+```bash
+# .seq: parsea todo el corpus y resume version/joints/extras
+java -cp client/out net.freeworlds.bod.SeqExtractMain -q \
+  assets/gammatutorial-samples/base-avatars/*.seq assets/WorldsPlayer/cachedir/*.seq
+
+# avatar .bod en la pose exacta de un instante de un .seq (T en unidades de key, 1/30 s)
+java -XstartOnFirstThread -cp "client/out:tools/lwjgl/*" net.freeworlds.render.BodViewer \
+  assets/gammatutorial-samples/base-avatars/aura.bod \
+  --seq assets/gammatutorial-samples/base-avatars/common_walk.seq --frame 21 \
+  --angle 90 --screenshot /tmp/walk21.png
+
+# .bod / .rwg / .world: resumen estructural
+java -cp client/out net.freeworlds.bod.BodExtractMain  assets/gammatutorial-samples/base-avatars/*.bod
+java -cp client/out net.freeworlds.rwg.RwgExtractMain  assets/gammatutorial-samples/cube.rwg
+java -cp "client/out:tools/lwjgl/*" net.freeworlds.world.WorldExtractMain \
+  assets/WorldsPlayer/GroundZero/groundzero.world
+```
+
 Notas macOS:
 
 - **JDK portable**: `run-game.sh` e `install-launcher.sh` ponen
