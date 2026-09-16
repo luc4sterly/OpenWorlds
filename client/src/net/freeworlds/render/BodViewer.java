@@ -4,6 +4,8 @@ import net.freeworlds.bod.BodClump;
 import net.freeworlds.bod.BodFile;
 import net.freeworlds.bod.BodParser;
 import net.freeworlds.bod.BodVertex;
+import net.freeworlds.bod.SeqParser;
+import net.freeworlds.bod.SeqSampler;
 import net.freeworlds.rwx.RwxMaterial;
 
 import org.lwjgl.glfw.GLFWErrorCallback;
@@ -47,10 +49,19 @@ import static org.lwjgl.opengl.GL11.*;
  * face normals via cross product (.bod carries no normals at all, so
  * GL_FLAT like RwxViewer - no invented smoothing), both sides visible
  * (winding convention unverified, same discipline as RwgViewer).
- * No skinning/animation: bind pose only, per the scope rule (no invented
- * bone system).
+ * Pose opcional de un .seq (--seq/--frame), traducida de gamma.dll y
+ * RWL21.DLL, sin sistema de huesos inventado (docs/seq-animation-reference.md
+ * seccion 5): cada clump de parte con tag 1..30 recibe como matriz de joint
+ * el cuaternion muestreado (SeqSampler.pose, identidad si no hay track) y
+ * la LTM es la de RenderWare 2.1, LTM = Joint x Modelado x LTM_padre en
+ * convencion vector fila (RWL21.DLL 0x10004747/0x10004788); placeholder =
+ * clump con solo traslacion de modelado. La traslacion de raiz del .seq se
+ * suma a la de la pelvis (prepFigure mueve la de la pelvis a la matriz de
+ * la figura y la de raiz sustituye la de modelado de la pelvis). Sin --seq
+ * todos los joints son identidad: bind pose, como antes.
  *
  * Usage: java -cp ... net.freeworlds.render.BodViewer <file.bod> [--screenshot out.png] [--wireframe] [--unlit] [--angle N]
+ *        [--seq file.seq --frame T [--keep-root-z]]   (T en unidades de key del .seq)
  */
 public final class BodViewer {
    /** One world-space triangle with its flat clump color. */
@@ -61,7 +72,7 @@ public final class BodViewer {
 
    public static void main(String[] args) throws IOException {
       if (args.length < 1) {
-         System.err.println("Usage: BodViewer <file.bod> [--screenshot out.png] [--wireframe] [--unlit] [--angle N]");
+         System.err.println("Usage: BodViewer <file.bod> [--screenshot out.png] [--wireframe] [--unlit] [--angle N] [--seq file.seq --frame T [--keep-root-z]]");
          System.exit(2);
       }
 
@@ -70,6 +81,9 @@ public final class BodViewer {
       boolean wireframe = false;
       boolean unlit = false;
       float startAngle = 35f;
+      String seqPath = null;
+      short seqFrame = 0;
+      boolean keepRootZ = false;
       for (int i = 1; i < args.length; i++) {
          if (args[i].equals("--screenshot") && i + 1 < args.length) {
             screenshotPath = args[++i];
@@ -79,12 +93,32 @@ public final class BodViewer {
             unlit = true;
          } else if (args[i].equals("--angle") && i + 1 < args.length) {
             startAngle = Float.parseFloat(args[++i]);
+         } else if (args[i].equals("--seq") && i + 1 < args.length) {
+            seqPath = args[++i];
+         } else if (args[i].equals("--frame") && i + 1 < args.length) {
+            seqFrame = (short) Integer.parseInt(args[++i]);
+         } else if (args[i].equals("--keep-root-z")) {
+            keepRootZ = true;
          }
       }
       boolean lit = !wireframe && !unlit;
 
       byte[] data = Files.readAllBytes(new File(bodPath).toPath());
       BodFile bod = BodParser.parse(data);
+      SeqSampler.Pose pose = null;
+      if (seqPath != null) {
+         SeqParser.SeqData seq = SeqParser.parseFile(seqPath);
+         pose = SeqSampler.pose(seq, seqFrame, keepRootZ);
+         int applied = 0;
+         for (float[] q : pose.jointQuat) {
+            if (q != null) {
+               applied++;
+            }
+         }
+         System.out.println("Pose " + seqPath + ": frame=" + seqFrame + " duration=" + seq.duration
+            + " seqJoints=" + seq.joints.size() + " appliedTags=" + applied + " root=("
+            + pose.rootTranslation[0] + "," + pose.rootTranslation[1] + "," + pose.rootTranslation[2] + ")");
+      }
 
       Map<Integer, BodClump> partByTag = new HashMap<>();
       for (BodClump p : bod.parts) {
@@ -118,7 +152,8 @@ public final class BodViewer {
       List<PlacedTri> tris = new ArrayList<>();
       Set<Integer> visited = new HashSet<>();
       int[] badIndices = new int[1];
-      collectClump(root, 0f, 0f, 0f, partByTag, visited, tris, badIndices);
+      collectClump(root, IDENTITY, pose != null ? pose.rootTranslation : null, pose,
+         partByTag, visited, tris, badIndices);
       int orphans = 0;
       for (BodClump p : bod.parts) {
          if (!visited.contains(p.tag)) {
@@ -126,7 +161,7 @@ public final class BodViewer {
             // the real corpus) - emit at its own translation rather than
             // dropping geometry silently.
             orphans++;
-            collectClump(p, 0f, 0f, 0f, partByTag, visited, tris, badIndices);
+            collectClump(p, IDENTITY, null, pose, partByTag, visited, tris, badIndices);
          }
       }
 
@@ -196,13 +231,14 @@ public final class BodViewer {
          drawTris(tris, lit);
 
          angle += 0.6f;
+         // Leer ANTES del swap (mismo arreglo que WorldViewer/RwgViewer): tras
+         // glfwSwapBuffers el back buffer es indefinido; en macOS salia negro.
+         if (screenshotPath != null && frame == 0) {
+            GlUtil.saveScreenshot(width, height, screenshotPath);
+            System.out.println("Screenshot written to " + screenshotPath);
+         }
          glfwSwapBuffers(window);
          glfwPollEvents();
-      }
-
-      if (screenshotPath != null) {
-         GlUtil.saveScreenshot(width, height, screenshotPath);
-         System.out.println("Screenshot written to " + screenshotPath);
       }
 
       glfwDestroyWindow(window);
@@ -219,16 +255,28 @@ public final class BodViewer {
       }
    }
 
-   private static void collectClump(BodClump c, float ox, float oy, float oz,
-         Map<Integer, BodClump> partByTag, Set<Integer> visited,
+   /** Identidad 4x4 fila-mayor (convencion vector fila de RenderWare). */
+   private static final float[] IDENTITY = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+
+   private static void collectClump(BodClump c, float[] parentLtm, float[] rootTranslation,
+         SeqSampler.Pose pose, Map<Integer, BodClump> partByTag, Set<Integer> visited,
          List<PlacedTri> out, int[] badIndices) {
       if (c.placeholder) {
          return; // only reached if a part root itself were a placeholder, which the format forbids - ignore rather than crash
       }
       visited.add(c.tag);
-      float nx = ox + c.tx;
-      float ny = oy + c.ty;
-      float nz = oz + c.tz;
+      // RWL21.DLL: LTM = Joint x Modelado x LTM_padre. Modelado = traslacion
+      // propia (+ la de raiz del .seq en la pelvis); joint = cuaternion del
+      // tag (RwFindTaggedClump + RwTransformClumpJoint modo 1) o identidad.
+      float tx = c.tx;
+      float ty = c.ty;
+      float tz = c.tz;
+      if (rootTranslation != null) {
+         tx += rootTranslation[0];
+         ty += rootTranslation[1];
+         tz += rootTranslation[2];
+      }
+      float[] ltm = mul(mul(jointMatrix(pose, c.tag), translation(tx, ty, tz)), parentLtm);
       if (!c.vertices.isEmpty() && !c.triangles.isEmpty()) {
          float r = (c.r & 0xFF) / 255f;
          float g = (c.g & 0xFF) / 255f;
@@ -244,9 +292,12 @@ public final class BodViewer {
             BodVertex bb = v.get(t[1]);
             BodVertex cc = v.get(t[2]);
             PlacedTri p = new PlacedTri();
-            p.ax = a.x + nx; p.ay = a.y + ny; p.az = a.z + nz;
-            p.bx = bb.x + nx; p.by = bb.y + ny; p.bz = bb.z + nz;
-            p.cx = cc.x + nx; p.cy = cc.y + ny; p.cz = cc.z + nz;
+            float[] pa = transform(a, ltm);
+            float[] pb = transform(bb, ltm);
+            float[] pc = transform(cc, ltm);
+            p.ax = pa[0]; p.ay = pa[1]; p.az = pa[2];
+            p.bx = pb[0]; p.by = pb[1]; p.bz = pb[2];
+            p.cx = pc[0]; p.cy = pc[1]; p.cz = pc[2];
             p.r = r; p.g = g; p.b = b;
             out.add(p);
          }
@@ -258,12 +309,48 @@ public final class BodViewer {
                badIndices[0]++; // placeholder referencing a part not in the table (never seen in corpus) - count, don't crash
                continue;
             }
-            collectClump(target, nx + child.tx, ny + child.ty, nz + child.tz,
-               partByTag, visited, out, badIndices);
+            // Placeholder = clump sin joint con su traslacion de modelado;
+            // la parte cuelga de el (WObject.addChildToClump nativo).
+            float[] placeholderLtm = mul(translation(child.tx, child.ty, child.tz), ltm);
+            collectClump(target, placeholderLtm, null, pose, partByTag, visited, out, badIndices);
          } else {
-            collectClump(child, nx, ny, nz, partByTag, visited, out, badIndices);
+            collectClump(child, ltm, null, pose, partByTag, visited, out, badIndices);
          }
       }
+   }
+
+   private static float[] jointMatrix(SeqSampler.Pose pose, int tag) {
+      if (pose == null || tag < 1 || tag >= pose.jointQuat.length || pose.jointQuat[tag] == null) {
+         return IDENTITY;
+      }
+      return SeqSampler.quatToMatrix(pose.jointQuat[tag]);
+   }
+
+   private static float[] translation(float x, float y, float z) {
+      return new float[]{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1};
+   }
+
+   /** a x b fila-mayor: out[i][j] = sum_k a[i][k] * b[k][j] (producto de RWL21.DLL 0x1005118c). */
+   private static float[] mul(float[] a, float[] b) {
+      float[] o = new float[16];
+      for (int i = 0; i < 4; i++) {
+         for (int j = 0; j < 4; j++) {
+            float s = 0f;
+            for (int k = 0; k < 4; k++) {
+               s += a[i * 4 + k] * b[k * 4 + j];
+            }
+            o[i * 4 + j] = s;
+         }
+      }
+      return o;
+   }
+
+   /** v x M (vector fila, w = 1). */
+   private static float[] transform(BodVertex v, float[] m) {
+      return new float[]{
+         v.x * m[0] + v.y * m[4] + v.z * m[8] + m[12],
+         v.x * m[1] + v.y * m[5] + v.z * m[9] + m[13],
+         v.x * m[2] + v.y * m[6] + v.z * m[10] + m[14]};
    }
 
    private static void drawTris(List<PlacedTri> tris, boolean lit) {
