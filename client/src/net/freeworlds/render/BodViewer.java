@@ -85,6 +85,8 @@ public final class BodViewer {
       float startAngle = 35f;
       String seqPath = null;
       short seqFrame = 0;
+      Float seqSeconds = null; // --seconds: tiempo real -> key con SeqSampler.keyTime
+      int seqMode = SeqSampler.MODE_LOOP;
       boolean keepRootZ = false;
       for (int i = 1; i < args.length; i++) {
          if (args[i].equals("--screenshot") && i + 1 < args.length) {
@@ -99,6 +101,10 @@ public final class BodViewer {
             seqPath = args[++i];
          } else if (args[i].equals("--frame") && i + 1 < args.length) {
             seqFrame = (short) Integer.parseInt(args[++i]);
+         } else if (args[i].equals("--seconds") && i + 1 < args.length) {
+            seqSeconds = Float.parseFloat(args[++i]);
+         } else if (args[i].equals("--hold")) {
+            seqMode = SeqSampler.MODE_HOLD;
          } else if (args[i].equals("--keep-root-z")) {
             keepRootZ = true;
          }
@@ -110,6 +116,11 @@ public final class BodViewer {
       SeqSampler.Pose pose = null;
       if (seqPath != null) {
          SeqParser.SeqData seq = SeqParser.parseFile(seqPath);
+         if (seqSeconds != null) {
+            // Desde la linea de comandos solo hay bucle (defecto) o --hold,
+            // asi que keyTime nunca devuelve -1 (modo fin) aqui.
+            seqFrame = (short) SeqSampler.keyTime(seqSeconds, seq.duration, seqMode);
+         }
          pose = SeqSampler.pose(seq, seqFrame, keepRootZ);
          int applied = 0;
          for (float[] q : pose.jointQuat) {

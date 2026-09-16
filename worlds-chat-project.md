@@ -2253,15 +2253,17 @@ lento que hacerlo directo.
 >
 > **Abiertos de verdad, por orden de lo que desbloquean:**
 > 1. **Controlador de animación**: la pose de un `.seq` ya se aplica a un
->    `.bod` (`BodViewer --seq/--frame`), pero el avance de tiempo, el
->    bucle, la elección `walk`/`wait` y las transiciones viven en funciones
->    que Ghidra **no exportó** (solo alcanzables por vtable, `0x00475200`).
->    Sin eso, `WorldViewer` sigue en bind pose.
+>    `.bod` y el tiempo está resuelto (30 keys/s, bucle y "último key",
+>    leídos en las funciones recuperadas por vtable). Falta **qué
+>    secuencia y modo elige** el cliente en cada momento (`walk`/`wait`
+>    implícitos), la sincronía con la velocidad y la mezcla de 250.
 > 2. **Portales / cambio de sala** en `--play` (hoy solo se anuncian).
 > 3. **Login con cuenta real** en el servidor primario: bloqueado por una
 >    cuenta humana en `worlds.worlio.com/register` (no de código).
-> 4. **Flujo real del cliente** (`Gamma`/`Cache`/`NetUpdate`): las sesiones
->    de red han ido por sondas paralelas, nunca por el arranque real.
+> 4. **Flujo real del cliente**: `Gamma.main` con el mock ya arranca en
+>    macOS y carga caché/tablas/avatar/sala; se para en el control
+>    ActiveX/Netscape embebido (`IUnknown.init`), ausencia estructural de
+>    COM. Los hilos `Cache`/`NetUpdate` **no** bloquean nada (resuelto).
 > 5. **Texturas de avatar**: requieren decodificar el "lenguaje de nombre
 >    de avatar" (`PosableShape.createSubparts`); los `.bod` ya traen UV y
 >    hay 21 `.mov` de avatar en el corpus.
