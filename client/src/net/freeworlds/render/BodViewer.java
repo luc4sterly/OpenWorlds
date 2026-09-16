@@ -1,6 +1,12 @@
 package net.freeworlds.render;
 
+import net.freeworlds.avatar.AvatarFigure;
+import net.freeworlds.avatar.AvatarMaterial;
+import net.freeworlds.avatar.AvatarNameDecoder;
+import net.freeworlds.avatar.AvatarPart;
+import net.freeworlds.avatar.ServerTables;
 import net.freeworlds.bod.BodClump;
+import net.freeworlds.cmp.CmpTexture;
 import net.freeworlds.bod.BodFile;
 import net.freeworlds.bod.BodParser;
 import net.freeworlds.bod.BodVertex;
@@ -13,7 +19,9 @@ import org.lwjgl.opengl.GL;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -70,6 +78,24 @@ public final class BodViewer {
    private static final class PlacedTri {
       float ax, ay, az, bx, by, bz, cx, cy, cz;
       float r, g, b;
+      float au, av, bu, bv, cu, cv;
+      /** Textura del nombre de avatar (--avatar) o null: color plano del .bod. */
+      CmpTexture texture;
+      /** true si el material viene del nombre de avatar (constantes de scanTexture/readColor). */
+      boolean avatarMaterial;
+   }
+
+   /** Aspecto que el nombre de avatar asigna a la raiz de una parte. */
+   private static final class Look {
+      final float r, g, b;
+      final CmpTexture texture;
+
+      Look(float r, float g, float b, CmpTexture texture) {
+         this.r = r;
+         this.g = g;
+         this.b = b;
+         this.texture = texture;
+      }
    }
 
    public static void main(String[] args) throws IOException {
@@ -88,6 +114,8 @@ public final class BodViewer {
       Float seqSeconds = null; // --seconds: tiempo real -> key con SeqSampler.keyTime
       int seqMode = SeqSampler.MODE_LOOP;
       boolean keepRootZ = false;
+      String avatarName = null; // --avatar: aspecto por parte desde el nombre codificado
+      String tablesPath = "assets/WorldsPlayer/tables/tables.dat";
       for (int i = 1; i < args.length; i++) {
          if (args[i].equals("--screenshot") && i + 1 < args.length) {
             screenshotPath = args[++i];
@@ -105,6 +133,10 @@ public final class BodViewer {
             seqSeconds = Float.parseFloat(args[++i]);
          } else if (args[i].equals("--hold")) {
             seqMode = SeqSampler.MODE_HOLD;
+         } else if (args[i].equals("--avatar") && i + 1 < args.length) {
+            avatarName = args[++i];
+         } else if (args[i].equals("--tables") && i + 1 < args.length) {
+            tablesPath = args[++i];
          } else if (args[i].equals("--keep-root-z")) {
             keepRootZ = true;
          }
@@ -162,10 +194,15 @@ public final class BodViewer {
          System.exit(1);
       }
 
+      Map<Integer, Look> looks = new HashMap<>();
+      if (avatarName != null) {
+         looks = resolveLooks(avatarName, tablesPath, new File(bodPath));
+      }
+
       List<PlacedTri> tris = new ArrayList<>();
       Set<Integer> visited = new HashSet<>();
       int[] badIndices = new int[1];
-      collectClump(root, IDENTITY, pose != null ? pose.rootTranslation : null, pose,
+      collectClump(root, IDENTITY, pose != null ? pose.rootTranslation : null, pose, looks, true,
          partByTag, visited, tris, badIndices);
       int orphans = 0;
       for (BodClump p : bod.parts) {
@@ -174,7 +211,7 @@ public final class BodViewer {
             // the real corpus) - emit at its own translation rather than
             // dropping geometry silently.
             orphans++;
-            collectClump(p, IDENTITY, null, pose, partByTag, visited, tris, badIndices);
+            collectClump(p, IDENTITY, null, pose, looks, true, partByTag, visited, tris, badIndices);
          }
       }
 
@@ -272,7 +309,8 @@ public final class BodViewer {
    private static final float[] IDENTITY = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 
    private static void collectClump(BodClump c, float[] parentLtm, float[] rootTranslation,
-         SeqSampler.Pose pose, Map<Integer, BodClump> partByTag, Set<Integer> visited,
+         SeqSampler.Pose pose, Map<Integer, Look> looks, boolean partRoot,
+         Map<Integer, BodClump> partByTag, Set<Integer> visited,
          List<PlacedTri> out, int[] badIndices) {
       if (c.placeholder) {
          return; // only reached if a part root itself were a placeholder, which the format forbids - ignore rather than crash
@@ -290,10 +328,14 @@ public final class BodViewer {
          tz += rootTranslation[2];
       }
       float[] ltm = mul(mul(jointMatrix(pose, c.tag), translation(tx, ty, tz)), parentLtm);
+      // El material del nombre de avatar va a la raiz de la parte (la limb);
+      // los clumps anidados son subclumps con su propio material y aqui
+      // conservan el color del .bod.
+      Look look = partRoot ? looks.get(c.tag) : null;
       if (!c.vertices.isEmpty() && !c.triangles.isEmpty()) {
-         float r = (c.r & 0xFF) / 255f;
-         float g = (c.g & 0xFF) / 255f;
-         float b = (c.b & 0xFF) / 255f;
+         float r = look != null ? look.r : (c.r & 0xFF) / 255f;
+         float g = look != null ? look.g : (c.g & 0xFF) / 255f;
+         float b = look != null ? look.b : (c.b & 0xFF) / 255f;
          List<BodVertex> v = c.vertices;
          for (int[] t : c.triangles) {
             if (t[0] < 0 || t[1] < 0 || t[2] < 0
@@ -312,6 +354,11 @@ public final class BodViewer {
             p.bx = pb[0]; p.by = pb[1]; p.bz = pb[2];
             p.cx = pc[0]; p.cy = pc[1]; p.cz = pc[2];
             p.r = r; p.g = g; p.b = b;
+            p.au = a.u; p.av = a.v;
+            p.bu = bb.u; p.bv = bb.v;
+            p.cu = cc.u; p.cv = cc.v;
+            p.texture = look != null ? look.texture : null;
+            p.avatarMaterial = look != null;
             out.add(p);
          }
       }
@@ -325,11 +372,67 @@ public final class BodViewer {
             // Placeholder = clump sin joint con su traslacion de modelado;
             // la parte cuelga de el (WObject.addChildToClump nativo).
             float[] placeholderLtm = mul(translation(child.tx, child.ty, child.tz), ltm);
-            collectClump(target, placeholderLtm, null, pose, partByTag, visited, out, badIndices);
+            collectClump(target, placeholderLtm, null, pose, looks, true, partByTag, visited, out, badIndices);
          } else {
-            collectClump(child, ltm, null, pose, partByTag, visited, out, badIndices);
+            collectClump(child, ltm, null, pose, looks, false, partByTag, visited, out, badIndices);
          }
       }
+   }
+
+   /**
+    * Aspecto por tag desde el nombre de avatar (net.freeworlds.avatar, port de
+    * PosableShape.createSubparts). Solo la limb: textura con subimagen 0
+    * (lo unico que CmpTexture.loadMov decodifica) o color; origMat = sin
+    * cambio. Lo que no se puede aplicar se informa, no se inventa.
+    */
+   private static Map<Integer, Look> resolveLooks(String avatarName, String tablesPath, File bodFile)
+         throws IOException {
+      Map<Integer, Look> looks = new HashMap<>();
+      ServerTables tables = ServerTables.load(Paths.get(tablesPath));
+      AvatarFigure fig = AvatarNameDecoder.decode("avatar:" + avatarName + ".rwg", tables.permittedHash());
+      File dir = bodFile.getAbsoluteFile().getParentFile();
+      Map<String, CmpTexture> textureCache = new HashMap<>();
+      int textured = 0, colored = 0, unchanged = 0;
+      List<String> skipped = new ArrayList<>();
+      for (AvatarPart part : fig.partes) {
+         if (!part.adjunta || part.limb().material < 0) {
+            unchanged++;
+            continue;
+         }
+         String partBod = part.bodFile();
+         if (partBod != null && !partBod.equalsIgnoreCase(bodFile.getName())) {
+            skipped.add(part.letra + " (usa otro .bod: " + partBod + ")");
+            continue;
+         }
+         AvatarMaterial m = fig.paleta.get(part.limb().material);
+         if (m.origMat) {
+            unchanged++;
+         } else if (m.kind == AvatarMaterial.Kind.COLOR) {
+            looks.put(part.tag, new Look(m.r / 255f, m.g / 255f, m.b / 255f, null));
+            colored++;
+         } else if (m.textureSubIndex != 0) {
+            skipped.add(part.letra + " (" + m.textureFile + " subimagen " + m.textureSubIndex + ": solo se decodifica la 0)");
+         } else {
+            File tf = new File(dir, m.textureFile);
+            if (!tf.isFile()) {
+               skipped.add(part.letra + " (" + m.textureFile + " no esta en el corpus)");
+               continue;
+            }
+            CmpTexture tex = textureCache.get(tf.getName());
+            if (tex == null) {
+               tex = tf.getName().toLowerCase().endsWith(".mov") ? CmpTexture.loadMov(tf) : CmpTexture.loadRaw(tf);
+               textureCache.put(tf.getName(), tex);
+            }
+            looks.put(part.tag, new Look(1f, 1f, 1f, tex));
+            textured++;
+         }
+      }
+      System.out.println("Avatar \"" + avatarName + "\" (" + fig.cadena + "): partes con textura=" + textured
+         + " con color=" + colored + " sin cambio=" + unchanged + " no aplicables=" + skipped.size());
+      for (String s : skipped) {
+         System.out.println("   no aplicado: " + s);
+      }
+      return looks;
    }
 
    private static float[] jointMatrix(SeqSampler.Pose pose, int tag) {
@@ -371,19 +474,33 @@ public final class BodViewer {
       // are illegal between glBegin/glEnd, so break the batch on color
       // change (assembly emits clump-by-clump, so runs are already grouped).
       float lastR = -1f, lastG = -1f, lastB = -1f;
+      CmpTexture lastTex = null;
+      boolean lastAvatar = false;
+      boolean first = true;
       boolean inBegin = false;
       for (PlacedTri t : tris) {
-         if (t.r != lastR || t.g != lastG || t.b != lastB) {
+         if (first || t.r != lastR || t.g != lastG || t.b != lastB
+               || t.texture != lastTex || t.avatarMaterial != lastAvatar) {
             if (inBegin) {
                glEnd();
                inBegin = false;
             }
+            if (t.texture != null) {
+               glEnable(GL_TEXTURE_2D);
+               glBindTexture(GL_TEXTURE_2D, textureId(t.texture));
+            } else {
+               glDisable(GL_TEXTURE_2D);
+            }
             if (lit) {
-               GlLighting.applyMaterial(bodMaterial(t.r, t.g, t.b));
+               GlLighting.applyMaterial(t.avatarMaterial
+                  ? avatarMaterial(t.r, t.g, t.b) : bodMaterial(t.r, t.g, t.b));
             } else {
                glColor3f(t.r, t.g, t.b);
             }
             lastR = t.r; lastG = t.g; lastB = t.b;
+            lastTex = t.texture;
+            lastAvatar = t.avatarMaterial;
+            first = false;
          }
          if (!inBegin) {
             glBegin(GL_TRIANGLES);
@@ -394,13 +511,68 @@ public final class BodViewer {
                t.ax, t.ay, t.az, t.bx, t.by, t.bz, t.cx, t.cy, t.cz);
             glNormal3f(n[0], n[1], n[2]);
          }
+         if (t.texture != null) {
+            glTexCoord2f(t.au, t.av);
+         }
          glVertex3f(t.ax, t.ay, t.az);
+         if (t.texture != null) {
+            glTexCoord2f(t.bu, t.bv);
+         }
          glVertex3f(t.bx, t.by, t.bz);
+         if (t.texture != null) {
+            glTexCoord2f(t.cu, t.cv);
+         }
          glVertex3f(t.cx, t.cy, t.cz);
       }
       if (inBegin) {
          glEnd();
       }
+      glDisable(GL_TEXTURE_2D);
+   }
+
+   private static final Map<CmpTexture, Integer> textureIds = new HashMap<>();
+
+   /** Sube la textura una vez; mismo criterio que WorldViewer.uploadTexture (GL_NEAREST, filas invertidas). */
+   private static int textureId(CmpTexture texture) {
+      Integer cached = textureIds.get(texture);
+      if (cached != null) {
+         return cached;
+      }
+      int id = glGenTextures();
+      glBindTexture(GL_TEXTURE_2D, id);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+      ByteBuffer buf = ByteBuffer.allocateDirect(texture.rgb.length);
+      int rowBytes = texture.width * 3;
+      for (int y = texture.height - 1; y >= 0; y--) {
+         buf.put(texture.rgb, y * rowBytes, rowBytes);
+      }
+      buf.flip();
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texture.width, texture.height,
+         0, GL_RGB, GL_UNSIGNED_BYTE, buf);
+      textureIds.put(texture, id);
+      return id;
+   }
+
+   // Material que crea el cliente para una limb con textura o color del
+   // nombre de avatar: new Material(0.32f, 0.55f, 0.0f, color, ...) en
+   // PosableShape.scanTexture/readColor (PosableShape.java:255, 303).
+   // ⚠️ VERIFICAR: con textura el color del cliente es colorTable[3]; si
+   // RenderWare 2 tine la textura con el no esta verificado, asi que la
+   // textura se dibuja sin tintar (base blanca).
+   private static RwxMaterial avatarMaterial(float r, float g, float b) {
+      RwxMaterial mat = new RwxMaterial();
+      mat.colorR = r;
+      mat.colorG = g;
+      mat.colorB = b;
+      mat.opacity = 1.0f;
+      mat.ambient = 0.32f;
+      mat.diffuse = 0.55f;
+      mat.specular = 0.0f;
+      mat.doubleSided = true;
+      return mat;
    }
 
    // ⚠️ VERIFICAR: .bod stores only a flat RGB per clump - RWXTOBOD.PL
