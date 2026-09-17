@@ -2020,8 +2020,9 @@ fuera de alcance hoy, no inventar).
 > la elección de secuencia/mezcla, llevar animación y texturas a
 > `WorldViewer` y las subimágenes de `.mov`);
 > **3 🟡 ~60%** (handshake y login guest reales contra servidor vivo con
-> el código del cliente; falta cuenta registrada para el primario y el
-> flujo real de `Gamma`/`Cache`/`NetUpdate`);
+> el código del cliente; falta cuenta registrada para el primario;
+> el `Gamma` real ya arranca y corre su bucle con el puente portable,
+> sin dibujar todavía — ver la entrada del 2026-09-17 al final);
 > **4 ⬜ 0%** (UI: chat, amigos, mapa, menús);
 > **5 ⬜ 0%** (OpenBSD/PSVita; solo se ha portado a macOS Intel).
 > Las celdas de abajo son el texto histórico de cada sesión.
@@ -2265,10 +2266,13 @@ lento que hacerlo directo.
 >    de llegada (`getYaw()` es nativo) y los 2 portales a otros `.world`.
 > 3. **Login con cuenta real** en el servidor primario: bloqueado por una
 >    cuenta humana en `worlds.worlio.com/register` (no de código).
-> 4. **Flujo real del cliente**: `Gamma.main` con el mock ya arranca en
->    macOS y carga caché/tablas/avatar/sala; se para en el control
->    ActiveX/Netscape embebido (`IUnknown.init`), ausencia estructural de
->    COM. Los hilos `Cache`/`NetUpdate` **no** bloquean nada (resuelto).
+> 4. **Flujo real del cliente**: ✅ desde el 2026-09-17 el cliente
+>    original (`Gamma.main`) arranca en macOS con el puente portable de
+>    `editor/worldsplayer_source_editor-main/bridge/` y se queda en su
+>    bucle principal construyendo la escena RenderWare real de la sala
+>    (ActiveX ya no bloquea: se replica el camino de error de gamma.dll).
+>    Falta que **dibuje**: `Camera.renderScene` y las texturas nativas
+>    siguen siendo stubs. Los hilos `Cache`/`NetUpdate` no bloquean nada.
 > 5. **Texturas de avatar**: el lenguaje de nombre ya está decodificado
 >    (`net.freeworlds.avatar`, 146/148 avatares limpios), pero **solo se
 >    conservan 14 de las 210 texturas y 25 de los 141 `.bod`** que
@@ -3515,3 +3519,57 @@ Lo que queda para ver avatares **animados y texturizados dentro del
 mundo**: decidir qué secuencia toca (la elección implícita `walk`/`wait`
 del original no está reconstruida) y llevar pose y texturas de `BodViewer`
 a `WorldViewer`.
+
+### 🟢 El cliente original arranca en macOS con un puente portable de gamma.dll/RenderWare (2026-09-17)
+
+Objetivo: una build que funcione y arranque **basada en el juego
+original**, sin reinventar nada. En vez del motor propio de
+`client/`, se ejecuta el `main` real de `NET.worlds.console.Gamma`
+decompilado y se sustituyen los nativos de `gamma.dll` por traducciones
+de su C decompilado; por debajo, las llamadas `Rw*` de RenderWare 2.1 se
+traducen del desensamblado de `RWL21.DLL`. Todo está en
+`editor/worldsplayer_source_editor-main/bridge/` (ver su README con las
+direcciones de evidencia), se aplica desde `apply_mock.sh` y se construye
+y lanza con `build_gamma.sh` y `run_gamma.sh`.
+
+- **Matrices** (`NativeRw`): producto de vector fila, modos 1/2/3, rotación
+  en grados (Rodrigues traspuesta, confirmada en 0x1001cb20), inversa afín
+  por adjunta, ortonormalización y `RwQueryRotateMatrix`. Los 20 nativos
+  de `Transform` y `Point3Temp` siguen el C de gamma.dll, incluidos
+  `getYaw`, `getPitch` y `getSpin` con sus constantes leídas del binario
+  (180, 0,5, 1/π, 90, 360).
+- **Escena** (`NativeScene`): clumps con vértices base 1, polígonos,
+  jerarquía, LTM `Joint·Modeling·LTM_padre`, bbox en espacio mundo, tags,
+  estado ON=2/OFF=1, escena por defecto, luces y materiales con los
+  valores por defecto de RWL21. También los wrappers de gamma.dll con
+  lógica propia: visibilidad jerárquica con los callbacks 0x4185d0/0x418600,
+  sombreado plano/suave y `Surface.addSubPolys` (subdivisión en baldosas
+  con volteo U/V).
+- **Ventanas, ActiveX y aserciones**: `findWindow` y las ventanas hijas
+  sobre las ventanas AWT reales; `ActiveX.getClassFClsID/ProgID` lanzan la
+  `IOException` con el mensaje literal de gamma.dll
+  (`nActiveX.getClassF…: Couldn't convert string to CLSID`); la aserción
+  nativa imprime `Assertion failed: line N in file F.` y sale con 41.
+- **Error de decompilación real**: Vineflower dejó en `Room` una llamada a
+  `add(WObject)` donde el bytecode original llama a `add(SuperRoot)`, lo
+  que metía el entorno dos veces en la escena. Para descartar más casos
+  así, `tools/bytecode-call-diff.py` compara los destinos de todas las
+  llamadas de las 736 clases originales (`lib/gammacls.zip`) con la
+  recompilación: quedan 55 métodos con diferencias inocuas (receptores
+  más estrechos, `close()` de try-with-resources, capa de mocks) y solo
+  este error.
+- **Arreglado de paso**: `tools/net-probe/run-gamma-main.sh` dejaba la JVM
+  huérfana (matar la subshell no mataba java); ahora usa `exec`.
+
+**Verificado ejecutando**: build limpia de 747 clases; `run_gamma.sh`
+queda vivo 40–60 s en `Main.mainLoop` (confirmado con `jstack`) con
+~2 M de frames, ninguna excepción y ningún proceso huérfano.
+
+**Límites** (⚠️): **no se ve nada todavía**: `Camera.renderScene`,
+`Texture`/`FileTexture`/`ScapePicTexture`/`ScapePicMovie` y el sonido
+siguen siendo stubs de log, y el bucle va sin freno porque en el original
+lo marcaba el render. Pendiente de extraer: `RwDestroyScene`, el flag que
+elige texture modes 2 o 6 en `FUN_00419000`, el máximo de UV del driver y
+los índices −7..0 de `RwGetClumpVertex`. El siguiente paso natural es
+traducir `Camera.renderScene` y el camino de texturas (el decoder `.cmp`
+de `client/` ya existe) para dibujar en la ventana hija.
