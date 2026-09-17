@@ -19,7 +19,39 @@ diff a/NET/worlds/console/ActiveX.java b/NET/worlds/console/ActiveX.java
 diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
 --- a/NET/worlds/console/Window.java
 +++ b/NET/worlds/console/Window.java
-@@ -183,7 +183,7 @@
+@@ -114,7 +114,8 @@
+ 
+    public int getHwnd() {
+       NET.worlds.core.NativeMock.log("Window", "getHwnd", new Object[0]);
+-      return 0;
++      NET.worlds.core.NativeWindows.Instance in = NET.worlds.core.NativeWindows.instance(this.windowInstancePtr);
++      return in == null ? 0 : in.hwnd;
+    }
+ 
+    public void hideNativeWindow() {
+@@ -147,6 +148,7 @@
+ 
+    public void maybeResize(int var1, int var2) {
+       NET.worlds.core.NativeMock.log("Window", "maybeResize", new Object[]{var1, var2});
++      NET.worlds.core.NativeWindows.maybeResize(this.windowInstancePtr, var1, var2);
+    }
+ 
+    public void setDeltaMode(boolean var1) {
+@@ -173,17 +175,19 @@
+ 
+    public int fullWidth() {
+       NET.worlds.core.NativeMock.log("Window", "fullWidth", new Object[0]);
+-      return 0;
++      NET.worlds.core.NativeWindows.Instance in = NET.worlds.core.NativeWindows.instance(this.windowInstancePtr);
++      return in == null ? 0 : in.width;
+    }
+ 
+    public int fullHeight() {
+       NET.worlds.core.NativeMock.log("Window", "fullHeight", new Object[0]);
+-      return 0;
++      NET.worlds.core.NativeWindows.Instance in = NET.worlds.core.NativeWindows.instance(this.windowInstancePtr);
++      return in == null ? 0 : in.height;
+    }
  
     public static int findWindow(String var0) {
        NET.worlds.core.NativeMock.log("Window", "findWindow", new Object[]{var0});
@@ -28,7 +60,7 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
     }
  
     public static int getFrameWindow() {
-@@ -206,11 +206,12 @@
+@@ -206,11 +210,12 @@
  
     public static int getWindowState(int var0) {
        NET.worlds.core.NativeMock.log("Window", "getWindowState", new Object[]{var0});
@@ -42,7 +74,15 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
     }
  
     public static void setForegroundWindow(int var0) {
-@@ -250,12 +251,12 @@
+@@ -227,6 +232,7 @@
+ 
+    private int install(boolean var1) {
+       NET.worlds.core.NativeMock.log("Window", "install", new Object[]{var1});
++      this.windowInstancePtr = NET.worlds.core.NativeWindows.install(this.hWndGamma, var1);
+       return 0;
+    }
+ 
+@@ -250,12 +256,12 @@
  
     private static int nativeFindChildWindow(int var0, int var1, int var2, int var3, int var4) {
        NET.worlds.core.NativeMock.log("Window", "nativeFindChildWindow", new Object[]{var0, var1, var2, var3, var4});
@@ -57,7 +97,7 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
     }
  
     public static int playVideoClip(Component var0, String var1) {
-@@ -280,12 +281,12 @@
+@@ -280,12 +286,12 @@
  
     public static int getWindowWidth(int var0) {
        NET.worlds.core.NativeMock.log("Window", "getWindowWidth", new Object[]{var0});
@@ -72,6 +112,36 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
     }
  
     public static void allowFGJavaPalette(boolean var0) {
+diff a/NET/worlds/core/Archive.java b/NET/worlds/core/Archive.java
+--- a/NET/worlds/core/Archive.java
++++ b/NET/worlds/core/Archive.java
+@@ -49,7 +49,7 @@
+             }
+          }
+ 
+-         File var13 = new File(var0);
++         File var13 = NET.worlds.core.NativeMock.localFile(var0);
+          int var4 = (int)var13.length();
+          return var4 != 0;
+       }
+@@ -103,7 +103,7 @@
+                }
+             }
+ 
+-            File var14 = new File(var0);
++            File var14 = NET.worlds.core.NativeMock.localFile(var0);
+             int var16 = (int)var14.length();
+             if (var16 != 0) {
+                FileInputStream var17 = new FileInputStream(var14);
+@@ -180,7 +180,7 @@
+    }
+ 
+    private Archive(String var1) throws IOException {
+-      this.zip = new ZipFile(homePrefix + var1);
++      this.zip = new ZipFile(NET.worlds.core.NativeMock.localFile(homePrefix + var1));
+    }
+ 
+    private void close() {
 diff a/NET/worlds/core/NativeMock.java b/NET/worlds/core/NativeMock.java
 --- a/NET/worlds/core/NativeMock.java
 +++ b/NET/worlds/core/NativeMock.java
@@ -101,7 +171,7 @@ diff a/NET/worlds/core/NativeMock.java b/NET/worlds/core/NativeMock.java
        StringBuilder sb = new StringBuilder();
        sb.append("[NATIVE-MOCK] ").append(className).append('.').append(method).append('(');
  
-@@ -20,11 +38,26 @@
+@@ -20,7 +38,7 @@
              sb.append(", ");
           }
  
@@ -110,10 +180,10 @@ diff a/NET/worlds/core/NativeMock.java b/NET/worlds/core/NativeMock.java
        }
  
        sb.append(')');
-       System.err.println(sb.toString());
-+   }
-+
-+   /**
+@@ -28,6 +46,21 @@
+    }
+ 
+    /**
 +    * Only render plain values. Calling toString() on game objects (e.g.
 +    * Rect.toString -> getFarCornerLocal -> Point3Temp.times, itself a
 +    * mocked native that logs its Transform/Rect argument) recursed forever
@@ -126,9 +196,223 @@ diff a/NET/worlds/core/NativeMock.java b/NET/worlds/core/NativeMock.java
 +         return String.valueOf(o);
 +      }
 +      return o.getClass().getSimpleName() + "@" + Integer.toHexString(System.identityHashCode(o));
++   }
++
++   /**
+     * Shared by the "smart" mocks (FastDataInput, IniFile) that do real
+     * disk I/O: NET.worlds.network.URL.validateFile() lowercases every
+     * path it resolves - harmless on the case-insensitive Windows
+@@ -39,6 +72,21 @@
+     * match against the real directory listing - i.e. reproduce the same
+     * case-insensitive lookup Windows already does for free.
+     */
++   /**
++    * A path as the client builds it on this platform (the synthetic "u:"
++    * drive of the URL.normalizeCurrentDir patch, lower-cased names) to the
++    * real file: drive prefix stripped, then resolveCaseInsensitive. Used
++    * where plain Java code (Archive) opens files with those paths, which on
++    * Windows the OS accepted as they were.
++    */
++   public static java.io.File localFile(String path) {
++      String p = path.replace('\\', '/');
++      if (p.length() > 1 && p.charAt(1) == ':') {
++         p = p.substring(2);
++      }
++      return resolveCaseInsensitive(p);
++   }
++
+    public static java.io.File resolveCaseInsensitive(String path) {
+       java.io.File exact = new java.io.File(path);
+       if (exact.exists()) {
+diff a/NET/worlds/scape/Camera.java b/NET/worlds/scape/Camera.java
+--- a/NET/worlds/scape/Camera.java
++++ b/NET/worlds/scape/Camera.java
+@@ -179,7 +179,46 @@
+ 
+    synchronized WObject renderScene(int var1, int var2, int var3, int var4, Pilot var5) {
+       NET.worlds.core.NativeMock.log("Camera", "renderScene", new Object[]{var1, var2, var3, var4, var5});
+-      return null;
++      this.cameraMode = var4;
++      int cam = 0;
++      int clump = this.clumpID;
++      if (clump == 0) {
++         return null;
++      }
++      int scene = NET.worlds.core.NativeScene.getClumpOwner(clump);
++      if (scene == 0) {
++         return null;
++      }
++      if (var2 > 0 && var3 > 0) {
++         cam = NET.worlds.core.NativeCamera.cachedCamera(var1, var2, var3);
++         if (cam == 0) {
++            return null;
++         }
++         float[] m = new float[16];
++         NET.worlds.core.NativeScene.getClumpLTM(clump, m);
++         NET.worlds.core.NativeRw.transformMatrix(m, this.lookAround.rwMatrix(), NET.worlds.core.NativeRw.PRECONCAT);
++         NET.worlds.core.NativeRw.rotate(m, 0.0F, 1.0F, 1.0F, 180.0F, NET.worlds.core.NativeRw.PRECONCAT);
++         NET.worlds.core.NativeCamera.transformCamera(cam, m);
++         NET.worlds.core.NativeCamera.setOffsetAndViewport(cam, 0, 0, var2, var3);
++         float vw;
++         float vh;
++         if (var3 < var2) {
++            vw = 1.0F;
++            vh = (float)var3 / (float)var2;
++         } else {
++            vw = (float)var2 / (float)var3;
++            vh = 1.0F;
++         }
++         NET.worlds.core.NativeCamera.setViewwindow(cam, vw, vh);
++         NET.worlds.core.NativeCamera.setViewOffset(cam, 0.0F, 0.0F);
++      }
++      this.rwRenderRoom(scene, cam, var5);
++      if (cam != 0 && (var4 & 2) != 0) {
++         NET.worlds.core.NativeCamera.show(cam);
++      }
++      WObject picked = this.pickedObj;
++      this.pickedObj = null;
++      return picked;
     }
  
-    /**
+    public WObject getObjectAt(float var1, float var2, boolean var3, Point3Temp var4) {
+@@ -350,5 +389,112 @@
+ 
+    static {
+       cameraNativeInit();
++   }
++
++   /**
++    * gamma.dll 0x00414aa0, called by renderScene with four 0.0 floats: the
++    * background (sky/ground split at the horizon, or black when there are
++    * no colours, a pilot and alwaysClearBackground), the infinite
++    * background scene with the camera moved to the origin, Room.prerender,
++    * the environment scene, the room scene, the highlight marker,
++    * Room.postrender. A pilot in cameraMode 1 or 2 has its clump switched
++    * off (callback 0x418650) while the scenes are drawn and switched back on
++    * (0x418630) afterwards. cameraID holds the RW camera meanwhile.
++    */
++   private void rwRenderRoom(int scene, int cam, Pilot pilot) {
++      Room room = (Room)NET.worlds.core.NativeScene.getSceneData(scene);
++      int oldID = this.cameraID;
++      this.cameraID = cam;
++      boolean drawing = (this.cameraMode & 2) != 0;
++      if ((cam == 0 || !drawing) && (this.cameraMode & 1) == 0) {
++         return;
++      }
++      if (drawing) {
++         java.awt.Color sky = room.rwSkyColor();
++         java.awt.Color ground = room.rwGroundColor();
++         if (sky == null && ground == null) {
++            if (pilot != null && this.alwaysClearBackground) {
++               NET.worlds.core.NativeCamera.clear(cam, 0.0F, 0.0F, 0.0F);
++            }
++         } else {
++            int skyRGB = sky == null ? 0 : sky.getRGB();
++            int groundRGB = ground == null ? 0 : ground.getRGB();
++            int[] vp = NET.worlds.core.NativeCamera.offsetAndViewport(cam);
++            int horizon = vp[3];
++            if (skyRGB != groundRGB) {
++               horizon = NET.worlds.core.NativeCamera.horizonRow(cam);
++            }
++            if (horizon > 0 && horizon < vp[3]) {
++               NET.worlds.core.NativeCamera.setOffsetAndViewport(cam, vp[0], vp[1], vp[2], horizon);
++               NET.worlds.core.NativeCamera.clear(cam, (skyRGB >> 16 & 0xFF) * 0.00390625F, (skyRGB >> 8 & 0xFF) * 0.00390625F, (skyRGB & 0xFF) * 0.00390625F);
++               NET.worlds.core.NativeCamera.setOffsetAndViewport(cam, vp[0], vp[1] + horizon, vp[2], vp[3] - horizon);
++               NET.worlds.core.NativeCamera.clear(cam, (groundRGB >> 16 & 0xFF) * 0.00390625F, (groundRGB >> 8 & 0xFF) * 0.00390625F, (groundRGB & 0xFF) * 0.00390625F);
++               NET.worlds.core.NativeCamera.setOffsetAndViewport(cam, vp[0], vp[1], vp[2], vp[3]);
++            } else if (horizon >= vp[3]) {
++               NET.worlds.core.NativeCamera.clear(cam, (skyRGB >> 16 & 0xFF) * 0.00390625F, (skyRGB >> 8 & 0xFF) * 0.00390625F, (skyRGB & 0xFF) * 0.00390625F);
++            } else {
++               NET.worlds.core.NativeCamera.clear(cam, (groundRGB >> 16 & 0xFF) * 0.00390625F, (groundRGB >> 8 & 0xFF) * 0.00390625F, (groundRGB & 0xFF) * 0.00390625F);
++            }
++         }
++      }
++      RoomEnvironment bg = room.rwInfiniteBackground();
++      if (bg != null && bg.clumpID != 0 && NET.worlds.core.NativeScene.getClumpNumChildren(bg.clumpID) > 0 && bg.rwSceneID() != 0) {
++         float[] pos = NET.worlds.core.NativeCamera.getPosition(cam);
++         NET.worlds.core.NativeCamera.setPosition(cam, 0.0F, 0.0F, 0.0F);
++         if ((this.cameraMode & 2) != 0) {
++            NET.worlds.core.NativeCamera.renderScene(bg.rwSceneID(), cam, 0);
++         }
++         if ((this.cameraMode & 1) != 0) {
++            NET.worlds.core.NativeCamera.pick(bg.rwSceneID(), this, cam);
++         }
++         NET.worlds.core.NativeCamera.setPosition(cam, pos[0], pos[1], pos[2]);
++      }
++      room.prerender(this, 0.0F, 0.0F, 0.0F, 0.0F);
++      int pilotClump = 0;
++      if (pilot != null && pilot.cameraMode - 1 >= 0 && pilot.cameraMode - 1 <= 1) {
++         pilotClump = pilot.clumpID;
++         if (pilotClump == 0) {
++            NET.worlds.core.NativeAssert.fail("nCamera", 0x1e5);
++         }
++         NET.worlds.core.NativeScene.setTreeState(pilotClump, 1);
++      }
++      int env = room.rwEnvironment().rwSceneID();
++      if ((this.cameraMode & 2) != 0) {
++         NET.worlds.core.NativeCamera.renderScene(env, cam, 0);
++      }
++      if ((this.cameraMode & 1) != 0) {
++         NET.worlds.core.NativeCamera.pick(env, this, cam);
++      }
++      if ((this.cameraMode & 2) != 0) {
++         NET.worlds.core.NativeCamera.renderScene(scene, cam, 1);
++      }
++      if ((this.cameraMode & 1) != 0) {
++         NET.worlds.core.NativeCamera.pick(scene, this, cam);
++      }
++      if (drawing && room.highlightTarget != null && room.highlightTarget.highlightID != 0) {
++         int child = NET.worlds.core.NativeScene.getFirstChild(room.highlightTarget.highlightID);
++         if (child != 0) {
++            NET.worlds.core.NativeCamera.highlightMarker(child, cam);
++         }
++      }
++      if (pilotClump != 0) {
++         NET.worlds.core.NativeScene.setTreeState(pilotClump, 2);
++      }
++      room.postrender(this, 0.0F, 0.0F, 0.0F, 0.0F);
++      this.cameraID = oldID;
++   }
++
++   /** Set by the RW pick pass (gamma.dll 0x004148f0). */
++   public void rwSetPick(WObject obj, Point3Temp spot) {
++      this.pickedObj = obj;
++      this.unpickSpot = spot;
++   }
++
++   public float rwPickX() {
++      return this.xPick;
++   }
++
++   public float rwPickY() {
++      return this.yPick;
+    }
+ }
+diff a/NET/worlds/scape/FileTexture.java b/NET/worlds/scape/FileTexture.java
+--- a/NET/worlds/scape/FileTexture.java
++++ b/NET/worlds/scape/FileTexture.java
+@@ -19,11 +19,20 @@
+ 
+    public static FileTexture dictLookup(String var0) {
+       NET.worlds.core.NativeMock.log("FileTexture", "dictLookup", new Object[]{var0});
+-      return null;
++      int id = NET.worlds.core.NativeTextures.lookupOrRead(var0, null, 0);
++      if (id == 0) {
++         return null;
++      }
++      FileTexture t = new FileTexture();
++      t.textureID = id;
++      t._urlName = var0;
++      return t;
+    }
+ 
+    private void makeTexture(String var1, String var2) {
+       NET.worlds.core.NativeMock.log("FileTexture", "makeTexture", new Object[]{var1, var2});
++      this.textureID = NET.worlds.core.NativeTextures.lookupOrRead(var1, var2, 0);
++      this._urlName = var1;
+    }
+ 
+    public String getName() {
 diff a/NET/worlds/scape/Material.java b/NET/worlds/scape/Material.java
 --- a/NET/worlds/scape/Material.java
 +++ b/NET/worlds/scape/Material.java
@@ -324,10 +608,32 @@ diff a/NET/worlds/scape/Room.java b/NET/worlds/scape/Room.java
     }
  
     public void aboutToDraw() {
+@@ -976,5 +992,21 @@
+ 
+    static {
+       nativeInit();
++   }
++
++   java.awt.Color rwSkyColor() {
++      return this.skyColor;
++   }
++
++   java.awt.Color rwGroundColor() {
++      return this.groundColor;
++   }
++
++   RoomEnvironment rwInfiniteBackground() {
++      return this.infiniteBackground;
++   }
++
++   RoomEnvironment rwEnvironment() {
++      return this.environment;
+    }
+ }
 diff a/NET/worlds/scape/RoomEnvironment.java b/NET/worlds/scape/RoomEnvironment.java
 --- a/NET/worlds/scape/RoomEnvironment.java
 +++ b/NET/worlds/scape/RoomEnvironment.java
-@@ -104,10 +104,18 @@
+@@ -104,13 +104,25 @@
  
     void createScene(Room var1) {
        NET.worlds.core.NativeMock.log("RoomEnvironment", "createScene", new Object[]{var1});
@@ -346,6 +652,115 @@ diff a/NET/worlds/scape/RoomEnvironment.java b/NET/worlds/scape/RoomEnvironment.
     }
  
     static {
+       nativeInit();
++   }
++
++   int rwSceneID() {
++      return this.sceneID;
+    }
+ }
+diff a/NET/worlds/scape/ScapePicMovie.java b/NET/worlds/scape/ScapePicMovie.java
+--- a/NET/worlds/scape/ScapePicMovie.java
++++ b/NET/worlds/scape/ScapePicMovie.java
+@@ -95,12 +95,33 @@
+ 
+    private ScapePicTexture[] lookupTextures(String var1, int var2, int var3, int var4) {
+       NET.worlds.core.NativeMock.log("ScapePicMovie", "lookupTextures", new Object[]{var1, var2, var3, var4});
+-      return null;
++      int[] ids = new int[var2];
++      for (int i = 0; i < var2; i++) {
++         ids[i] = NET.worlds.core.NativeTextures.lookupOrRead(var1, null, i);
++      }
++      return this.rwFrames(ids, var3, var4);
+    }
+ 
+    private ScapePicTexture[] makeTextures(String var1, String var2) {
+       NET.worlds.core.NativeMock.log("ScapePicMovie", "makeTextures", new Object[]{var1, var2});
+-      return null;
++      byte[] data = NET.worlds.core.Archive.readBinaryFile(var1);
++      Object[] r = data == null ? null : NET.worlds.core.NativeTextures.makeScapePic(var2, data, Integer.MAX_VALUE);
++      if (r == null) {
++         return null;
++      }
++      int total;
++      try {
++         total = net.freeworlds.cmp.CmpStage1.frameTable(data).length;
++      } catch (java.io.IOException e) {
++         total = 0;
++      }
++      int[] ids = (int[])r[0];
++      if (ids.length < total) {
++         int[] all = new int[total];
++         System.arraycopy(ids, 0, all, 0, ids.length);
++         ids = all;
++      }
++      return this.rwFrames(ids, (Integer)r[1], (Integer)r[2]);
+    }
+ 
+    public void saveState(Saver var1) throws IOException {
+@@ -140,5 +161,26 @@
+ 
+    static {
+       nativeInit();
++   }
++
++   /**
++    * gamma.dll FUN_00423420: when every frame has a texture, one
++    * ScapePicTexture per frame (textureID, w, h, _movieFrame, _movie);
++    * otherwise every texture is released and the result is null.
++    */
++   private ScapePicTexture[] rwFrames(int[] ids, int w, int h) {
++      for (int i = 0; i < ids.length; i++) {
++         if (ids[i] == 0) {
++            for (int j = 0; j < ids.length; j++) {
++               NET.worlds.core.NativeTextures.release(ids[j]);
++            }
++            return null;
++         }
++      }
++      ScapePicTexture[] out = new ScapePicTexture[ids.length];
++      for (int i = 0; i < ids.length; i++) {
++         out[i] = ScapePicTexture.rwMovieFrame(ids[i], w, h, this, i);
++      }
++      return out;
+    }
+ }
+diff a/NET/worlds/scape/ScapePicTexture.java b/NET/worlds/scape/ScapePicTexture.java
+--- a/NET/worlds/scape/ScapePicTexture.java
++++ b/NET/worlds/scape/ScapePicTexture.java
+@@ -34,6 +34,15 @@
+ 
+    private void makeTexture(String var1, String var2) {
+       NET.worlds.core.NativeMock.log("ScapePicTexture", "makeTexture", new Object[]{var1, var2});
++      Object[] r = NET.worlds.core.NativeTextures.makeScapePic(var1, NET.worlds.core.Archive.readBinaryFile(var2), 1);
++      if (r != null) {
++         this.w = (Integer)r[1];
++         this.h = (Integer)r[2];
++         int[] ids = (int[])r[0];
++         if (ids.length > 0 && ids[0] != 0) {
++            this.textureID = ids[0];
++         }
++      }
+    }
+ 
+    public String getName() {
+@@ -88,5 +97,16 @@
+ 
+    static {
+       nativeInit();
++   }
++
++   /** gamma.dll FUN_00423420: a movie frame built with the no-argument constructor and its fields set by JNI. */
++   static ScapePicTexture rwMovieFrame(int id, int w, int h, ScapePicMovie movie, int frame) {
++      ScapePicTexture t = new ScapePicTexture();
++      t.textureID = id;
++      t.w = w;
++      t.h = h;
++      t._movieFrame = frame;
++      t._movie = movie;
++      return t;
+    }
+ }
 diff a/NET/worlds/scape/Surface.java b/NET/worlds/scape/Surface.java
 --- a/NET/worlds/scape/Surface.java
 +++ b/NET/worlds/scape/Surface.java
@@ -422,6 +837,35 @@ diff a/NET/worlds/scape/Surface.java b/NET/worlds/scape/Surface.java
     }
  
     public void getChildren(DeepEnumeration var1) {
+diff a/NET/worlds/scape/Texture.java b/NET/worlds/scape/Texture.java
+--- a/NET/worlds/scape/Texture.java
++++ b/NET/worlds/scape/Texture.java
+@@ -19,7 +19,7 @@
+ 
+    private static int nativeGetW(int var0) {
+       NET.worlds.core.NativeMock.log("Texture", "nativeGetW", new Object[]{var0});
+-      return 0;
++      return NET.worlds.core.NativeTextures.SIZE;
+    }
+ 
+    public int getW() {
+@@ -28,7 +28,7 @@
+ 
+    private static int nativeGetH(int var0) {
+       NET.worlds.core.NativeMock.log("Texture", "nativeGetH", new Object[]{var0});
+-      return 0;
++      return NET.worlds.core.NativeTextures.SIZE;
+    }
+ 
+    public int getH() {
+@@ -66,6 +66,7 @@
+ 
+    private static void nativeRelease(int var0) {
+       NET.worlds.core.NativeMock.log("Texture", "nativeRelease", new Object[]{var0});
++      NET.worlds.core.NativeTextures.release(var0);
+    }
+ 
+    public synchronized void decRef() {
 diff a/NET/worlds/scape/Transform.java b/NET/worlds/scape/Transform.java
 --- a/NET/worlds/scape/Transform.java
 +++ b/NET/worlds/scape/Transform.java

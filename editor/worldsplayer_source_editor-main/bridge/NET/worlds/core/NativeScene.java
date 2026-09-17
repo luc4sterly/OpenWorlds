@@ -71,6 +71,8 @@ public final class NativeScene {
       float specular;
       float opacity = 1.0F;
       int textureModes = 1;
+      /** RW material modes: 0x80 = double sided (RWL21 10051000). */
+      int materialModes;
       int lightSampling = 1;
       int refs = 1;
       int texture;
@@ -777,5 +779,44 @@ public final class NativeScene {
          NativeAssert.fail("nSurface", 0x16e);
       }
       return polys;
+   }
+   /** RwForAllClumpsInHierarchy with gamma.dll callbacks 0x418650 (state 1) / 0x418630 (state 2): every clump, clump included. */
+   public static void setTreeState(int h, int state) {
+      Clump c = clump(h);
+      if (c != null) {
+         treeState(c, state);
+      }
+   }
+
+   private static void treeState(Clump c, int state) {
+      for (Clump k : c.children) {
+         treeState(k, state);
+      }
+      c.state = state;
+   }
+
+   /** RwGetFirstChildClump. */
+   public static int getFirstChild(int h) {
+      Clump c = clump(h);
+      return c == null || c.children.isEmpty() ? 0 : c.children.get(0).handle;
+   }
+
+   /** Root clumps of a scene, in the order they were added. */
+   public static List<Clump> sceneRoots(int h) {
+      Scene s = scene(h);
+      List<Clump> out = new ArrayList<Clump>();
+      if (s != null) {
+         for (Clump c : s.clumps) {
+            if (c.parent == null) {
+               out.add(c);
+            }
+         }
+      }
+      return out;
+   }
+
+   public static List<Light> sceneLights(int h) {
+      Scene s = scene(h);
+      return s == null ? new ArrayList<Light>() : s.lights;
    }
 }

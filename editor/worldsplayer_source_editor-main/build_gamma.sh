@@ -15,6 +15,8 @@ mkdir -p "$B"
 cp -R "$HERE/source" "$HERE/bridge" "$HERE/apply_mock.sh" "$B/"
 (cd "$B" && bash apply_mock.sh)
 find "$B/source" -name '*.java' > "$B/sources.txt"
+# decodificador ScapePic (.cmp/.mov) verificado de client/, usado por bridge/ScapePic
+find "$REPO/client/src/net/freeworlds/cmp" -name '*.java' >> "$B/sources.txt"
 mkdir -p "$B/out"
 "$JDK/javac" --release 8 -nowarn -encoding UTF-8 -d "$B/out" @"$B/sources.txt" 2>&1 | grep -v '^Note:' || true
 n=$(find "$B/out" -name '*.class' | wc -l | tr -d ' ')

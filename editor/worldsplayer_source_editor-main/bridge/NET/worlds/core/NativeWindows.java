@@ -25,8 +25,7 @@ import java.util.List;
  * - getWindowWidth/Height (0x40f1b0 / 0x40f1e0): GetWindowRect size.
  *
  * Handles are 1-based indices into a table (0 keeps meaning "no window",
- * exactly as the Java callers expect). Child windows only record the
- * rectangle for now: nothing draws into them yet.
+ * exactly as the Java callers expect).
  */
 public final class NativeWindows {
    private NativeWindows() {
@@ -104,7 +103,49 @@ public final class NativeWindows {
       return 0;
    }
 
+   /** Screen rectangle of an AWT component, or null if it is not showing. */
+   private static java.awt.Rectangle screenRect(java.awt.Component c) {
+      try {
+         if (!c.isShowing()) {
+            return null;
+         }
+         java.awt.Point p = c.getLocationOnScreen();
+         return new java.awt.Rectangle(p.x, p.y, c.getWidth(), c.getHeight());
+      } catch (java.awt.IllegalComponentStateException e) {
+         return null;
+      }
+   }
+
+   /**
+    * EnumChildWindows callback 0x0040e060: a child window of the frame
+    * whose screen rectangle is exactly (x, y, w, h). Under the original
+    * JVM every heavyweight AWT component (the RenderCanvas) was itself a
+    * Win32 child window, so this finds the canvas.
+    */
+   private static java.awt.Component findComponent(java.awt.Container parent, int x, int y, int w, int h) {
+      for (java.awt.Component c : parent.getComponents()) {
+         java.awt.Rectangle r = screenRect(c);
+         if (r != null && r.x == x && r.y == y && r.width == w && r.height == h) {
+            return c;
+         }
+         if (c instanceof java.awt.Container) {
+            java.awt.Component f = findComponent((java.awt.Container) c, x, y, w, h);
+            if (f != null) {
+               return f;
+            }
+         }
+      }
+      return null;
+   }
+
    public static synchronized int findChildWindow(int parent, int x, int y, int w, int h) {
+      Object p = get(parent);
+      if (p instanceof java.awt.Container) {
+         java.awt.Component c = findComponent((java.awt.Container) p, x, y, w, h);
+         if (c != null) {
+            return handleFor(c);
+         }
+      }
       for (int i = 0; i < handles.size(); i++) {
          Object o = handles.get(i);
          if (o instanceof Child) {
@@ -117,6 +158,11 @@ public final class NativeWindows {
       return 0;
    }
 
+   /**
+    * nativeFindOrMakeChildWindow (0x0040e3f0): the existing child at that
+    * rectangle, else a new "TempClass" child. The TempClass branch only
+    * records the rectangle (nothing in this client draws into one).
+    */
    public static synchronized int findOrMakeChildWindow(int parent, int x, int y, int w, int h) {
       if (!(get(parent) instanceof Window)) {
          return 0;
@@ -127,6 +173,70 @@ public final class NativeWindows {
       }
       handles.add(new Child(parent, x, y, w, h));
       return handles.size();
+   }
+
+   /** The AWT component behind a child handle (null for TempClass children). */
+   public static java.awt.Component component(int handle) {
+      Object o = get(handle);
+      return o instanceof java.awt.Component ? (java.awt.Component) o : null;
+   }
+
+   /**
+    * Window instance created by Window.install (FUN_0040f250, 0x30 bytes):
+    * +0 hwnd, +0x1c / +0x20 render width / height set by maybeResize.
+    */
+   public static final class Instance {
+      public final int hwnd;
+      public int width;
+      public int height;
+
+      Instance(int hwnd) {
+         this.hwnd = hwnd;
+      }
+   }
+
+   private static Instance mainInstance;
+
+   /** Window.install: new instance; the one installed as main is DAT_0049ff1c. */
+   public static synchronized int install(int hWndGamma, boolean main) {
+      Instance in = new Instance(hWndGamma);
+      if (main) {
+         if (mainInstance != null) {
+            NativeAssert.fail("nWindow", 0x8e0);
+         }
+         mainInstance = in;
+      }
+      handles.add(in);
+      return handles.size();
+   }
+
+   public static Instance instance(int handle) {
+      Object o = get(handle);
+      return o instanceof Instance ? (Instance) o : null;
+   }
+
+   /** FUN_0040c120: hwnd of the main instance, 0 if none. */
+   public static synchronized int mainHwnd() {
+      return mainInstance == null ? 0 : mainInstance.hwnd;
+   }
+
+   /** Window.maybeResize (0x0040d950): sizes below 2 become 1, width rounded up to a multiple of 4. */
+   public static void maybeResize(int handle, int w, int h) {
+      Instance in = instance(handle);
+      if (in == null) {
+         return;
+      }
+      if (w < 2) {
+         w = 1;
+      }
+      if (h < 2) {
+         h = 1;
+      }
+      int w4 = w + 3 & ~3;
+      synchronized (in) {
+         in.width = w4;
+         in.height = h;
+      }
    }
 
    public static int getWindowState(int handle) {
