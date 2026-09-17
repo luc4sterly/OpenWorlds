@@ -15,32 +15,41 @@ editor/worldsplayer_source_editor-main/build_gamma.sh
 ```
 
 ```bash
-editor/worldsplayer_source_editor-main/run_gamma.sh
+editor/worldsplayer_source_editor-main/run_gamma.sh home:GroundZero/groundzero.world
 ```
 
 `build_gamma.sh` copia `source/` (pristino) a `editor/.build-gamma/`
 (ignorado por git), aplica `apply_mock.sh` (stubs + este puente) y compila
-con `javac --release 8` (763 clases, incluido el decodificador `.cmp` de `client/`). `run_gamma.sh [DIR]` copia
-`assets/WorldsPlayer` a un directorio de trabajo (por defecto
-`$TMPDIR/freeworlds-gamma`) y arranca el `main` real desde ahí.
+con `javac --release 8` (769 clases, incluido el decodificador `.cmp` de
+`client/`). `run_gamma.sh [URL]` copia `assets/WorldsPlayer` a un
+directorio de trabajo (`$FREEWORLDS_GAMMA_DIR`, por defecto
+`$TMPDIR/freeworlds-gamma`) y arranca el `main` real; la URL opcional es el
+argumento de mundo del propio `Gamma.main` (sin ella arranca en
+`home:NewWorld.world`, como el original antes del login).
+
+Diagnóstico (desactivado por defecto): `JAVA_OPTS` con
+`-Dfreeworlds.dumpFrames=DIR` guarda los frames 1, 10, 100, 1000… de cada
+cámara como PNG (o, con `-Dfreeworlds.dumpSeconds=S1,S2`, el primer frame
+tras cada segundo), y `-Dfreeworlds.scriptKeys=MS:KEYCODE:HOLD_MS,...`
+inyecta pulsaciones AWT sintéticas en el canvas. La captura de pantalla de
+macOS no tiene permiso en esta máquina.
 
 ## Estado verificado (2026-09-17)
 
-Arranca, se queda en el bucle principal real (`Main.mainLoop`) y **dibuja**:
-la vista principal (468×244) muestra la sala inicial de `NewWorld.world`
-en perspectiva y la segunda cámara (132×130) el banner texturizado
-`adworlds.cmp`. Build limpia de 763 clases; dos ejecuciones (scratch y
-`build_gamma.sh`) dan frames PNG idénticos byte a byte. Probado 40–60 s
-sin excepciones.
+- Sin URL: la vista principal muestra la sala inicial de `NewWorld.world`
+  y la segunda cámara (132×130) el banner texturizado `adworlds.cmp`.
+- `home:GroundZero/groundzero.world`: entra en GroundZero y lo dibuja con
+  sus texturas reales. Estable 45–60 s, `jstack` en `Main.mainLoop`.
+- Entrada: flecha arriba mantenida 3 s (inyectada con `scriptKeys`) hace
+  avanzar al piloto hasta la pared y flecha izquierda lo gira; frames
+  antes/después distintos y coherentes.
+- Build limpia de 769 clases; frames idénticos byte a byte entre dos
+  builds de las mismas fuentes.
 
-Diagnóstico: `JAVA_OPTS=-Dfreeworlds.dumpFrames=DIR run_gamma.sh` guarda
-los frames 1, 10, 100, 1000… de cada cámara (la captura de pantalla de
-macOS no tiene permiso en esta máquina).
-
-Sigue sin: sonido, vídeo, ActiveX, carga de formas `.rwx` por
-`ShapeLoader`, avatares animados (`DroneAnimator`) y el resaltado de
-objetos (`updateHighlight`). La sala es la de arranque: GroundZero llega
-tras login/teleport. El bucle va sin freno.
+Sigue sin: portales (salas contiguas a través de la puerta), avatares
+(`Hologram`, `DroneAnimator`), superficies web (`TextureSurface`,
+`IEWebControl`), resaltado (`updateHighlight`), sonido y vídeo. El bucle
+va sin freno salvo lo que cuesta el render.
 
 ## Qué contiene
 
@@ -52,8 +61,9 @@ tras login/teleport. El bucle va sin freno.
 | `NET/worlds/core/NativeTextures.java` | Texturas 128×128 5-6-5 (`FUN_0041a150` elige 16 bits), diccionario por nombre con cuenta de referencias (0x004183e0/0x00418430/0x00418370), paleta con clave de transparencia (0x00422b30), `FileTexture` |
 | `NET/worlds/core/ScapePic.java` | Cabecera ScapePic (0x00442750) sobre `client/src/net/freeworlds/cmp/CmpFrames` (todos los frames de `.mov` por la tabla de frames) |
 | `NET/worlds/core/NativeWindows.java` | Ventanas: la hija de render es el `RenderCanvas` AWT real (0x0040e3f0), instancia de ventana con tamaño de render (0x0040f250/0x0040d950) |
+| `NET/worlds/core/NativeInput.java` | Entrada: el WndProc de gamma.dll (0x0040c970, teclas/botones 0x0040c440, movimiento/delta 0x0040c2c0) sobre los eventos AWT del canvas, cola nativa con fusión de movimientos (0x00416940/0x00416b00), teclas pulsadas liberadas al perder foco o soltar el último botón, modo delta y cursor oculto (0x0040c6a0/0x0040c780/0x0040e670); reloj `GetTickCount` y `Std.getTimeZero` (0x00403e6a) |
 | `NET/worlds/core/NativeAssert.java` | Aserción nativa `FUN_00402800`: mismo mensaje y `exit(41)` (sin el MessageBox modal) |
-| `natives.patch` | Cuerpos de los stubs de `Transform`, `Point3Temp`, `WObject`, `Surface`, `Room`, `RoomEnvironment`, `Material`, `Camera` (`renderScene` 0x00415190 y el pase de sala 0x00414aa0), `Texture`, `FileTexture`, `ScapePicTexture`, `ScapePicMovie`, `Window`, `ActiveX`; `NativeMock` con log acotado y `localFile`; `Archive` abre ficheros y `content.zip` a través de `localFile` (la unidad sintética `u:` del parche de `URL`); y la corrección de `Room` de abajo |
+| `natives.patch` | Cuerpos de los stubs de `Transform`, `Point3Temp`, `WObject`, `Surface`, `Room`, `RoomEnvironment`, `Material`, `Camera` (`renderScene` 0x00415190 y el pase de sala 0x00414aa0), `Texture`, `FileTexture`, `ScapePicTexture`, `ScapePicMovie`, `EventQueue`, `Window`, `ActiveX`, y los de `Std` (reloj, `instanceOf`, `byteArraysEqual`, `getenv`, `exit(42)`, versión 1900 y cadenas de build literales de gamma.dll); `NativeMock` con log acotado y `localFile`; `Archive` abre ficheros y `content.zip` a través de `localFile` (la unidad sintética `u:` del parche de `URL`); `PolledDialog` usa `isDisplayable()` en lugar de `getPeer()` (eliminado tras Java 8; un barrido por reflexión de las 934 llamadas al JDK no encuentra más casos); y la corrección de `Room` de abajo |
 
 ## Error de decompilación encontrado
 
@@ -80,3 +90,6 @@ try-with-resources, la propia capa de mocks), salvo esta.
 - `RwDestroyScene`: se asume que destruye sus clumps y luces.
 - `RwSetClumpVertexUV` rechaza UV fuera del rango del driver; aquí no.
 - `Window.install` devuelve 0 como hInstance.
+- Entrada: tabla AWT→VK de Win32 para las teclas cuyo código difiere; la
+  auto-repetición se detecta por "ya pulsada" (AWT no da el bit 30 de
+  lParam); `QueryPerformanceCounter` es `System.nanoTime` con frecuencia 1e9.

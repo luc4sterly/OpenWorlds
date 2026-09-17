@@ -129,9 +129,14 @@ public final class NativeCamera {
          }
       }
    }
+   private static final long DUMP_T0 = System.nanoTime();
+   private static final java.util.Set<String> dumpedSeconds = new java.util.HashSet<String>();
    private static final java.util.Map<String, Integer> shownBySize = new java.util.HashMap<String, Integer>();
 
-   /** Harness diagnostic: -Dfreeworlds.dumpFrames=DIR saves frames 1, 10, 100, 1000... as PNG. */
+   /**
+    * Harness diagnostic: -Dfreeworlds.dumpFrames=DIR saves frames 1, 10, 100, 1000... of each
+    * camera as PNG, or with -Dfreeworlds.dumpSeconds=S1,S2,... the first frame after each second mark.
+    */
    private static void dumpFrame(Cam c) {
       String dir = System.getProperty("freeworlds.dumpFrames");
       if (dir == null) {
@@ -141,12 +146,34 @@ public final class NativeCamera {
       Integer prev = shownBySize.get(key);
       int shown = prev == null ? 1 : prev + 1;
       shownBySize.put(key, shown);
-      int n = shown;
-      while (n % 10 == 0) {
-         n /= 10;
-      }
-      if (n != 1) {
-         return;
+      String secs = System.getProperty("freeworlds.dumpSeconds");
+      if (secs != null) {
+         long elapsed = (System.nanoTime() - DUMP_T0) / 1000000000L;
+         String done = key + "@";
+         String hit = null;
+         for (String s : secs.split(",")) {
+            if (elapsed >= Long.parseLong(s) && !dumpedSeconds.contains(done + s)) {
+               hit = s;
+            }
+         }
+         if (hit == null) {
+            return;
+         }
+         for (String s : secs.split(",")) {
+            if (Long.parseLong(s) <= Long.parseLong(hit)) {
+               dumpedSeconds.add(done + s);
+            }
+         }
+         shown = (int) Long.parseLong(hit);
+         key = key + "-s";
+      } else {
+         int n = shown;
+         while (n % 10 == 0) {
+            n /= 10;
+         }
+         if (n != 1) {
+            return;
+         }
       }
       try {
          javax.imageio.ImageIO.write(c.image, "png", new java.io.File(dir, "frame-" + key + "-" + shown + ".png"));
@@ -510,7 +537,7 @@ public final class NativeCamera {
             continue;
          }
          NativeTextures.Texture tex = mat == null ? null : NativeTextures.texture(mat.texture);
-         raster(p, cl, sx, sy, mat, tex, k);
+         raster(p, cl, sx, sy, mat, tex, k, vertexLit ? null : lit.clone());
       }
    }
 
@@ -616,7 +643,7 @@ public final class NativeCamera {
     * the opacity byte.
     * ⚠️ fill rule, Gouraud interpolation space and the dither pattern are not extracted.
     */
-   private static void raster(Pass p, float[][] cl, float[] sx, float[] sy, NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k) {
+   private static void raster(Pass p, float[][] cl, float[] sx, float[] sy, NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k, float[] facetLit) {
       Cam c = p.c;
       int n = cl.length;
       float minY = Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
@@ -711,6 +738,17 @@ public final class NativeCamera {
                continue;
             }
             int pix;
+            float lr, lg, lb;
+            if (facetLit != null) {
+               // light sampling 1: one value per polygon (poly+4/8/0xC), not interpolated
+               lr = facetLit[0];
+               lg = facetLit[1];
+               lb = facetLit[2];
+            } else {
+               lr = cur[3] * zz;
+               lg = cur[4] * zz;
+               lb = cur[5] * zz;
+            }
             if (tex != null) {
                int tu = (int) Math.floor(cur[1] * zz * NativeTextures.SIZE) & 0x7F;
                int tv = (int) Math.floor(cur[2] * zz * NativeTextures.SIZE) & 0x7F;
@@ -718,9 +756,9 @@ public final class NativeCamera {
                if (texel == 0) {
                   continue;
                }
-               pix = litTex ? lit565(texel, cur[3] * zz, cur[4] * zz, cur[5] * zz) : texel;
+               pix = litTex ? lit565(texel, lr, lg, lb) : texel;
             } else {
-               pix = lit565(base, cur[3] * zz, cur[4] * zz, cur[5] * zz);
+               pix = lit565(base, lr, lg, lb);
             }
             p.z[zi] = iz;
             c.raster[zi] = (short) pix;
