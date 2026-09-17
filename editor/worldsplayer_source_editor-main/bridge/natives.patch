@@ -1,0 +1,932 @@
+diff a/NET/worlds/console/ActiveX.java b/NET/worlds/console/ActiveX.java
+--- a/NET/worlds/console/ActiveX.java
++++ b/NET/worlds/console/ActiveX.java
+@@ -129,12 +129,12 @@
+ 
+    public static int getClassFClsID(String var0, String var1) throws IOException {
+       NET.worlds.core.NativeMock.log("ActiveX", "getClassFClsID", new Object[]{var0, var1});
+-      return 0;
++      throw new IOException("nActiveX.getClassFClsID: Couldn't convert string to CLSID");
+    }
+ 
+    public static int getClassFProgID(String var0, String var1) throws IOException {
+       NET.worlds.core.NativeMock.log("ActiveX", "getClassFProgID", new Object[]{var0, var1});
+-      return 0;
++      throw new IOException("nActiveX.getClassFProgID: Couldn't convert string to CLSID");
+    }
+ 
+    private static int getClass(int var0, String var1) throws IOException {
+diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
+--- a/NET/worlds/console/Window.java
++++ b/NET/worlds/console/Window.java
+@@ -183,7 +183,7 @@
+ 
+    public static int findWindow(String var0) {
+       NET.worlds.core.NativeMock.log("Window", "findWindow", new Object[]{var0});
+-      return 0;
++      return NET.worlds.core.NativeWindows.findWindow(var0);
+    }
+ 
+    public static int getFrameWindow() {
+@@ -206,11 +206,12 @@
+ 
+    public static int getWindowState(int var0) {
+       NET.worlds.core.NativeMock.log("Window", "getWindowState", new Object[]{var0});
+-      return 0;
++      return NET.worlds.core.NativeWindows.getWindowState(var0);
+    }
+ 
+    public static void setWindowState(int var0, int var1) {
+       NET.worlds.core.NativeMock.log("Window", "setWindowState", new Object[]{var0, var1});
++      NET.worlds.core.NativeWindows.setWindowState(var0, var1);
+    }
+ 
+    public static void setForegroundWindow(int var0) {
+@@ -250,12 +251,12 @@
+ 
+    private static int nativeFindChildWindow(int var0, int var1, int var2, int var3, int var4) {
+       NET.worlds.core.NativeMock.log("Window", "nativeFindChildWindow", new Object[]{var0, var1, var2, var3, var4});
+-      return 0;
++      return NET.worlds.core.NativeWindows.findChildWindow(var0, var1, var2, var3, var4);
+    }
+ 
+    private static int nativeFindOrMakeChildWindow(int var0, int var1, int var2, int var3, int var4) {
+       NET.worlds.core.NativeMock.log("Window", "nativeFindOrMakeChildWindow", new Object[]{var0, var1, var2, var3, var4});
+-      return 0;
++      return NET.worlds.core.NativeWindows.findOrMakeChildWindow(var0, var1, var2, var3, var4);
+    }
+ 
+    public static int playVideoClip(Component var0, String var1) {
+@@ -280,12 +281,12 @@
+ 
+    public static int getWindowWidth(int var0) {
+       NET.worlds.core.NativeMock.log("Window", "getWindowWidth", new Object[]{var0});
+-      return 0;
++      return NET.worlds.core.NativeWindows.getWindowWidth(var0);
+    }
+ 
+    public static int getWindowHeight(int var0) {
+       NET.worlds.core.NativeMock.log("Window", "getWindowHeight", new Object[]{var0});
+-      return 0;
++      return NET.worlds.core.NativeWindows.getWindowHeight(var0);
+    }
+ 
+    public static void allowFGJavaPalette(boolean var0) {
+diff a/NET/worlds/core/NativeMock.java b/NET/worlds/core/NativeMock.java
+--- a/NET/worlds/core/NativeMock.java
++++ b/NET/worlds/core/NativeMock.java
+@@ -11,7 +11,25 @@
+    private NativeMock() {
+    }
+ 
++   private static final java.util.Map<String, Integer> counts = new java.util.HashMap<String, Integer>();
++
+    public static void log(String className, String method, Object[] args) {
++      // Throttle: hot natives called every frame (findWindow, Transform...)
++      // flooded the log with millions of lines. First 20 calls of each
++      // Class.method are printed, then one summary line every 50000.
++      String key = className + "." + method;
++      int n;
++      synchronized (counts) {
++         Integer c = counts.get(key);
++         n = c == null ? 1 : c + 1;
++         counts.put(key, n);
++      }
++      if (n > 20) {
++         if (n % 50000 == 0) {
++            System.err.println("[NATIVE-MOCK] " + key + " x" + n);
++         }
++         return;
++      }
+       StringBuilder sb = new StringBuilder();
+       sb.append("[NATIVE-MOCK] ").append(className).append('.').append(method).append('(');
+ 
+@@ -20,11 +38,26 @@
+             sb.append(", ");
+          }
+ 
+-         sb.append(String.valueOf(args[i]));
++         sb.append(describe(args[i]));
+       }
+ 
+       sb.append(')');
+       System.err.println(sb.toString());
++   }
++
++   /**
++    * Only render plain values. Calling toString() on game objects (e.g.
++    * Rect.toString -> getFarCornerLocal -> Point3Temp.times, itself a
++    * mocked native that logs its Transform/Rect argument) recursed forever
++    * and killed the client with a StackOverflowError: a harness artifact,
++    * not client behaviour. Objects are shown as Class@identityHash.
++    */
++   private static String describe(Object o) {
++      if (o == null || o instanceof String || o instanceof Number || o instanceof Boolean
++            || o instanceof Character) {
++         return String.valueOf(o);
++      }
++      return o.getClass().getSimpleName() + "@" + Integer.toHexString(System.identityHashCode(o));
+    }
+ 
+    /**
+diff a/NET/worlds/scape/Material.java b/NET/worlds/scape/Material.java
+--- a/NET/worlds/scape/Material.java
++++ b/NET/worlds/scape/Material.java
+@@ -170,6 +170,12 @@
+ 
+    private void nativeSetTexture(int var1, Texture var2) {
+       NET.worlds.core.NativeMock.log("Material", "nativeSetTexture", new Object[]{var1, var2});
++      if (this.ids != null) {
++         int m = this.ids[var1];
++         if (m != 0) {
++            NET.worlds.core.NativeScene.setMaterialTexture(m, var2 == null ? 0 : var2.textureID);
++         }
++      }
+    }
+ 
+    private synchronized void setTexture(int var1, Texture var2) {
+@@ -233,7 +239,17 @@
+ 
+    synchronized Texture extractTexture(int var1) {
+       NET.worlds.core.NativeMock.log("Material", "extractTexture", new Object[]{var1});
+-      return null;
++      if (this.textures == null) {
++         return null;
++      }
++      Texture t = this.textures[var1];
++      if (t != null) {
++         if (this.ids != null && this.ids[var1] != 0) {
++            NET.worlds.core.NativeScene.setMaterialTexture(this.ids[var1], 0);
++         }
++         this.textures[var1] = null;
++      }
++      return t;
+    }
+ 
+    private void removeTextures() {
+@@ -260,6 +276,14 @@
+ 
+    private void closeMaterial(int var1) {
+       NET.worlds.core.NativeMock.log("Material", "closeMaterial", new Object[]{var1});
++      if (this.ids != null) {
++         int m = this.ids[var1];
++         if (m != 0) {
++            NET.worlds.core.NativeScene.setMaterialTexture(m, 0);
++            NET.worlds.core.NativeScene.destroyMaterial(m);
++            this.ids[var1] = 0;
++         }
++      }
+    }
+ 
+    private void closeMaterials() {
+@@ -359,7 +383,19 @@
+ 
+    private static int makeMaterial(float var0, float var1, float var2, float var3, int var4, int var5, int var6, boolean var7) {
+       NET.worlds.core.NativeMock.log("Material", "makeMaterial", new Object[]{var0, var1, var2, var3, var4, var5, var6, var7});
+-      return 0;
++      int m = NET.worlds.core.NativeScene.createMaterial();
++      if (m == 0) {
++         NET.worlds.core.NativeAssert.fail("nMaterial", 115);
++      }
++      NET.worlds.core.NativeScene.setMaterialColor(m, var4 * 0.00390625F, var5 * 0.00390625F, var6 * 0.00390625F);
++      NET.worlds.core.NativeScene.setMaterialSurface(m, var0, var1, var2);
++      NET.worlds.core.NativeScene.setMaterialOpacity(m, var3);
++      if (!var7) {
++         NET.worlds.core.NativeScene.flatShading(m);
++      } else {
++         NET.worlds.core.NativeScene.smoothShading(m);
++      }
++      return m;
+    }
+ 
+    private void makeMaterials() {
+@@ -432,6 +468,20 @@
+ 
+    public void paramChange() {
+       NET.worlds.core.NativeMock.log("Material", "paramChange", new Object[0]);
++      int[] ids = this.ids;
++      if (ids != null) {
++         for (int i = 0; i < ids.length; i++) {
++            int m = ids[i];
++            NET.worlds.core.NativeScene.setMaterialSurface(m, this.ambient, this.diffuse, this.specular);
++            NET.worlds.core.NativeScene.setMaterialColor(m, this.r * 0.00390625F, this.g * 0.00390625F, this.b * 0.00390625F);
++            NET.worlds.core.NativeScene.setMaterialOpacity(m, this.opacity);
++            if (!this.smooth) {
++               NET.worlds.core.NativeScene.flatShading(m);
++            } else {
++               NET.worlds.core.NativeScene.smoothShading(m);
++            }
++         }
++      }
+    }
+ 
+    public void setAmbient(float var1) {
+@@ -782,5 +832,10 @@
+ 
+    static {
+       nativeInit();
++   }
++
++   /** Lo que gamma.dll lee por JNI (campo ids). */
++   int[] rwIds() {
++      return this.ids;
+    }
+ }
+diff a/NET/worlds/scape/Point3Temp.java b/NET/worlds/scape/Point3Temp.java
+--- a/NET/worlds/scape/Point3Temp.java
++++ b/NET/worlds/scape/Point3Temp.java
+@@ -55,11 +55,19 @@
+ 
+    public Point3Temp times(Transform var1) {
+       NET.worlds.core.NativeMock.log("Point3Temp", "times", new Object[]{var1});
++      float[] r = NET.worlds.core.NativeRw.transformPoint(var1.rwMatrix(), this.x, this.y, this.z);
++      this.x = r[0];
++      this.y = r[1];
++      this.z = r[2];
+       return this;
+    }
+ 
+    public Point3Temp vectorTimes(Transform var1) {
+       NET.worlds.core.NativeMock.log("Point3Temp", "vectorTimes", new Object[]{var1});
++      float[] r = NET.worlds.core.NativeRw.transformVector(var1.rwMatrix(), this.x, this.y, this.z);
++      this.x = r[0];
++      this.y = r[1];
++      this.z = r[2];
+       return this;
+    }
+ 
+diff a/NET/worlds/scape/Room.java b/NET/worlds/scape/Room.java
+--- a/NET/worlds/scape/Room.java
++++ b/NET/worlds/scape/Room.java
+@@ -49,8 +49,8 @@
+       this.setName(var2);
+       this.environment = new RoomEnvironment();
+       this.infiniteBackground = new RoomEnvironment();
+-      super.add(this.environment);
+-      super.add(this.infiniteBackground);
++      super.add((SuperRoot)this.environment);
++      super.add((SuperRoot)this.infiniteBackground);
+       if (var1 != null) {
+          var1.addRoom(this);
+       }
+@@ -205,15 +205,23 @@
+ 
+    static int addLight(int var0, float var1, float var2, float var3, float var4, float var5, float var6) {
+       NET.worlds.core.NativeMock.log("Room", "addLight", new Object[]{var0, var1, var2, var3, var4, var5, var6});
+-      return 0;
++      int l = NET.worlds.core.NativeScene.createLight(1, var1, var2, var3, 1.0F);
++      if (l == 0) {
++         NET.worlds.core.NativeAssert.fail("nRoom", 125);
++      }
++      NET.worlds.core.NativeScene.setLightColor(l, var4, var5, var6);
++      NET.worlds.core.NativeScene.addLightToScene(var0, l);
++      return l;
+    }
+ 
+    static void setLightPosition(int var0, float var1, float var2, float var3) {
+       NET.worlds.core.NativeMock.log("Room", "setLightPosition", new Object[]{var0, var1, var2, var3});
++      NET.worlds.core.NativeScene.setLightVector(var0, var1, var2, var3);
+    }
+ 
+    static void setLightColor(int var0, float var1, float var2, float var3) {
+       NET.worlds.core.NativeMock.log("Room", "setLightColor", new Object[]{var0, var1, var2, var3});
++      NET.worlds.core.NativeScene.setLightColor(var0, var1, var2, var3);
+    }
+ 
+    private void setLightPosition(float var1, float var2, float var3) {
+@@ -365,10 +373,18 @@
+ 
+    void createScene() {
+       NET.worlds.core.NativeMock.log("Room", "createScene", new Object[0]);
++      int s = NET.worlds.core.NativeScene.createScene();
++      NET.worlds.core.NativeScene.setSceneData(s, this);
++      this.sceneID = s;
++      NET.worlds.core.NativeScene.addClumpToScene(s, this.clumpID);
+    }
+ 
+    void destroyScene() {
+       NET.worlds.core.NativeMock.log("Room", "destroyScene", new Object[0]);
++      int s = this.sceneID;
++      this.sceneID = 0;
++      NET.worlds.core.NativeScene.setSceneData(s, null);
++      NET.worlds.core.NativeScene.destroyScene(s);
+    }
+ 
+    protected void markVoid() {
+@@ -882,8 +898,8 @@
+             throw new TooNewException();
+       }
+ 
+-      super.add(this.environment);
+-      super.add(this.infiniteBackground);
++      super.add((SuperRoot)this.environment);
++      super.add((SuperRoot)this.infiniteBackground);
+    }
+ 
+    public void aboutToDraw() {
+diff a/NET/worlds/scape/RoomEnvironment.java b/NET/worlds/scape/RoomEnvironment.java
+--- a/NET/worlds/scape/RoomEnvironment.java
++++ b/NET/worlds/scape/RoomEnvironment.java
+@@ -104,10 +104,18 @@
+ 
+    void createScene(Room var1) {
+       NET.worlds.core.NativeMock.log("RoomEnvironment", "createScene", new Object[]{var1});
++      int s = NET.worlds.core.NativeScene.createScene();
++      NET.worlds.core.NativeScene.setSceneData(s, var1);
++      this.sceneID = s;
++      NET.worlds.core.NativeScene.addClumpToScene(s, this.clumpID);
+    }
+ 
+    void destroyScene() {
+       NET.worlds.core.NativeMock.log("RoomEnvironment", "destroyScene", new Object[0]);
++      int s = this.sceneID;
++      this.sceneID = 0;
++      NET.worlds.core.NativeScene.setSceneData(s, null);
++      NET.worlds.core.NativeScene.destroyScene(s);
+    }
+ 
+    static {
+diff a/NET/worlds/scape/Surface.java b/NET/worlds/scape/Surface.java
+--- a/NET/worlds/scape/Surface.java
++++ b/NET/worlds/scape/Surface.java
+@@ -123,11 +123,31 @@
+ 
+    private void nativeSetMaterial() {
+       NET.worlds.core.NativeMock.log("Surface", "nativeSetMaterial", new Object[0]);
++      int[] polys = this.polygonIDs;
++      int[] mats = this.material.rwIds();
++      int j = 0;
++      for (int i = 0; i < polys.length; i++) {
++         if (polys[i] != 0) {
++            NET.worlds.core.NativeScene.setPolygonMaterial(polys[i], mats[j]);
++         }
++         if (++j == mats.length) {
++            j = 0;
++         }
++      }
+    }
+ 
+    private boolean uvOutOfRange() {
+       NET.worlds.core.NativeMock.log("Surface", "uvOutOfRange", new Object[0]);
+-      return true;
++      if ((this.flags & 0x100000) != 0 || (this.flags & 0x80000) != 0) {
++         return true;
++      }
++      for (int i = 1; i <= 4; i++) {
++         float[] uv = NET.worlds.core.NativeScene.getVertexUV(this.clumpID, i);
++         if (uv[0] < 0.0F || !(uv[0] <= 32.0F) || uv[1] < 0.0F || !(uv[1] <= 32.0F)) {
++            return true;
++         }
++      }
++      return false;
+    }
+ 
+    public Material getMaterial() {
+@@ -136,15 +156,38 @@
+ 
+    void addVertex(float var1, float var2, float var3, float var4, float var5) {
+       NET.worlds.core.NativeMock.log("Surface", "addVertex", new Object[]{var1, var2, var3, var4, var5});
++      int c = this.clumpID;
++      if (c != 0) {
++         int v = NET.worlds.core.NativeScene.addVertex(c, var1, var2, var3);
++         if (v != 0) {
++            NET.worlds.core.NativeScene.setVertexUV(c, v, var4, var5);
++         }
++      }
+    }
+ 
+    void addPolygon(int[] var1) {
+       NET.worlds.core.NativeMock.log("Surface", "addPolygon", new Object[]{var1});
++      if (this.polygonIDs == null) {
++         NET.worlds.core.NativeAssert.fail("nSurface", 89);
++      }
++      int n = this.polygonIDs.length;
++      int[] mats = this.material.rwIds();
++      if (mats == null) {
++         NET.worlds.core.NativeAssert.fail("nSurface", 95);
++      }
++      if (n != mats.length) {
++         NET.worlds.core.NativeAssert.fail("nSurface", 96);
++      }
++      if (this.polygonIDs[0] != 0) {
++         throw new Error("Surface already has its poly set");
++      }
++      this.polygonIDs[0] = NET.worlds.core.NativeScene.addPolygon(this.clumpID, var1.length, var1);
+    }
+ 
+    private int addSubPolys(int var1, int var2) {
+       NET.worlds.core.NativeMock.log("Surface", "addSubPolys", new Object[]{var1, var2});
+-      return 0;
++      this.polygonIDs = NET.worlds.core.NativeScene.addSubPolys(this.clumpID, this.flags, var1, var2);
++      return this.polygonIDs.length;
+    }
+ 
+    public void getChildren(DeepEnumeration var1) {
+diff a/NET/worlds/scape/Transform.java b/NET/worlds/scape/Transform.java
+--- a/NET/worlds/scape/Transform.java
++++ b/NET/worlds/scape/Transform.java
+@@ -43,17 +43,17 @@
+ 
+    public float getX() {
+       NET.worlds.core.NativeMock.log("Transform", "getX", new Object[0]);
+-      return 0.0F;
++      return this.rwMatrix()[12];
+    }
+ 
+    public float getY() {
+       NET.worlds.core.NativeMock.log("Transform", "getY", new Object[0]);
+-      return 0.0F;
++      return this.rwMatrix()[13];
+    }
+ 
+    public float getZ() {
+       NET.worlds.core.NativeMock.log("Transform", "getZ", new Object[0]);
+-      return 0.0F;
++      return this.rwMatrix()[14];
+    }
+ 
+    public Point3Temp getPosition() {
+@@ -86,17 +86,70 @@
+ 
+    public float getYaw() {
+       NET.worlds.core.NativeMock.log("Transform", "getYaw", new Object[0]);
+-      return 0.0F;
++      float[] n = this.unscaledOrthonormal();
++      float[] v = NET.worlds.core.NativeRw.transformVector(n, 0.0F, 1.0F, 0.0F);
++      float r = (float) Math.sqrt(v[0] * v[0] + v[1] * v[1]);
++      float yaw;
++      if (v[0] < r) {
++         if (-r < v[0]) {
++            double f = v[0] / r;
++            double a = Math.atan2(f, Math.sqrt(1.0 - f * f));
++            yaw = (float) (180.0F * (float) (0.5 * Math.PI - a) * (1.0 / Math.PI));
++         } else {
++            yaw = 180.0F;
++         }
++      } else {
++         yaw = 0.0F;
++      }
++      if (v[1] < 0.0F) {
++         yaw = -yaw;
++      }
++      yaw = 90.0F - yaw;
++      if (yaw < 0.0F) {
++         yaw += 360.0F;
++      }
++      return yaw;
+    }
+ 
+    public float getPitch() {
+       NET.worlds.core.NativeMock.log("Transform", "getPitch", new Object[0]);
+-      return 0.0F;
++      float[] n = this.unscaledOrthonormal();
++      float[] v = NET.worlds.core.NativeRw.transformVector(n, 0.0F, 1.0F, 0.0F);
++      float h2 = v[0] * v[0] + v[1] * v[1];
++      float len = (float) Math.sqrt(v[2] * v[2] + h2);
++      float h = (float) Math.sqrt(h2);
++      float pitch = 0.0F;
++      if (h < len) {
++         double f = h / len;
++         double a = Math.atan2(f, Math.sqrt(1.0 - f * f));
++         pitch = (float) (180.0F * (float) (0.5 * Math.PI - a) * (1.0 / Math.PI));
++      }
++      if (v[2] < 0.0F) {
++         pitch = -pitch;
++      }
++      return pitch;
+    }
+ 
+    public float getSpin(Point3Temp var1) {
+       NET.worlds.core.NativeMock.log("Transform", "getSpin", new Object[]{var1});
+-      return 0.0F;
++      float[] n = this.unscaledOrthonormal();
++      float[] q = NET.worlds.core.NativeRw.queryRotate(n);
++      float ax = q[0], ay = q[1], az = q[2], angle = q[3];
++      if (0.0F < az) {
++         angle = 360.0F - angle;
++         ax = -ax;
++         ay = -ay;
++         az = -az;
++      }
++      if (angle == 0.0F) {
++         az = -1.0F;
++         ax = 0.0F;
++         ay = 0.0F;
++      }
++      var1.x = ax;
++      var1.y = ay;
++      var1.z = az;
++      return angle;
+    }
+ 
+    protected void noteTransformChange() {
+@@ -133,6 +186,22 @@
+ 
+    public Transform pre(Transform var1) {
+       NET.worlds.core.NativeMock.log("Transform", "pre", new Object[]{var1});
++      float sx = this.xScale;
++      float sy = this.yScale;
++      float sz = this.zScale;
++      float[] m = this.rwMatrix();
++      boolean nonUniform = !(sx == sy && sy == sz);
++      if (nonUniform) {
++         NET.worlds.core.NativeRw.scale(m, 1.0F / sx, 1.0F / sy, 1.0F / sz, NET.worlds.core.NativeRw.PRECONCAT);
++      }
++      NET.worlds.core.NativeRw.transformMatrix(m, var1.rwMatrix(), NET.worlds.core.NativeRw.PRECONCAT);
++      if (nonUniform) {
++         NET.worlds.core.NativeRw.scale(m, sx, sy, sz, NET.worlds.core.NativeRw.PRECONCAT);
++      }
++      this.xScale = sx * var1.xScale;
++      this.yScale = sy * var1.yScale;
++      this.zScale = sz * var1.zScale;
++      this.noteTransformChange();
+       return this;
+    }
+ 
+@@ -159,11 +228,22 @@
+ 
+    private Transform postHelper(Transform var1) {
+       NET.worlds.core.NativeMock.log("Transform", "postHelper", new Object[]{var1});
++      NET.worlds.core.NativeRw.transformMatrix(this.rwMatrix(), var1.rwMatrix(), NET.worlds.core.NativeRw.POSTCONCAT);
++      this.noteTransformChange();
+       return this;
+    }
+ 
+    public Transform makeIdentity() {
+       NET.worlds.core.NativeMock.log("Transform", "makeIdentity", new Object[0]);
++      this.xScale = 1.0F;
++      this.yScale = 1.0F;
++      this.zScale = 1.0F;
++      if (this.transformID == 0) {
++         this.transformID = NET.worlds.core.NativeRw.createMatrix();
++         return this;
++      }
++      System.arraycopy(NET.worlds.core.NativeRw.identity(), 0, this.rwMatrix(), 0, 16);
++      this.noteTransformChange();
+       return this;
+    }
+ 
+@@ -173,6 +253,8 @@
+ 
+    public Transform moveBy(float var1, float var2, float var3) {
+       NET.worlds.core.NativeMock.log("Transform", "moveBy", new Object[]{var1, var2, var3});
++      NET.worlds.core.NativeRw.translate(this.rwMatrix(), var1, var2, var3, NET.worlds.core.NativeRw.POSTCONCAT);
++      this.noteTransformChange();
+       return this;
+    }
+ 
+@@ -182,16 +264,28 @@
+ 
+    public Transform moveTo(float var1, float var2, float var3) {
+       NET.worlds.core.NativeMock.log("Transform", "moveTo", new Object[]{var1, var2, var3});
++      float[] m = this.rwMatrix();
++      m[12] = var1;
++      m[13] = var2;
++      m[14] = var3;
++      this.noteTransformChange();
+       return this;
+    }
+ 
+    public Transform premoveBy(float var1, float var2, float var3) {
+       NET.worlds.core.NativeMock.log("Transform", "premoveBy", new Object[]{var1, var2, var3});
++      NET.worlds.core.NativeRw.translate(this.rwMatrix(), var1, var2, var3, NET.worlds.core.NativeRw.PRECONCAT);
++      this.noteTransformChange();
+       return this;
+    }
+ 
+    public Transform scale(float var1, float var2, float var3) {
+       NET.worlds.core.NativeMock.log("Transform", "scale", new Object[]{var1, var2, var3});
++      NET.worlds.core.NativeRw.scale(this.rwMatrix(), var1, var2, var3, NET.worlds.core.NativeRw.PRECONCAT);
++      this.xScale = var1 * this.xScale;
++      this.yScale = var2 * this.yScale;
++      this.zScale = var3 * this.zScale;
++      this.noteTransformChange();
+       return this;
+    }
+ 
+@@ -224,6 +318,8 @@
+ 
+    private Transform postscaleHelper(float var1, float var2, float var3) {
+       NET.worlds.core.NativeMock.log("Transform", "postscaleHelper", new Object[]{var1, var2, var3});
++      NET.worlds.core.NativeRw.scale(this.rwMatrix(), var1, var2, var3, NET.worlds.core.NativeRw.POSTCONCAT);
++      this.noteTransformChange();
+       return this;
+    }
+ 
+@@ -237,6 +333,16 @@
+ 
+    public Transform spin(float var1, float var2, float var3, float var4) {
+       NET.worlds.core.NativeMock.log("Transform", "spin", new Object[]{var1, var2, var3, var4});
++      float[] m = this.rwMatrix();
++      boolean nonUniform = !(this.xScale == this.yScale && this.yScale == this.zScale);
++      if (nonUniform) {
++         NET.worlds.core.NativeRw.scale(m, 1.0F / this.xScale, 1.0F / this.yScale, 1.0F / this.zScale, NET.worlds.core.NativeRw.PRECONCAT);
++      }
++      NET.worlds.core.NativeRw.rotate(m, var1, var2, var3, var4, NET.worlds.core.NativeRw.PRECONCAT);
++      if (nonUniform) {
++         NET.worlds.core.NativeRw.scale(m, this.xScale, this.yScale, this.zScale, NET.worlds.core.NativeRw.PRECONCAT);
++      }
++      this.noteTransformChange();
+       return this;
+    }
+ 
+@@ -250,6 +356,8 @@
+ 
+    public Transform postspin(float var1, float var2, float var3, float var4) {
+       NET.worlds.core.NativeMock.log("Transform", "postspin", new Object[]{var1, var2, var3, var4});
++      NET.worlds.core.NativeRw.rotate(this.rwMatrix(), var1, var2, var3, var4, NET.worlds.core.NativeRw.POSTCONCAT);
++      this.noteTransformChange();
+       return this;
+    }
+ 
+@@ -259,6 +367,11 @@
+ 
+    private void nativeFinalize() {
+       NET.worlds.core.NativeMock.log("Transform", "nativeFinalize", new Object[0]);
++      if (this.transformID != 0) {
++         int id = this.transformID;
++         this.transformID = 0;
++         NET.worlds.core.NativeRw.destroyMatrix(id);
++      }
+    }
+ 
+    public Transform getTransform() {
+@@ -269,10 +382,21 @@
+ 
+    public void setTransform(Transform var1) {
+       NET.worlds.core.NativeMock.log("Transform", "setTransform", new Object[]{var1});
++      System.arraycopy(var1.rwMatrix(), 0, this.rwMatrix(), 0, 16);
++      this.xScale = var1.xScale;
++      this.yScale = var1.yScale;
++      this.zScale = var1.zScale;
++      this.noteTransformChange();
+    }
+ 
+    public Transform invert() {
+       NET.worlds.core.NativeMock.log("Transform", "invert", new Object[0]);
++      float[] m = this.rwMatrix();
++      NET.worlds.core.NativeRw.invert(m.clone(), m);
++      this.xScale = 1.0F / this.xScale;
++      this.yScale = 1.0F / this.yScale;
++      this.zScale = 1.0F / this.zScale;
++      this.noteTransformChange();
+       return this;
+    }
+ 
+@@ -353,16 +477,26 @@
+ 
+    private float[] getGuts() {
+       NET.worlds.core.NativeMock.log("Transform", "getGuts", new Object[0]);
+-      return null;
++      return this.rwMatrix().clone();
+    }
+ 
+    public boolean isTransformEqual(Transform var1) {
+       NET.worlds.core.NativeMock.log("Transform", "isTransformEqual", new Object[]{var1});
++      float[] a = this.rwMatrix();
++      float[] b = var1.rwMatrix();
++      for (int r = 0; r < 4; r++) {
++         for (int c = 0; c < 3; c++) {
++            if (a[r * 4 + c] != b[r * 4 + c]) {
++               return false;
++            }
++         }
++      }
+       return true;
+    }
+ 
+    private void setGuts(float[] var1) {
+       NET.worlds.core.NativeMock.log("Transform", "setGuts", new Object[]{var1});
++      System.arraycopy(var1, 0, this.rwMatrix(), 0, 16);
+    }
+ 
+    public String toTransformSubstring() {
+@@ -416,5 +550,28 @@
+ 
+    static {
+       nativeInit();
++   }
++
++   /** Matriz RW de este Transform (NativeRw); crea una si aun no existe. */
++   float[] rwMatrix() {
++      if (this.transformID == 0) {
++         this.transformID = NET.worlds.core.NativeRw.createMatrix();
++      }
++      return NET.worlds.core.NativeRw.matrix(this.transformID);
++   }
++
++   /** getYaw/getPitch/getSpin: copia, deshace la escala (modo 2) y ortonormaliza (RwOrthoNormalizeMatrix). */
++   private float[] unscaledOrthonormal() {
++      float[] c = this.rwMatrix().clone();
++      NET.worlds.core.NativeRw.scale(c, 1.0F / this.xScale, 1.0F / this.yScale, 1.0F / this.zScale, NET.worlds.core.NativeRw.PRECONCAT);
++      return NET.worlds.core.NativeRw.orthoNormalize(c);
++   }
++
++
++   /** FUN_004252f0: copia xScale/yScale/zScale de otro Transform (JNI SetFloatField). */
++   void rwCopyScales(Transform var1) {
++      this.xScale = var1.xScale;
++      this.yScale = var1.yScale;
++      this.zScale = var1.zScale;
+    }
+ }
+diff a/NET/worlds/scape/WObject.java b/NET/worlds/scape/WObject.java
+--- a/NET/worlds/scape/WObject.java
++++ b/NET/worlds/scape/WObject.java
+@@ -352,6 +352,11 @@
+ 
+    void createClump() {
+       NET.worlds.core.NativeMock.log("WObject", "createClump", new Object[0]);
++      int id = NET.worlds.core.NativeScene.createClump();
++      if (id == 0) {
++         NET.worlds.core.NativeAssert.fail("nWObject", 291);
++      }
++      this.clumpID = id;
+    }
+ 
+    public final boolean hasClump() {
+@@ -374,32 +379,82 @@
+ 
+    protected void voidClump() {
+       NET.worlds.core.NativeMock.log("WObject", "voidClump", new Object[0]);
++      int c = this.clumpID;
++      if (c != 0) {
++         this.clumpID = 0;
++         if (this.highlightID != 0) {
++            NET.worlds.core.NativeScene.destroyClump(this.highlightID);
++            this.highlightID = 0;
++         }
++         NET.worlds.core.NativeScene.detachClump(c);
++         if (NET.worlds.core.NativeScene.getClumpData(c) != null) {
++            NET.worlds.core.NativeScene.setClumpData(c, null);
++         }
++         NET.worlds.core.NativeScene.destroyClump(c);
++      }
+    }
+ 
+    protected int extractClump() {
+       NET.worlds.core.NativeMock.log("WObject", "extractClump", new Object[0]);
+-      return 0;
++      int c = this.clumpID;
++      if (c != 0) {
++         this.clumpID = 0;
++         if (this.highlightID != 0) {
++            NET.worlds.core.NativeScene.destroyClump(this.highlightID);
++            this.highlightID = 0;
++         }
++         NET.worlds.core.NativeScene.detachClump(c);
++         if (NET.worlds.core.NativeScene.getClumpData(c) != null) {
++            NET.worlds.core.NativeScene.setClumpData(c, null);
++         }
++      }
++      return c;
+    }
+ 
+    void addChildToClump(WObject var1) {
+       NET.worlds.core.NativeMock.log("WObject", "addChildToClump", new Object[]{var1});
++      int self = this.clumpID;
++      int parent = var1.clumpID;
++      int tag = NET.worlds.core.NativeScene.getClumpTag(self);
++      if (tag != 0 && tag < 0x8000000) {
++         int t = NET.worlds.core.NativeScene.findTaggedClump(parent, tag | 0x8000000);
++         if (t != 0) {
++            NET.worlds.core.NativeScene.addChildToClump(t, self);
++            return;
++         }
++      }
++      NET.worlds.core.NativeScene.addChildToClump(parent, self);
+    }
+ 
+    void setClumpMatrix() {
+       NET.worlds.core.NativeMock.log("WObject", "setClumpMatrix", new Object[0]);
++      if (this.clumpID != 0) {
++         NET.worlds.core.NativeScene.transformClump(this.clumpID, this.rwMatrix(), NET.worlds.core.NativeRw.REPLACE);
++      }
+    }
+ 
+    private void initClumpData() {
+       NET.worlds.core.NativeMock.log("WObject", "initClumpData", new Object[0]);
++      if (this.clumpID == 0) {
++         NET.worlds.core.NativeAssert.fail("nWObject", 254);
++      }
++      NET.worlds.core.NativeScene.setClumpData(this.clumpID, this);
+    }
+ 
+    void doneWithEditing() {
+       NET.worlds.core.NativeMock.log("WObject", "doneWithEditing", new Object[0]);
++      if (this.clumpID == 0) {
++         NET.worlds.core.NativeAssert.fail("nWObject", 266);
++      }
++      NET.worlds.core.NativeScene.setClumpHints(this.clumpID, 0);
+    }
+ 
+    int getNumVerts() {
+       NET.worlds.core.NativeMock.log("WObject", "getNumVerts", new Object[0]);
+-      return 0;
++      if (this.clumpID == 0) {
++         NET.worlds.core.NativeAssert.fail("nWObject", 277);
++      }
++      return NET.worlds.core.NativeScene.getNumVertices(this.clumpID);
+    }
+ 
+    public Transform getObjectToWorldMatrix() {
+@@ -420,11 +475,28 @@
+ 
+    private Transform getObjectToWorldMatrix(Transform var1) {
+       NET.worlds.core.NativeMock.log("WObject", "getObjectToWorldMatrix", new Object[]{var1});
++      if (this.clumpID == 0) {
++         NET.worlds.core.NativeAssert.fail("nWObject", 519);
++      }
++      NET.worlds.core.NativeScene.getClumpLTM(this.clumpID, var1.rwMatrix());
++      var1.rwCopyScales(this);
+       return var1;
+    }
+ 
+    protected Transform getJointedObjectToWorldMatrix(Transform var1) {
+       NET.worlds.core.NativeMock.log("WObject", "getJointedObjectToWorldMatrix", new Object[]{var1});
++      if (this.clumpID == 0) {
++         NET.worlds.core.NativeAssert.fail("nWObject", 538);
++      }
++      float[] m = var1.rwMatrix();
++      NET.worlds.core.NativeScene.getClumpMatrix(this.clumpID, m);
++      int parent = NET.worlds.core.NativeScene.getClumpParent(this.clumpID);
++      if (parent != 0) {
++         float[] p = new float[16];
++         NET.worlds.core.NativeScene.getClumpLTM(parent, p);
++         NET.worlds.core.NativeRw.transformMatrix(m, p, NET.worlds.core.NativeRw.POSTCONCAT);
++      }
++      var1.rwCopyScales(this);
+       return var1;
+    }
+ 
+@@ -441,6 +513,15 @@
+ 
+    public void getClumpBBox(Point3Temp var1, Point3Temp var2) {
+       NET.worlds.core.NativeMock.log("WObject", "getClumpBBox", new Object[]{var1, var2});
++      if (this.clumpID != 0) {
++         float[] b = NET.worlds.core.NativeScene.getClumpBBox(this.clumpID);
++         var1.x = b[0];
++         var1.y = b[1];
++         var1.z = b[2];
++         var2.x = b[3];
++         var2.y = b[4];
++         var2.z = b[5];
++      }
+    }
+ 
+    public BoundBoxTemp getClumpBBox() {
+@@ -595,6 +676,9 @@
+ 
+    protected void updateVisible() {
+       NET.worlds.core.NativeMock.log("WObject", "updateVisible", new Object[0]);
++      if (this.clumpID != 0) {
++         NET.worlds.core.NativeScene.setHierarchyState(this.clumpID, (this.flags & 1) == 0 ? 1 : 2);
++      }
+    }
+ 
+    public final boolean getVisible() {
+@@ -680,12 +764,24 @@
+ 
+    public Room getRoomFromClump() {
+       NET.worlds.core.NativeMock.log("WObject", "getRoomFromClump", new Object[0]);
+-      return null;
++      if (this.clumpID == 0) {
++         NET.worlds.core.NativeAssert.fail("nWObject", 182);
++      }
++      int s = NET.worlds.core.NativeScene.getClumpOwner(this.clumpID);
++      return s == 0 ? null : (Room)NET.worlds.core.NativeScene.getSceneData(s);
+    }
+ 
+    public boolean inRoomContents() {
+       NET.worlds.core.NativeMock.log("WObject", "inRoomContents", new Object[0]);
+-      return true;
++      if (this.clumpID == 0) {
++         NET.worlds.core.NativeAssert.fail("nWObject", 199);
++      }
++      int s = NET.worlds.core.NativeScene.getClumpOwner(this.clumpID);
++      if (s == 0) {
++         return false;
++      }
++      Room r = (Room)NET.worlds.core.NativeScene.getSceneData(s);
++      return r != null && s == r.getSceneID();
+    }
+ 
+    public World getWorld() {
+@@ -809,7 +905,16 @@
+ 
+    public float getClumpMinXYExtent() {
+       NET.worlds.core.NativeMock.log("WObject", "getClumpMinXYExtent", new Object[0]);
+-      return 0.0F;
++      float ext = 0.0F;
++      if (this.clumpID != 0) {
++         float[] b = NET.worlds.core.NativeScene.getClumpBBox(this.clumpID);
++         float dx = b[3] - b[0];
++         ext = b[4] - b[1];
++         if (dx < ext) {
++            ext = dx;
++         }
++      }
++      return ext;
+    }
+ 
+    public void detectBump(BumpEventTemp var1) {

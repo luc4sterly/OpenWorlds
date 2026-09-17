@@ -595,4 +595,13 @@ open(path, "w").write(text)
 print("Patched DNSLookup.java gethostbyname (real DNS resolution)")
 PYEOF
 
+# Portable gamma.dll/RenderWare bridge (bridge/README.md): native bodies
+# translated from the decompiled gamma.dll C and the RWL21.DLL disassembly
+# (Transform matrices, clumps/scenes/materials, window handles, ActiveX
+# failure path, native assertion) plus the Room.add(SuperRoot) overload that
+# Vineflower lost (checked against the original gammacls.zip bytecode).
+cp -R bridge/NET source/
+patch -p1 -d source --no-backup-if-mismatch < bridge/natives.patch
+echo "Bridge applied."
+
 echo "Mock applied."

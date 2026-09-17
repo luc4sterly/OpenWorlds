@@ -72,3 +72,6 @@ __pycache__/
 Icon?
 *.dmg
 *.pkg
+
+# build del cliente original con puente portable (build_gamma.sh)
+editor/.build-gamma/
