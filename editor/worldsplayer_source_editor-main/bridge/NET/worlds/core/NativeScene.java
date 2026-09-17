@@ -76,6 +76,8 @@ public final class NativeScene {
       int lightSampling = 1;
       int refs = 1;
       int texture;
+      /** Texture name from the shape script, resolved in the dictionary when the file finishes loading. */
+      String textureName;
       int handle;
    }
 
@@ -818,5 +820,58 @@ public final class NativeScene {
    public static List<Light> sceneLights(int h) {
       Scene s = scene(h);
       return s == null ? new ArrayList<Light>() : s.lights;
+   }
+   /** RwSetClumpVertex(clump, index, xyz): 1-based index, keeps the uv. */
+   public static void setVertex(int h, int index, float x, float y, float z) {
+      Clump c = clump(h);
+      if (c != null && index >= 1 && index <= c.verts.size()) {
+         float[] v = c.verts.get(index - 1);
+         v[0] = x;
+         v[1] = y;
+         v[2] = z;
+         for (int i = 0; i < 3; i++) {
+            float[] vv = {x, y, z};
+            c.bbox[i] = Math.min(c.bbox[i], vv[i]);
+            c.bbox[3 + i] = Math.max(c.bbox[3 + i], vv[i]);
+         }
+      }
+   }
+
+   /** RwForAllPolygonsInClumpPointer with the callback 0x00418750: RwSetPolygonMaterial on every polygon of the clump. */
+   public static void setAllPolygonMaterials(int h, int mat) {
+      Clump c = clump(h);
+      if (c != null) {
+         for (Polygon p : c.polys) {
+            p.material = mat;
+         }
+      }
+   }
+   /** RwGetNextClump: the next sibling of a child clump. */
+   public static int getNextSibling(int h) {
+      Clump c = clump(h);
+      if (c == null || c.parent == null) {
+         return 0;
+      }
+      int i = c.parent.children.indexOf(c);
+      return i < 0 || i + 1 >= c.parent.children.size() ? 0 : c.parent.children.get(i + 1).handle;
+   }
+   public static void setMaterialModes(int h, int modes) {
+      Material m = material(h);
+      if (m != null) {
+         m.materialModes = modes;
+      }
+   }
+
+   /** Texture of a shape material, looked up by name until the client finishes loading it. */
+   public static void setMaterialTextureName(int h, String name) {
+      Material m = material(h);
+      if (m != null) {
+         m.textureName = name;
+      }
+   }
+
+   public static String materialTextureName(int h) {
+      Material m = material(h);
+      return m == null ? null : m.textureName;
    }
 }

@@ -118,7 +118,45 @@ public final class NativeCamera {
       dumpFrame(c);
       Component comp = NativeWindows.component(c.data);
       if (comp == null) {
+         if (!warnedNoWindow) {
+            warnedNoWindow = true;
+            System.err.println("[RW] la camara " + c.width + "x" + c.height + " no tiene ventana donde volcar la imagen");
+         }
          return;
+      }
+      // The original blits into the child window's DC. A plain
+      // getGraphics() draw on an AWT Canvas is wiped whenever the platform
+      // recomposes the window (macOS), so use the canvas' own buffer
+      // strategy when it has one and fall back to getGraphics().
+      diagnose(c, comp);
+      if (comp instanceof java.awt.Canvas) {
+         java.awt.Canvas canvas = (java.awt.Canvas) comp;
+         java.awt.image.BufferStrategy bs = canvas.getBufferStrategy();
+         if (bs == null) {
+            try {
+               canvas.createBufferStrategy(2);
+               bs = canvas.getBufferStrategy();
+            } catch (RuntimeException e) {
+               bs = null;
+            }
+         }
+         if (bs == null) {
+            System.err.println("[RW] sin BufferStrategy en " + c.width + "x" + c.height + ": se pinta con getGraphics()");
+         }
+         if (bs != null) {
+            do {
+               do {
+                  Graphics bg = bs.getDrawGraphics();
+                  try {
+                     bg.drawImage(c.image, 0, 0, null);
+                  } finally {
+                     bg.dispose();
+                  }
+               } while (bs.contentsRestored());
+               bs.show();
+            } while (bs.contentsLost());
+            return;
+         }
       }
       Graphics g = comp.getGraphics();
       if (g != null) {
@@ -129,6 +167,26 @@ public final class NativeCamera {
          }
       }
    }
+
+   private static final java.util.Set<String> diagnosed = new java.util.HashSet<String>();
+
+   /** One line per camera: where the image is being blitted and by which route. */
+   private static void diagnose(Cam c, Component comp) {
+      String key = c.width + "x" + c.height;
+      synchronized (diagnosed) {
+         if (!diagnosed.add(key)) {
+            return;
+         }
+      }
+      String owner = "";
+      for (Component p = comp; p != null; p = p.getParent()) {
+         owner = owner + " < " + p.getClass().getName() + "[" + p.getWidth() + "x" + p.getHeight() + " vis=" + p.isVisible() + " show=" + p.isShowing() + "]";
+      }
+      System.err.println("[RW] camara " + key + " -> " + comp.getClass().getName()
+         + " canvas=" + (comp instanceof java.awt.Canvas) + owner);
+   }
+
+   private static boolean warnedNoWindow;
    private static final long DUMP_T0 = System.nanoTime();
    private static final java.util.Set<String> dumpedSeconds = new java.util.HashSet<String>();
    private static final java.util.Map<String, Integer> shownBySize = new java.util.HashMap<String, Integer>();
@@ -233,6 +291,292 @@ public final class NativeCamera {
          c.ltm[13] = y;
          c.ltm[14] = z;
       }
+   }
+
+   /** Main render window size, kept by Camera.renderScene (DAT_0049fcbc / DAT_0049ff64). */
+   public static int mainWidth;
+   public static int mainHeight;
+
+   /** RwGetCameraLookAt: row 2 of the camera matrix. */
+   public static float[] getLookAt(int h) {
+      Cam c = cam(h);
+      return c == null ? new float[]{0, 0, 1} : new float[]{c.ltm[8], c.ltm[9], c.ltm[10]};
+   }
+
+   /** RwGetCameraLookUp: row 1. */
+   public static float[] getLookUp(int h) {
+      Cam c = cam(h);
+      return c == null ? new float[]{0, 1, 0} : new float[]{c.ltm[4], c.ltm[5], c.ltm[6]};
+   }
+
+   /**
+    * RwSetCameraLookAt: the new view direction, keeping the up vector; the
+    * basis is rebuilt as r0 = normalize(up x at), r1 = normalize(at x r0).
+    * ⚠️ VERIFICAR: RWL21's exact reconstruction is not extracted yet.
+    */
+   public static void setLookAt(int h, float x, float y, float z) {
+      Cam c = cam(h);
+      if (c == null) {
+         return;
+      }
+      if (x == 0.0F && y == 0.0F && z == 0.0F) {
+         return;
+      }
+      float[] at = norm3(x, y, z);
+      float[] up = {c.ltm[4], c.ltm[5], c.ltm[6]};
+      float[] r0 = cross(up, at);
+      if (len3(r0) <= 0.0F) {
+         r0 = new float[]{c.ltm[0], c.ltm[1], c.ltm[2]};
+      } else {
+         r0 = norm3(r0[0], r0[1], r0[2]);
+      }
+      float[] r1 = cross(at, r0);
+      setRows(c, r0, norm3(r1[0], r1[1], r1[2]), at);
+   }
+
+   /**
+    * RwSetCameraLookUp: the new up vector, keeping the view direction.
+    * ⚠️ VERIFICAR, como setLookAt.
+    */
+   public static void setLookUp(int h, float x, float y, float z) {
+      Cam c = cam(h);
+      if (c == null) {
+         return;
+      }
+      if (x == 0.0F && y == 0.0F && z == 0.0F) {
+         return;
+      }
+      float[] up = norm3(x, y, z);
+      float[] at = {c.ltm[8], c.ltm[9], c.ltm[10]};
+      float[] r0 = cross(up, at);
+      if (len3(r0) <= 0.0F) {
+         // up parallel to at: the view direction is rebuilt from right x up
+         r0 = new float[]{c.ltm[0], c.ltm[1], c.ltm[2]};
+         at = norm3(r0[1] * up[2] - r0[2] * up[1], r0[2] * up[0] - r0[0] * up[2], r0[0] * up[1] - r0[1] * up[0]);
+      } else {
+         r0 = norm3(r0[0], r0[1], r0[2]);
+      }
+      float[] r1 = cross(at, r0);
+      setRows(c, r0, norm3(r1[0], r1[1], r1[2]), at);
+   }
+
+   private static void setRows(Cam c, float[] r0, float[] r1, float[] r2) {
+      c.ltm[0] = r0[0];
+      c.ltm[1] = r0[1];
+      c.ltm[2] = r0[2];
+      c.ltm[4] = r1[0];
+      c.ltm[5] = r1[1];
+      c.ltm[6] = r1[2];
+      c.ltm[8] = r2[0];
+      c.ltm[9] = r2[1];
+      c.ltm[10] = r2[2];
+   }
+
+   private static float[] cross(float[] a, float[] b) {
+      return new float[]{a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]};
+   }
+
+   private static float len3(float[] v) {
+      return (float) Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+   }
+
+   private static float[] norm3(float x, float y, float z) {
+      float l = (float) Math.sqrt(x * x + y * y + z * z);
+      return l > 0.0F ? new float[]{x / l, y / l, z / l} : new float[]{x, y, z};
+   }
+
+   /**
+    * gamma.dll FUN_0041b670 + FUN_00419670: the screen rectangle the portal
+    * covers. The portal quad goes to camera space and is clipped against
+    * Z >= 0.025 (the near clipping gamma sets around the call); then, as
+    * RwGetClumpViewportRect does (RWL21 10006a70 / 10006be0), the bounding
+    * box of those points is projected - its six faces clipped against the
+    * frustum - and the extremes are taken in 16.16 fixed point:
+    * x = trunc(trunc(65536*w) * X/Z) >> 16 (floor), w = x2 - x.
+    * Nothing visible gives {0, 0, 0, 0}.
+    */
+   public static int[] portalRect(int clump, int h) {
+      Cam c = cam(h);
+      NativeScene.Clump k = NativeScene.clump(clump);
+      if (c == null || k == null || k.verts.size() < 4) {
+         return new int[4];
+      }
+      float[] ltm = new float[16];
+      NativeScene.getClumpLTM(clump, ltm);
+      float[][] quad = new float[4][];
+      for (int i = 0; i < 4; i++) {
+         float[] v = k.verts.get(i);
+         float[] w = NativeRw.transformPoint(ltm, v[0], v[1], v[2]);
+         quad[i] = toCamera(c, w[0], w[1], w[2]);
+      }
+      java.util.List<float[]> poly = new ArrayList<float[]>();
+      for (int i = 0; i < 4; i++) {
+         float[] a = quad[i];
+         float[] b = quad[(i + 1) % 4];
+         boolean ina = a[2] >= 0.025F, inb = b[2] >= 0.025F;
+         if (ina) {
+            poly.add(a);
+         }
+         if (ina != inb) {
+            float t = (0.025F - a[2]) / (b[2] - a[2]);
+            poly.add(new float[]{a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, 0.025F});
+         }
+      }
+      if (poly.isEmpty()) {
+         return new int[4];
+      }
+      float[] lo = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE};
+      float[] hi = {-Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+      for (float[] p : poly) {
+         for (int i = 0; i < 3; i++) {
+            lo[i] = Math.min(lo[i], p[i]);
+            hi[i] = Math.max(hi[i], p[i]);
+         }
+      }
+      // the eight corners of that box, as six faces clipped against the frustum
+      float[][] corner = new float[8][];
+      for (int i = 0; i < 8; i++) {
+         corner[i] = new float[]{(i & 1) != 0 ? hi[0] : lo[0], (i & 2) != 0 ? hi[1] : lo[1], (i & 4) != 0 ? hi[2] : lo[2]};
+      }
+      int[][] faces = {{0, 1, 3, 2}, {4, 5, 7, 6}, {0, 1, 5, 4}, {0, 4, 6, 2}, {2, 6, 7, 3}, {1, 3, 7, 5}};
+      float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+      boolean any = false;
+      for (int[] f : faces) {
+         float[][] face = new float[4][];
+         for (int i = 0; i < 4; i++) {
+            float[] p = corner[f[i]];
+            face[i] = new float[]{projX(c, p), projY(c, p), p[2]};
+         }
+         float[][] cl = clipXYZ(face, c);
+         for (float[] p : cl) {
+            any = true;
+            float nx = p[0] / p[2], ny = p[1] / p[2];
+            minX = Math.min(minX, nx);
+            maxX = Math.max(maxX, nx);
+            minY = Math.min(minY, ny);
+            maxY = Math.max(maxY, ny);
+         }
+      }
+      if (!any) {
+         return new int[4];
+      }
+      float fw = (int) (65536.0F * (float) c.vpW);
+      float fh = (int) (65536.0F * (float) c.vpH);
+      int x = (int) (fw * minX) >> 16;
+      int y = (int) (fh * minY) >> 16;
+      int x2 = (int) (fw * maxX) >> 16;
+      int y2 = (int) (fh * maxY) >> 16;
+      return new int[]{x, y, x2 - x, y2 - y};
+   }
+
+   private static float[] toCamera(Cam c, float wx, float wy, float wz) {
+      float dx = wx - c.ltm[12], dy = wy - c.ltm[13], dz = wz - c.ltm[14];
+      return new float[]{
+         dx * c.ltm[0] + dy * c.ltm[1] + dz * c.ltm[2],
+         dx * c.ltm[4] + dy * c.ltm[5] + dz * c.ltm[6],
+         dx * c.ltm[8] + dy * c.ltm[9] + dz * c.ltm[10]};
+   }
+
+   private static float projX(Cam c, float[] p) {
+      return -0.5F / c.viewWindowX * (p[0] + c.viewOffsetX) + (0.5F + 0.5F * c.viewOffsetX / c.viewWindowX) * p[2];
+   }
+
+   private static float projY(Cam c, float[] p) {
+      return -0.5F / c.viewWindowY * (p[1] - c.viewOffsetY) + (0.5F - 0.5F * c.viewOffsetY / c.viewWindowY) * p[2];
+   }
+
+   /** Clip a polygon of {X, Y, Z} against the six frustum planes. */
+   private static float[][] clipXYZ(float[][] poly, Cam c) {
+      float[][] p = poly;
+      for (int plane = 0; plane < 6 && p.length >= 3; plane++) {
+         java.util.List<float[]> out = new ArrayList<float[]>();
+         for (int i = 0; i < p.length; i++) {
+            float[] a = p[i];
+            float[] b = p[(i + 1) % p.length];
+            float da = dist(a, plane, c), db = dist(b, plane, c);
+            if (da >= 0.0F) {
+               out.add(a);
+            }
+            if (da >= 0.0F != db >= 0.0F) {
+               float t = da / (da - db);
+               out.add(new float[]{a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t});
+            }
+         }
+         p = out.toArray(new float[0][]);
+      }
+      return p;
+   }
+
+   public static float[] getViewwindow(int h) {
+      Cam c = cam(h);
+      return c == null ? new float[]{1, 1} : new float[]{c.viewWindowX, c.viewWindowY};
+   }
+
+   public static float[] getViewOffset(int h) {
+      Cam c = cam(h);
+      return c == null ? new float[2] : new float[]{c.viewOffsetX, c.viewOffsetY};
+   }
+
+   /**
+    * gamma.dll FUN_00417f40 (mirrored portal): reverse every row of the
+    * viewport rectangle in place, starting at the render offset.
+    */
+   public static void mirrorViewport(int h) {
+      Cam c = cam(h);
+      if (c == null) {
+         return;
+      }
+      for (int y = 0; y < c.vpH; y++) {
+         int row = (c.renderOffY + y) * c.width + c.renderOffX;
+         if (c.renderOffY + y < 0 || c.renderOffY + y >= c.height) {
+            continue;
+         }
+         int a = 0, b = c.vpW - 1;
+         while (a < b) {
+            short tmp = c.raster[row + a];
+            c.raster[row + a] = c.raster[row + b];
+            c.raster[row + b] = tmp;
+            a++;
+            b--;
+         }
+      }
+   }
+
+   /**
+    * gamma.dll FUN_0041b3b0: true when the camera is on the front side of
+    * the portal, ((camPos - v1) x e1) . e2 > 0 with e1 = v2 - v1 and
+    * e2 = v4 - v1 normalized (both longer than 0.0078125); a degenerate
+    * portal is treated as not facing the camera.
+    */
+   public static boolean portalFacesCamera(int camH, int clump) {
+      Cam c = cam(camH);
+      NativeScene.Clump k = NativeScene.clump(clump);
+      if (c == null || k == null || k.verts.size() < 4) {
+         return false;
+      }
+      float[] ltm = new float[16];
+      NativeScene.getClumpLTM(clump, ltm);
+      float[] v1 = world(k, ltm, 0);
+      float[] v2 = world(k, ltm, 1);
+      float[] v4 = world(k, ltm, 3);
+      float e1x = v2[0] - v1[0], e1y = v2[1] - v1[1], e1z = v2[2] - v1[2];
+      float e2x = v4[0] - v1[0], e2y = v4[1] - v1[1], e2z = v4[2] - v1[2];
+      float l1 = (float) Math.sqrt(e1x * e1x + e1y * e1y + e1z * e1z);
+      float l2 = (float) Math.sqrt(e2x * e2x + e2y * e2y + e2z * e2z);
+      if (!(l1 > 0.0078125F) || !(l2 > 0.0078125F)) {
+         return false;
+      }
+      float s1 = 1.0F / l1, s2 = 1.0F / l2;
+      float dx = c.ltm[12] - v1[0], dy = c.ltm[13] - v1[1], dz = c.ltm[14] - v1[2];
+      float v = (dx * e1y * s1 - dy * e1x * s1) * e2z * s2
+         + (dy * e1z * s1 - dz * e1y * s1) * e2x * s2
+         + (dz * e1x * s1 - dx * e1z * s1) * e2y * s2;
+      return v > 0.0F;
+   }
+
+   private static float[] world(NativeScene.Clump k, float[] ltm, int i) {
+      float[] v = k.verts.get(i);
+      return NativeRw.transformPoint(ltm, v[0], v[1], v[2]);
    }
 
    /**
@@ -362,7 +706,16 @@ public final class NativeCamera {
    private static final int NA = 11;
 
    /** Render state of one pass. */
+   private static int centreShown;
+   private static final java.util.Set<String> counted = new java.util.HashSet<String>();
+
    private static final class Pass {
+      int texPixels;
+      int flatPixels;
+      String centre;
+      int clumps;
+      int polys;
+      int drawn;
       Cam c;
       float[] z;
       float[][] lights;
@@ -390,6 +743,21 @@ public final class NativeCamera {
       p.z = zbuffer(c);
       java.util.Arrays.fill(p.z, 0.0F);
       drawScene(p, scene);
+      if (System.getProperty("freeworlds.centrePixel") != null && p.centre != null
+            && c.width == mainWidth && (System.nanoTime() - DUMP_T0) / 1000000000L >= 25
+            && centreShown++ % 300 == 0) {
+         System.err.println("[RW] centro de la vista: " + p.centre);
+      }
+      if (System.getProperty("freeworlds.countPolys") != null && c.width == mainWidth) {
+         long sec = (System.nanoTime() - DUMP_T0) / 1000000000L;
+         String key = sec + "s escena " + scene + " z=" + zFlag;
+         synchronized (counted) {
+            if (sec >= Long.parseLong(System.getProperty("freeworlds.countPolys")) && counted.add(key)) {
+               System.err.println("[RW] pasada " + key + ": " + p.clumps + " clumps, " + p.polys + " poligonos, " + p.drawn + " dibujados, "
+                  + p.texPixels + " px con textura, " + p.flatPixels + " px planos");
+            }
+         }
+      }
    }
 
    /**
@@ -451,6 +819,8 @@ public final class NativeCamera {
 
    private static void drawClump(Pass p, NativeScene.Clump k, float[] ltm) {
       int nv = k.verts.size();
+      p.clumps++;
+      p.polys += k.polys.size();
       if (nv == 0 || k.polys.isEmpty()) {
          return;
       }
@@ -525,6 +895,7 @@ public final class NativeCamera {
          if (cl.length < 3) {
             continue;
          }
+         p.drawn++;
          int m2 = cl.length;
          float[] sx = new float[m2], sy = new float[m2];
          for (int i = 0; i < m2; i++) {
@@ -537,6 +908,9 @@ public final class NativeCamera {
             continue;
          }
          NativeTextures.Texture tex = mat == null ? null : NativeTextures.texture(mat.texture);
+         if (tex == null && mat != null && mat.textureName != null) {
+            tex = NativeTextures.find(mat.textureName);
+         }
          raster(p, cl, sx, sy, mat, tex, k, vertexLit ? null : lit.clone());
       }
    }
@@ -762,6 +1136,17 @@ public final class NativeCamera {
             }
             p.z[zi] = iz;
             c.raster[zi] = (short) pix;
+            if (tex != null) {
+               p.texPixels++;
+            } else {
+               p.flatPixels++;
+            }
+            if (x == c.renderOffX + c.vpW / 2 && y == c.renderOffY + c.vpH / 2 && mat != null) {
+               p.centre = "color " + mat.color[0] + "," + mat.color[1] + "," + mat.color[2]
+                  + " tex=" + (tex != null ? mat.textureName : "NINGUNA(" + mat.textureName + ")")
+                  + " amb=" + mat.ambient + " dif=" + mat.diffuse + " z=" + (1.0F / iz)
+                  + " clump=" + k.verts.size() + "v/" + k.polys.size() + "p";
+            }
          }
       }
    }

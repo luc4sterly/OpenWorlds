@@ -217,4 +217,29 @@ public final class NativeTextures {
       }
       return new Object[]{handles, sp.displayW, sp.displayH};
    }
+   /**
+    * Dictionary lookup by name, without touching the reference count.
+    * A shape script names its textures by file name alone ("flr1c.cmp")
+    * while the client registers them under the URL it resolved
+    * ("home|groundzero|dtex|flr1c|cmp"), so a plain miss falls back to the
+    * entry whose name ends with that file name. RWL21 does not need this:
+    * it reads the texture itself from the shape path.
+    */
+   public static synchronized Texture find(String name) {
+      if (name == null) {
+         return null;
+      }
+      String key = dictName(name, 0);
+      Texture t = dict.get(key);
+      if (t != null) {
+         return t;
+      }
+      String tail = "|" + key;
+      for (Map.Entry<String, Texture> e : dict.entrySet()) {
+         if (e.getKey().endsWith(tail)) {
+            return e.getValue();
+         }
+      }
+      return null;
+   }
 }

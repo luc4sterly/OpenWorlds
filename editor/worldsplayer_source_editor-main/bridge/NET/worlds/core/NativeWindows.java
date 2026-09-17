@@ -124,15 +124,18 @@ public final class NativeWindows {
     */
    private static java.awt.Component findComponent(java.awt.Container parent, int x, int y, int w, int h) {
       for (java.awt.Component c : parent.getComponents()) {
-         java.awt.Rectangle r = screenRect(c);
-         if (r != null && r.x == x && r.y == y && r.width == w && r.height == h) {
-            return c;
-         }
+         // innermost first: a container and the canvas inside it can share
+         // the rectangle, and the child window the native code finds is the
+         // innermost one (the render canvas, not the panel around it)
          if (c instanceof java.awt.Container) {
             java.awt.Component f = findComponent((java.awt.Container) c, x, y, w, h);
             if (f != null) {
                return f;
             }
+         }
+         java.awt.Rectangle r = screenRect(c);
+         if (r != null && r.x == x && r.y == y && r.width == w && r.height == h) {
+            return c;
          }
       }
       return null;

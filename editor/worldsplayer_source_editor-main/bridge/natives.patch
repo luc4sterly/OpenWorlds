@@ -28,6 +28,22 @@ diff a/NET/worlds/console/PolledDialog.java b/NET/worlds/console/PolledDialog.ja
                 this.dispose();
              }
  
+diff a/NET/worlds/console/StatMemNode.java b/NET/worlds/console/StatMemNode.java
+--- a/NET/worlds/console/StatMemNode.java
++++ b/NET/worlds/console/StatMemNode.java
+@@ -95,6 +95,12 @@
+ 
+    public void updateMemoryStatus() {
+       NET.worlds.core.NativeMock.log("StatMemNode", "updateMemoryStatus", new Object[0]);
++      // GlobalMemoryStatus (0x0040a360), each field clamped to 0x7fffffff
++      long[] m = NET.worlds.core.NativeSystem.memoryStatus();
++      this._totPhysMem = (int)m[0];
++      this._availPhysMem = (int)m[1];
++      this._totPageMem = (int)m[2];
++      this._availPageMem = (int)m[3];
+    }
+ 
+    static {
 diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
 --- a/NET/worlds/console/Window.java
 +++ b/NET/worlds/console/Window.java
@@ -385,12 +401,16 @@ diff a/NET/worlds/core/Std.java b/NET/worlds/core/Std.java
 diff a/NET/worlds/scape/Camera.java b/NET/worlds/scape/Camera.java
 --- a/NET/worlds/scape/Camera.java
 +++ b/NET/worlds/scape/Camera.java
-@@ -179,7 +179,46 @@
+@@ -179,7 +179,50 @@
  
     synchronized WObject renderScene(int var1, int var2, int var3, int var4, Pilot var5) {
        NET.worlds.core.NativeMock.log("Camera", "renderScene", new Object[]{var1, var2, var3, var4, var5});
 -      return null;
 +      this.cameraMode = var4;
++      if (var1 == NET.worlds.core.NativeWindows.mainHwnd()) {
++         NET.worlds.core.NativeCamera.mainWidth = var2;
++         NET.worlds.core.NativeCamera.mainHeight = var3;
++      }
 +      int cam = 0;
 +      int clump = this.clumpID;
 +      if (clump == 0) {
@@ -423,7 +443,7 @@ diff a/NET/worlds/scape/Camera.java b/NET/worlds/scape/Camera.java
 +         NET.worlds.core.NativeCamera.setViewwindow(cam, vw, vh);
 +         NET.worlds.core.NativeCamera.setViewOffset(cam, 0.0F, 0.0F);
 +      }
-+      this.rwRenderRoom(scene, cam, var5);
++      this.rwRenderRoom(scene, cam, 0.0F, 0.0F, 0.0F, 0.0F, var5);
 +      if (cam != 0 && (var4 & 2) != 0) {
 +         NET.worlds.core.NativeCamera.show(cam);
 +      }
@@ -433,14 +453,16 @@ diff a/NET/worlds/scape/Camera.java b/NET/worlds/scape/Camera.java
     }
  
     public WObject getObjectAt(float var1, float var2, boolean var3, Point3Temp var4) {
-@@ -350,5 +389,112 @@
+@@ -350,5 +393,127 @@
  
     static {
        cameraNativeInit();
 +   }
 +
 +   /**
-+    * gamma.dll 0x00414aa0, called by renderScene with four 0.0 floats: the
++    * gamma.dll 0x00414aa0, called by renderScene with four 0.0 floats (a
++    * portal passes its far position and distance, handed to Room.prerender/
++    * postrender): the
 +    * background (sky/ground split at the horizon, or black when there are
 +    * no colours, a pilot and alwaysClearBackground), the infinite
 +    * background scene with the camera moved to the origin, Room.prerender,
@@ -449,7 +471,7 @@ diff a/NET/worlds/scape/Camera.java b/NET/worlds/scape/Camera.java
 +    * off (callback 0x418650) while the scenes are drawn and switched back on
 +    * (0x418630) afterwards. cameraID holds the RW camera meanwhile.
 +    */
-+   private void rwRenderRoom(int scene, int cam, Pilot pilot) {
++   void rwRenderRoom(int scene, int cam, float fx, float fy, float fz, float fd, Pilot pilot) {
 +      Room room = (Room)NET.worlds.core.NativeScene.getSceneData(scene);
 +      int oldID = this.cameraID;
 +      this.cameraID = cam;
@@ -497,7 +519,7 @@ diff a/NET/worlds/scape/Camera.java b/NET/worlds/scape/Camera.java
 +         }
 +         NET.worlds.core.NativeCamera.setPosition(cam, pos[0], pos[1], pos[2]);
 +      }
-+      room.prerender(this, 0.0F, 0.0F, 0.0F, 0.0F);
++      room.prerender(this, fx, fy, fz, fd);
 +      int pilotClump = 0;
 +      if (pilot != null && pilot.cameraMode - 1 >= 0 && pilot.cameraMode - 1 <= 1) {
 +         pilotClump = pilot.clumpID;
@@ -528,7 +550,7 @@ diff a/NET/worlds/scape/Camera.java b/NET/worlds/scape/Camera.java
 +      if (pilotClump != 0) {
 +         NET.worlds.core.NativeScene.setTreeState(pilotClump, 2);
 +      }
-+      room.postrender(this, 0.0F, 0.0F, 0.0F, 0.0F);
++      room.postrender(this, fx, fy, fz, fd);
 +      this.cameraID = oldID;
 +   }
 +
@@ -536,6 +558,19 @@ diff a/NET/worlds/scape/Camera.java b/NET/worlds/scape/Camera.java
 +   public void rwSetPick(WObject obj, Point3Temp spot) {
 +      this.pickedObj = obj;
 +      this.unpickSpot = spot;
++   }
++
++   public void rwSetPickXY(float x, float y) {
++      this.xPick = x;
++      this.yPick = y;
++   }
++
++   int rwCameraMode() {
++      return this.cameraMode;
++   }
++
++   int rwCameraID() {
++      return this.cameraID;
 +   }
 +
 +   public float rwPickX() {
@@ -602,6 +637,119 @@ diff a/NET/worlds/scape/FileTexture.java b/NET/worlds/scape/FileTexture.java
     }
  
     public String getName() {
+diff a/NET/worlds/scape/Hologram.java b/NET/worlds/scape/Hologram.java
+--- a/NET/worlds/scape/Hologram.java
++++ b/NET/worlds/scape/Hologram.java
+@@ -256,6 +256,9 @@
+ 
+    public void makeTemporarilyInvisible() {
+       NET.worlds.core.NativeMock.log("Hologram", "makeTemporarilyInvisible", new Object[0]);
++      if (this.clumpID != 0) {
++         NET.worlds.core.NativeScene.setClumpState(this.clumpID, 1);
++      }
+    }
+ 
+    protected void markVoid() {
+@@ -294,10 +297,15 @@
+ 
+    public void prerender(Camera var1) {
+       NET.worlds.core.NativeMock.log("Hologram", "prerender", new Object[]{var1});
++      this.rwPrerender(var1);
+    }
+ 
+    public void postrender(Camera var1) {
+       NET.worlds.core.NativeMock.log("Hologram", "postrender", new Object[]{var1});
++      int m = this.origTransformID;
++      this.origTransformID = 0;
++      NET.worlds.core.NativeScene.transformClump(this.clumpID, NET.worlds.core.NativeRw.matrix(m), NET.worlds.core.NativeRw.REPLACE);
++      NET.worlds.core.NativeRw.destroyMatrix(m);
+    }
+ 
+    public void saveState(Saver var1) throws IOException {
+@@ -554,5 +562,83 @@
+ 
+    static {
+       nativeInit();
++   }
++
++   /** atan2(y, x) in degrees minus 90, 0 outside (-1000, 1000] (gamma.dll 0x00413ce0). */
++   private static float rwFacing(float y, float x) {
++      if (x == 0.0F && y == 0.0F) {
++         return 0.0F;
++      }
++      float a = (float)Math.atan2(y, x) * 180.0F * (float)0.3183098861928886 - 90.0F;
++      return !(a > 1000.0F) && !(a < -1000.0F) ? a : 0.0F;
++   }
++
++   /**
++    * gamma.dll Hologram.prerender (0x00413ce0): save the modeling matrix in
++    * origTransformID, pick the side facing the camera (setActiveSide) and
++    * turn the clump about its local Z towards the camera (or to the side
++    * angle with flag 4, or against the camera's look direction with flag
++    * 0x40000); with scaleDist > 0 it is enlarged beyond that distance.
++    */
++   private void rwPrerender(Camera cam) {
++      int rc = cam.rwCameraID();
++      int clump = this.clumpID;
++      if (this.origTransformID != 0) {
++         NET.worlds.core.NativeAssert.fail("nHologram", 0x86);
++      }
++      int saved = NET.worlds.core.NativeRw.createMatrix();
++      NET.worlds.core.NativeScene.getClumpMatrix(clump, NET.worlds.core.NativeRw.matrix(saved));
++      this.origTransformID = saved;
++      float[] ltm = new float[16];
++      NET.worlds.core.NativeScene.getClumpLTM(clump, ltm);
++      float[] camPos = NET.worlds.core.NativeCamera.getPosition(rc);
++      float dx = camPos[0] - ltm[12], dy = camPos[1] - ltm[13], dz = camPos[2] - ltm[14];
++      float sx = this.getScaleX(), sy = this.getScaleY(), sz = this.getScaleZ();
++      NET.worlds.core.NativeRw.scale(ltm, 1.0F / sx, 1.0F / sy, 1.0F / sz, NET.worlds.core.NativeRw.PRECONCAT);
++      float[] inv = new float[16];
++      NET.worlds.core.NativeRw.invert(ltm, inv);
++      float[] d = NET.worlds.core.NativeRw.transformVector(inv, dx, dy, dz);
++      float angle = rwFacing(d[1], d[0]);
++      int n = this.getNumSides();
++      if (n < 1) {
++         NET.worlds.core.NativeAssert.fail("nHologram", 0xb8);
++      }
++      int n2 = n * 2;
++      float f = (float)n * angle * 0.0055555557F + 1.0F;
++      while (f >= (float)n2) {
++         f -= (float)n2;
++      }
++      while (f < 0.0F) {
++         f += (float)n2;
++      }
++      int side = Math.round(f) >> 1;
++      if (side < 0 || n2 <= side) {
++         side = 0;
++      }
++      this.setActiveSide(side);
++      if ((this.flags & 4) != 0) {
++         angle = (float)side * 360.0F / (float)n;
++      }
++      if ((this.flags & 0x40000) != 0) {
++         float[] at = NET.worlds.core.NativeCamera.getLookAt(rc);
++         float[] la = NET.worlds.core.NativeRw.transformVector(inv, at[0], at[1], at[2]);
++         angle = rwFacing(-la[1], -la[0]);
++      }
++      float[] m = NET.worlds.core.NativeRw.matrix(saved).clone();
++      NET.worlds.core.NativeRw.scale(m, 1.0F / sx, 1.0F / sy, 1.0F / sz, NET.worlds.core.NativeRw.PRECONCAT);
++      NET.worlds.core.NativeRw.rotate(m, 0.0F, 0.0F, 1.0F, angle, NET.worlds.core.NativeRw.PRECONCAT);
++      NET.worlds.core.NativeRw.scale(m, sx, sy, sz, NET.worlds.core.NativeRw.PRECONCAT);
++      float sd = this.scaleDist;
++      if (sd > 0.0F) {
++         if (NET.worlds.core.NativeCamera.mainWidth > 0) {
++            sd = (float)NET.worlds.core.NativeCamera.mainWidth * 0.002F * sd;
++         }
++         float r = (d[0] * d[0] + d[1] * d[1]) / (sd * sd);
++         if (r > 1.0F) {
++            float s = (float)Math.sqrt(r);
++            NET.worlds.core.NativeRw.scale(m, s, s, s, NET.worlds.core.NativeRw.PRECONCAT);
++         }
++      }
++      NET.worlds.core.NativeScene.transformClump(clump, m, NET.worlds.core.NativeRw.REPLACE);
+    }
+ }
 diff a/NET/worlds/scape/Material.java b/NET/worlds/scape/Material.java
 --- a/NET/worlds/scape/Material.java
 +++ b/NET/worlds/scape/Material.java
@@ -728,6 +876,238 @@ diff a/NET/worlds/scape/Point3Temp.java b/NET/worlds/scape/Point3Temp.java
        return this;
     }
  
+diff a/NET/worlds/scape/Polygon.java b/NET/worlds/scape/Polygon.java
+--- a/NET/worlds/scape/Polygon.java
++++ b/NET/worlds/scape/Polygon.java
+@@ -32,6 +32,12 @@
+ 
+    public void nativeSetVertex(int var1, float var2, float var3, float var4, float var5, float var6) {
+       NET.worlds.core.NativeMock.log("Polygon", "nativeSetVertex", new Object[]{var1, var2, var3, var4, var5, var6});
++      int c = this.clumpID;
++      if (c != 0) {
++         NET.worlds.core.NativeScene.setVertex(c, var1 + 1, var2, var3, var4);
++         NET.worlds.core.NativeScene.setVertexUV(c, var1 + 1, var5, var6);
++         NET.worlds.core.NativeScene.setClumpHints(c, 2);
++      }
+    }
+ 
+    protected void addRwChildren(WObject var1) {
+diff a/NET/worlds/scape/Portal.java b/NET/worlds/scape/Portal.java
+--- a/NET/worlds/scape/Portal.java
++++ b/NET/worlds/scape/Portal.java
+@@ -355,10 +355,43 @@
+ 
+    protected void updateVisible() {
+       NET.worlds.core.NativeMock.log("Portal", "updateVisible", new Object[0]);
++      int c = this.clumpID;
++      if (c == 0) {
++         return;
++      }
++      if (this._state == 2 && (this.flags & 0x40) == 0) {
++         NET.worlds.core.NativeScene.setClumpState(c, 1);
++         return;
++      }
++      super.updateVisible();
+    }
+ 
+    void setTransform() {
+       NET.worlds.core.NativeMock.log("Portal", "setTransform", new Object[0]);
++      int c = this.clumpID;
++      if (c != 0 && this._state == 2) {
++         if (this._p2pxform == null) {
++            this._p2pxform = new Transform();
++         }
++         float[] m = this._p2pxform.rwMatrix();
++         float[] s = new float[16];
++         NET.worlds.core.NativeScene.getClumpLTM(c, s);
++         NET.worlds.core.NativeRw.scale(s, 1.0F / this.getScaleX(), 1.0F / this.getScaleY(), 1.0F / this.getScaleZ(), NET.worlds.core.NativeRw.PRECONCAT);
++         NET.worlds.core.NativeRw.invert(s, m);
++         if ((this.flags & 4) != 0) {
++            m[0] = -m[0];
++            m[4] = -m[4];
++            m[8] = -m[8];
++            m[12] = -m[12];
++            if (m[15] != 1.0F) {
++               m[15] = 1.0F;
++            }
++         }
++         NET.worlds.core.NativeRw.rotate(m, 0.0F, 0.0F, 1.0F, this._fartheta, NET.worlds.core.NativeRw.POSTCONCAT);
++         NET.worlds.core.NativeRw.translate(m, this._farx, this._fary, this._farz, NET.worlds.core.NativeRw.POSTCONCAT);
++         return;
++      }
++      this._p2pxform = null;
+    }
+ 
+    public void discardTransform() {
+@@ -372,10 +405,18 @@
+ 
+    public void prerender(Camera var1) {
+       NET.worlds.core.NativeMock.log("Portal", "prerender", new Object[]{var1});
++      this.rwPrerender(var1);
+    }
+ 
+    public void postrender(Camera var1) {
+       NET.worlds.core.NativeMock.log("Portal", "postrender", new Object[]{var1});
++      if ((var1.rwCameraMode() & 4) == 0 && this.clumpID != 0) {
++         if (this._state == 2 && (this.flags & 0x40) == 0) {
++            NET.worlds.core.NativeScene.setClumpState(this.clumpID, 1);
++            return;
++         }
++         super.updateVisible();
++      }
+    }
+ 
+    public BumpCalc getBumpCalc(BumpEventTemp var1) {
+@@ -812,5 +853,149 @@
+    static {
+       nativeInit();
+       standardPassthroughBumpCalc.setName("defaultPassthroughBumpCalc");
++   }
++
++   /** Recursion depth of portal rendering (DAT_00489624, at most 10 nested). */
++   private static int rwDepth;
++
++   /**
++    * gamma.dll Portal.prerender (0x0041ba30): in "through" mode (camera
++    * mode bit 4) a connected (state 2), visible portal that faces the camera
++    * renders its far room into the screen rectangle the portal covers:
++    * camera moved through _p2pxform, viewport/viewwindow/viewoffset narrowed
++    * to that rectangle, the far room drawn with the room pass 0x00414aa0
++    * (far position and distance to Room.prerender), mirrored when flag 4,
++    * then everything restored. Picking coordinates are made relative too.
++    */
++   private void rwPrerender(Camera cam) {
++      int clump = this.clumpID;
++      if (clump == 0) {
++         NET.worlds.core.NativeAssert.fail("nPortal", 0x1e9);
++      }
++      int mode = cam.rwCameraMode();
++      if ((mode & 4) == 0) {
++         NET.worlds.core.NativeScene.setClumpState(clump, 2);
++         return;
++      }
++      int flags = this.flags;
++      if (this._state != 2) {
++         if (this._state == -1 && (flags & 0x40000) == 0) {
++            this.reset();
++         }
++         return;
++      }
++      if ((flags & 1) == 0 || rwDepth > 10) {
++         return;
++      }
++      rwDepth++;
++      try {
++         int rc = cam.rwCameraID();
++         if (rc == 0 || !NET.worlds.core.NativeCamera.portalFacesCamera(rc, clump)) {
++            return;
++         }
++         int[] vp = NET.worlds.core.NativeCamera.offsetAndViewport(rc);
++         float[] vw = NET.worlds.core.NativeCamera.getViewwindow(rc);
++         float[] vo = NET.worlds.core.NativeCamera.getViewOffset(rc);
++         int[] r = NET.worlds.core.NativeCamera.portalRect(clump, rc);
++         int x = r[0], y = r[1], w = r[2], h = r[3];
++         if (x + w < 1 || vp[2] <= x || y + h < 1 || vp[3] <= y) {
++            return;
++         }
++         if (x < 0) {
++            w += x;
++            x = 0;
++         }
++         if (y < 0) {
++            h += y;
++            y = 0;
++         }
++         if (vp[2] < x + w) {
++            w = vp[2] - x;
++         }
++         if (vp[3] < y + h) {
++            h = vp[3] - y;
++         }
++         if (w <= 0 || h <= 0) {
++            return;
++         }
++         Portal far = this._farSidePortal;
++         if (far != null && far._changeNum != this._farChangeNum) {
++            this.recomputeFarPosition();
++         }
++         if (this._p2pxform == null) {
++            this.setTransform();
++            return;
++         }
++         int pickX = 0, pickY = 0;
++         if ((mode & 1) != 0) {
++            pickX = Math.round(cam.rwPickX());
++            pickY = Math.round(cam.rwPickY());
++            int px = pickX - x;
++            if ((flags & 4) != 0) {
++               px = w - px;
++            }
++            cam.rwSetPickXY((float)px, (float)(pickY - y));
++         }
++         float[] pos = NET.worlds.core.NativeCamera.getPosition(rc);
++         float[] at = NET.worlds.core.NativeCamera.getLookAt(rc);
++         float[] up = NET.worlds.core.NativeCamera.getLookUp(rc);
++         float[] m = this._p2pxform.rwMatrix();
++         float[] npos = NET.worlds.core.NativeRw.transformPoint(m, pos[0], pos[1], pos[2]);
++         float[] nat = NET.worlds.core.NativeRw.transformVector(m, at[0], at[1], at[2]);
++         float[] nup = NET.worlds.core.NativeRw.transformVector(m, up[0], up[1], up[2]);
++         NET.worlds.core.NativeCamera.setPosition(rc, npos[0], npos[1], npos[2]);
++         NET.worlds.core.NativeCamera.setLookAt(rc, nat[0], nat[1], nat[2]);
++         NET.worlds.core.NativeCamera.setLookUp(rc, nup[0], nup[1], nup[2]);
++         Room farRoom = this._farSideRoom;
++         if (farRoom == null) {
++            if (far == null) {
++               NET.worlds.core.NativeAssert.fail("nPortal", 0x295);
++            }
++            farRoom = far.getRoom();
++            this._farSideRoom = farRoom;
++         }
++         int farScene = 0;
++         if (farRoom != null) {
++            farRoom.aboutToDraw();
++            int fc = farRoom.clumpID;
++            farScene = fc == 0 ? 0 : NET.worlds.core.NativeScene.getClumpOwner(fc);
++         }
++         if (farScene == 0) {
++            // as in gamma.dll: state -1 and return without restoring the camera
++            this._state = -1;
++            this.updateVisible();
++            return;
++         }
++         {
++            NET.worlds.core.NativeCamera.setOffsetAndViewport(rc, vp[0] + x, vp[1] + y, w, h);
++            float nvw = (float)w * vw[0] / (float)vp[2];
++            float nvh = (float)h * vw[1] / (float)vp[3];
++            NET.worlds.core.NativeCamera.setViewwindow(rc, nvw, nvh);
++            boolean mirror = (flags & 4) != 0;
++            float ox = vo[0] - (float)(x * 2) * vw[0] / (float)vp[2] - (nvw - vw[0]);
++            if (mirror) {
++               ox = -ox;
++            }
++            NET.worlds.core.NativeCamera.setViewOffset(rc, ox, nvh - vw[1] + (float)(y * 2) * vw[1] / (float)vp[3] + vo[1]);
++            float[] p = NET.worlds.core.NativeCamera.getPosition(rc);
++            float dx = this._farx - p[0], dy = this._fary - p[1], dz = this._farz - p[2];
++            float dist = (float)Math.sqrt(dz * dz + dy * dy + dx * dx);
++            cam.rwRenderRoom(farScene, rc, this._farx, this._fary, this._farz, dist, null);
++            if (mirror && (mode & 2) != 0) {
++               NET.worlds.core.NativeCamera.mirrorViewport(rc);
++            }
++         }
++         if ((mode & 1) != 0) {
++            cam.rwSetPickXY((float)pickX, (float)pickY);
++         }
++         NET.worlds.core.NativeCamera.setPosition(rc, pos[0], pos[1], pos[2]);
++         NET.worlds.core.NativeCamera.setLookAt(rc, at[0], at[1], at[2]);
++         NET.worlds.core.NativeCamera.setLookUp(rc, up[0], up[1], up[2]);
++         NET.worlds.core.NativeCamera.setOffsetAndViewport(rc, vp[0], vp[1], vp[2], vp[3]);
++         NET.worlds.core.NativeCamera.setViewwindow(rc, vw[0], vw[1]);
++         NET.worlds.core.NativeCamera.setViewOffset(rc, vo[0], vo[1]);
++      } finally {
++         rwDepth--;
++      }
+    }
+ }
 diff a/NET/worlds/scape/Room.java b/NET/worlds/scape/Room.java
 --- a/NET/worlds/scape/Room.java
 +++ b/NET/worlds/scape/Room.java
@@ -948,6 +1328,161 @@ diff a/NET/worlds/scape/ScapePicTexture.java b/NET/worlds/scape/ScapePicTexture.
 +      t._movieFrame = frame;
 +      t._movie = movie;
 +      return t;
+    }
+ }
+diff a/NET/worlds/scape/Shape.java b/NET/worlds/scape/Shape.java
+--- a/NET/worlds/scape/Shape.java
++++ b/NET/worlds/scape/Shape.java
+@@ -127,7 +127,30 @@
+ 
+    public float calcLODDistance(float var1) {
+       NET.worlds.core.NativeMock.log("Shape", "calcLODDistance", new Object[]{var1});
+-      return 0.0F;
++      int minLod = NET.worlds.core.IniFile.gamma().getIniInt("minLodDistance", 200);
++      int w = NET.worlds.core.NativeCamera.mainWidth;
++      int h = NET.worlds.core.NativeCamera.mainHeight;
++      if (h == 0 || w == 0) {
++         return (float)minLod;
++      }
++      float f = var1 * 100.0F;
++      float a;
++      float b;
++      if (h < w) {
++         a = 1.0F / (float)w;
++         b = ((float)h / (float)w) / (float)h;
++      } else {
++         a = ((float)w / (float)h) / (float)w;
++         b = 1.0F / (float)h;
++      }
++      float bias;
++      try {
++         bias = Float.parseFloat(NET.worlds.core.IniFile.gamma().getIniString("lodBias", "0.5"));
++      } catch (NumberFormatException e) {
++         bias = 0.0F;
++      }
++      f = f / (a * b) * bias;
++      return f < (float)minLod ? (float)minLod : f;
+    }
+ 
+    public synchronized boolean setLOD(float var1) {
+@@ -417,20 +440,51 @@
+ 
+    public void nativeSetMaterial(Material var1) {
+       NET.worlds.core.NativeMock.log("Shape", "nativeSetMaterial", new Object[]{var1});
++      if (var1 != null && this.animatableClumpID != 0 && this.clumpID != 0) {
++         int[] ids = var1.rwIds();
++         if (ids != null && ids.length > 0 && ids[0] != 0) {
++            NET.worlds.core.NativeScene.setAllPolygonMaterials(this.animatableClumpID, ids[0]);
++         }
++      }
+    }
+ 
+    protected int extractSubclump(int var1) {
+       NET.worlds.core.NativeMock.log("Shape", "extractSubclump", new Object[]{var1});
+-      return 0;
++      int c = this.clumpID;
++      if (c == 0) {
++         return 0;
++      }
++      int child = NET.worlds.core.NativeScene.getFirstChild(c);
++      int n = var1;
++      while (child != 0 && --n >= 0) {
++         child = NET.worlds.core.NativeScene.getNextSibling(child);
++      }
++      if (child != 0) {
++         NET.worlds.core.NativeScene.detachClump(child);
++      }
++      return child;
+    }
+ 
+    protected static int addEmptyParentClump(int var0) {
+       NET.worlds.core.NativeMock.log("Shape", "addEmptyParentClump", new Object[]{var0});
+-      return 0;
++      int c = NET.worlds.core.NativeScene.createClump();
++      if (c == 0) {
++         NET.worlds.core.NativeAssert.fail("nShape", 0x62f);
++      }
++      NET.worlds.core.NativeScene.setClumpState(c, 1);
++      if (var0 != 0) {
++         NET.worlds.core.NativeScene.addChildToClump(c, var0);
++      }
++      return c;
+    }
+ 
+    private static void convertSpecial(int var0) {
+       NET.worlds.core.NativeMock.log("Shape", "convertSpecial", new Object[]{var0});
++      // gamma.dll 0x0041f1b0 -> 0x0041efd0 / 0x0041ee70: walks the hierarchy and,
++      // for clumps whose tag has bit 0x40000000 (a 4-character name packed in
++      // 6-bit characters) or 0x20000000, turns their polygons into Java objects
++      // through 0x0041e780. ⚠️ NO IMPLEMENTADO: shapes keep their plain
++      // geometry, so the "special" surfaces of a .rwx shape are not created.
+    }
+ 
+    public static void nativeInit() {
+@@ -439,11 +493,22 @@
+ 
+    private static int makeDefaultShape() {
+       NET.worlds.core.NativeMock.log("Shape", "makeDefaultShape", new Object[0]);
+-      return 0;
++      int c = NET.worlds.core.NativeScene.createClump();
++      if (c == 0) {
++         NET.worlds.core.NativeAssert.fail("nShape", 0x4cb);
++      }
++      NET.worlds.core.NativeScene.setClumpState(c, 1);
++      return c;
+    }
+ 
+    private void releasePendingShape() {
+       NET.worlds.core.NativeMock.log("Shape", "releasePendingShape", new Object[0]);
++      int c = this.pendingShape;
++      if (c != 0) {
++         this.pendingShape = 0;
++         NET.worlds.core.NativeScene.setClumpData(c, null);
++         NET.worlds.core.NativeScene.destroyClump(c);
++      }
+    }
+ 
+    private void releaseTextures() {
+diff a/NET/worlds/scape/ShapeLoader.java b/NET/worlds/scape/ShapeLoader.java
+--- a/NET/worlds/scape/ShapeLoader.java
++++ b/NET/worlds/scape/ShapeLoader.java
+@@ -106,7 +106,18 @@
+ 
+    private int finishLoadingTextFile(String var1) {
+       NET.worlds.core.NativeMock.log("ShapeLoader", "finishLoadingTextFile", new Object[]{var1});
+-      return 0;
++      NET.worlds.core.NativeShapes.Shape s = NET.worlds.core.NativeShapes.readShape(var1);
++      if (s.clump == 0) {
++         return -1;
++      }
++      NET.worlds.network.URL base = this.shape.realFile != null ? this.shape.realFile : this.shape.getURL();
++      if (base != null) {
++         for (int i = 0; i < s.textures.size(); i++) {
++            this.startTextureLoad((String)s.textures.get(i), base);
++         }
++      }
++      this.shape.animatableClumpID = s.clump;
++      return s.clump;
+    }
+ 
+    private int loadBodFile(String var1, int var2) {
+@@ -116,11 +127,16 @@
+ 
+    private int loadBinaryFile(String var1, URL var2) {
+       NET.worlds.core.NativeMock.log("ShapeLoader", "loadBinaryFile", new Object[]{var1, var2});
+-      return 0;
++      return NET.worlds.core.NativeShapes.openBinary(var1);
+    }
+ 
+    private int finishLoadingBinaryFile(int var1, boolean var2) {
+       NET.worlds.core.NativeMock.log("ShapeLoader", "finishLoadingBinaryFile", new Object[]{var1, var2});
+-      return 0;
++      int clump = NET.worlds.core.NativeShapes.readBinary(var1, var2);
++      if (clump == 0) {
++         return -1;
++      }
++      this.shape.animatableClumpID = clump;
++      return clump;
     }
  }
 diff a/NET/worlds/scape/Surface.java b/NET/worlds/scape/Surface.java
@@ -1450,7 +1985,7 @@ diff a/NET/worlds/scape/WObject.java b/NET/worlds/scape/WObject.java
 +      if (this.clumpID == 0) {
 +         NET.worlds.core.NativeAssert.fail("nWObject", 266);
 +      }
-+      NET.worlds.core.NativeScene.setClumpHints(this.clumpID, 0);
++      NET.worlds.core.NativeScene.setClumpHints(this.clumpID, 2);
     }
  
     int getNumVerts() {
