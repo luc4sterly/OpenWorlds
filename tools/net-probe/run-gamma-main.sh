@@ -75,7 +75,9 @@ JSTACK_LOG="$WORKDIR/gamma-jstack.txt"
 echo "== lanzando NET.worlds.console.Gamma (max ${TIMEOUT}s) =="
 (
    cd "$CWD_DIR"
-   "$JAVA" -cp ".:$CLIENT_SRC_DIR/out" NET.worlds.console.Gamma
+   # exec: $! debe ser el PID de la JVM, no el de la subshell; sin exec,
+   # jstack/kill actuaban sobre la subshell y la JVM quedaba huerfana.
+   exec "$JAVA" -cp ".:$CLIENT_SRC_DIR/out" NET.worlds.console.Gamma
 ) > "$STDOUT_LOG" 2>&1 &
 GAMMA_PID=$!
 
