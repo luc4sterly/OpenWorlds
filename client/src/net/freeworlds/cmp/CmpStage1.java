@@ -370,6 +370,60 @@ public final class CmpStage1 {
       return decodeRegions(mov, tableRegionSize, groupRegion);
    }
 
+   /**
+    * One group of a .cmp/.mov read the way gamma.dll's ScapePic reader does
+    * (FUN_00442750 / FUN_00442bc0): the table region is file[34..34+u16@28),
+    * and for movies (mode bit 7) a frame table of 20-byte entries follows it
+    * (u32 absolute group offset, u16 group size, u16 next frame, u16
+    * reference frame or 0xFFFF, rest 0xFF). Stills have one group right
+    * after the table region, size u16@30.
+    */
+   public static CmpStage1 decodeGroupAt(byte[] file, int groupOffset, int groupSize) throws IOException {
+      int tableRegionSize = u16(file, 28);
+      if (groupOffset < 34 + tableRegionSize || groupOffset + groupSize > file.length) {
+         throw new IOException("group outside file (off=" + groupOffset + " size=" + groupSize + ")");
+      }
+      byte[] groupRegion = new byte[groupSize + 64];
+      System.arraycopy(file, groupOffset, groupRegion, 0, groupSize);
+      return decodeRegions(file, tableRegionSize, groupRegion);
+   }
+
+   /** Frame count as gamma.dll reads it: 1, or the u16 at the table cursor for movies. */
+   public static int[][] frameTable(byte[] file) throws IOException {
+      int mode = u8(file, 4);
+      int tableRegionSize = u16(file, 28);
+      if ((mode & 0x80) == 0) {
+         return new int[][]{{34 + tableRegionSize, u16(file, 30), 0xFFFF, 0xFFFF}};
+      }
+      int frames = movieFrameCount(file);
+      int[][] out = new int[frames][];
+      int ft = 34 + tableRegionSize;
+      for (int i = 0; i < frames; i++) {
+         int o = ft + 20 * i;
+         int off = (file[o] & 0xFF) | (file[o + 1] & 0xFF) << 8 | (file[o + 2] & 0xFF) << 16 | (file[o + 3] & 0xFF) << 24;
+         out[i] = new int[]{off, u16(file, o + 4), u16(file, o + 6), u16(file, o + 8)};
+      }
+      return out;
+   }
+
+   private static int movieFrameCount(byte[] file) throws IOException {
+      int mode = u8(file, 4);
+      int flags = u8(file, 5);
+      int b12 = u8(file, 12);
+      int paletteCount = b12 != 0 ? b12 : 256;
+      int byte13 = u8(file, 13);
+      byte[] tableRegion = new byte[u16(file, 28)];
+      System.arraycopy(file, 34, tableRegion, 0, tableRegion.length);
+      BitReader br = new BitReader(tableRegion, 0);
+      for (int i = 0; i < paletteCount * 18; i++) br.nextBit();
+      int cursor = br.bytesConsumed;
+      if ((mode & 0x02) == 0) cursor += paletteCount;
+      if (byte13 != 0) cursor += (byte13 * 18 + 7) / 8;
+      if ((flags & 0x01) != 0) cursor += (paletteCount / 2) + paletteCount - 1;
+      if ((mode & 0x08) != 0) cursor += 4;
+      return u16(file, 34 + cursor);
+   }
+
    /** Shared .cmp/.mov Stage 1 core: header fields from file[0..33],
     * table region = file[34..34+tableRegionSize), first group decoded
     * from groupRegion[0..]. */
