@@ -43,8 +43,17 @@ macOS no tiene permiso en esta máquina.
   sin procesos huérfanos.
 - Entrada verificada inyectando pulsaciones AWT: el piloto avanza y gira.
 
-Sigue sin: avatares visibles (los cuerpos `.bod` ya se cargan, pero sus
-texturas se descargaban de servidores que hoy no responden), superficies
+Red: `run_gamma.sh` levanta `tools/local-upgrade-server.py` y apunta
+`upgradeServer` de la copia temporal a `127.0.0.1` (el host original ya no
+existe; lo que no hay responde 404 al instante). `build_gamma.sh` parchea
+`Cache`/`CacheEntry` para que el `cache.index` de 2004 cargue en macOS
+(separador de ruta y `localName` de Windows) y las entradas ya cacheadas no
+se refresquen contra el servidor. Con eso las texturas de avatar cacheadas
+(`mfa`, `cmalea`, `pengo`, `mia`...) salen de `cachedir/`; faltan las que
+nunca estuvieron en la cache original (`cfemaleb`, `cfemaleba`, `cfemalec`,
+`cfc`, `fga`, `fja`, `mga`).
+
+Sigue sin: avatares completos (faltan esas texturas), superficies
 web, resaltado, `Shape.convertSpecial`, sonido y vídeo.
 
 ## Qué contiene
