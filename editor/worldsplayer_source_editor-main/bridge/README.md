@@ -34,24 +34,18 @@ tras cada segundo), y `-Dfreeworlds.scriptKeys=MS:KEYCODE:HOLD_MS,...`
 inyecta pulsaciones AWT sintéticas en el canvas. La captura de pantalla de
 macOS no tiene permiso en esta máquina.
 
-## Estado verificado (2026-09-17)
+## Estado verificado (2026-09-18)
 
-- `home:GroundZero/groundzero.world`: entra en GroundZero y lo dibuja con
-  su geometría real (una sala llega a 7.173 polígonos, 1.581 dibujados en
-  un frame) y sus texturas; los portales muestran la sala contigua y
-  varias encadenadas al fondo.
-- Sin URL arranca como el original en `NewWorld.world`, y la segunda
-  cámara (132×130) muestra el banner texturizado `adworlds.cmp`.
-- Entrada: flecha arriba mantenida hace avanzar al piloto hasta la pared y
-  flecha izquierda lo gira (verificado inyectando pulsaciones AWT).
-- Build limpia de 789 clases; estable 45–60 s, `jstack` en `Main.mainLoop`,
-  sin procesos huérfanos, y frames idénticos byte a byte entre dos builds.
+- `home:GroundZero/groundzero.world` entra en GroundZero y lo dibuja con
+  su geometría y sus texturas: salas metálicas, suelos de rejilla,
+  carteles, y los portales muestran la sala contigua y varias encadenadas.
+- Build limpia de 796 clases; estable 45–60 s, `jstack` en `Main.mainLoop`,
+  sin procesos huérfanos.
+- Entrada verificada inyectando pulsaciones AWT: el piloto avanza y gira.
 
-Sigue sin: avatares (`.bod` de `ShapeLoader.loadBodFile` y `DroneAnimator`;
-además sus texturas se descargaban de servidores que ya no responden: 112
-fallos por sesión), superficies web (`TextureSurface`, `IEWebControl`),
-resaltado (`updateHighlight`), la conversión de clumps "especiales" de un
-`.rwx` (`Shape.convertSpecial`), sonido y vídeo.
+Sigue sin: avatares visibles (los cuerpos `.bod` ya se cargan, pero sus
+texturas se descargaban de servidores que hoy no responden), superficies
+web, resaltado, `Shape.convertSpecial`, sonido y vídeo.
 
 ## Qué contiene
 
@@ -63,7 +57,8 @@ resaltado (`updateHighlight`), la conversión de clumps "especiales" de un
 | `NET/worlds/core/NativeTextures.java` | Texturas 128×128 5-6-5 (`FUN_0041a150` elige 16 bits), diccionario por nombre con cuenta de referencias (0x004183e0/0x00418430/0x00418370), paleta con clave de transparencia (0x00422b30), `FileTexture` |
 | `NET/worlds/core/ScapePic.java` | Cabecera ScapePic (0x00442750) sobre `client/src/net/freeworlds/cmp/CmpFrames` (todos los frames de `.mov` por la tabla de frames) |
 | `NET/worlds/core/NativeWindows.java` | Ventanas: la hija de render es el `RenderCanvas` AWT real (0x0040e3f0), instancia de ventana con tamaño de render (0x0040f250/0x0040d950) |
-| `NET/worlds/core/NativeShapes.java` | `RwReadShape` de un `.rwx` (0x0041ce20) y `RwReadStreamChunk(CLUM)` de un `.rwg` (0x0041e630) sobre los parsers verificados de `client/src/net/freeworlds/rwx` y `rwg`: vértices con UV, un polígono por triángulo y un material RW por material del script |
+| `NET/worlds/core/RwxReader.java` | El intérprete de scripts `.rwx` de RWL21 (`RwReadShape` 0x10009bf0, bucle 0x100163e0) mandato a mandato: pilas de CTM, joint y material con copia al entrar en un bloque, `ClumpBegin` congelando la CTM (0x1000f560), `ClumpEnd` fusionando la geometría y re-colgando los nietos (0x1000f980), vértices con la CTM interna aplicada (0x10010270), índices base 1 por clump, `Tag`/`Hints`/`AxisAlignment`, `Proto`/`Include` y el estado de material completo |
+| `NET/worlds/core/NativeShapes.java` | Lo que `ShapeLoader` recibe de RenderWare: el `.rwx` por `RwxReader`, `RwReadStreamChunk(CLUM)` de un `.rwg` (0x0041e630) y los cuerpos `.bod` (0x0041e440) con su tabla de partes y las etiquetas de hueco con bit 0x8000000 |
 | `NET/worlds/core/NativeSystem.java` | `GlobalMemoryStatus` de `StatMemNode.updateMemoryStatus` (0x0040a360) |
 | `NET/worlds/core/NativeInput.java` | Entrada: el WndProc de gamma.dll (0x0040c970, teclas/botones 0x0040c440, movimiento/delta 0x0040c2c0) sobre los eventos AWT del canvas, cola nativa con fusión de movimientos (0x00416940/0x00416b00), teclas pulsadas liberadas al perder foco o soltar el último botón, modo delta y cursor oculto (0x0040c6a0/0x0040c780/0x0040e670); reloj `GetTickCount` y `Std.getTimeZero` (0x00403e6a) |
 | `NET/worlds/core/NativeAssert.java` | Aserción nativa `FUN_00402800`: mismo mensaje y `exit(41)` (sin el MessageBox modal) |
@@ -82,9 +77,18 @@ try-with-resources, la propia capa de mocks), salvo esta.
 
 ## ⚠️ Pendiente de verificar
 
-- **Orden de dibujo**: RW ordena clumps con un BSP y polígonos con un
-  árbol por clump (0x10033750, sin extraer); aquí cada pase usa un
-  z-buffer propio, que es lo que esos órdenes aproximan.
+- **Orden de dibujo**: RW recorre un BSP de clumps de atrás a adelante
+  (0x1002cae0) y, dentro de cada clump, un árbol de ordenación de
+  polígonos (0x10033750) que sólo usa z-buffer en los tramos conflictivos.
+  Aquí se usa z-buffer en todo, que da la oclusión correcta pero no es esa
+  traducción; el árbol de ordenación está pendiente.
+- Del rasterizador sí se sigue el driver de 16 bits: regla de relleno
+  `floor(xIzq)..floor(xDer)-1` sin muestreo al centro, Gouraud afín en
+  pantalla, sombreado plano en los polígonos texturizados, texel 0
+  transparente y el patrón ordenado 8×8 de la translucidez
+  (0x10079240/0x10079280). Pendiente: la división de perspectiva por
+  tramos de 16 píxeles (aquí es por píxel) y las tablas de color del
+  driver.
 - Normales de vértice (media de las caras adyacentes), signo de la normal
   de polígono, regla de relleno, espacio de interpolación de Gouraud,
   patrón de la opacidad y dithering de texturas: no extraídos.
@@ -94,10 +98,8 @@ try-with-resources, la propia capa de mocks), salvo esta.
 - `RwDestroyScene`: se asume que destruye sus clumps y luces.
 - `RwSetClumpVertexUV` rechaza UV fuera del rango del driver; aquí no.
 - `Window.install` devuelve 0 como hInstance.
-- Formas: el `.rwx` se carga aplanado en un solo clump, mientras que el
-  original conserva la jerarquía de `ClumpBegin`/`Tag` (de ahí que
-  `Shape.extractSubclump` no encuentre subclumps). Del `.rwg` no se
-  decodifican aún sus tablas de material y textura.
+- Del `.rwg` no se decodifican aún sus tablas de material y textura
+  (MALT/TELT), así que esas formas salen con el material por defecto.
 - Las texturas de una forma se buscan en el diccionario por nombre de
   fichero; RWL21 las lee él mismo desde la ruta de la forma.
 - Entrada: tabla AWT→VK de Win32 para las teclas cuyo código difiere; la

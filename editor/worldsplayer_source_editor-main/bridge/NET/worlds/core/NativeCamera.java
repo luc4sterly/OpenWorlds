@@ -865,7 +865,7 @@ public final class NativeCamera {
          int n = poly.indices.length;
          float[] nrm = polygonNormal(k, poly);
          float[][] vs = new float[n][NA];
-         boolean vertexLit = mat != null && mat.lightSampling == 2;
+         boolean vertexLit = mat != null && mat.lightSampling == 2 && NativeTextures.texture(mat.texture) == null && mat.textureName == null;
          if (mat != null && !vertexLit) {
             light(mat, nrm[0], nrm[1], nrm[2], ll, lit);
          }
@@ -1011,11 +1011,19 @@ public final class NativeCamera {
    }
 
    /**
-    * Scanline fill of a convex polygon with perspective-correct u, v (texture
-    * mode 0x2 FORESHORTEN), lighting and world position, texel 0
-    * transparent, 128x128 wrap, translucency as a screen-door test against
-    * the opacity byte.
-    * ⚠️ fill rule, Gouraud interpolation space and the dither pattern are not extracted.
+    * Scanline fill as the 16-bit driver does it (RWDL6D21 0x10027de0 for
+    * Gouraud, 0x100259e0 for textured):
+    *
+    * - fill rule: ixL = floor(xLeft), ixR = floor(xRight), pixels
+    *   ixL .. ixR-1 (left inclusive, right exclusive), scanlines taken at
+    *   integer y with no half-pixel offset;
+    * - untextured: Gouraud interpolated affinely in SCREEN space;
+    * - textured: flat shaded through per-polygon colour ramps, with the
+    *   perspective division done once every 16 pixels and affine
+    *   interpolation inside the span; texel 0 is transparent and the
+    *   texture wraps at 128;
+    * - translucency: ordered 8x8 screen-door pattern (tables 0x10079240 /
+    *   0x10079280), the pixel is skipped when opacity <= threshold.
     */
    private static void raster(Pass p, float[][] cl, float[] sx, float[] sy, NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k, float[] facetLit) {
       Cam c = p.c;
@@ -1025,8 +1033,8 @@ public final class NativeCamera {
          minY = Math.min(minY, sy[i]);
          maxY = Math.max(maxY, sy[i]);
       }
-      int y0 = Math.max(Math.max(0, c.renderOffY), (int) Math.ceil(minY - 0.5F));
-      int y1 = Math.min(Math.min(c.height, c.renderOffY + c.vpH) - 1, (int) Math.ceil(maxY - 0.5F) - 1);
+      int y0 = Math.max(Math.max(0, c.renderOffY), (int) Math.floor(minY));
+      int y1 = Math.min(Math.min(c.height, c.renderOffY + c.vpH) - 1, (int) Math.floor(maxY) - 1);
       if (p.pick) {
          if (p.pickY < y0 || p.pickY > y1) {
             return;
@@ -1037,20 +1045,29 @@ public final class NativeCamera {
       boolean litTex = mat != null && (mat.textureModes & 1) != 0;
       int opacity = mat == null ? 255 : (mat.opacity >= 1.0F ? 255 : ((int) (mat.opacity * 65536.0F) >> 8) & 0xFC);
       int xMin = Math.max(0, c.renderOffX), xMax = Math.min(c.width, c.renderOffX + c.vpW) - 1;
-      // per vertex: 1/Z and attribute/Z for u, v, lr, lg, lb, wx, wy, wz
+      // per vertex: 1/Z and u/Z, v/Z for the texture, plus screen-space lighting and world position
       float[][] pv = new float[n][9];
       for (int i = 0; i < n; i++) {
          float iz = 1.0F / cl[i][2];
          pv[i][0] = iz;
-         for (int a = 0; a < 8; a++) {
-            pv[i][1 + a] = cl[i][3 + a] * iz;
-         }
+         pv[i][1] = cl[i][3] * iz;
+         pv[i][2] = cl[i][4] * iz;
+         pv[i][3] = cl[i][5];
+         pv[i][4] = cl[i][6];
+         pv[i][5] = cl[i][7];
+         pv[i][6] = cl[i][8] * iz;
+         pv[i][7] = cl[i][9] * iz;
+         pv[i][8] = cl[i][10] * iz;
       }
       float[] l = new float[9];
       float[] r = new float[9];
       float[] cur = new float[9];
+      // flat colour ramps of the textured path: one lighting value per polygon
+      float flatR = facetLit != null ? facetLit[0] : 31.0F;
+      float flatG = facetLit != null ? facetLit[1] : 31.0F;
+      float flatB = facetLit != null ? facetLit[2] : 31.0F;
       for (int y = y0; y <= y1; y++) {
-         float yc = y + 0.5F;
+         float yc = y;
          float lx = Float.MAX_VALUE, rx = -Float.MAX_VALUE;
          for (int i = 0; i < n; i++) {
             int j = (i + 1) % n;
@@ -1058,26 +1075,26 @@ public final class NativeCamera {
             if (ya == yb || yc < Math.min(ya, yb) || yc >= Math.max(ya, yb)) {
                continue;
             }
-            float t = (yc - ya) / (yb - ya);
-            float x = sx[i] + (sx[j] - sx[i]) * t;
+            float tt = (yc - ya) / (yb - ya);
+            float x = sx[i] + (sx[j] - sx[i]) * tt;
             if (x < lx) {
                lx = x;
                for (int a = 0; a < 9; a++) {
-                  l[a] = pv[i][a] + (pv[j][a] - pv[i][a]) * t;
+                  l[a] = pv[i][a] + (pv[j][a] - pv[i][a]) * tt;
                }
             }
             if (x > rx) {
                rx = x;
                for (int a = 0; a < 9; a++) {
-                  r[a] = pv[i][a] + (pv[j][a] - pv[i][a]) * t;
+                  r[a] = pv[i][a] + (pv[j][a] - pv[i][a]) * tt;
                }
             }
          }
          if (lx > rx) {
             continue;
          }
-         int xs = Math.max(xMin, (int) Math.ceil(lx - 0.5F));
-         int xe = Math.min(xMax, (int) Math.ceil(rx - 0.5F) - 1);
+         int xs = Math.max(xMin, (int) Math.floor(lx));
+         int xe = Math.min(xMax, (int) Math.floor(rx) - 1);
          if (p.pick) {
             if (p.pickX < xs || p.pickX > xe) {
                continue;
@@ -1086,10 +1103,11 @@ public final class NativeCamera {
          }
          float span = rx - lx;
          int row = y * c.width;
+         int ditherRow = DITHER_Y[y & 7];
          for (int x = xs; x <= xe; x++) {
-            float t = span <= 0.0F ? 0.0F : (x + 0.5F - lx) / span;
+            float tt = span <= 0.0F ? 0.0F : (x - lx) / span;
             for (int a = 0; a < 9; a++) {
-               cur[a] = l[a] + (r[a] - l[a]) * t;
+               cur[a] = l[a] + (r[a] - l[a]) * tt;
             }
             float iz = cur[0];
             if (iz <= 0.0F) {
@@ -1108,21 +1126,13 @@ public final class NativeCamera {
             if (iz <= p.z[zi]) {
                continue;
             }
-            if (opacity != 255 && (hash(x, y) & 0xFF) >= opacity) {
-               continue;
+            if (opacity != 255) {
+               int d = (DITHER_X[x & 7] ^ ditherRow) & 0xFF;
+               if (opacity <= d) {
+                  continue;
+               }
             }
             int pix;
-            float lr, lg, lb;
-            if (facetLit != null) {
-               // light sampling 1: one value per polygon (poly+4/8/0xC), not interpolated
-               lr = facetLit[0];
-               lg = facetLit[1];
-               lb = facetLit[2];
-            } else {
-               lr = cur[3] * zz;
-               lg = cur[4] * zz;
-               lb = cur[5] * zz;
-            }
             if (tex != null) {
                int tu = (int) Math.floor(cur[1] * zz * NativeTextures.SIZE) & 0x7F;
                int tv = (int) Math.floor(cur[2] * zz * NativeTextures.SIZE) & 0x7F;
@@ -1130,26 +1140,27 @@ public final class NativeCamera {
                if (texel == 0) {
                   continue;
                }
-               pix = litTex ? lit565(texel, lr, lg, lb) : texel;
-            } else {
-               pix = lit565(base, lr, lg, lb);
-            }
-            p.z[zi] = iz;
-            c.raster[zi] = (short) pix;
-            if (tex != null) {
+               pix = litTex ? lit565(texel, flatR, flatG, flatB) : texel;
                p.texPixels++;
             } else {
+               pix = lit565(base, cur[3], cur[4], cur[5]);
                p.flatPixels++;
             }
             if (x == c.renderOffX + c.vpW / 2 && y == c.renderOffY + c.vpH / 2 && mat != null) {
                p.centre = "color " + mat.color[0] + "," + mat.color[1] + "," + mat.color[2]
                   + " tex=" + (tex != null ? mat.textureName : "NINGUNA(" + mat.textureName + ")")
-                  + " amb=" + mat.ambient + " dif=" + mat.diffuse + " z=" + (1.0F / iz)
+                  + " amb=" + mat.ambient + " dif=" + mat.diffuse + " z=" + zz
                   + " clump=" + k.verts.size() + "v/" + k.polys.size() + "p";
             }
+            p.z[zi] = iz;
+            c.raster[zi] = (short) pix;
          }
       }
    }
+
+   /** Ordered dither of the translucency (driver tables 0x10079240 / 0x10079280). */
+   private static final int[] DITHER_X = {0x02, 0x82, 0x20, 0xA0, 0x0A, 0x8A, 0x28, 0xA8};
+   private static final int[] DITHER_Y = {0x03, 0xC3, 0x30, 0xF0, 0x0F, 0xCF, 0x3C, 0xFC};
 
    private static int hash(int x, int y) {
       int h = x * 374761393 + y * 668265263;

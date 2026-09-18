@@ -72,6 +72,7 @@ public final class NativeTextures {
       if (dictName != null) {
          t.name = dictName;
          dict.put(dictName, t);
+         byBaseName.put(baseName(dictName.replace('|', '.')), t);
       }
       return t.handle;
    }
@@ -85,6 +86,10 @@ public final class NativeTextures {
       if (t.refs < 2) {
          if (t.name != null && dict.get(t.name) == t) {
             dict.remove(t.name);
+            String bn = baseName(t.name.replace('|', '.'));
+            if (byBaseName.get(bn) == t) {
+               byBaseName.remove(bn);
+            }
          }
          NativeRw.release(h);
       } else {
@@ -218,28 +223,36 @@ public final class NativeTextures {
       return new Object[]{handles, sp.displayW, sp.displayH};
    }
    /**
-    * Dictionary lookup by name, without touching the reference count.
-    * A shape script names its textures by file name alone ("flr1c.cmp")
-    * while the client registers them under the URL it resolved
-    * ("home|groundzero|dtex|flr1c|cmp"), so a plain miss falls back to the
-    * entry whose name ends with that file name. RWL21 does not need this:
-    * it reads the texture itself from the shape path.
+    * RwGetNamedTexture's name (RWL21 0x10018900 -> 0x10043e80): base name
+    * without directory or extension, compared case-insensitively
+    * (stricmp). A shape script names its textures that way, while the
+    * client registers them under the URL it resolved.
     */
+   static String baseName(String name) {
+      String s = name.replace('\\', '/');
+      int slash = s.lastIndexOf('/');
+      if (slash >= 0) {
+         s = s.substring(slash + 1);
+      }
+      int colon = s.lastIndexOf(':');
+      if (colon >= 0) {
+         s = s.substring(colon + 1);
+      }
+      int dot = s.lastIndexOf('.');
+      if (dot > 0) {
+         s = s.substring(0, dot);
+      }
+      return s.toLowerCase();
+   }
+
+   private static final Map<String, Texture> byBaseName = new HashMap<String, Texture>();
+
+   /** Dictionary lookup by base name, without touching the reference count. */
    public static synchronized Texture find(String name) {
       if (name == null) {
          return null;
       }
-      String key = dictName(name, 0);
-      Texture t = dict.get(key);
-      if (t != null) {
-         return t;
-      }
-      String tail = "|" + key;
-      for (Map.Entry<String, Texture> e : dict.entrySet()) {
-         if (e.getKey().endsWith(tail)) {
-            return e.getValue();
-         }
-      }
-      return null;
+      Texture t = dict.get(dictName(name, 0));
+      return t != null ? t : byBaseName.get(baseName(name));
    }
 }

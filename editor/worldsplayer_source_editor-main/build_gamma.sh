@@ -16,8 +16,9 @@ cp -R "$HERE/source" "$HERE/bridge" "$HERE/apply_mock.sh" "$B/"
 (cd "$B" && bash apply_mock.sh)
 find "$B/source" -name '*.java' > "$B/sources.txt"
 # parsers verificados de client/ que usa el puente: texturas ScapePic
-# (.cmp/.mov) y formas .rwx / .rwg
-for d in cmp rwx rwg; do
+# (.cmp/.mov), formas .rwg y cuerpos .bod (el .rwx lo interpreta
+# bridge/RwxReader, traducido de RWL21)
+for d in cmp rwg bod; do
   find "$REPO/client/src/net/freeworlds/$d" -name '*.java' >> "$B/sources.txt"
 done
 mkdir -p "$B/out"

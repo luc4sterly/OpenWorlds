@@ -1,26 +1,16 @@
 package NET.worlds.core;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import net.freeworlds.rwx.RwxMaterial;
-import net.freeworlds.rwx.RwxModel;
-import net.freeworlds.rwx.RwxParser;
-import net.freeworlds.rwx.RwxVector3;
 
 /**
- * RwReadShape: what gamma.dll's ShapeLoader.finishLoadingTextFile
- * (0x0041ce20 -> FUN_004199c0) gets from RenderWare when it hands it a
- * .rwx script. RWL21 parses the script itself; here it is parsed with the
- * verified translation in client/src/net/freeworlds/rwx and turned into
- * the same clump: vertices with their UV, one polygon per triangle and one
- * RW material per RWX material.
+ * What gamma.dll's ShapeLoader gets from RenderWare: RwReadShape for a
+ * .rwx script (0x0041ce20 -> FUN_004199c0, interpreter in RwxReader),
+ * RwReadStreamChunk(CLUM) for a .rwg (0x0041e630) and the .bod body reader
+ * (0x0041e440).
  *
- * ⚠️ VERIFICAR: the callback gamma runs over the hierarchy afterwards
- * (0x004187e0 without 3D hardware, 0x00418790 with it) is not extracted;
- * here the shape is left with hints 2 and state ON, as a clump read by
- * RwReadShape arrives.
+ * ⚠️ VERIFICAR: the callback gamma runs over the hierarchy after reading
+ * (0x004187e0 without 3D hardware, 0x00418790 with it) is not extracted.
  */
 public final class NativeShapes {
    private NativeShapes() {
@@ -34,87 +24,12 @@ public final class NativeShapes {
 
    public static Shape readShape(String path) {
       Shape out = new Shape();
-      byte[] data;
-      try {
-         java.io.File f = NativeMock.localFile(path);
-         data = java.nio.file.Files.readAllBytes(f.toPath());
-      } catch (Exception e) {
-         return out;
-      }
-      RwxModel model;
-      try {
-         model = new RwxParser().parse(new String(data, java.nio.charset.Charset.forName("ISO-8859-1")));
-      } catch (RuntimeException e) {
-         System.err.println("[RW] RwReadShape(" + path + "): " + e);
-         return out;
-      }
-      if (model.vertices.isEmpty() || model.triangles.isEmpty()) {
-         return out;
-      }
-      int clump = NativeScene.createClump();
-      for (int i = 0; i < model.vertices.size(); i++) {
-         RwxVector3 v = model.vertices.get(i);
-         int idx = NativeScene.addVertex(clump, v.x, v.y, v.z);
-         float[] uv = i < model.uvs.size() ? model.uvs.get(i) : null;
-         if (uv != null) {
-            NativeScene.setVertexUV(clump, idx, uv[0], uv[1]);
-         }
-      }
-      Map<RwxMaterial, Integer> mats = new HashMap<RwxMaterial, Integer>();
-      int[] tri = new int[3];
-      for (int i = 0; i < model.triangles.size(); i++) {
-         int[] t = model.triangles.get(i);
-         tri[0] = t[0] + 1;
-         tri[1] = t[1] + 1;
-         tri[2] = t[2] + 1;
-         int poly = NativeScene.addPolygon(clump, 3, tri);
-         if (poly == 0) {
-            continue;
-         }
-         RwxMaterial rm = i < model.triangleMaterials.size() ? model.triangleMaterials.get(i) : null;
-         if (rm == null) {
-            continue;
-         }
-         Integer mat = mats.get(rm);
-         if (mat == null) {
-            mat = Integer.valueOf(material(rm, out));
-            mats.put(rm, mat);
-         }
-         NativeScene.setPolygonMaterial(poly, mat.intValue());
-      }
-      NativeScene.setClumpHints(clump, 2);
-      NativeScene.setClumpState(clump, 2);
-      out.clump = clump;
+      RwxReader.Result r = RwxReader.read(NativeMock.localFile(path));
+      out.clump = r.clump;
+      out.textures.addAll(r.textures);
       return out;
    }
 
-   private static int material(RwxMaterial rm, Shape out) {
-      int m = NativeScene.createMaterial();
-      NativeScene.setMaterialColor(m, rm.colorR, rm.colorG, rm.colorB);
-      NativeScene.setMaterialSurface(m, rm.effectiveAmbient(), rm.effectiveDiffuse(), rm.specular);
-      NativeScene.setMaterialOpacity(m, rm.opacity);
-      int modes = 0;
-      if (rm.textureModes.contains(RwxMaterial.TextureMode.LIT)) {
-         modes |= 1;
-      }
-      if (rm.textureModes.contains(RwxMaterial.TextureMode.FORESHORTEN)) {
-         modes |= 2;
-      }
-      if (rm.textureModes.contains(RwxMaterial.TextureMode.FILTER)) {
-         modes |= 4;
-      }
-      NativeScene.setMaterialTextureModes(m, modes);
-      if (rm.doubleSided) {
-         NativeScene.setMaterialModes(m, 0x80);
-      }
-      if (rm.textureName != null && rm.textureName.length() > 0) {
-         NativeScene.setMaterialTextureName(m, rm.textureName);
-         if (!out.textures.contains(rm.textureName)) {
-            out.textures.add(rm.textureName);
-         }
-      }
-      return m;
-   }
    /**
     * ShapeLoader.loadBinaryFile (0x0041e5d0): gamma opens a stream over the
     * file and keeps it until finishLoadingBinaryFile reads the CLUM chunk
@@ -176,5 +91,96 @@ public final class NativeShapes {
       NativeScene.setClumpHints(clump, 2);
       NativeScene.setClumpState(clump, 2);
       return clump;
+   }
+   /**
+    * ShapeLoader.loadBodFile (gamma.dll 0x0041e440): reads the .bod, looks
+    * in its part table for the entry whose tag is the requested part
+    * number (the native scans the table backwards) and builds that part's
+    * clump tree (0x0041e240). A file that cannot be read, a version above
+    * 1, no parts, or a part that is not there give an empty clump left in
+    * state OFF, and the shape keeps no animatable clump.
+    *
+    * The part table and the clump tree are read with the .bod translation
+    * in client/src/net/freeworlds/bod (from the official RWXTOBOD.PL
+    * encoder). A placeholder clump carries its tag with bit 0x8000000 set,
+    * which is the tag WObject.addChildToClump looks for when it attaches a
+    * part to the body (gamma.dll 0x00412f90).
+    */
+   public static int readBod(String path, int partNum) {
+      byte[] data = null;
+      try {
+         data = java.nio.file.Files.readAllBytes(NativeMock.localFile(path).toPath());
+      } catch (Exception e) {
+         data = null;
+      }
+      net.freeworlds.bod.BodClump part = null;
+      if (data != null && data.length > 1 && (data[0] & 0xFF) <= 1 && (data[1] & 0xFF) != 0) {
+         try {
+            net.freeworlds.bod.BodFile f = net.freeworlds.bod.BodParser.parse(data);
+            for (int i = f.parts.size() - 1; i >= 0; i--) {
+               if (f.parts.get(i).tag == partNum) {
+                  part = f.parts.get(i);
+                  break;
+               }
+            }
+         } catch (RuntimeException e) {
+            System.err.println("[RW] .bod " + path + ": " + e);
+         }
+      }
+      if (part != null) {
+         int c = buildBod(part);
+         if (c != 0) {
+            return c;
+         }
+      }
+      int empty = NativeScene.createClump();
+      if (empty == 0) {
+         NativeAssert.fail("nShape", 0x48f);
+      }
+      NativeScene.setClumpState(empty, 1);
+      return empty;
+   }
+
+   private static int buildBod(net.freeworlds.bod.BodClump b) {
+      int c = NativeScene.createClump();
+      if (c == 0) {
+         return 0;
+      }
+      NativeScene.setClumpTag(c, b.placeholder ? b.tag | 0x8000000 : b.tag);
+      float[] m = new float[16];
+      NativeScene.getClumpMatrix(c, m);
+      NativeRw.translate(m, b.tx, b.ty, b.tz, NativeRw.POSTCONCAT);
+      NativeScene.transformClump(c, m, NativeRw.REPLACE);
+      if (!b.placeholder) {
+         if (b.vertices != null) {
+            for (net.freeworlds.bod.BodVertex v : b.vertices) {
+               int idx = NativeScene.addVertex(c, v.x, v.y, v.z);
+               NativeScene.setVertexUV(c, idx, v.u, v.v);
+            }
+         }
+         int mat = 0;
+         if (b.triangles != null && !b.triangles.isEmpty()) {
+            mat = NativeScene.createMaterial();
+            NativeScene.setMaterialColor(mat, b.r / 255.0F, b.g / 255.0F, b.b / 255.0F);
+            NativeScene.setMaterialSurface(mat, 0.75F, 0.0F, 0.0F);
+            NativeScene.setMaterialTextureModes(mat, 1);
+            for (int[] tri : b.triangles) {
+               int poly = NativeScene.addPolygon(c, 3, new int[]{tri[0] + 1, tri[1] + 1, tri[2] + 1});
+               if (poly != 0) {
+                  NativeScene.setPolygonMaterial(poly, mat);
+               }
+            }
+         }
+         if (b.children != null) {
+            for (net.freeworlds.bod.BodClump ch : b.children) {
+               int cc = buildBod(ch);
+               if (cc != 0) {
+                  NativeScene.addChildToClump(c, cc);
+               }
+            }
+         }
+      }
+      NativeScene.setClumpHints(c, 2);
+      return c;
    }
 }

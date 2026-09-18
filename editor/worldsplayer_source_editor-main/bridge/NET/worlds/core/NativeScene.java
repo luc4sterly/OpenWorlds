@@ -31,6 +31,10 @@ public final class NativeScene {
       int hints = 2;
       /** x, y, z, u, v per vertex; RW vertex indices are 1-based. */
       final List<float[]> verts = new ArrayList<float[]>();
+      /** Vertex normals set by the script (vert+0x4c, flag 0x40 of vert+0x48); null = derive from the faces. */
+      final List<float[]> normals = new ArrayList<float[]>();
+      /** RwSetClumpAxisAlignment (clump+0x18c): 1 none, 2 zorientx, 3 zorienty, 4 xyz. */
+      int axisAlignment = 1;
       final List<Polygon> polys = new ArrayList<Polygon>();
       int handle;
    }
@@ -39,6 +43,7 @@ public final class NativeScene {
       final Clump clump;
       final int[] indices;
       int material;
+      int tag;
       int handle;
 
       Polygon(Clump c, int[] idx) {
@@ -74,6 +79,8 @@ public final class NativeScene {
       /** RW material modes: 0x80 = double sided (RWL21 10051000). */
       int materialModes;
       int lightSampling = 1;
+      /** RwSetMaterialGeometrySampling: 1 point cloud, 2 wireframe, 4 solid (RwCreateMaterial default). */
+      int geometrySampling = 4;
       int refs = 1;
       int texture;
       /** Texture name from the shape script, resolved in the dictionary when the file finishes loading. */
@@ -873,5 +880,173 @@ public final class NativeScene {
    public static String materialTextureName(int h) {
       Material m = material(h);
       return m == null ? null : m.textureName;
+   }
+   public static void setClumpAxisAlignment(int h, int mode) {
+      Clump c = clump(h);
+      if (c != null) {
+         c.axisAlignment = mode;
+      }
+   }
+
+   public static int getClumpAxisAlignment(int h) {
+      Clump c = clump(h);
+      return c == null ? 1 : c.axisAlignment;
+   }
+
+   /** RwSetPolygonTag (RWL21 0x10001620): 16-bit tag per polygon. */
+   public static void setPolygonTag(int poly, int tag) {
+      Polygon p = polygon(poly);
+      if (p != null) {
+         p.tag = (short) tag;
+      }
+   }
+
+   /** RwSetClumpVertexNormal (RWL21 0x10031ae0): normalized, marks the vertex as user-set. */
+   public static void setVertexNormal(int h, int index, float x, float y, float z) {
+      Clump c = clump(h);
+      if (c == null || index < 1 || index > c.verts.size()) {
+         return;
+      }
+      float len = (float) Math.sqrt(x * x + y * y + z * z);
+      if (len <= 0.0F) {
+         return;
+      }
+      while (c.normals.size() < c.verts.size()) {
+         c.normals.add(null);
+      }
+      c.normals.set(index - 1, new float[]{x / len, y / len, z / len});
+   }
+
+   public static float[] vertexNormal(Clump c, int index0) {
+      return index0 < c.normals.size() ? c.normals.get(index0) : null;
+   }
+
+   public static void setMaterialLightSampling(int h, int sampling) {
+      Material m = material(h);
+      if (m != null) {
+         m.lightSampling = sampling;
+      }
+   }
+
+   public static void setMaterialGeometrySampling(int h, int sampling) {
+      Material m = material(h);
+      if (m != null) {
+         m.geometrySampling = sampling;
+      }
+   }
+
+   /** RwDuplicateClump: a deep copy of the clump and its children. */
+   public static int duplicateClump(int h) {
+      Clump c = clump(h);
+      if (c == null) {
+         return 0;
+      }
+      int copy = createClump();
+      Clump d = clump(copy);
+      System.arraycopy(c.modeling, 0, d.modeling, 0, 16);
+      System.arraycopy(c.joint, 0, d.joint, 0, 16);
+      System.arraycopy(c.bbox, 0, d.bbox, 0, 6);
+      d.tag = c.tag;
+      d.hints = c.hints;
+      d.state = c.state;
+      d.axisAlignment = c.axisAlignment;
+      for (float[] v : c.verts) {
+         d.verts.add(v.clone());
+      }
+      for (float[] n : c.normals) {
+         d.normals.add(n == null ? null : n.clone());
+      }
+      for (Polygon p : c.polys) {
+         Polygon q = new Polygon(d, p.indices.clone());
+         q.material = p.material;
+         q.tag = p.tag;
+         q.handle = NativeRw.alloc(q);
+         d.polys.add(q);
+      }
+      for (Clump k : c.children) {
+         addChildToClump(copy, duplicateClump(k.handle));
+      }
+      return copy;
+   }
+
+   /**
+    * Merge of ClumpEnd (RWL21 0x10004bc0): the source's vertices come over
+    * transformed by its LTM (so the CTM it carried is baked in) and its
+    * polygons keep their material, with the indices renumbered.
+    */
+   public static void mergeClump(int dstH, int srcH) {
+      Clump dst = clump(dstH);
+      Clump src = clump(srcH);
+      if (dst == null || src == null) {
+         return;
+      }
+      float[] ltm = ltm(src);
+      int base = dst.verts.size();
+      for (int i = 0; i < src.verts.size(); i++) {
+         float[] v = src.verts.get(i);
+         float[] w = NativeRw.transformPoint(ltm, v[0], v[1], v[2]);
+         dst.verts.add(new float[]{w[0], w[1], w[2], v[3], v[4]});
+         float[] n = i < src.normals.size() ? src.normals.get(i) : null;
+         while (dst.normals.size() < dst.verts.size() - 1) {
+            dst.normals.add(null);
+         }
+         if (n != null) {
+            float[] tn = NativeRw.transformVector(ltm, n[0], n[1], n[2]);
+            float len = (float) Math.sqrt(tn[0] * tn[0] + tn[1] * tn[1] + tn[2] * tn[2]);
+            dst.normals.add(len > 0.0F ? new float[]{tn[0] / len, tn[1] / len, tn[2] / len} : null);
+         } else {
+            dst.normals.add(null);
+         }
+         for (int k = 0; k < 3; k++) {
+            dst.bbox[k] = Math.min(dst.bbox[k], w[k]);
+            dst.bbox[3 + k] = Math.max(dst.bbox[3 + k], w[k]);
+         }
+      }
+      for (Polygon p : src.polys) {
+         int[] idx = new int[p.indices.length];
+         for (int i = 0; i < idx.length; i++) {
+            idx[i] = p.indices[i] + base;
+         }
+         Polygon q = new Polygon(dst, idx);
+         q.material = p.material;
+         q.tag = p.tag;
+         q.handle = NativeRw.alloc(q);
+         dst.polys.add(q);
+      }
+      dst.hints |= 4;
+   }
+
+   /** Handles of the direct children, in order. */
+   public static int[] childHandles(int h) {
+      Clump c = clump(h);
+      if (c == null) {
+         return new int[0];
+      }
+      int[] out = new int[c.children.size()];
+      for (int i = 0; i < out.length; i++) {
+         out[i] = c.children.get(i).handle;
+      }
+      return out;
+   }
+
+   /** Destroy one clump only, leaving any children it still has alone. */
+   public static void destroyClumpOnly(int h) {
+      Clump c = clump(h);
+      if (c == null) {
+         return;
+      }
+      removeChildFromClump(h);
+      if (c.scene != null) {
+         c.scene.clumps.remove(c);
+         c.scene = null;
+      }
+      for (Clump k : new ArrayList<Clump>(c.children)) {
+         k.parent = null;
+      }
+      c.children.clear();
+      for (Polygon p : c.polys) {
+         NativeRw.release(p.handle);
+      }
+      NativeRw.release(c.handle);
    }
 }
