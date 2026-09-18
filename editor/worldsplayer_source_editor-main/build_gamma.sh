@@ -42,6 +42,27 @@ assert a in s
 s = s.replace(a, a + "            if (this.state == 4 || this.state == 7) {\n               this.notifyObservers();\n               return;\n            }\n\n", 1)
 open(p, "w").write(s)
 PY
+# Ruido de consola: la traza [NATIVE-MOCK] es del arnes (registra hasta las
+# nativas ya implementadas) y pasa a ser opt-in con -Dfreeworlds.nativeLog=1
+# (JAVA_OPTS); y una textura que no se puede cargar se avisa una sola vez,
+# no una por cada Shape que la usa. Solo cambia lo que se imprime.
+python3 - "$B/source/NET/worlds/core/NativeMock.java" "$B/source/NET/worlds/scape/Material.java" <<'PY'
+import sys
+p, m = sys.argv[1], sys.argv[2]
+s = open(p).read()
+a = "      String key = className + \".\" + method;\n"
+assert a in s
+s = s.replace(a, "      if (!NATIVE_LOG) {\n         return;\n      }\n" + a, 1)
+b = "   private static final java.util.Map<String, Integer> counts"
+assert b in s
+s = s.replace(b, "   private static final boolean NATIVE_LOG = Boolean.getBoolean(\"freeworlds.nativeLog\")\n      || \"1\".equals(System.getProperty(\"freeworlds.nativeLog\"));\n\n" + b, 1)
+open(p, "w").write(s)
+t = open(m).read()
+c = "   private void loadError(URL var1) {\n"
+assert c in t
+t = t.replace(c, "   private static final java.util.Set<String> loadErrorsSeen = java.util.Collections.synchronizedSet(new java.util.HashSet<String>());\n\n" + c + "      if (!loadErrorsSeen.add(String.valueOf(var1))) {\n         return;\n      }\n\n", 1)
+open(m, "w").write(t)
+PY
 find "$B/source" -name '*.java' > "$B/sources.txt"
 # parsers verificados de client/ que usa el puente: texturas ScapePic
 # (.cmp/.mov), formas .rwg y cuerpos .bod (el .rwx lo interpreta

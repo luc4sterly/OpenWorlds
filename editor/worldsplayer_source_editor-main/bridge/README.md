@@ -27,6 +27,9 @@ directorio de trabajo (`$FREEWORLDS_GAMMA_DIR`, por defecto
 argumento de mundo del propio `Gamma.main` (sin ella arranca en
 `home:NewWorld.world`, como el original antes del login).
 
+Consola: la traza `[NATIVE-MOCK]` es opt-in (`JAVA_OPTS=-Dfreeworlds.nativeLog=true`)
+y cada textura que no carga se avisa una sola vez.
+
 Diagnóstico (desactivado por defecto): `JAVA_OPTS` con
 `-Dfreeworlds.dumpFrames=DIR` guarda los frames 1, 10, 100, 1000… de cada
 cámara como PNG (o, con `-Dfreeworlds.dumpSeconds=S1,S2`, el primer frame
