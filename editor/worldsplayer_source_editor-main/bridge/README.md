@@ -51,7 +51,10 @@ existe; lo que no hay responde 404 al instante). `build_gamma.sh` parchea
 se refresquen contra el servidor. Con eso las texturas de avatar cacheadas
 (`mfa`, `cmalea`, `pengo`, `mia`...) salen de `cachedir/`; faltan las que
 nunca estuvieron en la cache original (`cfemaleb`, `cfemaleba`, `cfemalec`,
-`cfc`, `fga`, `fja`, `mga`).
+`cfc`, `fga`, `fja`, `mga`): las nombra `permittedList` de `tables.dat` para
+Julie, Roxanne y Simon, cuyas galerias (`IconViewRoom1a/b/f`) se dibujan por
+portales; ver `worlds-chat-project.md` (2026-09-18). El servidor local sirve
+tambien `base-avatars/` (los `.bod` de esos avatares si estan).
 
 Sigue sin: avatares completos (faltan esas texturas), superficies
 web, resaltado, `Shape.convertSpecial`, sonido y vídeo.

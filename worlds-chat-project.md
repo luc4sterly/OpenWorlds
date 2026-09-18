@@ -3573,3 +3573,74 @@ elige texture modes 2 o 6 en `FUN_00419000`, el máximo de UV del driver y
 los índices −7..0 de `RwGetClumpVertex`. El siguiente paso natural es
 traducir `Camera.renderScene` y el camino de texturas (el decoder `.cmp`
 de `client/` ya existe) para dibujar en la ventana hija.
+
+### 🟢 Cliente original sin red: servidor local, caché de 2004 operativa y causa de las 7 texturas que faltan (2026-09-18)
+
+**Problema.** `run_gamma.sh` arrancaba el cliente original decompilado y todo
+lo que pedía (avatares, tablas, scripts) iba a `upgradeServer=http://us1.worlds.net/3DCDup`
+(`worlds.ini`), un host que ya no existe: timeouts y `Unable to load texture …`.
+
+**Arreglado** (commit `92d1e767` + este):
+- `tools/local-upgrade-server.py`: servidor HTTP local (solo Python) que sirve
+  `assets/WorldsPlayer` bajo `/3DCDup/` y, bajo `/3DCDup/avatar/`, los avatares
+  base oficiales de `assets/gammatutorial-samples/base-avatars/` (= `AVATARS.ZIP`
+  de `Worlds1900.exe`, verificado idéntico), sin distinguir mayúsculas
+  (el cliente pide `pengo.mov` y el fichero es `PENGO.mov`). Lo demás, 404
+  inmediato. `run_gamma.sh` lo arranca en un puerto libre, reescribe
+  `upgradeServer` en la copia temporal de `worlds.ini/dst` y lo mata al salir
+  (`FREEWORLDS_NO_LOCAL_SERVER=1` lo desactiva).
+- `build_gamma.sh` parchea (solo en la copia de build, `source/` sigue pristino)
+  `Cache` y `CacheEntry.load`: el `cache.index` de 2004 guarda rutas de Windows
+  (`C:\DOCUME~1\…\cachedir\5u.mov`) y `CACHE_DIR` usaba `\`; en macOS el índice
+  no cargaba y se tiraba. Ahora carga (211 entradas) y las ya descargadas no se
+  refrescan contra un origen inexistente. `run_gamma.sh` parte de un `cachedir`
+  limpio (un `cache.open` huérfano descarta todo el índice).
+- Efecto medido (35–40 s en `home:GroundZero/groundzero.world`): 406 → 56 líneas
+  `Unable to load texture`; las peticiones de `.bod`/`.mov` de avatares base
+  (`julie/roxanne/simon/jing/paul.bod`, `pengo.mov`…) y `avatars.dat` pasan a
+  200; solo quedan 404 para lo que no existe en ningún sitio.
+
+**Causa raíz de las 7 texturas (`cfemaleb`, `cfemaleba`, `cfemalec`, `cfc`,
+`fga`, `fja`, `mga`) — con evidencia, NO evitable sin el asset:**
+1. Se piden desde `Material.loadTextures` ← `Shape.recursiveAddRwChildren` ←
+   `Room.aboutToDraw` ← `Portal.rwPrerender` ← `Camera.rwRenderRoom`
+   (traza real con el build instrumentado). No las pide la UI ni una lista de
+   precarga: son `PosableShape` que ya están **dentro de salas del mundo**, y
+   se cargan al dibujar la cadena de portales desde el spawn.
+2. Esas salas son las galerías de avatares de `GroundZero/groundzero.world`,
+   `IconViewRoom1a…1g` (cada una con un `PosableShape avatar:<Nombre>.rwg`
+   y un `ClickSensor SelectAvatar<Nombre>`). Atribución medida:
+   Roxanne (`IconViewRoom1a`) → `cfemalec`, `cfc`, `fja`; Simon (`1b`) → `mga`;
+   Julie (`1f`) → `cfemaleb`, `cfemaleba`, `fga`.
+3. El nombre de textura no está en el `.bod` ni en el mundo: lo da
+   `permittedList` de `tables/tables.dat` (cifrado con XOR encadenado, lector
+   verificado en `client/…/ServerTables.java`). `PosableShape` resuelve
+   `avatar:Julie.rwg` con `permittedHash` a la cadena completa
+   `julie.0ET2cfemalebT4cfemalebT3cfemalebaT1cfemaleb…T3fga…`; cada
+   `T<n><nombre>` (`PosableShape.scanTexture`) es un grupo de textura
+   `<nombre>.mov`. Es el esquema de códigos de avatar (`T#…`, `C_…`, `S…`).
+4. Por qué faltan: el `cachedir` de 2004 solo contiene las texturas de los
+   avatares que esa instalación llegó a ver (Tre `mia`, Paul `mfa`, Jing
+   `cfemaled`…). Julie, Roxanne y Simon nunca se cargaron; su textura vivía
+   solo en el servidor. No están en `assets/`, `AVATARS.ZIP`, `FIRST.EXE`
+   (684 ficheros), `GROUNDZERO.EXE` ni `worlds.jar`.
+5. Consecuencia: **limitación conocida, no bloqueante**. `Material.loadError`
+   solo imprime; por el código el limbo conserva el material de color base de
+   `scanTexture` (no comprobado visualmente); no hay excepción en el log. No se fabrica ninguna textura de relleno. Ningún ajuste de
+   configuración evita la petición sin tocar lógica (las salas son contenido
+   del mundo). Solo se resolverá recuperando esos 7 `.mov` de un archivo
+   externo (Wayback u otro); bastaría con dejarlos en
+   `assets/gammatutorial-samples/base-avatars/` para que el servidor local
+   los sirva.
+
+**`WorldScriptGroundZero.class` (404): cosmético, y preexistente.**
+`WorldScriptManager.worldEntered` intenta cargar la clase Java del mundo
+desde `<upgradeServer>/GroundZero/`; no está en `content.zip`, `gammacls.zip`
+ni `worlds.jar`. `loadClass` devuelve null, el `NullPointerException` se
+captura (`catch Exception`) y `currentScript` queda a null: solo se pierden
+los ganchos opcionales `roomEnter/roomExit/onEachFrame` de ese script. El
+`Gamma.Log` del cliente 2004 real bajo Wine (`assets/WorldsPlayer/Gamma.Log`,
+líneas 70–73) muestra exactamente la misma secuencia
+(`Download error … → Could not load script … → Exception constructing world
+script: NullPointerException`), así que es el comportamiento original con el
+servidor caído, no un fallo del puente.
