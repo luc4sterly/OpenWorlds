@@ -570,6 +570,10 @@ public final class NativeScene {
       Material m = material(h);
       if (m != null) {
          m.texture = texture;
+         if (System.getProperty("freeworlds.traceTextures") != null) {
+            System.err.println("[RW] setMaterialTexture mat=" + h + " tex=" + texture
+               + (texture != 0 && NativeTextures.texture(texture) == null ? " (handle sin textura!)" : ""));
+         }
       }
    }
    /**

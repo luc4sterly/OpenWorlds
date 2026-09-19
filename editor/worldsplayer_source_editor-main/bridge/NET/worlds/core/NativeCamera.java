@@ -190,19 +190,32 @@ public final class NativeCamera {
    /** -Dfreeworlds.fps: frames shown per second on the main camera. */
    private static long fpsMark;
    private static int fpsCount;
+   private static long framePaint;
+
+   /** Pixels written by the rasterizers since the last frame was shown. */
+   static long framePixels;
 
    private static void fps(Cam c) {
       if (System.getProperty("freeworlds.fps") == null || c.width != mainWidth) {
+         framePixels = 0L;
          return;
       }
+      framePaint += framePixels;
+      framePixels = 0L;
       long now = System.nanoTime();
       if (fpsMark == 0L) {
          fpsMark = now;
       }
       fpsCount++;
       if (now - fpsMark >= 1000000000L) {
+         System.err.println("[RW] cobertura: " + framePaint / fpsCount + " px escritos por frame de "
+            + c.width * c.height + " (" + 100 * framePaint / fpsCount / (c.width * c.height) + " %)");
+         framePaint = 0L;
          System.err.println("[RW] fps " + (System.nanoTime() - DUMP_T0) / 1000000000L + "s: "
-            + (fpsCount * 1000000000L / (now - fpsMark)) + " (camara " + c.width + "x" + c.height + ")");
+            + (fpsCount * 1000000000L / (now - fpsMark)) + " (camara " + c.width + "x" + c.height
+            + " en " + (int) c.ltm[12] + "," + (int) c.ltm[13] + "," + (int) c.ltm[14]
+            + " mirando " + Math.round(c.ltm[8] * 100) / 100.0F + "," + Math.round(c.ltm[9] * 100) / 100.0F
+            + "," + Math.round(c.ltm[10] * 100) / 100.0F + ")");
          fpsMark = now;
          fpsCount = 0;
       }
@@ -1432,6 +1445,7 @@ public final class NativeCamera {
             }
          }
       }
+      framePixels += wrote;
       if (p.matPixels != null && wrote > 0) {
          int[] n2 = p.matPixels.get(describe(mat, tex, k));
          if (n2 == null) {
@@ -1451,8 +1465,8 @@ public final class NativeCamera {
          b.append("color 565=").append(device565(mat.color[0], mat.color[1], mat.color[2]) >> 11 & 31)
             .append(",").append(device565(mat.color[0], mat.color[1], mat.color[2]) >> 5 & 63)
             .append(",").append(device565(mat.color[0], mat.color[1], mat.color[2]) & 31)
-            .append(" tex=").append(mat.textureName == null ? "-" : mat.textureName)
-            .append(tex == null ? "(sin cargar)" : "")
+            .append(tex != null ? " CON textura" : mat.texture != 0 ? " textura=" + mat.texture + " SIN cargar"
+               : mat.textureName != null ? " textura " + mat.textureName + " SIN resolver" : " SIN textura")
             .append(" modes=").append(mat.textureModes).append("/").append(mat.materialModes)
             .append(" op=").append(mat.opacity);
       }
@@ -1507,7 +1521,9 @@ public final class NativeCamera {
             return b.getValue()[0] - a.getValue()[0];
          }
       });
-      System.err.println("[RW] matStats " + sec + "s escena " + scene + ": " + l.size() + " materiales visibles");
+      Object sd = NativeScene.getSceneData(scene);
+      String room = sd instanceof NET.worlds.scape.Room ? ((NET.worlds.scape.Room) sd).getName() : String.valueOf(scene);
+      System.err.println("[RW] matStats " + sec + "s sala " + room + " (escena " + scene + "): " + l.size() + " materiales visibles");
       for (int i = 0; i < Math.min(15, l.size()); i++) {
          System.err.println("[RW]   " + l.get(i).getValue()[0] + " px  " + l.get(i).getKey());
       }

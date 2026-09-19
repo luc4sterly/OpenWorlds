@@ -46,10 +46,20 @@ inyecta pulsaciones AWT sintéticas en el canvas. La captura de pantalla de
 macOS no tiene permiso en esta máquina.
 
 Para saber **qué objeto pinta qué**: `-Dfreeworlds.matStats=SEG` lista, una
-vez por segundo y escena, los materiales visibles ordenados por píxeles
-dibujados con su color 565, su textura y el `WObject` dueño;
-`-Dfreeworlds.probePixel=X,Y` dice quién se queda con ese píxel; y
-`-Dfreeworlds.fps=1` imprime los frames por segundo de la cámara principal.
+vez por segundo y sala, los materiales visibles ordenados por píxeles
+dibujados, con su color 565, si la textura está puesta y resuelta, y el
+`WObject` dueño; `-Dfreeworlds.probePixel=X,Y` dice quién se queda con ese
+píxel; `-Dfreeworlds.traceTextures=1` traza cada `RwSetMaterialTexture`; y
+`-Dfreeworlds.fps=1` imprime los frames por segundo de la cámara principal,
+su posición y su dirección, más la cobertura (píxeles escritos por frame
+frente al tamaño del raster: por encima del 100 % hay sobredibujado).
+
+⚠️ Al leer `matStats`: el color que sale es el **color base del material**,
+no el del píxel. Los `Rect` del mundo llevan su textura puesta por el
+cliente (`Material.nativeSetTexture`), no por el script de la forma, así
+que su nombre de textura del `.rwx` es nulo aunque estén texturizados —
+medido: en GroundZero **todos** los materiales visibles salen "CON
+textura".
 
 ## Estado verificado (2026-09-18)
 
