@@ -1,0 +1,65 @@
+// 10063e20 _calloc [Global]
+// programa: RWDL6D21.DLL
+
+/* Library Function - Single Match
+    _calloc
+   
+   Library: Visual Studio 1998 Release */
+
+void * __cdecl _calloc(size_t _Count,size_t _Size)
+
+{
+  int iVar1;
+  uint uVar2;
+  undefined4 *puVar3;
+  uint dwBytes;
+  undefined4 *puVar4;
+  
+  dwBytes = _Size * _Count;
+  if (dwBytes < 0xffffffe1) {
+    if (dwBytes == 0) {
+      dwBytes = 0x10;
+    }
+    else {
+      dwBytes = dwBytes + 0xf & 0xfffffff0;
+    }
+  }
+  do {
+    puVar3 = (undefined4 *)0x0;
+    if (dwBytes < 0xffffffe1) {
+      if (DAT_1007a704 < dwBytes) {
+LAB_10063e92:
+        if (puVar3 != (undefined4 *)0x0) {
+          return puVar3;
+        }
+      }
+      else {
+        __lock(9);
+        puVar3 = (undefined4 *)___sbh_alloc_block(dwBytes >> 4);
+        FUN_10063d20(9);
+        if (puVar3 != (undefined4 *)0x0) {
+          puVar4 = puVar3;
+          for (uVar2 = dwBytes >> 2; uVar2 != 0; uVar2 = uVar2 - 1) {
+            *puVar4 = 0;
+            puVar4 = puVar4 + 1;
+          }
+          for (uVar2 = dwBytes & 3; uVar2 != 0; uVar2 = uVar2 - 1) {
+            *(undefined1 *)puVar4 = 0;
+            puVar4 = (undefined4 *)((int)puVar4 + 1);
+          }
+          goto LAB_10063e92;
+        }
+      }
+      puVar3 = HeapAlloc(DAT_1007d414,8,dwBytes);
+    }
+    if ((puVar3 != (undefined4 *)0x0) || (DAT_1007ac74 == 0)) {
+      return puVar3;
+    }
+    iVar1 = __callnewh(dwBytes);
+    if (iVar1 == 0) {
+      return (void *)0x0;
+    }
+  } while( true );
+}
+
+

@@ -102,7 +102,12 @@ try-with-resources, la propia capa de mocks), salvo esta.
   (0x1002cae0) y, dentro de cada clump, un árbol de ordenación de
   polígonos (0x10033750) que sólo usa z-buffer en los tramos conflictivos.
   Aquí se usa z-buffer en todo, que da la oclusión correcta pero no es esa
-  traducción; el árbol de ordenación está pendiente.
+  traducción; el árbol de ordenación está pendiente. **Ya no falta el
+  binario**: ambas funciones están en `decompiled-native/rwl21_dll`
+  (2026-09-19). Leído por encima, `0x10033750` construye el árbol UNA vez
+  por clump (particiona por plano y agrupa tiradas por material), no por
+  frame; con z-buffer la oclusión ya sale bien, así que traducirlo
+  cambiaría sobre todo el reparto del z-fighting entre coplanares.
 - Del rasterizador sí se sigue el driver de 16 bits: regla de relleno
   `floor(xIzq)..floor(xDer)-1` sin muestreo al centro, Gouraud afín en
   pantalla, sombreado plano en los polígonos texturizados, texel 0
@@ -110,9 +115,22 @@ try-with-resources, la propia capa de mocks), salvo esta.
   (0x10079240/0x10079280). Pendiente: la división de perspectiva por
   tramos de 16 píxeles (aquí es por píxel) y las tablas de color del
   driver.
-- Normales de vértice (media de las caras adyacentes), signo de la normal
-  de polígono, regla de relleno, espacio de interpolación de Gouraud,
-  patrón de la opacidad y dithering de texturas: no extraídos.
+- ~~Normales de vértice, signo de la normal de polígono~~: **extraídos ya**
+  de `RWL21.DLL` (2026-09-19, ver `decompiled-native/rwl21_dll`) y
+  corregidos en `NativeCamera`:
+  - normal de polígono = suma de productos vectoriales en abanico desde el
+    primer vértice, `cross(v[i]-v[0], v[i+1]-v[0])`, normalizada
+    (`0x10001100`). Antes era la fórmula de Newell, que coincide en un
+    polígono plano pero no en un cuadrilátero alabeado.
+  - normal de vértice = suma **sin ponderar** de las normales de las caras
+    adyacentes, normalizada (`0x10041df0` vía
+    `RwCalculateClumpVertexNormal 0x10031a60`); si la suma se cancela
+    exactamente (`<= 0.0f`, leído en `_DAT_100522e8` del binario), RW cae a
+    la normal de la **primera** cara adyacente. El puente dejaba un vector
+    cero, que apagaba la luz en ese vértice. Medido en Reception: 0 casos
+    degenerados, así que es fidelidad sin cambio visible allí.
+- Regla de relleno, espacio de interpolación de Gouraud, patrón de la
+  opacidad y dithering de texturas: no extraídos.
 - `StretchBlt(HALFTONE)` de las texturas de tamaño distinto de 128 (solo
   `windr3.mov`): promedio por cajas.
 - `RwReadTexture` (FileTexture): reescalado y formatos no extraídos.

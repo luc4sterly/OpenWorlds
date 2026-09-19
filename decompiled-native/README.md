@@ -1,4 +1,4 @@
-# Nativo decompilado (`gamma.dll`, `RWL21.DLL`)
+# Nativo decompilado (`gamma.dll`, `RWL21.DLL`, `RWDL6D21.DLL`)
 
 C decompilado con Ghidra 12.1.3 (headless) de la `gamma.dll` ORIGINAL
 de 2004 (`assets/WorldsPlayer/bin/gamma.dll`, 613 KB) — el puente JNI
@@ -66,3 +66,11 @@ ghidra_*/ghidra_*/support/analyzeHeadless <projdir> RWL21 \
 
 No se ha pasado aun `ScanVtablesAndExport.java` (el que en `gamma.dll`
 saco 881 funciones mas alcanzables solo por vtable).
+
+## `RWDL6D21.DLL` (driver RenderWare de 16 bits, 578 KB) — anadido 2026-09-19
+
+`rwdl6d21_dll/`: **385 funciones, 0 fallos**. Es el rasterizador por
+software real (el que el puente traduce en `NativeCamera.raster`), con
+148 nombres reales, aunque muchos son del runtime de C (`__ftol`,
+`__CRT_INIT`). Aqui vive lo que sigue pendiente en el puente: la division
+de perspectiva por tramos de 16 pixeles y las tablas de color del driver.

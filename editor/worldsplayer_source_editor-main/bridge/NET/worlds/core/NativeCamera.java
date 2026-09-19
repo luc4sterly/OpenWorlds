@@ -754,7 +754,8 @@ public final class NativeCamera {
          synchronized (counted) {
             if (sec >= Long.parseLong(System.getProperty("freeworlds.countPolys")) && counted.add(key)) {
                System.err.println("[RW] pasada " + key + ": " + p.clumps + " clumps, " + p.polys + " poligonos, " + p.drawn + " dibujados, "
-                  + p.texPixels + " px con textura, " + p.flatPixels + " px planos");
+                  + p.texPixels + " px con textura, " + p.flatPixels + " px planos, "
+                  + degenerateVertexNormals + " normales de vertice degeneradas (caida a la primera cara)");
             }
          }
       }
@@ -915,16 +916,28 @@ public final class NativeCamera {
       }
    }
 
-   /** Unit polygon normal in local space; the sign is the one that faces the viewer for a front (area < 0) polygon. */
+   /**
+    * Unit polygon normal in local space, RWL21 0x10001100 (the helper the
+    * BSP builder 0x10033750 uses for every polygon): the sum of the cross
+    * products of consecutive edges taken from the FIRST vertex,
+    * cross(v[i] - v[0], v[i+1] - v[0]) for i = 1..n-2 (a triangle fan),
+    * then normalised. Before this was Newell's formula, which agrees for a
+    * planar polygon but not for a warped quad, and its sign was marked as
+    * not extracted; the fan is what the binary does, and its sign is the
+    * one that faces the viewer for a front (area < 0) polygon.
+    */
    private static float[] polygonNormal(NativeScene.Clump k, NativeScene.Polygon poly) {
       float nx = 0, ny = 0, nz = 0;
       int n = poly.indices.length;
-      for (int i = 0; i < n; i++) {
+      float[] v0 = k.verts.get(poly.indices[0] - 1);
+      for (int i = 1; i + 1 < n; i++) {
          float[] a = k.verts.get(poly.indices[i] - 1);
-         float[] b = k.verts.get(poly.indices[(i + 1) % n] - 1);
-         nx += (a[1] - b[1]) * (a[2] + b[2]);
-         ny += (a[2] - b[2]) * (a[0] + b[0]);
-         nz += (a[0] - b[0]) * (a[1] + b[1]);
+         float[] b = k.verts.get(poly.indices[i + 1] - 1);
+         float ax = a[0] - v0[0], ay = a[1] - v0[1], az = a[2] - v0[2];
+         float bx = b[0] - v0[0], by = b[1] - v0[1], bz = b[2] - v0[2];
+         nx += ay * bz - az * by;
+         ny += az * bx - ax * bz;
+         nz += ax * by - ay * bx;
       }
       float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
       if (len == 0.0F) {
@@ -943,16 +956,30 @@ public final class NativeCamera {
     */
    private static final float NORMAL_SIGN = 1.0F;
 
-   /** ⚠️ RW vertex normals (vert+0x4c) are not extracted: average of the adjacent polygon normals. */
+   /**
+    * RW vertex normals (vert+0x4c), RWL21 0x10041df0 via
+    * RwCalculateClumpVertexNormal (0x10031a60): the UNWEIGHTED sum of the
+    * normals of the polygons adjacent to the vertex (vert+0x70 list,
+    * vert+0x6c count), normalised. When that sum cancels out exactly
+    * (rwLengthNormaliseVector returns <= _DAT_100522e8, which is 0.0f in
+    * the binary) RW falls back to the normal of the FIRST adjacent
+    * polygon instead of leaving a zero vector, which would light that
+    * vertex as pitch black.
+    */
    private static float[] vertexNormals(NativeScene.Clump k) {
       int nv = k.verts.size();
       float[] out = new float[nv * 3];
+      float[][] first = new float[nv][];
       for (NativeScene.Polygon poly : k.polys) {
          float[] nrm = polygonNormal(k, poly);
          for (int idx : poly.indices) {
-            out[(idx - 1) * 3] += nrm[0];
-            out[(idx - 1) * 3 + 1] += nrm[1];
-            out[(idx - 1) * 3 + 2] += nrm[2];
+            int v = idx - 1;
+            out[v * 3] += nrm[0];
+            out[v * 3 + 1] += nrm[1];
+            out[v * 3 + 2] += nrm[2];
+            if (first[v] == null) {
+               first[v] = nrm;
+            }
          }
       }
       for (int i = 0; i < nv; i++) {
@@ -962,10 +989,18 @@ public final class NativeCamera {
             out[i * 3] = x / len;
             out[i * 3 + 1] = y / len;
             out[i * 3 + 2] = z / len;
+         } else if (first[i] != null) {
+            out[i * 3] = first[i][0];
+            out[i * 3 + 1] = first[i][1];
+            out[i * 3 + 2] = first[i][2];
+            degenerateVertexNormals++;
          }
       }
       return out;
    }
+
+   /** Vertices whose adjacent normals cancelled out and took RW's first-polygon fallback. */
+   static int degenerateVertexNormals;
 
    /** Clip against Z >= near, Z <= far, X >= 0, X <= Z, Y >= 0, Y <= Z (flags 0x10, 0x20, 1, 2, 4, 8). */
    private static float[][] clip(float[][] poly, Cam c) {
