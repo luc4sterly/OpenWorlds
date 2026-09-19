@@ -3644,3 +3644,64 @@ líneas 70–73) muestra exactamente la misma secuencia
 (`Download error … → Could not load script … → Exception constructing world
 script: NullPointerException`), así que es el comportamiento original con el
 servidor caído, no un fallo del puente.
+
+### 🟢 RWL21/RWDL6D21 decompiladas + caza del "se ve todo mal" en GroundZero (2026-09-19)
+
+**Lo que se buscaba**: "en GroundZero, que es el medio del mapa, se pone
+todo bug". Sin captura de referencia, se atacó por descarte, midiendo.
+
+**Hipótesis descartadas con evidencia** (cada una habría sido un bug real):
+1. *Bumpers invisibles dibujados* (el fallo que ya hubo en el visor
+   propio). `Rect24cya` olía a cyan bumper. Instrumentando `Room.aboutToDraw`
+   para recorrer el árbol y comparar `getVisible()` con
+   `NativeScene.getClumpState`: **0 objetos invisibles encendidos en las 17
+   salas** que se recorren desde el spawn. `WObject.updateVisible` apaga la
+   jerarquía correctamente.
+2. *UVs disparatadas* (textura repetida decenas de veces = ruido). Medido
+   por polígono: `du≈0,4–1,2` sobre polígonos de 4.000–15.000 px, o sea
+   textura **magnificada**, no minificada.
+3. *Dither de translucidez roto*. Las tablas `0x10079240/0x10079280` dan
+   una matriz de Bayer 8×8 perfecta (64 valores distintos, cobertura
+   16/32/48 de 64 para opacidad 64/128/192) y **ningún** material grande de
+   la escena es translúcido.
+
+**Lo que sí se comprobó que está bien**: Reception, LizCave, ChatHall y
+Auditorium renderizados con el puente **coinciden con el visor propio**
+(mismo suelo, mismas texturas, misma oscuridad en ChatHall — la pared
+"moteada" es la textura real, sale igual en el renderizador OpenGL
+independiente). ~50 fps por cámara. La losa gris que parecía flotar es una
+hoja de puerta (`Rect24cya` de `WObjTemDrA1..4`, `IconViewRoom1Enter`) con
+material gris 150 sin textura **en los datos del mundo**, y se queda fija
+en coordenadas de mundo (12,125,125) mientras la cámara se mueve.
+
+**Nuevo diagnóstico** `-Dfreeworlds.dumpWindow=DIR`: vuelca el árbol de
+componentes AWT de la ventana entera. Sin él no había forma de revisar la
+UI (esta máquina no tiene permiso de captura de pantalla de macOS, y el
+PNG por `printAll` sale negro porque la UI son componentes AWT pesados que
+pinta el peer nativo). Resultado: maquetación correcta —canvas 468×244,
+`FriendsListPart`, `AdPart`, `MapPart`, chat 280×100 y campo de entrada,
+sin componentes de tamaño cero ni ocultos.
+
+**El desbloqueo de verdad**: se decompilaron los dos binarios que
+faltaban, que eran el motivo de que varias cosas del puente fueran
+conjeturas (`ghidra headless` necesita `JAVA_HOME=tools/jdk/Contents/Home`
+o aborta con "Unable to prompt user for JDK path"):
+- `RWL21.DLL` → **1131 funciones, 0 fallos**, y como la DLL exporta
+  símbolos, **795 con su nombre real de la API** (`RwGetPolygonMaterial`…).
+- `RWDL6D21.DLL` (driver de 16 bits) → **385 funciones, 0 fallos**.
+
+**Primer uso, dos conjeturas menos en el rasterizador** (ver
+`bridge/README.md`): la normal de polígono es un abanico de productos
+vectoriales desde el primer vértice (`0x10001100`), no Newell; y la normal
+de vértice es la suma sin ponderar de las caras adyacentes con caída a la
+**primera** cara cuando se cancela (`0x10041df0`, umbral `0.0f` leído en
+`_DAT_100522e8`) — el puente dejaba un vector cero, que apaga la luz en ese
+vértice. Medido: 0 casos degenerados en Reception y frame idéntico, o sea
+fidelidad sin cambio visible allí.
+
+**Sigue abierto**: no se ha reproducido ningún fallo visual atribuible al
+puente; hace falta una captura del usuario del momento concreto. Y el
+orden de dibujo real (BSP `0x1002cae0` + árbol por clump `0x10033750`)
+sigue aproximado con z-buffer, pero **ya no por falta del binario**: leído
+por encima, el árbol se construye una vez por clump y agrupa por material,
+así que traducirlo cambiaría sobre todo el z-fighting entre coplanares.
