@@ -31,6 +31,87 @@ public final class NativeWindows {
    private NativeWindows() {
    }
 
+   /**
+    * Diagnostico (opt-in): -Dfreeworlds.dumpWindow=DIR escribe, en los
+    * segundos 12/20/30/40, el arbol de componentes AWT de cada ventana
+    * (clase, nombre, texto y limites) y ademas intenta un PNG con
+    * Component.printAll.
+    *
+    * ⚠️ El PNG sale NEGRO en macOS y es esperable: la UI del cliente son
+    * componentes AWT PESADOS (Panel, Canvas, Button), que pinta el peer
+    * nativo, no Java, y printAll no los captura. El arbol de texto si es
+    * fiable y sirve para comprobar la maquetacion (tamanos, solapes,
+    * componentes de tamano cero). El render 3D se ve con
+    * -Dfreeworlds.dumpFrames; una captura real de la ventana solo la puede
+    * hacer el sistema operativo.
+    */
+   private static final int[] DUMP_WINDOW_SECONDS = {12, 20, 30, 40};
+
+   static {
+      final String dir = System.getProperty("freeworlds.dumpWindow");
+      if (dir != null) {
+         Thread t = new Thread(new Runnable() {
+            public void run() {
+               for (int i = 0; i < DUMP_WINDOW_SECONDS.length; i++) {
+                  int wait = DUMP_WINDOW_SECONDS[i] - (i == 0 ? 0 : DUMP_WINDOW_SECONDS[i - 1]);
+                  try {
+                     Thread.sleep(wait * 1000L);
+                  } catch (InterruptedException e) {
+                     return;
+                  }
+                  dumpWindows(dir, DUMP_WINDOW_SECONDS[i]);
+               }
+            }
+         }, "freeworlds-dumpWindow");
+         t.setDaemon(true);
+         t.start();
+      }
+   }
+
+   private static void dumpWindows(String dir, int sec) {
+      Frame[] fr = Frame.getFrames();
+      for (int i = 0; i < fr.length; i++) {
+         final Frame f = fr[i];
+         if (!f.isShowing() || f.getWidth() <= 0 || f.getHeight() <= 0) {
+            continue;
+         }
+         final java.awt.image.BufferedImage img =
+            new java.awt.image.BufferedImage(f.getWidth(), f.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+         try {
+            java.awt.EventQueue.invokeAndWait(new Runnable() {
+               public void run() {
+                  java.awt.Graphics2D g = img.createGraphics();
+                  f.printAll(g);
+                  g.dispose();
+               }
+            });
+            boolean blank = true;
+            for (int y = 0; y < img.getHeight() && blank; y += 4) {
+               for (int x = 0; x < img.getWidth(); x += 4) {
+                  if ((img.getRGB(x, y) & 0xFFFFFF) != 0) {
+                     blank = false;
+                     break;
+                  }
+               }
+            }
+            if (!blank) {
+               java.io.File png = new java.io.File(dir, "win-" + i + "-s" + sec + ".png");
+               javax.imageio.ImageIO.write(img, "png", png);
+               System.err.println("[WIN] " + png);
+            }
+            java.io.File txt = new java.io.File(dir, "win-" + i + "-s" + sec + ".txt");
+            java.io.PrintWriter pw = new java.io.PrintWriter(txt, "UTF-8");
+            pw.println(f.getWidth() + "x" + f.getHeight() + " \"" + f.getTitle() + "\"");
+            tree(pw, f, 0);
+            pw.close();
+            System.err.println("[WIN] " + txt + " " + f.getWidth() + "x" + f.getHeight() + " \"" + f.getTitle() + "\""
+               + (blank ? " (sin PNG: AWT pesado, lo pinta el peer nativo)" : ""));
+         } catch (Throwable ex) {
+            System.err.println("[WIN] error al volcar la ventana: " + ex);
+         }
+      }
+   }
+
    private static final class Child {
       final int parent;
       final int x;
@@ -279,4 +360,38 @@ public final class NativeWindows {
       }
       return o instanceof Child ? ((Child) o).h : 0;
    }
+   private static void tree(java.io.PrintWriter pw, java.awt.Component c, int depth) {
+      StringBuilder sb = new StringBuilder();
+      for (int i = 0; i < depth; i++) {
+         sb.append("  ");
+      }
+      java.awt.Rectangle b = c.getBounds();
+      sb.append(c.getClass().getName()).append(" [").append(b.x).append(",").append(b.y)
+        .append(" ").append(b.width).append("x").append(b.height).append("]");
+      if (!c.isVisible()) {
+         sb.append(" OCULTO");
+      }
+      if (b.width == 0 || b.height == 0) {
+         sb.append(" TAMANO-CERO");
+      }
+      String text = null;
+      if (c instanceof java.awt.Label) {
+         text = ((java.awt.Label) c).getText();
+      } else if (c instanceof java.awt.Button) {
+         text = ((java.awt.Button) c).getLabel();
+      } else if (c instanceof java.awt.TextComponent) {
+         text = ((java.awt.TextComponent) c).getText();
+      }
+      if (text != null && text.length() > 0) {
+         sb.append(" \"").append(text.length() > 60 ? text.substring(0, 60) + "..." : text).append("\"");
+      }
+      pw.println(sb);
+      if (c instanceof java.awt.Container) {
+         java.awt.Component[] kids = ((java.awt.Container) c).getComponents();
+         for (int i = 0; i < kids.length; i++) {
+            tree(pw, kids[i], depth + 1);
+         }
+      }
+   }
+
 }

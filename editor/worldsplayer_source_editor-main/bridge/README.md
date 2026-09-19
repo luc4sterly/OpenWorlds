@@ -30,6 +30,12 @@ argumento de mundo del propio `Gamma.main` (sin ella arranca en
 Consola: la traza `[NATIVE-MOCK]` es opt-in (`JAVA_OPTS=-Dfreeworlds.nativeLog=true`)
 y cada textura que no carga se avisa una sola vez.
 
+`-Dfreeworlds.dumpWindow=DIR` vuelca el árbol de componentes AWT de la
+ventana entera (clase, texto y límites) en los segundos 12/20/30/40, para
+revisar la maquetación de la UI sin poder capturar la pantalla. El PNG que
+intenta con `printAll` sale negro en macOS —la UI son componentes AWT
+pesados que pinta el peer nativo— así que solo se escribe si no lo está.
+
 Diagnóstico (desactivado por defecto): `JAVA_OPTS` con
 `-Dfreeworlds.dumpFrames=DIR` guarda los frames 1, 10, 100, 1000… de cada
 cámara como PNG (o, con `-Dfreeworlds.dumpSeconds=S1,S2`, el primer frame
