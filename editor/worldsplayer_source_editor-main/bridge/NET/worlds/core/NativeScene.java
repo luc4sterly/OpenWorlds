@@ -37,6 +37,20 @@ public final class NativeScene {
       int axisAlignment = 1;
       final List<Polygon> polys = new ArrayList<Polygon>();
       int handle;
+      /**
+       * Face and vertex normals kept with the geometry, the way RW does:
+       * RwCalculateClumpVertexNormal (RWL21 0x10031a60) stores the vertex
+       * normal in vert+0x4c when the geometry changes, it is not recomputed
+       * on every frame. Null until the first use, dropped by geomChanged().
+       */
+      float[] faceNormals;
+      float[] vertNormals;
+
+      /** Any change to the vertices or polygons drops the cached normals. */
+      void geomChanged() {
+         this.faceNormals = null;
+         this.vertNormals = null;
+      }
    }
 
    public static final class Polygon {
@@ -129,6 +143,7 @@ public final class NativeScene {
          return 0;
       }
       c.verts.add(new float[]{x, y, z, 0.0F, 0.0F});
+      c.geomChanged();
       float[] v = {x, y, z};
       for (int i = 0; i < 3; i++) {
          c.bbox[i] = Math.min(c.bbox[i], v[i]);
@@ -198,6 +213,7 @@ public final class NativeScene {
       System.arraycopy(tmp, 0, idx, 0, k);
       Polygon p = new Polygon(c, idx);
       c.polys.add(p);
+      c.geomChanged();
       c.hints |= 4;
       p.handle = NativeRw.alloc(p);
       return p.handle;
@@ -841,6 +857,7 @@ public final class NativeScene {
             c.bbox[i] = Math.min(c.bbox[i], vv[i]);
             c.bbox[3 + i] = Math.max(c.bbox[3 + i], vv[i]);
          }
+         c.geomChanged();
       }
    }
 
@@ -915,6 +932,7 @@ public final class NativeScene {
          c.normals.add(null);
       }
       c.normals.set(index - 1, new float[]{x / len, y / len, z / len});
+      c.geomChanged();
    }
 
    public static float[] vertexNormal(Clump c, int index0) {

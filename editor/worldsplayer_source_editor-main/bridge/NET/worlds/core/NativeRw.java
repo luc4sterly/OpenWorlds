@@ -88,6 +88,19 @@ public final class NativeRw {
       return o;
    }
 
+   /** a.b written into out (out must not alias a or b): mul() without the allocation. */
+   public static void mulInto(float[] a, float[] b, float[] out) {
+      for (int i = 0; i < 4; i++) {
+         for (int j = 0; j < 4; j++) {
+            float s = 0f;
+            for (int k = 0; k < 4; k++) {
+               s += a[i * 4 + k] * b[k * 4 + j];
+            }
+            out[i * 4 + j] = s;
+         }
+      }
+   }
+
    /** Common combine routine 0x1001c500: writes the result into dest. */
    public static void combine(float[] dest, float[] x, int mode) {
       float[] r;

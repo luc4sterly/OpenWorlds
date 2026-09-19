@@ -39,9 +39,17 @@ pesados que pinta el peer nativo— así que solo se escribe si no lo está.
 Diagnóstico (desactivado por defecto): `JAVA_OPTS` con
 `-Dfreeworlds.dumpFrames=DIR` guarda los frames 1, 10, 100, 1000… de cada
 cámara como PNG (o, con `-Dfreeworlds.dumpSeconds=S1,S2`, el primer frame
-tras cada segundo), y `-Dfreeworlds.scriptKeys=MS:KEYCODE:HOLD_MS,...`
+tras cada segundo; o, con `-Dfreeworlds.dumpRange=SEG:N`, N frames
+**consecutivos** desde el segundo SEG, que es lo que hace falta para mirar
+un giro), y `-Dfreeworlds.scriptKeys=MS:KEYCODE:HOLD_MS,...`
 inyecta pulsaciones AWT sintéticas en el canvas. La captura de pantalla de
 macOS no tiene permiso en esta máquina.
+
+Para saber **qué objeto pinta qué**: `-Dfreeworlds.matStats=SEG` lista, una
+vez por segundo y escena, los materiales visibles ordenados por píxeles
+dibujados con su color 565, su textura y el `WObject` dueño;
+`-Dfreeworlds.probePixel=X,Y` dice quién se queda con ese píxel; y
+`-Dfreeworlds.fps=1` imprime los frames por segundo de la cámara principal.
 
 ## Estado verificado (2026-09-18)
 
@@ -113,8 +121,37 @@ try-with-resources, la propia capa de mocks), salvo esta.
   pantalla, sombreado plano en los polígonos texturizados, texel 0
   transparente y el patrón ordenado 8×8 de la translucidez
   (0x10079240/0x10079280). Pendiente: la división de perspectiva por
-  tramos de 16 píxeles (aquí es por píxel) y las tablas de color del
-  driver.
+  tramos de 16 píxeles (aquí es por píxel) y el paso de las pendientes por
+  la tabla de recíprocos `DAT_10079214` (aquí, división en coma flotante).
+- ~~Tablas de color del driver~~: **traducidas** (2026-09-19). La
+  iluminación por píxel ya no es una fórmula: es la rampa de 32×32 bytes
+  que `FUN_10008d00` genera y que los rasterizadores leen como
+  `rampa[(intensidad >> 16) * 0x20 + componente]` (tres tablas en
+  `DAT_10079220` + 0/0x400/0x800). Constantes leídas del binario:
+  normalización `_DAT_10078098` = 1/31, umbral `DAT_10079238` = 0.75,
+  selector de curva `DAT_10079234` = 0 (rama lineal), extremo oscuro
+  `*DAT_1007bda8`[0..2] = 0 salvo tabla de niebla (`FUN_1000b070`), y el
+  redondeo 8.8 con `+0x80`, saturación a 0xffff y recorte a [1, 30].
+  Medido: cambia el 3,1 % de los píxeles del pasillo de Reception, como
+  mucho un escalón de 5 bits.
+- ~~Relleno del polígono completo~~: **corregido** (2026-09-19). El
+  dispositivo no rellena n-gonos: `FUN_10025970` (texturizado/Gouraud) y
+  `FUN_100198b0` (plano) recorren la lista de vértices hacia atrás pasando
+  `(v0, v[i], v[i+1])` a los rasterizadores de tres vértices
+  (`FUN_100259e0` / `FUN_10019920`), o sea un **abanico de triángulos desde
+  el vértice 0**, con el sentido de giro que le pasa el llamante. El puente
+  rellenaba entre el borde más a la izquierda y el más a la derecha del
+  n-gono entero, lo que cubre área fuera de esos triángulos en cuanto el
+  polígono proyectado sale alabeado o cóncavo, e interpolaba la textura y
+  el sombreado sobre el dominio equivocado. Medido: 42 % de los píxeles del
+  pasillo de Reception cambian.
+- Normales y LTM por frame: RW guarda la normal de vértice con la geometría
+  (`RwCalculateClumpVertexNormal` 0x10031a60 corre al cambiar la geometría,
+  no por frame) y escribe la LTM en el propio clump. El puente las
+  recalculaba y reasignaba en cada frame; ahora se cachean en el `Clump` y
+  se tiran en `geomChanged()`. De paso, la normal de vértice puesta por el
+  script (`RwSetClumpVertexNormal`, vert+0x4c con el bit 0x40 de vert+0x48)
+  ya se usa: se guardaba y no la leía nadie.
 - ~~Normales de vértice, signo de la normal de polígono~~: **extraídos ya**
   de `RWL21.DLL` (2026-09-19, ver `decompiled-native/rwl21_dll`) y
   corregidos en `NativeCamera`:
@@ -129,8 +166,8 @@ try-with-resources, la propia capa de mocks), salvo esta.
     la normal de la **primera** cara adyacente. El puente dejaba un vector
     cero, que apagaba la luz en ese vértice. Medido en Reception: 0 casos
     degenerados, así que es fidelidad sin cambio visible allí.
-- Regla de relleno, espacio de interpolación de Gouraud, patrón de la
-  opacidad y dithering de texturas: no extraídos.
+- Espacio de interpolación de Gouraud, patrón de la opacidad y dithering de
+  texturas: no extraídos.
 - `StretchBlt(HALFTONE)` de las texturas de tamaño distinto de 128 (solo
   `windr3.mov`): promedio por cajas.
 - `RwReadTexture` (FileTexture): reescalado y formatos no extraídos.

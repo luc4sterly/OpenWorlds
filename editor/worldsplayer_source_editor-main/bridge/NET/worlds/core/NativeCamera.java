@@ -116,6 +116,7 @@ public final class NativeCamera {
          return;
       }
       dumpFrame(c);
+      fps(c);
       Component comp = NativeWindows.component(c.data);
       if (comp == null) {
          if (!warnedNoWindow) {
@@ -186,6 +187,29 @@ public final class NativeCamera {
          + " canvas=" + (comp instanceof java.awt.Canvas) + owner);
    }
 
+   /** -Dfreeworlds.fps: frames shown per second on the main camera. */
+   private static long fpsMark;
+   private static int fpsCount;
+
+   private static void fps(Cam c) {
+      if (System.getProperty("freeworlds.fps") == null || c.width != mainWidth) {
+         return;
+      }
+      long now = System.nanoTime();
+      if (fpsMark == 0L) {
+         fpsMark = now;
+      }
+      fpsCount++;
+      if (now - fpsMark >= 1000000000L) {
+         System.err.println("[RW] fps " + (System.nanoTime() - DUMP_T0) / 1000000000L + "s: "
+            + (fpsCount * 1000000000L / (now - fpsMark)) + " (camara " + c.width + "x" + c.height + ")");
+         fpsMark = now;
+         fpsCount = 0;
+      }
+   }
+
+   private static int rangeShot;
+
    private static boolean warnedNoWindow;
    private static final long DUMP_T0 = System.nanoTime();
    private static final java.util.Set<String> dumpedSeconds = new java.util.HashSet<String>();
@@ -204,6 +228,20 @@ public final class NativeCamera {
       Integer prev = shownBySize.get(key);
       int shown = prev == null ? 1 : prev + 1;
       shownBySize.put(key, shown);
+      String range = System.getProperty("freeworlds.dumpRange");
+      if (range != null) {
+         long elapsed = (System.nanoTime() - DUMP_T0) / 1000000000L;
+         String[] f = range.split(":");
+         if (elapsed < Long.parseLong(f[0]) || rangeShot >= Integer.parseInt(f[1]) || c.width != mainWidth) {
+            return;
+         }
+         try {
+            javax.imageio.ImageIO.write(c.image, "png", new java.io.File(dir, "seq-" + (1000 + rangeShot++) + ".png"));
+         } catch (java.io.IOException e) {
+            System.err.println("dumpFrame: " + e);
+         }
+         return;
+      }
       String secs = System.getProperty("freeworlds.dumpSeconds");
       if (secs != null) {
          long elapsed = (System.nanoTime() - DUMP_T0) / 1000000000L;
@@ -663,11 +701,12 @@ public final class NativeCamera {
     * 1000d5c0 / 1000d950): I = 31*amb + sum 31*lc*(dif*d + (d > 0.7 ?
     * spec*S(d) : 0)), d = N.L > 0, L = normalize(-dir . inv(LTM)).
     */
-   private static void light(NativeScene.Material m, float nx, float ny, float nz, float[][] lights, float[] out) {
+   private static void light(NativeScene.Material m, float nx, float ny, float nz, float[][] lights, float[] out, int nl) {
       for (int ch = 0; ch < 3; ch++) {
          out[ch] = 31.0F * m.ambient;
       }
-      for (float[] l : lights) {
+      for (int li = 0; li < nl; li++) {
+         float[] l = lights[li];
          float d = nx * l[0] + ny * l[1] + nz * l[2];
          if (d > 0.0F) {
             float s = d > 0.7F ? m.specular * SPEC[Math.min(257, (int) (d * 256.0F))] : 0.0F;
@@ -682,23 +721,65 @@ public final class NativeCamera {
       }
    }
 
-   /** Lit component (driver 10019920): below 0.75 scale down, above blend to white; clamp [1, 30]. */
-   private static int litComponent(int m5, float lit) {
-      float x = lit / 31.0F;
-      int out;
-      if (x < 0.75F) {
-         out = (int) Math.floor(m5 * (x / 0.75F));
-      } else {
-         float s = (x - 0.75F) / 0.25F;
-         out = (int) Math.floor(32.0F * (m5 / 32.0F * (1.0F - s) + s));
+   /**
+    * Colour ramp of the 16-bit driver: 32x32 bytes indexed
+    * [integer part of the light intensity][5-bit material component], the
+    * table that RWDL6D21 builds in FUN_10008d00 and that its rasterizers
+    * (flat 0x10019920, Gouraud/textured 0x100259e0) read as
+    * <code>ramp[(intensity &gt;&gt; 16) * 0x20 + component]</code> with the three
+    * channel tables at DAT_10079220 + 0 / 0x400 / 0x800.
+    *
+    * <p>Read from the binary: the intensity is normalised by
+    * <code>_DAT_10078098</code> = 1/31, the curve flag
+    * <code>DAT_10079234</code> is 0 (the linear branch; the other one is a
+    * sine of x*pi/2) and the threshold <code>DAT_10079238</code> is 0.75.
+    * Below it the ramp goes from the device shade colour to the material
+    * component, above it from the component to white, both in the driver's
+    * 8.8 fixed point with its +0x80 rounding, saturating at 0xffff and
+    * clamped to [1, 30] (0 is reserved as the transparent texel). The three
+    * tables differ only in that dark end (<code>*DAT_1007bda8</code>[0..2]),
+    * which is 0 unless FUN_1000b070 builds a fog table, so one table serves
+    * the three channels here.
+    */
+   private static final byte[] RAMP = buildRamp();
+
+   private static byte[] buildRamp() {
+      byte[] t = new byte[32 * 32];
+      for (int i = 0; i < 32; i++) {
+         float x = i * (1.0F / 31.0F);
+         for (int c = 0; c < 32; c++) {
+            int comp16 = c << 11;
+            int v;
+            if (x >= 0.75F) {
+               int s = (int) ((x - 0.75F) / 0.25F * 65536.0F);
+               v = (0x10080 - (0x10000 - s) & 0xFFFFFF00) + ((comp16 + 0x80) >> 8) * (0x10080 - s >> 8);
+            } else {
+               int s = (int) (x / 0.75F * 65536.0F);
+               v = ((comp16 + 0x80) >> 8) * (s + 0x80 >> 8);
+            }
+            if (v > 0xFFFF) {
+               v = 0xFFFF;
+            }
+            int out = v >> 11;
+            if (out > 0x1E) {
+               out = 0x1E;
+            }
+            t[i * 32 + c] = (byte) (out == 0 ? 1 : out);
+         }
       }
-      return out < 1 ? 1 : (out > 30 ? 30 : out);
+      return t;
+   }
+
+   private static int litComponent(int m5, float lit) {
+      int i = (int) lit;
+      return RAMP[(i < 0 ? 0 : i > 31 ? 31 : i) * 32 + m5];
    }
 
    private static int lit565(int c565, float lr, float lg, float lb) {
-      int r = litComponent(c565 >> 11 & 0x1F, lr);
-      int g = litComponent(c565 >> 6 & 0x1F, lg) << 1;
-      int b = litComponent(c565 & 0x1F, lb);
+      int ir = (int) lr, ig = (int) lg, ib = (int) lb;
+      int r = RAMP[(ir < 0 ? 0 : ir > 31 ? 31 : ir) * 32 + (c565 >> 11 & 0x1F)];
+      int g = RAMP[(ig < 0 ? 0 : ig > 31 ? 31 : ig) * 32 + (c565 >> 6 & 0x1F)] << 1;
+      int b = RAMP[(ib < 0 ? 0 : ib > 31 ? 31 : ib) * 32 + (c565 & 0x1F)];
       return r << 11 | g << 5 | b;
    }
 
@@ -725,6 +806,7 @@ public final class NativeCamera {
       float pickZ;
       NativeScene.Clump picked;
       float[] pickPoint;
+      java.util.Map<String, int[]> matPixels;
    }
 
    /**
@@ -742,7 +824,20 @@ public final class NativeCamera {
       p.c = c;
       p.z = zbuffer(c);
       java.util.Arrays.fill(p.z, 0.0F);
+      if (System.getProperty("freeworlds.matStats") != null && c.width == mainWidth) {
+         p.matPixels = new java.util.HashMap<String, int[]>();
+      }
+      probeHit = null;
       drawScene(p, scene);
+      matStats(p, scene);
+      if (probeHit != null) {
+         long sec = (System.nanoTime() - DUMP_T0) / 1000000000L;
+         synchronized (probeShown) {
+            if (probeShown.add(sec + "/" + scene)) {
+               System.err.println("[RW] probe " + sec + "s escena " + scene + " (" + probeX + "," + probeY + "): " + probeHit);
+            }
+         }
+      }
       if (System.getProperty("freeworlds.centrePixel") != null && p.centre != null
             && c.width == mainWidth && (System.nanoTime() - DUMP_T0) / 1000000000L >= 25
             && centreShown++ % 300 == 0) {
@@ -803,19 +898,49 @@ public final class NativeCamera {
          }
       }
       p.lights = lights.toArray(new float[0][]);
-      for (NativeScene.Clump root : NativeScene.sceneRoots(scene)) {
-         drawTree(p, root, null);
+      java.util.List<NativeScene.Clump> roots = NativeScene.sceneRoots(scene);
+      for (int i = 0; i < roots.size(); i++) {
+         drawTree(p, roots.get(i), null, 0);
       }
    }
 
-   private static void drawTree(Pass p, NativeScene.Clump k, float[] parentLtm) {
-      float[] ltm = NativeRw.mul(NativeRw.mul(k.joint, k.modeling), parentLtm == null ? NativeRw.identity() : parentLtm);
+   /**
+    * LTM = Joint . Modeling . LTM(parent), the composition RW keeps per
+    * clump. The matrices are taken from a per-depth scratch pool instead of
+    * being allocated on every clump of every frame (RW writes into the
+    * clump's own LTM, it does not allocate either).
+    */
+   private static void drawTree(Pass p, NativeScene.Clump k, float[] parentLtm, int depth) {
+      float[] ltm = scratch(depth);
+      NativeRw.mulInto(k.joint, k.modeling, ltm);
+      if (parentLtm != null) {
+         float[] tmp = scratch(depth + 1024);
+         System.arraycopy(ltm, 0, tmp, 0, 16);
+         NativeRw.mulInto(tmp, parentLtm, ltm);
+      }
       if (k.state != 1) {
          drawClump(p, k, ltm);
       }
-      for (NativeScene.Clump child : new ArrayList<NativeScene.Clump>(k.children)) {
-         drawTree(p, child, ltm);
+      java.util.List<NativeScene.Clump> kids = k.children;
+      for (int i = 0; i < kids.size(); i++) {
+         drawTree(p, kids.get(i), ltm, depth + 1);
       }
+   }
+
+   private static float[][] scratchPool = new float[2048][];
+
+   private static float[] scratch(int slot) {
+      if (slot >= scratchPool.length) {
+         float[][] bigger = new float[slot * 2][];
+         System.arraycopy(scratchPool, 0, bigger, 0, scratchPool.length);
+         scratchPool = bigger;
+      }
+      float[] m = scratchPool[slot];
+      if (m == null) {
+         m = new float[16];
+         scratchPool[slot] = m;
+      }
+      return m;
    }
 
    private static void drawClump(Pass p, NativeScene.Clump k, float[] ltm) {
@@ -828,15 +953,21 @@ public final class NativeCamera {
       Cam c = p.c;
       float[] m = c.ltm;
       float px = m[12], py = m[13], pz = m[14];
-      float[] wv = new float[nv * 3];
-      float[] cv = new float[nv * 3];
+      if (wvBuf.length < nv * 3) {
+         wvBuf = new float[nv * 3 * 2];
+         cvBuf = new float[nv * 3 * 2];
+      }
+      float[] wv = wvBuf;
+      float[] cv = cvBuf;
       for (int i = 0; i < nv; i++) {
          float[] v = k.verts.get(i);
-         float[] w = NativeRw.transformPoint(ltm, v[0], v[1], v[2]);
-         wv[i * 3] = w[0];
-         wv[i * 3 + 1] = w[1];
-         wv[i * 3 + 2] = w[2];
-         float dx = w[0] - px, dy = w[1] - py, dz = w[2] - pz;
+         float wx = v[0] * ltm[0] + v[1] * ltm[4] + v[2] * ltm[8] + ltm[12];
+         float wy = v[0] * ltm[1] + v[1] * ltm[5] + v[2] * ltm[9] + ltm[13];
+         float wz = v[0] * ltm[2] + v[1] * ltm[6] + v[2] * ltm[10] + ltm[14];
+         wv[i * 3] = wx;
+         wv[i * 3 + 1] = wy;
+         wv[i * 3 + 2] = wz;
+         float dx = wx - px, dy = wy - py, dz = wz - pz;
          float xc = dx * m[0] + dy * m[1] + dz * m[2];
          float yc = dx * m[4] + dy * m[5] + dz * m[6];
          float zc = dx * m[8] + dy * m[9] + dz * m[10];
@@ -845,30 +976,43 @@ public final class NativeCamera {
          cv[i * 3 + 2] = zc;
       }
       // lights in the clump's local space: L = normalize(-dir . inv(LTM))
-      float[] inv = new float[16];
+      float[] inv = invBuf;
       NativeRw.invert(ltm, inv);
-      float[][] ll = new float[p.lights.length][];
-      for (int i = 0; i < ll.length; i++) {
+      if (llBuf.length < p.lights.length) {
+         llBuf = new float[p.lights.length][6];
+      }
+      float[][] ll = llBuf;
+      int nl = p.lights.length;
+      for (int i = 0; i < nl; i++) {
          float[] l = p.lights[i];
-         float[] d = NativeRw.transformVector(inv, -l[0], -l[1], -l[2]);
-         float len = (float) Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+         float dx = -l[0] * inv[0] - l[1] * inv[4] - l[2] * inv[8];
+         float dy = -l[0] * inv[1] - l[1] * inv[5] - l[2] * inv[9];
+         float dz = -l[0] * inv[2] - l[1] * inv[6] - l[2] * inv[10];
+         float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
          if (len > 0.0F) {
-            d[0] /= len;
-            d[1] /= len;
-            d[2] /= len;
+            dx /= len;
+            dy /= len;
+            dz /= len;
          }
-         ll[i] = new float[]{d[0], d[1], d[2], l[3], l[4], l[5]};
+         float[] o = ll[i];
+         o[0] = dx;
+         o[1] = dy;
+         o[2] = dz;
+         o[3] = l[3];
+         o[4] = l[4];
+         o[5] = l[5];
       }
       float[] vnorm = null;
-      float[] lit = new float[3];
-      for (NativeScene.Polygon poly : k.polys) {
+      float[] lit = litBuf;
+      float[] faces = faceNormals(k);
+      for (int pi = 0; pi < k.polys.size(); pi++) {
+         NativeScene.Polygon poly = k.polys.get(pi);
          NativeScene.Material mat = NativeScene.material(poly.material);
          int n = poly.indices.length;
-         float[] nrm = polygonNormal(k, poly);
-         float[][] vs = new float[n][NA];
+         float[][] vs = polyBuf(n);
          boolean vertexLit = mat != null && mat.lightSampling == 2 && NativeTextures.texture(mat.texture) == null && mat.textureName == null;
          if (mat != null && !vertexLit) {
-            light(mat, nrm[0], nrm[1], nrm[2], ll, lit);
+            light(mat, faces[pi * 3], faces[pi * 3 + 1], faces[pi * 3 + 2], ll, lit, nl);
          }
          if (vertexLit && vnorm == null) {
             vnorm = vertexNormals(k);
@@ -883,7 +1027,7 @@ public final class NativeCamera {
             a[3] = src[3];
             a[4] = src[4];
             if (vertexLit) {
-               light(mat, vnorm[vi * 3], vnorm[vi * 3 + 1], vnorm[vi * 3 + 2], ll, lit);
+               light(mat, vnorm[vi * 3], vnorm[vi * 3 + 1], vnorm[vi * 3 + 2], ll, lit, nl);
             }
             a[5] = lit[0];
             a[6] = lit[1];
@@ -912,7 +1056,33 @@ public final class NativeCamera {
          if (tex == null && mat != null && mat.textureName != null) {
             tex = NativeTextures.find(mat.textureName);
          }
-         raster(p, cl, sx, sy, mat, tex, k, vertexLit ? null : lit.clone());
+         float[] facet = vertexLit ? null : facetBuf;
+         if (facet != null) {
+            facet[0] = lit[0];
+            facet[1] = lit[1];
+            facet[2] = lit[2];
+         }
+         // The device renders a polygon as a TRIANGLE FAN from its first
+         // vertex: RWDL6D21 0x10025970 (textured/Gouraud) and 0x100198b0
+         // (flat) walk the vertex list backwards handing (v0, v[i], v[i+1])
+         // to the three-vertex rasterizers 0x100259e0 / 0x10019920, with the
+         // winding flipped by the caller's flag. Filling the whole n-gon
+         // between its leftmost and rightmost edge crossing, as this did
+         // before, covers area outside those triangles whenever the
+         // projected polygon is warped or concave, and interpolates the
+         // texture and the shading over the wrong domain.
+         for (int t = 1; t + 1 < m2; t++) {
+            triV[0] = cl[0];
+            triV[1] = cl[t];
+            triV[2] = cl[t + 1];
+            triX[0] = sx[0];
+            triX[1] = sx[t];
+            triX[2] = sx[t + 1];
+            triY[0] = sy[0];
+            triY[1] = sy[t];
+            triY[2] = sy[t + 1];
+            raster(p, triV, triX, triY, mat, tex, k, facet);
+         }
       }
    }
 
@@ -967,11 +1137,16 @@ public final class NativeCamera {
     * vertex as pitch black.
     */
    private static float[] vertexNormals(NativeScene.Clump k) {
+      if (k.vertNormals != null) {
+         return k.vertNormals;
+      }
       int nv = k.verts.size();
       float[] out = new float[nv * 3];
       float[][] first = new float[nv][];
-      for (NativeScene.Polygon poly : k.polys) {
-         float[] nrm = polygonNormal(k, poly);
+      float[] faces = faceNormals(k);
+      for (int pi = 0; pi < k.polys.size(); pi++) {
+         NativeScene.Polygon poly = k.polys.get(pi);
+         float[] nrm = {faces[pi * 3], faces[pi * 3 + 1], faces[pi * 3 + 2]};
          for (int idx : poly.indices) {
             int v = idx - 1;
             out[v * 3] += nrm[0];
@@ -996,11 +1171,71 @@ public final class NativeCamera {
             degenerateVertexNormals++;
          }
       }
+      // A normal set by the shape script wins: RW stores it in vert+0x4c
+      // with flag 0x40 of vert+0x48 so RwCalculateClumpVertexNormal leaves
+      // it alone, and the rasterizer reads that same field.
+      for (int i = 0; i < nv; i++) {
+         float[] set = NativeScene.vertexNormal(k, i);
+         if (set != null) {
+            out[i * 3] = set[0];
+            out[i * 3 + 1] = set[1];
+            out[i * 3 + 2] = set[2];
+         }
+      }
+      k.vertNormals = out;
+      return out;
+   }
+
+   /**
+    * Face normals of the clump, computed once per geometry like RW's (the
+    * BSP builder 0x10033750 keeps the plane of each polygon), not once per
+    * polygon per frame.
+    */
+   private static float[] faceNormals(NativeScene.Clump k) {
+      if (k.faceNormals != null) {
+         return k.faceNormals;
+      }
+      float[] out = new float[k.polys.size() * 3];
+      for (int i = 0; i < k.polys.size(); i++) {
+         float[] n = polygonNormal(k, k.polys.get(i));
+         out[i * 3] = n[0];
+         out[i * 3 + 1] = n[1];
+         out[i * 3 + 2] = n[2];
+      }
+      k.faceNormals = out;
       return out;
    }
 
    /** Vertices whose adjacent normals cancelled out and took RW's first-polygon fallback. */
    static int degenerateVertexNormals;
+
+   // Scratch buffers of the draw pass. The original transforms into the
+   // driver's own vertex array; here they just keep the frame from
+   // allocating a few hundred thousand short-lived arrays.
+   private static float[] wvBuf = new float[3 * 64];
+   private static float[] cvBuf = new float[3 * 64];
+   private static final float[] invBuf = new float[16];
+   private static final float[] litBuf = new float[3];
+   private static float[][] llBuf = new float[8][6];
+   private static final float[][] triV = new float[3][];
+   private static final float[] triX = new float[3];
+   private static final float[] triY = new float[3];
+   private static final float[] facetBuf = new float[3];
+   private static float[][][] polyBufs = new float[16][][];
+
+   private static float[][] polyBuf(int n) {
+      if (n >= polyBufs.length) {
+         float[][][] bigger = new float[n * 2][][];
+         System.arraycopy(polyBufs, 0, bigger, 0, polyBufs.length);
+         polyBufs = bigger;
+      }
+      float[][] b = polyBufs[n];
+      if (b == null) {
+         b = new float[n][NA];
+         polyBufs[n] = b;
+      }
+      return b;
+   }
 
    /** Clip against Z >= near, Z <= far, X >= 0, X <= Z, Y >= 0, Y <= Z (flags 0x10, 0x20, 1, 2, 4, 8). */
    private static float[][] clip(float[][] poly, Cam c) {
@@ -1098,6 +1333,7 @@ public final class NativeCamera {
       float[] r = new float[9];
       float[] cur = new float[9];
       // flat colour ramps of the textured path: one lighting value per polygon
+      int wrote = 0;
       float flatR = facetLit != null ? facetLit[0] : 31.0F;
       float flatG = facetLit != null ? facetLit[1] : 31.0F;
       float flatB = facetLit != null ? facetLit[2] : 31.0F;
@@ -1189,7 +1425,91 @@ public final class NativeCamera {
             }
             p.z[zi] = iz;
             c.raster[zi] = (short) pix;
+            wrote++;
+            if (probeX >= 0 && x == probeX && y == probeY && c.width == mainWidth) {
+               probeHit = describe(mat, tex, k) + " px=#" + Integer.toHexString(pix)
+                  + " mundo=(" + (int) (cur[6] * zz) + "," + (int) (cur[7] * zz) + "," + (int) (cur[8] * zz) + ")";
+            }
          }
+      }
+      if (p.matPixels != null && wrote > 0) {
+         int[] n2 = p.matPixels.get(describe(mat, tex, k));
+         if (n2 == null) {
+            p.matPixels.put(describe(mat, tex, k), new int[]{wrote});
+         } else {
+            n2[0] += wrote;
+         }
+      }
+   }
+
+   /** Material + owner of a polygon, for -Dfreeworlds.matStats. */
+   private static String describe(NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k) {
+      StringBuilder b = new StringBuilder();
+      if (mat == null) {
+         b.append("sin material");
+      } else {
+         b.append("color 565=").append(device565(mat.color[0], mat.color[1], mat.color[2]) >> 11 & 31)
+            .append(",").append(device565(mat.color[0], mat.color[1], mat.color[2]) >> 5 & 63)
+            .append(",").append(device565(mat.color[0], mat.color[1], mat.color[2]) & 31)
+            .append(" tex=").append(mat.textureName == null ? "-" : mat.textureName)
+            .append(tex == null ? "(sin cargar)" : "")
+            .append(" modes=").append(mat.textureModes).append("/").append(mat.materialModes)
+            .append(" op=").append(mat.opacity);
+      }
+      NativeScene.Clump o = k;
+      Object data = null;
+      while (o != null && (data = o.data) == null) {
+         o = o.parent;
+      }
+      if (data instanceof NET.worlds.scape.WObject) {
+         NET.worlds.scape.WObject w = (NET.worlds.scape.WObject) data;
+         b.append(" obj=").append(w.getClass().getSimpleName()).append(":").append(w.getName());
+      } else {
+         b.append(" obj=").append(data == null ? "-" : data.getClass().getSimpleName());
+      }
+      return b.toString();
+   }
+
+   /** -Dfreeworlds.probePixel=X,Y: which material/object ends up owning that pixel. */
+   private static final int probeX;
+   private static final int probeY;
+   static {
+      String v = System.getProperty("freeworlds.probePixel");
+      if (v == null) {
+         probeX = -1;
+         probeY = -1;
+      } else {
+         probeX = Integer.parseInt(v.split(",")[0].trim());
+         probeY = Integer.parseInt(v.split(",")[1].trim());
+      }
+   }
+   private static String probeHit;
+   private static final java.util.Set<String> probeShown = new java.util.HashSet<String>();
+
+   private static final java.util.Set<String> matStatsShown = new java.util.HashSet<String>();
+
+   /** -Dfreeworlds.matStats=SEC: pixels drawn per material/object, once per second from SEC. */
+   private static void matStats(Pass p, int scene) {
+      if (p.matPixels == null) {
+         return;
+      }
+      long sec = (System.nanoTime() - DUMP_T0) / 1000000000L;
+      String key = sec + "/" + scene;
+      synchronized (matStatsShown) {
+         if (sec < Long.parseLong(System.getProperty("freeworlds.matStats")) || !matStatsShown.add(key)) {
+            return;
+         }
+      }
+      java.util.List<java.util.Map.Entry<String, int[]>> l =
+         new ArrayList<java.util.Map.Entry<String, int[]>>(p.matPixels.entrySet());
+      java.util.Collections.sort(l, new java.util.Comparator<java.util.Map.Entry<String, int[]>>() {
+         public int compare(java.util.Map.Entry<String, int[]> a, java.util.Map.Entry<String, int[]> b) {
+            return b.getValue()[0] - a.getValue()[0];
+         }
+      });
+      System.err.println("[RW] matStats " + sec + "s escena " + scene + ": " + l.size() + " materiales visibles");
+      for (int i = 0; i < Math.min(15, l.size()); i++) {
+         System.err.println("[RW]   " + l.get(i).getValue()[0] + " px  " + l.get(i).getKey());
       }
    }
 
