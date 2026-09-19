@@ -1,0 +1,42 @@
+// 1001d940 RwGetMatrixElements [Global]
+// programa: RWL21.DLL
+
+undefined4 * RwGetMatrixElements(undefined4 *param_1,undefined4 *param_2)
+
+{
+  undefined4 uVar1;
+  undefined4 *puVar2;
+  int iVar3;
+  int iVar4;
+  undefined4 *puVar5;
+  undefined4 *puVar6;
+  
+                    /* 0x1d940  208  RwGetMatrixElements */
+  if ((param_2 == (undefined4 *)0x0) || (param_1 == (undefined4 *)0x0)) {
+    param_2 = (undefined4 *)0x0;
+  }
+  if (param_2 != (undefined4 *)0x0) {
+    iVar4 = 4;
+    puVar2 = param_2;
+    do {
+      iVar3 = 4;
+      puVar5 = puVar2;
+      puVar6 = param_1;
+      do {
+        uVar1 = *puVar6;
+        puVar6 = puVar6 + 4;
+        *puVar5 = uVar1;
+        puVar5 = puVar5 + 4;
+        iVar3 = iVar3 + -1;
+      } while (iVar3 != 0);
+      puVar2 = puVar2 + 1;
+      param_1 = param_1 + 1;
+      iVar4 = iVar4 + -1;
+    } while (iVar4 != 0);
+    return param_2;
+  }
+  FUN_1000cba0(1);
+  return (undefined4 *)0x0;
+}
+
+

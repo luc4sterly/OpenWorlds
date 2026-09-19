@@ -1,0 +1,18 @@
+// 1000bd30 RwGetCameraLookAt [Global]
+// programa: RWL21.DLL
+
+undefined4 RwGetCameraLookAt(int param_1,undefined4 *param_2)
+
+{
+  undefined4 uVar1;
+  
+                    /* 0xbd30  134  RwGetCameraLookAt */
+  if ((param_2 != (undefined4 *)0x0) && (param_1 != 0)) {
+    uVar1 = FUN_1001ce90(param_1 + 4,param_2);
+    return uVar1;
+  }
+  FUN_1000cba0(1);
+  return 0;
+}
+
+

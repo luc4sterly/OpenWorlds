@@ -1,0 +1,200 @@
+// 1004ac30 __NMSG_WRITE [Global]
+// programa: RWL21.DLL
+
+/* Library Function - Single Match
+    __NMSG_WRITE
+   
+   Library: Visual Studio 1998 Release */
+
+void __cdecl __NMSG_WRITE(int param_1)
+
+{
+  char cVar1;
+  int *piVar2;
+  DWORD DVar3;
+  HANDLE hFile;
+  int iVar4;
+  int iVar5;
+  uint uVar6;
+  uint uVar7;
+  char *pcVar8;
+  char *pcVar9;
+  CHAR *pCVar10;
+  char *pcVar11;
+  DWORD local_1a8;
+  char local_1a4 [100];
+  char acStack_140 [60];
+  CHAR local_104 [260];
+  
+  iVar4 = 0;
+  piVar2 = &DAT_1005c950;
+  do {
+    if (*piVar2 == param_1) break;
+    piVar2 = piVar2 + 2;
+    iVar4 = iVar4 + 1;
+  } while (piVar2 < &DAT_1005c9e0);
+  if ((&DAT_1005c950)[iVar4 * 2] == param_1) {
+    if ((DAT_1005bb70 == 1) || ((DAT_1005bb70 == 0 && (DAT_1005bb74 == 1)))) {
+      if ((DAT_1005f6d0 == 0) ||
+         (hFile = *(HANDLE *)(DAT_1005f6d0 + 0x48), hFile == (HANDLE)0xffffffff)) {
+        hFile = GetStdHandle(0xfffffff4);
+      }
+      pcVar8 = *(char **)(iVar4 * 8 + 0x1005c954);
+      uVar6 = 0xffffffff;
+      pcVar9 = pcVar8;
+      do {
+        if (uVar6 == 0) break;
+        uVar6 = uVar6 - 1;
+        cVar1 = *pcVar9;
+        pcVar9 = pcVar9 + 1;
+      } while (cVar1 != '\0');
+      WriteFile(hFile,pcVar8,~uVar6 - 1,&local_1a8,(LPOVERLAPPED)0x0);
+    }
+    else if (param_1 != 0xfc) {
+      DVar3 = GetModuleFileNameA((HMODULE)0x0,local_104,0x104);
+      if (DVar3 == 0) {
+        pcVar8 = "<program name unknown>";
+        pCVar10 = local_104;
+        for (iVar5 = 5; iVar5 != 0; iVar5 = iVar5 + -1) {
+          *(undefined4 *)pCVar10 = *(undefined4 *)pcVar8;
+          pcVar8 = pcVar8 + 4;
+          pCVar10 = pCVar10 + 4;
+        }
+        *(undefined2 *)pCVar10 = *(undefined2 *)pcVar8;
+        pCVar10[2] = pcVar8[2];
+      }
+      pcVar8 = local_104;
+      uVar6 = 0xffffffff;
+      pcVar9 = local_104;
+      do {
+        if (uVar6 == 0) break;
+        uVar6 = uVar6 - 1;
+        cVar1 = *pcVar9;
+        pcVar9 = pcVar9 + 1;
+      } while (cVar1 != '\0');
+      if (0x3c < ~uVar6) {
+        uVar6 = 0xffffffff;
+        pcVar8 = local_104;
+        do {
+          if (uVar6 == 0) break;
+          uVar6 = uVar6 - 1;
+          cVar1 = *pcVar8;
+          pcVar8 = pcVar8 + 1;
+        } while (cVar1 != '\0');
+        pcVar8 = acStack_140 + ~uVar6;
+        _strncpy(pcVar8,"...",3);
+      }
+      pcVar9 = "Runtime Error!\n\nProgram: ";
+      pcVar11 = local_1a4;
+      for (iVar5 = 6; iVar5 != 0; iVar5 = iVar5 + -1) {
+        *(undefined4 *)pcVar11 = *(undefined4 *)pcVar9;
+        pcVar9 = pcVar9 + 4;
+        pcVar11 = pcVar11 + 4;
+      }
+      *(undefined2 *)pcVar11 = *(undefined2 *)pcVar9;
+      uVar6 = 0xffffffff;
+      do {
+        pcVar9 = pcVar8;
+        if (uVar6 == 0) break;
+        uVar6 = uVar6 - 1;
+        pcVar9 = pcVar8 + 1;
+        cVar1 = *pcVar8;
+        pcVar8 = pcVar9;
+      } while (cVar1 != '\0');
+      uVar6 = ~uVar6;
+      iVar5 = -1;
+      pcVar8 = local_1a4;
+      do {
+        pcVar11 = pcVar8;
+        if (iVar5 == 0) break;
+        iVar5 = iVar5 + -1;
+        pcVar11 = pcVar8 + 1;
+        cVar1 = *pcVar8;
+        pcVar8 = pcVar11;
+      } while (cVar1 != '\0');
+      pcVar8 = pcVar9 + -uVar6;
+      pcVar9 = pcVar11 + -1;
+      for (uVar7 = uVar6 >> 2; uVar7 != 0; uVar7 = uVar7 - 1) {
+        *(undefined4 *)pcVar9 = *(undefined4 *)pcVar8;
+        pcVar8 = pcVar8 + 4;
+        pcVar9 = pcVar9 + 4;
+      }
+      for (uVar6 = uVar6 & 3; uVar6 != 0; uVar6 = uVar6 - 1) {
+        *pcVar9 = *pcVar8;
+        pcVar8 = pcVar8 + 1;
+        pcVar9 = pcVar9 + 1;
+      }
+      uVar6 = 0xffffffff;
+      pcVar8 = "\n\n";
+      do {
+        pcVar9 = pcVar8;
+        if (uVar6 == 0) break;
+        uVar6 = uVar6 - 1;
+        pcVar9 = pcVar8 + 1;
+        cVar1 = *pcVar8;
+        pcVar8 = pcVar9;
+      } while (cVar1 != '\0');
+      uVar6 = ~uVar6;
+      iVar5 = -1;
+      pcVar8 = local_1a4;
+      do {
+        pcVar11 = pcVar8;
+        if (iVar5 == 0) break;
+        iVar5 = iVar5 + -1;
+        pcVar11 = pcVar8 + 1;
+        cVar1 = *pcVar8;
+        pcVar8 = pcVar11;
+      } while (cVar1 != '\0');
+      pcVar8 = pcVar9 + -uVar6;
+      pcVar9 = pcVar11 + -1;
+      for (uVar7 = uVar6 >> 2; uVar7 != 0; uVar7 = uVar7 - 1) {
+        *(undefined4 *)pcVar9 = *(undefined4 *)pcVar8;
+        pcVar8 = pcVar8 + 4;
+        pcVar9 = pcVar9 + 4;
+      }
+      for (uVar6 = uVar6 & 3; uVar6 != 0; uVar6 = uVar6 - 1) {
+        *pcVar9 = *pcVar8;
+        pcVar8 = pcVar8 + 1;
+        pcVar9 = pcVar9 + 1;
+      }
+      uVar6 = 0xffffffff;
+      pcVar8 = *(char **)(iVar4 * 8 + 0x1005c954);
+      do {
+        pcVar9 = pcVar8;
+        if (uVar6 == 0) break;
+        uVar6 = uVar6 - 1;
+        pcVar9 = pcVar8 + 1;
+        cVar1 = *pcVar8;
+        pcVar8 = pcVar9;
+      } while (cVar1 != '\0');
+      uVar6 = ~uVar6;
+      iVar4 = -1;
+      pcVar8 = local_1a4;
+      do {
+        pcVar11 = pcVar8;
+        if (iVar4 == 0) break;
+        iVar4 = iVar4 + -1;
+        pcVar11 = pcVar8 + 1;
+        cVar1 = *pcVar8;
+        pcVar8 = pcVar11;
+      } while (cVar1 != '\0');
+      pcVar8 = pcVar9 + -uVar6;
+      pcVar9 = pcVar11 + -1;
+      for (uVar7 = uVar6 >> 2; uVar7 != 0; uVar7 = uVar7 - 1) {
+        *(undefined4 *)pcVar9 = *(undefined4 *)pcVar8;
+        pcVar8 = pcVar8 + 4;
+        pcVar9 = pcVar9 + 4;
+      }
+      for (uVar6 = uVar6 & 3; uVar6 != 0; uVar6 = uVar6 - 1) {
+        *pcVar9 = *pcVar8;
+        pcVar8 = pcVar8 + 1;
+        pcVar9 = pcVar9 + 1;
+      }
+      ___crtMessageBoxA(local_1a4,"Microsoft Visual C++ Runtime Library",0x12010);
+      return;
+    }
+  }
+  return;
+}
+
+

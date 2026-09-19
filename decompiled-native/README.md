@@ -1,4 +1,4 @@
-# Nativo decompilado (`gamma.dll`)
+# Nativo decompilado (`gamma.dll`, `RWL21.DLL`)
 
 C decompilado con Ghidra 12.1.3 (headless) de la `gamma.dll` ORIGINAL
 de 2004 (`assets/WorldsPlayer/bin/gamma.dll`, 613 KB) — el puente JNI
@@ -35,3 +35,34 @@ avatares `.seq`), `huffdcod`/ScapePic (texturas `.cmp`/`.mov`),
 Java decompilado (pristino, Vineflower 1.12 + patch de compilacion):
 `editor/worldsplayer_source_editor-main/source/` (723 `.java`, 0
 `NativeMock`, declara los `native` que este C implementa).
+
+## `RWL21.DLL` (RenderWare 2.1, 389 KB) — anadido 2026-09-19
+
+`rwl21_dll/`: **1131 funciones, 0 fallos**, mismo script headless
+(`tools/ghidra-scripts/ExportAllDecompiled.java`). Es el motor RenderWare
+en si (el driver de 16 bits es `RWDL6D21.DLL`, aun sin volcar).
+
+A diferencia de `gamma.dll`, la DLL **exporta sus simbolos**, asi que
+**795 de las 1131 salen con su nombre real de la API** (`RwGetPolygonMaterial`,
+`RwSetPolygonMaterial`, `RwDestroyPolygon`...) y solo 336 quedan como
+`FUN_<addr>`. Eso hace el cruce con el puente mucho mas directo que en
+`gamma.dll`.
+
+Desbloquea lo que `editor/.../bridge/README.md` marcaba como pendiente por
+no tener el binario: el recorrido BSP de clumps (`FUN_1002cae0`), el arbol
+de ordenacion de poligonos por clump (`FUN_10033750`), el rasterizador
+Gouraud (`FUN_100259e0`) y la iluminacion del driver (`FUN_1000d230`).
+
+Reproducir (JDK portable del repo; sin `JAVA_HOME` el lanzador de Ghidra
+aborta con "Unable to prompt user for JDK path"):
+
+```
+JAVA_HOME=tools/jdk/Contents/Home \
+ghidra_*/ghidra_*/support/analyzeHeadless <projdir> RWL21 \
+  -import assets/WorldsPlayer/bin/RWL21.DLL \
+  -scriptPath tools/ghidra-scripts \
+  -postScript ExportAllDecompiled.java decompiled-native/rwl21_dll
+```
+
+No se ha pasado aun `ScanVtablesAndExport.java` (el que en `gamma.dll`
+saco 881 funciones mas alcanzables solo por vtable).
