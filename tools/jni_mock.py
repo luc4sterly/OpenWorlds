@@ -180,7 +180,7 @@ for f, text in file_texts.items():
         # `null` breaks every such chain with an NPE on the *next* call,
         # not this one - `this` is always a valid, correctly-typed, non-
         # null substitute (confirmed against real call sites - see
-        # worlds-chat-project.md sec. 4 - before generalizing this rule).
+        # docs/worlds-chat-project.md sec. 4 - before generalizing this rule).
         if generic_default == "null" and not is_static and ret.strip() == cls:
             default = "this"
         elif generic_default == "null" and params and params[-1][0].strip() == ret.strip():

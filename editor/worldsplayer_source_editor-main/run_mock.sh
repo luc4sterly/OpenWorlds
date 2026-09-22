@@ -3,7 +3,7 @@
 # javac) the way the original 2004 client expected to be run: current
 # directory on the classpath (matches the real java.class.path=.;lib\
 # gammacls.zip seen in a genuine Gamma.Log from an actual install - see
-# worlds-chat-project.md sec. 4) so resource bundles (MessagesBundle*.
+# docs/worlds-chat-project.md sec. 4) so resource bundles (MessagesBundle*.
 # properties) and world files (NewWorld.world) that live as plain files in
 # the install directory, not inside the jar, can be found.
 #

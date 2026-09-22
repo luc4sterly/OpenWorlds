@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RWX parser comparison harness (worlds-chat-project.md sec. 7, tool #3).
+"""RWX parser comparison harness (docs/worlds-chat-project.md sec. 7, tool #3).
 
 Runs the same .rwx file through the JS reference (three-rwx-loader, via
 extract.mjs) and our Java parser (RwxExtractMain), then diffs the

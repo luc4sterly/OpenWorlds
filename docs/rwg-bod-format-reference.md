@@ -8,7 +8,7 @@ reales del proyecto, (2) `Gamma_Advanced.html` (documentación OFICIAL de
 Worlds Inc., sección "Articulated Avatars" — aportada por el usuario en
 esta sesión como parte de `GammaDocs.zip`; la documentación completa NO
 está versionada en este repo por su volumen — ver sección 3.4 de
-`worlds-chat-project.md` para los mirrors públicos conocidos:
+`docs/worlds-chat-project.md` para los mirrors públicos conocidos:
 `archive.org/details/gammadocs`, Worlio, Wayback Machine — los hechos
 citados aquí están parafraseados/entrecomillados con atribución, así que
 no hace falta el HTML completo para verificarlos), y (3) el código Java

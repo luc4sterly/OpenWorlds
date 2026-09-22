@@ -4,7 +4,7 @@
 > abajo es el *baseline* del commit `39e9f31c` (0/159 decodificados) y nunca
 > se regeneró tras los arreglos que llevaron a 159/159 (`8d450e61` y
 > anteriores, documentados en `docs/cmp-texture-format-reference.md` y
-> `worlds-chat-project.md`). La cifra "159/159 byte-exactos contra
+> `docs/worlds-chat-project.md`). La cifra "159/159 byte-exactos contra
 > `cmpview.exe`" no es reproducible en macOS (el arnés necesita Wine +
 > `cmpview.exe` + ImageMagick y tiene `REPO_ROOT=/home/lucas/FreeWorlds`) y no
 > hay ground truth por archivo guardado en el repo. Reproducible hoy con el

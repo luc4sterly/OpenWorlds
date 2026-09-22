@@ -6,7 +6,7 @@
 #
 # - Sin args: abre GroundZero en ventana, cámara interior en el spawn real
 #   del cliente (worlds.ini RestartAt: Reception (1872,1229,150), mirando
-#   al kiosko — ver worlds-chat-project.md, sección Z-up/spawn).
+#   al kiosko — ver docs/worlds-chat-project.md, sección Z-up/spawn).
 # - --detach: lanza en segundo plano y devuelve la terminal al instante
 #   (imprime PID + log); sin --detach el juego bloquea la terminal hasta
 #   ESC/salir, que es lo normal para ver sus mensajes en directo.

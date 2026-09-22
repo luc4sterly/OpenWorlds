@@ -174,7 +174,7 @@ confirmado en `Pilot.getURL()`): `WorldViewer` usa Z-up por defecto
 restaura Y-up). `./tools/run-game.sh` sin args abre la ventana en
 ese spawn mirando al kiosko (la dirección del yaw admite dos signos;
 se eligió la que muestra contenido, documentado en
-`worlds-chat-project.md`).
+`docs/worlds-chat-project.md`).
 
 ## Rects: el contenido real de las salas (2026-09-13)
 
@@ -210,7 +210,7 @@ del stream, no default.
     2026-09-13 para explicar la diferencia archivo por archivo.
 - ~~Abierto: 36 `RectPatch`~~ ✅ implementados el mismo día (ver la
   sección "RectPatch: suelos de hierba y rampas" de
-  `worlds-chat-project.md`): versión 2, heightfield 2×2, v0 invisible.
+  `docs/worlds-chat-project.md`): versión 2, heightfield 2×2, v0 invisible.
 
 Sin `--window` todo sigue igual que antes (ventana oculta,
 screenshot de una pasada — verificado md5-idéntico tras el cambio).
@@ -218,7 +218,7 @@ Bajo XWayland sin GLX útil (`DISPLAY=:0` en esta máquina) el render
 sale negro aunque GL error sea 0 — usar Xvfb (`:100`) para
 verificación repetible. Nota honesta: las salas texturizadas se ven
 más oscuras que el baseline plano (p. ej. `LizCave` media 132.7 →
-14.2, ver `worlds-chat-project.md`) — `GL_MODULATE` apilado, sin
+14.2, ver `docs/worlds-chat-project.md`) — `GL_MODULATE` apilado, sin
 ground truth del cliente original para decir si RW2 hacía lo mismo.
 
 ## `.bod`: ensamblado por placeholders + render en bind pose (2026-09-10)

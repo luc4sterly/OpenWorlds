@@ -80,7 +80,7 @@ se refresquen contra el servidor. Con eso las texturas de avatar cacheadas
 nunca estuvieron en la cache original (`cfemaleb`, `cfemaleba`, `cfemalec`,
 `cfc`, `fga`, `fja`, `mga`): las nombra `permittedList` de `tables.dat` para
 Julie, Roxanne y Simon, cuyas galerias (`IconViewRoom1a/b/f`) se dibujan por
-portales; ver `worlds-chat-project.md` (2026-09-18). El servidor local sirve
+portales; ver `docs/worlds-chat-project.md` (2026-09-18). El servidor local sirve
 tambien `base-avatars/` (los `.bod` de esos avatares si estan).
 
 Sigue sin: avatares completos (faltan esas texturas), superficies

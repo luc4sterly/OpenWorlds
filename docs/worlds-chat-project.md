@@ -1,7 +1,13 @@
-# Worlds Chat — Preservación e Ingeniería Inversa
+# Worlds Chat — Preservación e Ingeniería Inversa (registro histórico)
 
-> Documento maestro del proyecto. Pensado para que Claude Code (o cualquier
-> colaborador nuevo) pueda arrancar sin necesitar más contexto que este archivo.
+> ⚠️ **Archivo histórico.** El estado actual del proyecto, condensado y al
+> día, vive en [`CLAUDE.md`](../CLAUDE.md) — empieza ahí. Esto es el diario
+> de sesión por sesión desde el arranque del proyecto (2026-09-08 en
+> adelante): se conserva completo porque varios comentarios en el código
+> citan secciones concretas como evidencia de decisiones no obvias, y
+> porque es la prueba de cómo se verificó cada hallazgo. No se ha editado
+> el contenido de abajo al archivar esto — sigue tal cual se escribió
+> sesión a sesión, con sus referencias internas a "sección N" originales.
 
 ---
 

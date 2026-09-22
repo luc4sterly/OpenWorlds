@@ -4,7 +4,7 @@
 # (tools/jni_mock.py), the System.load()/loadLibrary() call sites in
 # Gamma.java that would otherwise abort startup or crash on a modern JDK,
 # and a small portability fix in NET.worlds.network.URL (real 2004 client
-# logic, not a native method - see worlds-chat-project.md sec. 4 for the
+# logic, not a native method - see docs/worlds-chat-project.md sec. 4 for the
 # full investigation of why this one was safe to patch this way).
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -15,7 +15,7 @@ cat > source/NET/worlds/core/NativeMock.java << 'EOF'
 package NET.worlds.core;
 
 /**
- * JNI mock bridge (section 7, tool #4 of worlds-chat-project.md). Every
+ * JNI mock bridge (section 7, tool #4 of docs/worlds-chat-project.md). Every
  * method that was originally `native` (implemented in gamma.dll / the
  * RenderWare driver DLLs) got its body replaced with a call into this class
  * instead, so the client can start and run its networking/UI code paths on
@@ -122,7 +122,7 @@ EOF
 python3 "$ROOT/tools/jni_mock.py" source "$ROOT/docs/native-methods-callers.md"
 
 # "Smart" mock override for FastDataInput (section 7, tool #4 extension -
-# see worlds-chat-project.md sec. 4 for the full investigation). Unlike the
+# see docs/worlds-chat-project.md sec. 4 for the full investigation). Unlike the
 # generic NativeMock stubs jni_mock.py just wrote into this file (log +
 # return a zero/false/null default), this one does REAL sequential binary
 # file I/O by delegating to java.io.DataInputStream. Verified safe:
@@ -326,7 +326,7 @@ python3 - << 'PYEOF'
 # Unix it's "/home/user/..." instead, which fails the class's own asserts
 # (currentDir.charAt(1)==':' in the static {} block, plus two more in
 # normalize()) before the client gets anywhere near real networking.
-# Investigated first (see worlds-chat-project.md sec. 4): the only other
+# Investigated first (see docs/worlds-chat-project.md sec. 4): the only other
 # place in the class touching separators already normalizes '\'->'/' at
 # declaration time, and the class's one real java.io.File construction
 # (searchPath()) uses File.separator on a completely separate code path
@@ -444,7 +444,7 @@ PYEOF
 # 8 files got their counter mistyped as `byte` instead of `int` (almost
 # certainly local-variable-slot reuse confusing the type inferencer, the
 # same root cause category as the Persister/Persister[] bug fixed during
-# the original decompile pass - see worlds-chat-project.md sec. 4). A byte
+# the original decompile pass - see docs/worlds-chat-project.md sec. 4). A byte
 # counter overflows at 127, wraps negative, and keeps satisfying `< array
 # .length` (byte widens to int for the comparison) - crashes with
 # ArrayIndexOutOfBoundsException on any table with >= ~128 entries.
@@ -455,10 +455,10 @@ PYEOF
 # perl -pi en vez de sed -i: `sed -i 's/..'` es sintaxis GNU y en el sed BSD
 # de macOS aborta el script aqui (set -e) con el mock a medio aplicar.
 grep -rl "for (byte " --include="*.java" source | xargs perl -pi -e 's/for \(byte /for (int /g'
-echo "Patched 11 byte-typed loop counters -> int (Vineflower decompiler bug, see worlds-chat-project.md sec. 4)"
+echo "Patched 11 byte-typed loop counters -> int (Vineflower decompiler bug, see docs/worlds-chat-project.md sec. 4)"
 
 # "Smart" mock override for IniFile (section 7, tool #4 extension - see
-# worlds-chat-project.md sec. 4). Small, well-defined contract: 2 getters
+# docs/worlds-chat-project.md sec. 4). Small, well-defined contract: 2 getters
 # (getIniInt/getIniString), 2 setters, over files that are the exact
 # classic Windows-INI format ([Section] headers, key=value lines) already
 # seen verbatim in the real assets/WorldsPlayer/worlds.ini and
@@ -626,7 +626,7 @@ public class IniFile {
 EOF
 
 # "Smart" mock override for DNSLookup.gethostbyname (section 7, tool #4
-# extension - see worlds-chat-project.md sec. 4). Trivial, well-defined
+# extension - see docs/worlds-chat-project.md sec. 4). Trivial, well-defined
 # contract: String hostname -> String[] of dotted-quad IPs, or null on
 # failure (DNSLookup.lookupAllCommon() already turns a null into
 # UnknownHostException for callers - see this file). Delegates to real

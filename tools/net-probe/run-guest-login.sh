@@ -18,7 +18,7 @@
 # compilacion despues de correr el script).
 #
 # JDK: usa tools/jdk/Contents/Home/bin/{java,javac} si existe junto al
-# repo (JDK portable documentado en worlds-chat-project.md), si no cae a
+# repo (JDK portable documentado en docs/worlds-chat-project.md), si no cae a
 # "java"/"javac" del PATH. bash 3.2 compatible (macOS de serie).
 set -euo pipefail
 
@@ -51,7 +51,7 @@ PORT="${3:-8265}"
 # comparten ficheros sin trackear). Se prueba ahi primero (por si este
 # script corre desde el propio checkout principal), luego la ruta
 # absoluta conocida de este Mac, y solo si ninguna existe se cae al
-# java/javac del PATH (que en este Mac es un stub, ver worlds-chat-project.md).
+# java/javac del PATH (que en este Mac es un stub, ver docs/worlds-chat-project.md).
 MAIN_CHECKOUT_JDK="/Users/lucas/Developer/FreeWorlds/tools/jdk/Contents/Home/bin"
 if [ -x "$REPO_ROOT/tools/jdk/Contents/Home/bin/javac" ]; then
    JAVAC="$REPO_ROOT/tools/jdk/Contents/Home/bin/javac"
