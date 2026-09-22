@@ -10,6 +10,10 @@ set -euo pipefail
 cd "$(dirname "$0")"
 ROOT=../..
 
+# NativeMock.log stays minimal here: bridge/natives.patch (applied at the end
+# of this script) adds the per-method throttle and describe(), which never
+# calls toString() on game objects (Rect.toString -> getFarCornerLocal ->
+# Point3Temp.times -> log recursed until StackOverflowError).
 mkdir -p source/NET/worlds/core
 cat > source/NET/worlds/core/NativeMock.java << 'EOF'
 package NET.worlds.core;
@@ -25,52 +29,20 @@ public final class NativeMock {
    private NativeMock() {
    }
 
-   // Logging must never change control flow: the real gamma.dll natives do
-   // not log at all. Formatting an argument calls its toString(), and some
-   // of those call mocked natives again (Rect.toString -> getFarCornerLocal
-   // -> Point3Temp.times(Transform) whose argument is the Rect itself), which
-   // recursed log -> toString -> log until StackOverflowError killed Gamma
-   // Main. Nested log calls on the same thread therefore print arguments by
-   // class@identity only, and a throwing toString() is reported, not raised.
-   private static final ThreadLocal<Boolean> IN_LOG = new ThreadLocal<Boolean>();
-
-   private static String identity(Object o) {
-      return o == null ? "null" : o.getClass().getName() + "@" + Integer.toHexString(System.identityHashCode(o));
-   }
-
    public static void log(String className, String method, Object[] args) {
-      boolean nested = IN_LOG.get() != null;
-      if (!nested) {
-         IN_LOG.set(Boolean.TRUE);
-      }
+      StringBuilder sb = new StringBuilder();
+      sb.append("[NATIVE-MOCK] ").append(className).append('.').append(method).append('(');
 
-      try {
-         StringBuilder sb = new StringBuilder();
-         sb.append("[NATIVE-MOCK] ").append(className).append('.').append(method).append('(');
-
-         for (int i = 0; i < args.length; i++) {
-            if (i > 0) {
-               sb.append(", ");
-            }
-
-            if (nested) {
-               sb.append(identity(args[i]));
-            } else {
-               try {
-                  sb.append(String.valueOf(args[i]));
-               } catch (RuntimeException e) {
-                  sb.append(identity(args[i])).append(" <toString threw ").append(e).append('>');
-               }
-            }
+      for (int i = 0; i < args.length; i++) {
+         if (i > 0) {
+            sb.append(", ");
          }
 
-         sb.append(')');
-         System.err.println(sb.toString());
-      } finally {
-         if (!nested) {
-            IN_LOG.remove();
-         }
+         sb.append(String.valueOf(args[i]));
       }
+
+      sb.append(')');
+      System.err.println(sb.toString());
    }
 
    /**
@@ -401,7 +373,6 @@ open(path, "w").write(text)
 print("Patched Cursor.java loadCursor/loadSystemCursor (native handle default)")
 PYEOF
 
-python3 - << 'PYEOF'
 # NET.worlds.console.ActiveX.getClassFClsID/getClassFProgID: the generic
 # mock returns 0 with no exception, which the REAL gamma.dll never does.
 # Verified offline on assets/WorldsPlayer/bin/gamma.dll (objdump -d, no
@@ -421,24 +392,8 @@ python3 - << 'PYEOF'
 # start (docs/xvfb-runtime-trace.log and the macOS run). With the real
 # contract the code takes its own designed path: catch IOException
 # ("OLEDEBUG: No Netscape") and carries on.
-path = "source/NET/worlds/console/ActiveX.java"
-text = open(path).read()
-
-for name in ("getClassFClsID", "getClassFProgID"):
-    old = '''   public static int %s(String var0, String var1) throws IOException {
-      NET.worlds.core.NativeMock.log("ActiveX", "%s", new Object[]{var0, var1});
-      return 0;
-   }''' % (name, name)
-    new = '''   public static int %s(String var0, String var1) throws IOException {
-      NET.worlds.core.NativeMock.log("ActiveX", "%s", new Object[]{var0, var1});
-      throw new IOException("[NATIVE-MOCK] ActiveX.%s: no COM outside Windows (gamma.dll throws IOException on this failure)");
-   }''' % (name, name, name)
-    assert old in text, "ActiveX.java %s stub pattern not found" % name
-    text = text.replace(old, new)
-
-open(path, "w").write(text)
-print("Patched ActiveX.java getClassFClsID/getClassFProgID (throw IOException like gamma.dll)")
-PYEOF
+# The throw itself is applied by bridge/natives.patch (end of this script),
+# with the literal gamma.dll messages (0x46e168 / 0x46e1d8).
 
 # Vineflower decompiler bug, NOT a portability/mock issue: 11 loops across
 # 8 files got their counter mistyped as `byte` instead of `int` (almost
@@ -673,6 +628,12 @@ PYEOF
 # Vineflower lost (checked against the original gammacls.zip bytecode).
 cp -R bridge/NET source/
 patch -p1 -d source --no-backup-if-mismatch < bridge/natives.patch
+# Stubs of whole subsystems live in their own patch (natives-<subsystem>.patch),
+# applied in name order after natives.patch, one per class that had no hunk there.
+for p in bridge/natives-*.patch; do
+  [ -e "$p" ] || continue
+  patch -p1 -d source --no-backup-if-mismatch < "$p"
+done
 echo "Bridge applied."
 
 echo "Mock applied."
