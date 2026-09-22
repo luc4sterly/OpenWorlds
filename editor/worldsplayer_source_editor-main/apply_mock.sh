@@ -25,20 +25,52 @@ public final class NativeMock {
    private NativeMock() {
    }
 
+   // Logging must never change control flow: the real gamma.dll natives do
+   // not log at all. Formatting an argument calls its toString(), and some
+   // of those call mocked natives again (Rect.toString -> getFarCornerLocal
+   // -> Point3Temp.times(Transform) whose argument is the Rect itself), which
+   // recursed log -> toString -> log until StackOverflowError killed Gamma
+   // Main. Nested log calls on the same thread therefore print arguments by
+   // class@identity only, and a throwing toString() is reported, not raised.
+   private static final ThreadLocal<Boolean> IN_LOG = new ThreadLocal<Boolean>();
+
+   private static String identity(Object o) {
+      return o == null ? "null" : o.getClass().getName() + "@" + Integer.toHexString(System.identityHashCode(o));
+   }
+
    public static void log(String className, String method, Object[] args) {
-      StringBuilder sb = new StringBuilder();
-      sb.append("[NATIVE-MOCK] ").append(className).append('.').append(method).append('(');
-
-      for (int i = 0; i < args.length; i++) {
-         if (i > 0) {
-            sb.append(", ");
-         }
-
-         sb.append(String.valueOf(args[i]));
+      boolean nested = IN_LOG.get() != null;
+      if (!nested) {
+         IN_LOG.set(Boolean.TRUE);
       }
 
-      sb.append(')');
-      System.err.println(sb.toString());
+      try {
+         StringBuilder sb = new StringBuilder();
+         sb.append("[NATIVE-MOCK] ").append(className).append('.').append(method).append('(');
+
+         for (int i = 0; i < args.length; i++) {
+            if (i > 0) {
+               sb.append(", ");
+            }
+
+            if (nested) {
+               sb.append(identity(args[i]));
+            } else {
+               try {
+                  sb.append(String.valueOf(args[i]));
+               } catch (RuntimeException e) {
+                  sb.append(identity(args[i])).append(" <toString threw ").append(e).append('>');
+               }
+            }
+         }
+
+         sb.append(')');
+         System.err.println(sb.toString());
+      } finally {
+         if (!nested) {
+            IN_LOG.remove();
+         }
+      }
    }
 
    /**
@@ -367,6 +399,45 @@ text = text.replace(old2, new2)
 
 open(path, "w").write(text)
 print("Patched Cursor.java loadCursor/loadSystemCursor (native handle default)")
+PYEOF
+
+python3 - << 'PYEOF'
+# NET.worlds.console.ActiveX.getClassFClsID/getClassFProgID: the generic
+# mock returns 0 with no exception, which the REAL gamma.dll never does.
+# Verified offline on assets/WorldsPlayer/bin/gamma.dll (objdump -d, no
+# native code executed): exports @RVA 0xa610 / 0xa730 either return the
+# COM interface pointer (non-zero) or call the helper at 0x402930 =
+# (*env)->FindClass(+0x18) + (*env)->ThrowNew(+0x38) with class
+# "java/io/IOException" (VA 0x46e090) and return 0 - e.g. "ActiveX.
+# getClassFClsID: Couldn't convert string to CLSID" (0x46e168), "...
+# getClassFProgID: Couldn't convert string to CLSID" (0x46e1d8), getClass
+# "Requested interface not available" (0x46e214). Every 0 comes with a
+# pending IOException. There is no COM (ole32 CLSIDFromString/
+# CLSIDFromProgID/CoGetClassObject) outside Windows, so the only real
+# outcome available here is the failure branch. Consequence of the old
+# stub: Netscape.mainCallback got an INetscapeRegistry with
+# _pInterface=0, went on to NSProtocolHandler -> IUnknown.init dAssert ->
+# AssertionException -> Gamma.run die() -> System.exit(0) ~4-7s after
+# start (docs/xvfb-runtime-trace.log and the macOS run). With the real
+# contract the code takes its own designed path: catch IOException
+# ("OLEDEBUG: No Netscape") and carries on.
+path = "source/NET/worlds/console/ActiveX.java"
+text = open(path).read()
+
+for name in ("getClassFClsID", "getClassFProgID"):
+    old = '''   public static int %s(String var0, String var1) throws IOException {
+      NET.worlds.core.NativeMock.log("ActiveX", "%s", new Object[]{var0, var1});
+      return 0;
+   }''' % (name, name)
+    new = '''   public static int %s(String var0, String var1) throws IOException {
+      NET.worlds.core.NativeMock.log("ActiveX", "%s", new Object[]{var0, var1});
+      throw new IOException("[NATIVE-MOCK] ActiveX.%s: no COM outside Windows (gamma.dll throws IOException on this failure)");
+   }''' % (name, name, name)
+    assert old in text, "ActiveX.java %s stub pattern not found" % name
+    text = text.replace(old, new)
+
+open(path, "w").write(text)
+print("Patched ActiveX.java getClassFClsID/getClassFProgID (throw IOException like gamma.dll)")
 PYEOF
 
 # Vineflower decompiler bug, NOT a portability/mock issue: 11 loops across
