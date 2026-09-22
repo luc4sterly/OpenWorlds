@@ -7,6 +7,15 @@
 # the extracted results that ARE kept under version control)
 /analysis/
 
+# Ghidra/IDA project caches for the installer reversing (regenerable from
+# legacy/installer-reversing/Worlds1900.exe - the extracted .asm/.c ARE
+# kept under version control) + its CMake build output
+legacy/installer-reversing/1.rep/
+legacy/installer-reversing/1.gpr
+legacy/installer-reversing/Worlds1900.exe.gzf
+legacy/installer-reversing/Worlds1900.exe.i64
+legacy/installer-reversing/build/
+
 # WorldsPlayer editor build output
 editor/worldsplayer_source_editor-main/out/
 
