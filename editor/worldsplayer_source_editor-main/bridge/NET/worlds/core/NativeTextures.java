@@ -33,6 +33,23 @@ public final class NativeTextures {
 
    private static final Map<String, Texture> dict = new HashMap<String, Texture>();
 
+   /** -Dfreeworlds.dumpTextures: name -> "WxH" of the image before the 128x128 stretch. */
+   private static final Map<String, String> source = new java.util.LinkedHashMap<String, String>();
+
+   /** Inventory of what got decoded, for the texture audit. */
+   public static synchronized void dumpInventory() {
+      System.err.println("[RW] texturas en el diccionario: " + dict.size()
+         + " (por nombre base: " + byBaseName.size() + ")");
+      int stretched = 0;
+      for (Map.Entry<String, String> e : source.entrySet()) {
+         if (!"128x128".equals(e.getValue())) {
+            stretched++;
+            System.err.println("[RW]   " + e.getKey() + " origen " + e.getValue() + " -> reescalada a 128x128");
+         }
+      }
+      System.err.println("[RW] texturas con tamaño distinto de 128x128: " + stretched + " de " + source.size());
+   }
+
    public static Texture texture(int h) {
       Object o = NativeRw.get(h);
       return o instanceof Texture ? (Texture) o : null;
@@ -65,12 +82,13 @@ public final class NativeTextures {
    }
 
    /** FUN_004182d0: RwCreateUserRaster(128, 128, 16 bpp) + RwCreateTexture, data 1, into the dictionary. */
-   private static synchronized int create(String dictName, short[] pixels) {
+   private static synchronized int create(String dictName, short[] pixels, int srcW, int srcH) {
       Texture t = new Texture(pixels);
       t.refs = 1;
       t.handle = NativeRw.alloc(t);
       if (dictName != null) {
          t.name = dictName;
+         source.put(dictName, srcW + "x" + srcH);
          dict.put(dictName, t);
          byBaseName.put(baseName(dictName.replace('|', '.')), t);
       }
@@ -125,7 +143,7 @@ public final class NativeTextures {
          int w = img.getWidth();
          int h = img.getHeight();
          int[] rgb = img.getRGB(0, 0, w, h, null, 0, w);
-         return create(dictName, to565(stretch(rgb, w, h)));
+         return create(dictName, to565(stretch(rgb, w, h)), w, h);
       } catch (Exception e) {
          return 0;
       }
@@ -218,7 +236,7 @@ public final class NativeTextures {
          short[] px = to565(stretch(rgb, img.width, img.height));
          String key2 = name == null ? null : dictName(name, f);
          int h = key2 == null ? 0 : findNamed(key2);
-         handles[f] = h != 0 ? h : create(key2, px);
+         handles[f] = h != 0 ? h : create(key2, px, img.width, img.height);
       }
       return new Object[]{handles, sp.displayW, sp.displayH};
    }

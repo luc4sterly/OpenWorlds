@@ -191,17 +191,22 @@ public final class NativeCamera {
    private static long fpsMark;
    private static int fpsCount;
    private static long framePaint;
+   private static long frameTexPaint;
 
    /** Pixels written by the rasterizers since the last frame was shown. */
    static long framePixels;
+   static long frameTexPixels;
 
    private static void fps(Cam c) {
       if (System.getProperty("freeworlds.fps") == null || c.width != mainWidth) {
          framePixels = 0L;
+         frameTexPixels = 0L;
          return;
       }
       framePaint += framePixels;
+      frameTexPaint += frameTexPixels;
       framePixels = 0L;
+      frameTexPixels = 0L;
       long now = System.nanoTime();
       if (fpsMark == 0L) {
          fpsMark = now;
@@ -209,8 +214,10 @@ public final class NativeCamera {
       fpsCount++;
       if (now - fpsMark >= 1000000000L) {
          System.err.println("[RW] cobertura: " + framePaint / fpsCount + " px escritos por frame de "
-            + c.width * c.height + " (" + 100 * framePaint / fpsCount / (c.width * c.height) + " %)");
+            + c.width * c.height + " (" + 100 * framePaint / fpsCount / (c.width * c.height) + " %), "
+            + (framePaint == 0 ? 0 : 100 * frameTexPaint / framePaint) + " % con textura");
          framePaint = 0L;
+         frameTexPaint = 0L;
          System.err.println("[RW] fps " + (System.nanoTime() - DUMP_T0) / 1000000000L + "s: "
             + (fpsCount * 1000000000L / (now - fpsMark)) + " (camara " + c.width + "x" + c.height
             + " en " + (int) c.ltm[12] + "," + (int) c.ltm[13] + "," + (int) c.ltm[14]
@@ -1446,6 +1453,9 @@ public final class NativeCamera {
          }
       }
       framePixels += wrote;
+      if (tex != null) {
+         frameTexPixels += wrote;
+      }
       if (p.matPixels != null && wrote > 0) {
          int[] n2 = p.matPixels.get(describe(mat, tex, k));
          if (n2 == null) {
@@ -1510,6 +1520,9 @@ public final class NativeCamera {
       long sec = (System.nanoTime() - DUMP_T0) / 1000000000L;
       String key = sec + "/" + scene;
       synchronized (matStatsShown) {
+         if (sec >= Long.parseLong(System.getProperty("freeworlds.matStats")) && matStatsShown.add("inv" + sec)) {
+            NativeTextures.dumpInventory();
+         }
          if (sec < Long.parseLong(System.getProperty("freeworlds.matStats")) || !matStatsShown.add(key)) {
             return;
          }
