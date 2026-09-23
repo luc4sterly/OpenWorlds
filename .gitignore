@@ -22,6 +22,7 @@ editor/worldsplayer_source_editor-main/out/
 # Portable Node.js runtime (external tool, downloaded fresh from
 # nodejs.org - see tools/rwx-harness/README or worlds-chat-project.md)
 /tools/node/
+/tools/node-macos/
 
 # npm-installed deps for the RWX comparison harness (regenerate with
 # `npm install` in tools/rwx-harness - see package.json there)
