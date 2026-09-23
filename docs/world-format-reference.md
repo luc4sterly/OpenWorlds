@@ -395,3 +395,43 @@ C de Ghidra de esa función:
 
 Traducido en `net.freeworlds.world.MaterialTiles.rectCells`, con casos a
 mano en `client/test/net/freeworlds/world/MaterialTilesCheck.java`.
+
+### Portales: estado, cruce y llegada, como el original (2026-09-22)
+
+Corrige la sección de 2026-09-16 ("56 resuelven… 29 desconectados"):
+
+- **Cruzables = estado 2 y bumpables: 53/87.** El estado sale de
+  `Portal.postRestore` → `newFarSide` (con referencia al portal lejano) o
+  `reset()`/`findFarSidePortal` (sin ella). `WObject.detectBump` solo mira
+  objetos con `flags` bit 1 (`getBumpable`): los 3 espejos
+  autoconectados (`WestPortal1AuditoriumHall`, `EastPortal2AuditoriumHall`,
+  `EastPortalReflection`, flags `0x5`) no son bumpables y el original nunca
+  los cruza; el visor antes sí (contaba 56).
+- **Los 31 que no cruzan, por causa** (`WorldViewer --list-portals`):
+  29 sin `farSideRoomName` (`reset()` los deja en −1: 14
+  `WestPortalNNTrigger` de ReceptionView1 y 6 `EastPortal1Patch*Trigger`
+  de Garden MazeC7b, invisibles y bumpables, que solo disparan acciones;
+  y 9 extremos de portales de un solo sentido: `EastPortal1..3ReceptionView2`,
+  `EastPortal2..6ReceptionView1`, `WestPortal2Garden MazeC7b`); 2 a otro
+  `.world` (`UserHomePortal` → `home:AvatarGallery/avatar.world`,
+  `WestPortal1DcnEnter` → `rel:home:Dcn/dcn.world`), que no están en el
+  corpus (ni en `assets/` ni en `cachedir/`): el original los cargaría o
+  los descargaría (`World.load` → `loadedURLSelf`, `NetUpdate.loadWorld`).
+- **Detección**: `PassthroughBumpCalc` corta el camino del piloto contra
+  el borde inferior del portal (posición + `(1,0,1)·M`, en x/y) con
+  `BumpEventTemp.isCollision`, que solo acepta un sentido (camino a la
+  izquierda del borde = hacia +Y local).
+- **Llegada**: `_p2pxform` de `Portal.setTransform` (gamma.dll
+  `0x0041b170`) = inversa(LTM sin la escala propia) · [espejo: −columna x]
+  · `Rz(fartheta)` · `T(farx,fary,farz)`, con `recomputeFarPosition`
+  (posición propia del portal lejano + `(1,0,1)·M` en x/y salvo espejo;
+  `fartheta = (−getYaw + 180) % 360`) y `getYaw` de gamma.dll
+  `0x00425440`. El piloto entero se multiplica por esa matriz: la
+  posición de corte (+0.2) y, como vectores, el resto del camino y el
+  avance. Antes el visor ponía al jugador en `farx/fary` (la esquina
+  lejana del portal, fuera cual fuera el punto de cruce: cambia en 53/53)
+  con un rumbo deducido que discrepa del real en 40/53 portales
+  (típicamente 180°, mirando al portal del que se sale).
+- Comprobación: los 44 pares de ida y vuelta dan `p2p·p2p' = I` (error
+  máximo 1.2e-4), lo que no pasaría con el signo de `getYaw` al revés.
+  Casos a mano en `client/test/net/freeworlds/world/PortalLinkCheck.java`.
