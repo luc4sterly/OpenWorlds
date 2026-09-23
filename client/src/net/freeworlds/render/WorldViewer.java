@@ -9,6 +9,9 @@ import net.freeworlds.rwx.RwxMaterial;
 import net.freeworlds.rwx.RwxModel;
 import net.freeworlds.rwx.RwxParser;
 import net.freeworlds.rwx.RwxVector3;
+import net.freeworlds.world.MaterialTiles;
+import net.freeworlds.world.PortalLink;
+import net.freeworlds.world.TextureActions;
 import net.freeworlds.world.WNode;
 import net.freeworlds.world.WorldRestorer;
 
@@ -97,6 +100,7 @@ import static org.lwjgl.opengl.GL11.*;
  * Usage: java -cp ... net.freeworlds.render.WorldViewer <file.world> <roomName> [--screenshot out.png] [--window]
  *        java -cp ... net.freeworlds.render.WorldViewer <file.world> ALL [--screenshot-dir outdir]
  *        java -cp ... net.freeworlds.render.WorldViewer <file.world> --list-rooms
+ *        java -cp ... net.freeworlds.render.WorldViewer <file.world> --list-portals
  *
  * --window opens a real visible, interactive window for the room (ESC or
  * close button exits; slow auto-rotation while open). Without it the
@@ -157,7 +161,7 @@ public final class WorldViewer {
     private static final Map<String, String> texturesUnresolved = new TreeMap<>(); // name -> reason
     private static int materialTextureRefs = 0; // total non-null Texture directives seen (incl. repeats)
     // Same accounting, separately, for Rect surface materials (absolute
-    // dtex/*.cmp URLs + relative tex/* URLs, some .mov = no loader yet).
+    // dtex/*.cmp URLs + relative tex/* URLs, .mov por celdas: MaterialTiles).
     private static final Set<String> rectTexturesResolved = new TreeSet<>();
     private static final Map<String, String> rectTexturesUnresolved = new TreeMap<>();
     private static int rectTextureRefs = 0;
@@ -207,9 +211,13 @@ public final class WorldViewer {
      * cruzar un portal conectado por referencia de objeto. */
     private static final Map<WNode, String> portalOwnerRoom = new IdentityHashMap<>();
 
+    /** Texturas animadas por acciones (StartupSensor -> AnimateAction...),
+     * ver TextureActions; se crea en main() tras parsear el mundo. */
+    private static TextureActions textureActions;
+
       public static void main(String[] args) throws Exception {
          if (args.length < 2) {
-            System.err.println("Usage: WorldViewer <file.world> <roomName|ALL|--list-rooms> [--screenshot out.png] [--screenshot-dir outdir] [--window] [--fullscreen] [--inside] [--play] [--eye x,y,z] [--look x,y,z] [--up x,y,z]");
+            System.err.println("Usage: WorldViewer <file.world> <roomName|ALL|--list-rooms|--list-portals> [--screenshot out.png] [--screenshot-dir outdir] [--window] [--fullscreen] [--inside] [--play] [--eye x,y,z] [--look x,y,z] [--up x,y,z]");
             System.exit(2);
          }
          File worldFile = new File(args[0]);
@@ -272,7 +280,12 @@ public final class WorldViewer {
         WNode world = WorldRestorer.parse(data);
         worldRoot = world;
         collectPortalMatrices(world);
+        textureActions = new TextureActions(world);
 
+        if (roomArg.equals("--list-portals") || java.util.Arrays.asList(args).contains("--list-portals")) {
+           listPortals(world);
+           return;
+        }
         // --list-rooms vale en cualquier posición (no solo como sala):
         // evita abrir una ventana bloqueante por un orden de args distinto.
         if (roomArg.equals("--list-rooms") || java.util.Arrays.asList(args).contains("--list-rooms")) {
@@ -625,6 +638,12 @@ public final class WorldViewer {
       }
       for (int frame = 0; frame < frames && !glfwWindowShouldClose(window); frame++) {
          double now = glfwGetTime();
+         // Primer FrameEvent de la sala: StartupSensor (una vez); luego
+         // cada frame las acciones vivas (RunningActionHandler.handle).
+         if (frame == 0) {
+            startRoomActions(room, roomName, (long) (now * 1000.0));
+         }
+         textureActions.tick((long) (now * 1000.0));
          float dt = (float) Math.min(0.1, Math.max(1e-3, now - lastTime));
          lastTime = now;
          // Contadores POR FRAME (antes acumulaban toda la sesion y el
@@ -681,6 +700,7 @@ public final class WorldViewer {
                }
             }
             if (dx != 0f || dy != 0f) {
+               float p0x = px, p0y = py, p0z = pz;
                boolean movedX = false, movedY = false;
                float nx = px + dx;
                if (!hitsBlocker(blockerBoxes, nx, py, pz)) {
@@ -697,14 +717,15 @@ public final class WorldViewer {
                // jugador al cielo (empotrado + ratchet, 2026-09-14).
                if (movedX || movedY) {
                   pz = floorHeightAt(floorQuads, propTris, px, py, pz);
-                  PortalCross cross = crossPortal(portalNodes, portalQuads, px, py, pz);
+                  PortalCross cross = crossPortal(portalNodes, portalQuads, p0x, p0y, p0z, px - p0x, py - p0y, yaw);
                   if (cross != null) {
                      System.out.println("Cruzando portal \"" + cross.srcName + "\" (sala \"" + roomName
-                        + "\", pos=" + px + "," + py + "," + pz + ") -> \"" + cross.farName
+                        + "\", de " + p0x + "," + p0y + "," + p0z + " a " + px + "," + py + ") -> \"" + cross.farName
                         + "\" (sala \"" + cross.destRoomName + "\")");
                      room = cross.destRoom;
                      roomName = cross.destRoomName;
                      bbox = loadPlayRoom(room, floorQuads, blockerBoxes, propTris, portalNodes, portalQuads);
+                     startRoomActions(room, roomName, (long) (glfwGetTime() * 1000.0));
                      radius = Math.max(0.01f, distance(bbox));
                      cx = (bbox[0] + bbox[3]) / 2f;
                      cy = (bbox[1] + bbox[4]) / 2f;
@@ -1439,18 +1460,74 @@ public final class WorldViewer {
        drawnObjects++;
     }
 
+    /** Dispara los StartupSensor de la sala (TextureActions) e informa de
+     * las acciones que no mueven texturas y por tanto no se ejecutan. */
+    private static void startRoomActions(WNode room, String roomName, long nowMs) {
+       textureActions.startRoom(room, nowMs);
+       if (!textureActions.skipped.isEmpty()) {
+          System.out.println("Sala \"" + roomName + "\": acciones de StartupSensor no ejecutadas (no cambian texturas): "
+             + textureActions.skipped);
+          textureActions.skipped.clear();
+       }
+    }
+
     /** Draws one Rect surface node as a textured (or flat) quad. The node's
      * composed matrix (glMultMatrixf above) already places the unit quad;
      * UVs come from the real u/v/uOff/vOff (tiling like (2,8.4) relies on
      * GL_REPEAT, set at upload). Double-sided: Rect materials carry no
      * MaterialModes and winding through arbitrary spins is unverified —
      * from inside a closed room only inward faces are visible either way.
-     * Lighting is two-sided (see GlLighting.init) so backs get correct N·L. */
+     * Lighting is two-sided (see GlLighting.init) so backs get correct N·L.
+     *
+     * Material: el del nodo, o el que haya puesto una AnimateAction
+     * (textureActions.materialOverride, ver TextureActions). Con sufijo
+     * "Nh*"/"Nv*" (Material.getHiRes) el Rect se parte en las celdas de
+     * Surface.addSubPolys, cada una con su textura (MaterialTiles): asi se
+     * ven los .mov de GroundZero, cuyos frames son esas celdas. */
     private static void drawRect(WNode n) {
-       RwxMaterial mat = rectMaterial(n);
+       String override = textureActions == null ? null : textureActions.materialOverride.get(n);
+       String url = override != null ? override : (n.material != null ? n.material.matTextureUrl : null);
+       RwxMaterial mat = override != null ? urlMaterial(override) : rectMaterial(n);
        GlLighting.applyMaterial(mat);
        glDisable(GL_CULL_FACE);
-       int glTex = resolveRectTexture(n.material != null ? n.material.matTextureUrl : null);
+       // World-space normal: read back the real composed modelview (parent
+       // chain x node matrix, already current) and transform the two local
+       // edges through its linear part - exact with no matrix threading.
+       float[] ex = xformDir(1, 0, 0);
+       float[] ez = xformDir(0, 0, 1);
+       float[] nn = GlLighting.faceNormal(0, 0, 0, ex[0], ex[1], ex[2], ez[0], ez[1], ez[2]);
+       MaterialTiles tiles = url == null ? null : MaterialTiles.of(url.trim());
+       if (tiles != null && tiles.hiRes()) {
+          int[] ids = resolveRectTextures(url);
+          for (float[] c : MaterialTiles.rectCells(n.rectU, n.rectV, n.rectUOff, n.rectVOff, n.flags, tiles.hRes, tiles.vRes)) {
+             int glTex = ids[(int) c[8]];
+             if (glTex != 0) {
+                glEnable(GL_TEXTURE_2D);
+                glBindTexture(GL_TEXTURE_2D, glTex);
+             }
+             // v de RW cuenta desde la fila de arriba; la textura se sube
+             // volteada (uploadTexture), asi que t de GL = 1 - v.
+             glBegin(GL_QUADS);
+             glNormal3f(nn[0], nn[1], nn[2]);
+             glTexCoord2f(c[4], 1f - c[6]);
+             glVertex3f(c[0], 0f, c[2]);
+             glTexCoord2f(c[5], 1f - c[6]);
+             glVertex3f(c[1], 0f, c[2]);
+             glTexCoord2f(c[5], 1f - c[7]);
+             glVertex3f(c[1], 0f, c[3]);
+             glTexCoord2f(c[4], 1f - c[7]);
+             glVertex3f(c[0], 0f, c[3]);
+             glEnd();
+             if (glTex != 0) {
+                glDisable(GL_TEXTURE_2D);
+             }
+             drawnTriangles += 2;
+          }
+          glEnable(GL_CULL_FACE);
+          drawnObjects++;
+          return;
+       }
+       int glTex = resolveRectTexture(url);
        boolean texEnabled = false;
        if (glTex != 0) {
           glEnable(GL_TEXTURE_2D);
@@ -1460,12 +1537,6 @@ public final class WorldViewer {
        float u0 = n.rectUOff, v0 = n.rectVOff;
        float u1 = u0 + n.rectU, v1 = v0 + n.rectV;
        float[][] uvs = {{u0, v0}, {u1, v0}, {u1, v1}, {u0, v1}};
-       // World-space normal: read back the real composed modelview (parent
-       // chain x node matrix, already current) and transform the two local
-       // edges through its linear part - exact with no matrix threading.
-       float[] ex = xformDir(1, 0, 0);
-       float[] ez = xformDir(0, 0, 1);
-       float[] nn = GlLighting.faceNormal(0, 0, 0, ex[0], ex[1], ex[2], ez[0], ez[1], ez[2]);
        glBegin(GL_QUADS);
        glNormal3f(nn[0], nn[1], nn[2]);
        for (int i = 0; i < 4; i++) {
@@ -1639,47 +1710,75 @@ public final class WorldViewer {
        mat.specular = m.matSpecular;
        mat.opacity = m.matOpacity;
        if (m.matTextureUrl != null) {
-          mat.textureName = rectTextureBase(m.matTextureUrl); // non-null = textured (white base)
+          mat.textureName = m.matTextureUrl.trim(); // non-null = textured (white base)
        }
        return mat;
     }
 
-    /**
-     * Resolves a Rect material's texture URL (absolute
-     * http://.../dtex/x.cmp or relative tex/x.cmp, the latter sometimes
-     * with an animation suffix like 2h*2v*) to a GL texture id, or 0 for
-     * the flat-color fallback. Search order: extracted content.zip tex/
-     * dir, real dtex/ + tex/ dirs next to the .world. .mov (same codec,
-     * different container - undecodable, see session notes) and missing
-     * files count as unresolved, never guessed.
-     */
+    /** new Material(URL) del original (Material.java: Material(URL) ->
+     * Material(Color null, URL) -> Material(Color(128,128,128)) ->
+     * ambient 0.75, diffuse 0, specular 0, opacidad 1), que es lo que
+     * AnimateAction pone en su dueno por cada nombre de su lista. */
+    private static RwxMaterial urlMaterial(String url) {
+       RwxMaterial mat = new RwxMaterial();
+       mat.colorR = mat.colorG = mat.colorB = 128 / 255f;
+       mat.ambient = 0.75f;
+       mat.diffuse = 0f;
+       mat.specular = 0f;
+       mat.opacity = 1f;
+       mat.textureName = url.trim();
+       return mat;
+    }
+
+    /** Textura 0 de un material de Rect/RectPatch (ver resolveRectTextures). */
     private static int resolveRectTexture(String url) {
-       if (url == null) {
-          return 0;
-       }
+       return url == null ? 0 : resolveRectTextures(url)[0];
+    }
+
+    /**
+     * GL ids de las hRes*vRes texturas de un material (MaterialTiles: el
+     * fichero y el frame de cada una, como Material.loadTextures y
+     * syncBackgroundLoad), 0 donde no se puede (color plano). Cuenta la URL
+     * como resuelta solo si salen todas. Busca cada fichero en el tex/
+     * extraido de content.zip, y en dtex/ y tex/ junto al .world.
+     */
+    private static int[] resolveRectTextures(String url) {
        rectTextureRefs++;
-       String base = rectTextureBase(url);
-       String key = "rect:" + base.toLowerCase();
+       String key = url.trim();
+       MaterialTiles tiles = MaterialTiles.of(key);
+       int[] ids = new int[tiles.files.length];
+       String problem = null;
+       for (int k = 0; k < ids.length; k++) {
+          String[] why = new String[1];
+          ids[k] = rectTextureId(tiles.files[k], tiles.frames[k], tiles.framesNeeded(), tiles.movie(), why);
+          if (ids[k] == 0 && problem == null) {
+             problem = why[0];
+          }
+       }
+       if (problem == null) {
+          rectTexturesResolved.add(key);
+       } else if (!rectTexturesUnresolved.containsKey(key)) {
+          rectTexturesUnresolved.put(key, problem);
+       }
+       return ids;
+    }
+
+    /** Decoded .mov frames per file (lowercase base name), all frames at once. */
+    private static final Map<String, CmpTexture[]> movFrameCache = new HashMap<>();
+
+    private static int rectTextureId(String file, int frame, int framesNeeded, boolean movie, String[] why) {
+       String key = "rect:" + file.toLowerCase() + "#" + frame;
        if (glTextureCache.containsKey(key)) {
           int cached = glTextureCache.get(key);
-          if (cached != 0) {
-             rectTexturesResolved.add(base);
-          } else if (!rectTexturesUnresolved.containsKey(base)) {
-             rectTexturesUnresolved.put(base, "(cached failure, see first occurrence)");
+          if (cached == 0) {
+             why[0] = "(cached failure: " + file + " frame " + frame + ")";
           }
           return cached;
        }
-       // The extension lives at the very end (tex/cbirda42h*2v*.mov):
-       // animation tiling suffixes sit between stem and extension.
-       int dot = base.lastIndexOf('.');
-       String ext = dot >= 0 ? base.substring(dot + 1).toLowerCase() : "";
-       String stem = (dot >= 0 ? base.substring(0, dot) : base).toLowerCase();
-       int star = stem.indexOf('*');
-       if (star >= 0) {
-          stem = stem.substring(0, star);
-       }
+       int dot = file.lastIndexOf('.');
+       String ext = dot >= 0 ? file.substring(dot + 1).toLowerCase() : "";
        if (!ext.equals("cmp") && !ext.equals("mov")) {
-          rectTexturesUnresolved.put(base, ext.isEmpty() ? "no extension" : "referenced as ." + ext + ", no loader for that container");
+          why[0] = ext.isEmpty() ? "no extension" : "referenced as ." + ext + ", no loader for that container";
           glTextureCache.put(key, 0);
           return 0;
        }
@@ -1690,34 +1789,36 @@ public final class WorldViewer {
        }
        dirs.add(new File(baseDir, "dtex"));
        dirs.add(new File(baseDir, "tex"));
-       // Animation tiling suffixes (tex/cbirda42h*2v*.mov = cbirda4 +
-       // 2h*2v*, tex/time2h* = time + 2h*, tex/winwin12h*2v* = winwin1 +
-       // 2h*2v*): the real file is the stem minus that suffix. Exactly ONE
-       // digit + h/v (winwin12h -> winwin1, not winwin); the unstripped
-       // stem is always tried first, so legit digit-ending names still hit.
-       String animStripped = stem.replaceFirst("\\dh$", "").replaceFirst("\\dv$", "");
-       for (String cand : new String[]{stem, animStripped}) {
-          for (File dir : dirs) {
-             File f = findIgnoreCase(dir, cand + "." + ext);
-             if (f != null) {
-                try {
-                   // .mov = same LzH2 codec, multi-frame container: frame 0
-                   // as the static texture (verified byte-exact vs
-                   // cmpview.exe, see CmpStage1.decodeMovFrame0).
-                   CmpTexture tex = ext.equals("mov") ? CmpTexture.loadMov(f) : CmpTexture.loadRaw(f);
-                   int id = uploadTexture(tex);
-                   glTextureCache.put(key, id);
-                   rectTexturesResolved.add(base);
-                   return id;
-                } catch (Exception e) {
-                   rectTexturesUnresolved.put(base, String.valueOf(e.getMessage()));
-                   glTextureCache.put(key, 0);
-                   return 0;
-                }
-             }
+       for (File dir : dirs) {
+          File f = findIgnoreCase(dir, file);
+          if (f == null) {
+             continue;
           }
+          int id = 0;
+          try {
+             if (movie) {
+                CmpTexture[] all = movFrameCache.get(file.toLowerCase());
+                if (all == null) {
+                   all = CmpTexture.loadMovFrames(f);
+                   movFrameCache.put(file.toLowerCase(), all);
+                }
+                // Material.syncBackgroundLoad: si la pelicula no tiene
+                // hRes*vRes*(sPos+1) frames, error de carga (sin textura).
+                if (all.length < framesNeeded) {
+                   why[0] = file + ": " + all.length + " frames, el material pide " + framesNeeded;
+                } else {
+                   id = uploadTexture(all[frame]);
+                }
+             } else {
+                id = uploadTexture(CmpTexture.loadRaw(f));
+             }
+          } catch (Exception e) {
+             why[0] = file + ": " + e.getMessage();
+          }
+          glTextureCache.put(key, id);
+          return id;
        }
-       rectTexturesUnresolved.put(base, "not found in tex/ archive, dtex/ or tex/ dirs");
+       why[0] = file + " not found in tex/ archive, dtex/ or tex/ dirs";
        glTextureCache.put(key, 0);
        return 0;
     }
@@ -1738,31 +1839,6 @@ public final class WorldViewer {
           }
        }
        return null;
-    }
-
-    /** Base filename of a Rect texture URL: after the last '/', animation
-     * tiling suffix (2h*2v* style, sitting between stem and extension in
-     * e.g. tex/cbirda42h*2v*.mov) stripped, extension preserved. */
-    private static String rectTextureBase(String url) {
-       String base = url.trim();
-       // Careful: absolute http:// URLs contain "://" - lastIndexOf(':')
-       // would hit the scheme... but they also contain '/', and the last
-       // '/' is always after the scheme, so prefer it when present.
-       int cut = base.lastIndexOf('/');
-       if (cut < 0) {
-          cut = base.lastIndexOf(':');
-       }
-       if (cut >= 0) {
-          base = base.substring(cut + 1);
-       }
-       int dot = base.lastIndexOf('.');
-       String ext = dot >= 0 ? base.substring(dot) : "";
-       String stem = dot >= 0 ? base.substring(0, dot) : base;
-       int star = stem.indexOf('*');
-       if (star >= 0) {
-          stem = stem.substring(0, star);
-       }
-       return stem + ext;
     }
 
     /**
@@ -1912,6 +1988,10 @@ public final class WorldViewer {
          buf.put(texture.rgb, y * rowBytes, rowBytes);
       }
       buf.flip();
+      // Filas de 3*ancho bytes sin relleno: con el alineamiento por
+      // defecto (4) una textura de ancho no multiplo de 4 (windr3.mov,
+      // 154 de ancho desde CmpFrames) saldria cizallada.
+      glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texture.width, texture.height,
          0, GL_RGB, GL_UNSIGNED_BYTE, buf);
       return id;
@@ -2188,94 +2268,251 @@ public final class WorldViewer {
        }
     }
 
+    /** Conexion de un portal tras restaurar el mundo (ver link()). */
+    private static final class PortalState {
+       /** 2 = activo (Portal._state); cualquier otro valor no cruza. */
+       final int state;
+       final WNode farPortal;
+       final String farRoom;
+       /** farx, fary, farz, fartheta (recomputeFarPosition o del fichero). */
+       final float[] far;
+       final String reason;
+       PortalState(int state, WNode farPortal, String farRoom, float[] far, String reason) {
+          this.state = state; this.farPortal = farPortal; this.farRoom = farRoom;
+          this.far = far; this.reason = reason;
+       }
+    }
+
+    private static final Map<WNode, PortalState> portalStates = new IdentityHashMap<>();
+
     /**
-     * Detecta si (x,y,z) esta dentro del quad-AABB (+-PLAY_RADIUS en X/Y,
-     * +-PLAY_EYE_HEIGHT en Z) de algun portal de la sala actual y, si
-     * esta conectado, calcula sala+posicion+orientacion destino tal como
-     * el cliente original (NET/worlds/scape/Portal.java) lo hace en
-     * tiempo real. Un Portal ES un Rect (WorldRestorer.readPortal, v8/9);
-     * su AABB de cruce reusa el mismo quad ya calculado en collectPlayfield
-     * (misma aproximacion "posicion discreta por frame" que hitsBlocker,
-     * documentada ahi - no hay swept collision continua en este visor).
-     *
-     * Semantica real, con cita: para un portal portal-a-portal
-     * (farSideIsPortal=true, el caso real de los 56/87 portales
-     * conectados en GroundZero - ver PortalInspect), la posicion
-     * persistida en el .world (_farx/_fary/_farz/_fartheta,
-     * Portal.java:651-654 v8/9) NUNCA se usa: siempre vale 0.0 en
-     * GroundZero (verificado), porque postRestore() (Portal.java:711-722)
-     * llama newFarSide() -> recomputeFarPosition() (Portal.java:220-240)
-     * en cuanto el objeto se restaura, que la SOBRESCRIBE con la posicion
-     * VIVA del portal lejano:
-     *   var1 = Point3Temp.make(1,0,1).vectorTimes(farSidePortal);  [227]
-     *   var2 = farSidePortal.getPosition();                         [228]
-     *   if ((this.flags & 4) == 0) { var2.x+=var1.x; var2.y+=var1.y; } [229-232]
-     *   farx,fary,farz = var2.x,var2.y,var2.z                       [234-236]
-     *   fartheta = (-farSidePortal.getYaw() + 180) % 360             [237]
-     * getPosition() = Transform.getX/Y/Z (Transform.java:48-50), la
-     * columna de traslacion de la matriz-sala acumulada del portal lejano
-     * (portalRoomMatrix) - sin ambiguedad. vectorTimes() es nativo
-     * (Point3Temp.java:56) pero por nombre y por el propio uso citado en
-     * el javadoc de esta clase ("Transform.worldVecToObjectVec() calls
-     * Point3Temp.make(var1).vectorTimes(var2)") es un transform de VECTOR
-     * (solo rotacion/escala, sin traslacion) - reproducido aqui con la
-     * MISMA convencion de matriz ya verificada en todo este archivo
-     * (transformVector: columnas 0/1/2, sin sumar columna 3).
-     *
-     * getYaw() (Transform.java:76) tambien es nativo, y su convencion
-     * EXACTA no se pudo re-derivar con certeza total del pseudocodigo
-     * Ghidra (codigo x87 muy ofuscado, ver decompiled-native/gamma_dll/
-     * 00425440__..._Transform_getYaw_8.c) - LIMITE HONESTO, documentado
-     * en el informe final de la sesion. Lo que SI se pudo verificar:
-     * (a) su vector de referencia local es (0,1,0) - lei DAT_00471bf8=0.0
-     * y DAT_00471bfc=1.0 directamente de assets/WorldsPlayer/bin/gamma.dll
-     * (PE, seccion .data, sin ejecutar el binario); (b) DOS sitios
-     * decompilados independientes (TrajectoryBehavior.java:139 y
-     * VelocityBehavior.java:124) convierten un valor getYaw() a angulo
-     * matematico estandar con la MISMA formula exacta,
-     * "toRadians(360 - yaw + 90)". Componiendo esa formula (verificada
-     * dos veces) con Portal.java:237 algebraicamente da newYaw =
-     * -atan2(fwd.y,fwd.x) = atan2(-fwd.y,fwd.x), fwd = eje local +Y del
-     * portal lejano llevado a espacio-sala (transformVector) - el MISMO
-     * eje que getYaw() usa como referencia. Implementado asi, pero sin
-     * poder ejecutar el binario original (sin Wine) para confirmar el
-     * signo con un caso de prueba independiente.
+     * Estado de un portal como lo deja Portal.postRestore: con referencia
+     * al portal lejano, newFarSide() -> estado 2 (salvo flag 0x40000) y
+     * recomputeFarPosition(); sin ella, reset(): sin farSideRoomName o con
+     * 0x40000 -> -1; sin farSideWorld, busca la sala por nombre y, si es
+     * portal-a-portal, el portal por nombre entre los de esa sala
+     * (findFarSidePortal -> newFarSide); en modo posicion reset() no toca
+     * el estado, que sigue en -1; con farSideWorld -> 0 y World.load del
+     * otro mundo (loadedURLSelf lo pasa a 2 solo si ese .world carga).
      */
-    private static PortalCross crossPortal(List<WNode> portalNodes, List<float[][]> portalQuads, float x, float y, float z) {
+    private static PortalState link(WNode p) {
+       PortalState st = portalStates.get(p);
+       if (st != null) {
+          return st;
+       }
+       boolean blocked = (p.flags & 0x40000) != 0;
+       boolean mirror = (p.flags & 4) != 0;
+       WNode far = p.portalFarSidePortal;
+       if (far == null && !blocked && p.portalFarSideRoomName != null && p.portalFarSideWorld == null
+             && p.portalFarSideIsPortal && p.portalFarSidePortalName != null) {
+          WNode farRoom = worldRoot.roomsByName.get(p.portalFarSideRoomName);
+          if (farRoom != null) {
+             for (Map.Entry<WNode, String> e : portalOwnerRoom.entrySet()) {
+                if (e.getValue().equals(p.portalFarSideRoomName) && p.portalFarSidePortalName.equals(e.getKey().name)) {
+                   far = e.getKey();
+                   break;
+                }
+             }
+          }
+       }
+       if (far != null) {
+          st = blocked
+             ? new PortalState(-1, far, null, null, "flag 0x40000 (newFarSide no lo activa)")
+             : new PortalState(2, far, portalOwnerRoom.get(far), PortalLink.recomputeFarPosition(far, mirror), null);
+       } else if (p.portalFarSideRoomName == null || blocked) {
+          st = new PortalState(-1, null, null, null, blocked ? "flag 0x40000"
+             : "sin sala de destino (farSideRoomName nulo): Portal.reset() lo deja en -1");
+       } else if (p.portalFarSideWorld != null) {
+          st = new PortalState(0, null, p.portalFarSideRoomName, null, otherWorldReason(p));
+       } else if (worldRoot.roomsByName.get(p.portalFarSideRoomName) == null) {
+          st = new PortalState(-1, null, null, null, "la sala " + p.portalFarSideRoomName + " no existe (Room-doesnt)");
+       } else if (p.portalFarSideIsPortal) {
+          st = new PortalState(-1, null, null, null, "no hay portal " + p.portalFarSidePortalName
+             + " en " + p.portalFarSideRoomName + " (Portal-doesnt)");
+       } else {
+          st = new PortalState(-1, null, p.portalFarSideRoomName,
+             new float[]{p.portalFarX, p.portalFarY, p.portalFarZ, p.portalFarTheta},
+             "modo posicion en el mismo mundo: reset() no cambia el estado -1");
+       }
+       portalStates.put(p, st);
+       return st;
+    }
+
+    /**
+     * Portal a otro .world: el original lo carga con World.load y, si no
+     * lo tiene, avisa (Dont-have-world) y pide el paquete al servidor de
+     * actualizaciones (NetUpdate.loadWorld). "home:" es el directorio de
+     * instalacion (el que contiene GroundZero/); "rel:" solo marca la URL
+     * como relativa. Aqui solo se comprueba si ese fichero esta en el
+     * corpus: cargar otro .world en el visor no esta hecho.
+     */
+    private static String otherWorldReason(WNode p) {
+       String url = p.portalFarSideWorld;
+       String path = url.startsWith("rel:") ? url.substring(4) : url;
+       String where;
+       if (path.startsWith("home:")) {
+          File home = baseDir.getParentFile();
+          File f = new File(home, path.substring(5));
+          where = f.getPath() + (f.isFile() ? " (existe; cargar otro .world no esta implementado)" : " (no esta en el corpus)");
+       } else {
+          where = "URL no local";
+       }
+       return "otro mundo " + url + "#" + p.portalFarSideRoomName + "#" + p.portalFarSidePortalName + " -> " + where;
+    }
+
+    /**
+     * Cruce real de un portal durante el movimiento de este frame (de p0 a
+     * p0 + m), como el cliente original (ver PortalLink): solo portales
+     * bumpables (flags bit 1, WObject.detectBump), en estado 2, cuyo borde
+     * inferior corta el camino del lado que cruza (PassthroughBumpCalc ->
+     * BumpEventTemp.isCollision); gana el corte mas cercano. Altura:
+     * aproximacion documentada, el piloto ocupa [z, z + PLAY_EYE_HEIGHT]
+     * y debe solaparse con el rango z del portal (el original compara la
+     * caja del clump del avatar). Solo se prueban portales: el resto de la
+     * colision es la del visor (hitsBlocker), no la del original. Destino:
+     * _p2pxform (Portal.setTransform, gamma.dll 0x0041b170) aplicado a la
+     * posicion de corte + 0.2 y, como vector, al resto del camino y al
+     * avance del piloto; el rumbo sale de ahi (antes se ponia a mano un
+     * yaw deducido; ahora es el de getYaw traducido, 0x00425440).
+     */
+    private static PortalCross crossPortal(List<WNode> portalNodes, List<float[][]> portalQuads,
+          float x0, float y0, float z0, float mx, float my, float yaw) {
+       int best = -1;
+       float bestF = 2f;
        for (int i = 0; i < portalNodes.size(); i++) {
-          float[] b = quadAabb(portalQuads.get(i));
-          if (x < b[0] - PLAY_RADIUS || x > b[3] + PLAY_RADIUS) continue;
-          if (y < b[1] - PLAY_RADIUS || y > b[4] + PLAY_RADIUS) continue;
-          if (z < b[2] - PLAY_EYE_HEIGHT || z > b[5] + PLAY_EYE_HEIGHT) continue;
           WNode src = portalNodes.get(i);
-          WNode far = src.portalFarSidePortal;
-          if (far == null) {
+          if ((src.flags & 2) == 0) {
+             continue; // no bumpable: WObject.detectBump ni lo mira
+          }
+          float[] q = quadAabb(portalQuads.get(i));
+          if (z0 > q[5] || z0 + PLAY_EYE_HEIGHT < q[2]) {
+             continue;
+          }
+          float[] m = portalRoomMatrix.get(src);
+          float[] dir = PortalLink.transformVector(m, 1f, 0f, 1f);
+          float f = PortalLink.isCollision(m[12], m[13], dir[0], dir[1], x0, y0, mx, my);
+          if (f < 0f || f >= bestF) {
+             continue;
+          }
+          PortalState st = link(src);
+          if (st.state != 2) {
              if (announcedPortals.add("unresolved:" + src.name)) {
-                String reason = src.portalFarSideWorld != null
-                   ? "otro mundo (" + src.portalFarSideWorld + "#" + src.portalFarSideRoomName + ") - fuera de alcance, no se parsea otro .world"
-                   : "desconectado en el propio .world (Portal.unconnected(), sin farSidePortal ni farSideRoomName resoluble)";
-                System.out.println("Portal \"" + src.name + "\": sin destino resoluble (" + reason + ") - no se atraviesa.");
+                System.out.println("Portal \"" + src.name + "\": no cruza (estado " + st.state + ": " + st.reason + ").");
              }
              continue;
           }
-          String destRoomName = portalOwnerRoom.get(far);
-          WNode destRoom = worldRoot.roomsByName.get(destRoomName);
-          if (destRoom == null) {
-             continue; // no deberia pasar (far viene de un recorrido real de roomsByName)
-          }
-          float[] FM = portalRoomMatrix.get(far);
-          float[] farPos = transformPoint(FM, 0, 0, 0); // Transform.getPosition() = traslacion pura
-          float[] offset = transformVector(FM, 1, 0, 1); // vectorTimes(1,0,1)
-          float destX = farPos[0], destY = farPos[1], destZ = farPos[2];
-          if ((src.flags & 4) == 0) { // Portal.java:229 - bit de mirror del portal FUENTE
-             destX += offset[0];
-             destY += offset[1];
-          }
-          float[] fwd = transformVector(FM, 0, 1, 0); // eje local +Y del portal lejano (referencia de getYaw())
-          float destYaw = (float) Math.atan2(-fwd[1], fwd[0]);
-          return new PortalCross(destRoom, destRoomName, src.name, far.name, destX, destY, destZ, destYaw);
+          best = i;
+          bestF = f;
        }
-       return null;
+       if (best < 0) {
+          return null;
+       }
+       WNode src = portalNodes.get(best);
+       PortalState st = link(src);
+       WNode destRoom = worldRoot.roomsByName.get(st.farRoom);
+       float[] p2p = PortalLink.p2pTransform(portalRoomMatrix.get(src), src.xScale, src.yScale, src.zScale,
+          (src.flags & 4) != 0, st.far[0], st.far[1], st.far[2], st.far[3]);
+       float[] r = PortalLink.cross(p2p, new float[]{x0, y0, z0}, mx, my, 0f, bestF,
+          new float[]{(float) Math.cos(yaw), (float) Math.sin(yaw), 0f});
+       return new PortalCross(destRoom, st.farRoom, src.name, st.farPortal.name, r[0], r[1], r[2], r[3]);
+    }
+
+    /**
+     * --list-portals: estado de cada portal del mundo (ver link()) y, para
+     * los que cruzan, un cruce de prueba por el centro de su borde en su
+     * sentido de cruce, con la sala, posicion y rumbo de llegada; si el
+     * portal lejano vuelve a este, tambien la vuelta (ida y vuelta debe
+     * dejar la misma matriz: comprueba la cadena getYaw/recompute/p2p).
+     */
+    private static void listPortals(WNode world) {
+       List<String> names = new ArrayList<>(world.roomsByName.keySet());
+       java.util.Collections.sort(names);
+       int total = 0, crossable = 0, oneWayOk = 0, roundTrips = 0, roundTripOk = 0;
+       Map<String, Integer> causes = new TreeMap<>();
+       for (String rn : names) {
+          List<WNode> ps = new ArrayList<>();
+          for (Map.Entry<WNode, String> e : portalOwnerRoom.entrySet()) {
+             if (e.getValue().equals(rn)) {
+                ps.add(e.getKey());
+             }
+          }
+          ps.sort((a, b) -> String.valueOf(a.name).compareTo(String.valueOf(b.name)));
+          for (WNode p : ps) {
+             total++;
+             PortalState st = link(p);
+             boolean bump = (p.flags & 2) != 0;
+             String head = rn + " / " + p.name + " flags=0x" + Integer.toHexString(p.flags);
+             if (st.state != 2 || !bump) {
+                String cause = st.state != 2 ? "estado " + st.state + ": " + st.reason
+                   : "no bumpable (flags bit 1 = 0: WObject.detectBump no lo mira)"
+                      + ((p.flags & 4) != 0 ? ", espejo hacia " + st.farPortal.name : "");
+                String key = cause.replaceAll("otro mundo .*", "otro mundo fuera del corpus");
+                causes.merge(key, 1, Integer::sum);
+                System.out.println("NO   " + head + " -> " + cause);
+                continue;
+             }
+             crossable++;
+             float[] m = portalRoomMatrix.get(p);
+             float[] dir = PortalLink.transformVector(m, 1f, 0f, 1f);
+             float len = (float) Math.sqrt(dir[0] * dir[0] + dir[1] * dir[1]);
+             float nx = -dir[1] / len, ny = dir[0] / len; // izquierda del borde = lado de cruce
+             float mx0 = m[12] + dir[0] / 2f, my0 = m[13] + dir[1] / 2f;
+             float[] p2p = PortalLink.p2pTransform(m, p.xScale, p.yScale, p.zScale, (p.flags & 4) != 0,
+                st.far[0], st.far[1], st.far[2], st.far[3]);
+             float x0 = mx0 - 5f * nx, y0 = my0 - 5f * ny;
+             float f = PortalLink.isCollision(m[12], m[13], dir[0], dir[1], x0, y0, 10f * nx, 10f * ny);
+             float yaw0 = (float) Math.atan2(ny, nx);
+             float[] r = PortalLink.cross(p2p, new float[]{x0, y0, m[14]}, 10f * nx, 10f * ny, 0f, f,
+                new float[]{nx, ny, 0f});
+             if (f >= 0f) {
+                oneWayOk++;
+             }
+             String back = "";
+             PortalState bs = link(st.farPortal);
+             if (bs.state == 2 && bs.farPortal == p) {
+                roundTrips++;
+                float[] fm = portalRoomMatrix.get(st.farPortal);
+                float[] q = PortalLink.p2pTransform(fm, st.farPortal.xScale, st.farPortal.yScale, st.farPortal.zScale,
+                   (st.farPortal.flags & 4) != 0, bs.far[0], bs.far[1], bs.far[2], bs.far[3]);
+                float[] id = mulRw(p2p, q);
+                float err = 0f;
+                float[] ident = identity();
+                for (int k = 0; k < 16; k++) {
+                   err = Math.max(err, Math.abs(id[k] - ident[k]));
+                }
+                if (err < 0.01f) {
+                   roundTripOk++;
+                }
+                back = String.format(java.util.Locale.ROOT, " | vuelta por %s: |p2p.p2p' - I| = %.4g", st.farPortal.name, err);
+             }
+             System.out.println(String.format(java.util.Locale.ROOT,
+                "SI   %s borde (%.1f, %.1f, %.1f) -> %s/%s  f=%.2f  llegada (%.1f, %.1f, %.1f) rumbo %.1f grados (entrada %.1f), fartheta %.1f%s",
+                head, mx0, my0, m[14], st.farRoom, st.farPortal.name, f, r[0], r[1], r[2], Math.toDegrees(r[3]), Math.toDegrees(yaw0),
+                st.far[3], back));
+          }
+       }
+       System.out.println("---");
+       System.out.println("Portales: " + total + ", cruzables (estado 2 y bumpables): " + crossable
+          + ", cruce de prueba con corte: " + oneWayOk + "/" + crossable
+          + ", ida y vuelta = identidad: " + roundTripOk + "/" + roundTrips);
+       for (Map.Entry<String, Integer> e : causes.entrySet()) {
+          System.out.println("  " + e.getValue() + " x " + e.getKey());
+       }
+    }
+
+    /** Producto de matrices RW (a.b, vector fila). */
+    private static float[] mulRw(float[] a, float[] b) {
+       float[] o = new float[16];
+       for (int i = 0; i < 4; i++) {
+          for (int j = 0; j < 4; j++) {
+             float sum = 0f;
+             for (int k = 0; k < 4; k++) {
+                sum += a[i * 4 + k] * b[k * 4 + j];
+             }
+             o[i * 4 + j] = sum;
+          }
+       }
+       return o;
     }
 
     /** Recorre TODAS las salas una vez (llamado desde main() tras parsear

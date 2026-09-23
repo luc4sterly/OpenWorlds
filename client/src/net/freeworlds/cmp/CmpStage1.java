@@ -18,8 +18,8 @@ import java.io.IOException;
  * a live trace.
  */
 public final class CmpStage1 {
-   public final int width;
-   public final int height;
+   // Width/height are not kept here: CmpFrames reads them from the header
+   // (width = u16@8, height = u16@6, as gamma.dll's ScapePic reader).
    public final int[][] palette; // 256 entries, some possibly null
    public final byte[] bits;
    public final byte[] streamA;
@@ -27,10 +27,8 @@ public final class CmpStage1 {
    public final byte[] streamCtrl;
    public final byte[] streamLit;
 
-   private CmpStage1(int width, int height, int[][] palette, byte[] bits,
+   private CmpStage1(int[][] palette, byte[] bits,
                       byte[] streamA, byte[] streamFillIdx, byte[] streamCtrl, byte[] streamLit) {
-      this.width = width;
-      this.height = height;
       this.palette = palette;
       this.bits = bits;
       this.streamA = streamA;
@@ -308,68 +306,6 @@ public final class CmpStage1 {
       return out;
    }
 
-   public static CmpStage1 decode(byte[] cmp) throws IOException {
-      if (cmp.length < 34 || cmp[0] != 'L' || cmp[1] != 'z' || cmp[2] != 'H' || cmp[3] != '2') {
-         throw new IOException("not a LzH2 .cmp file");
-      }
-      int tableRegionSize = u16(cmp, 28);
-      int groupRegionSize = u16(cmp, 30);
-      int payloadSize = u16(cmp, 32);
-      if (tableRegionSize + groupRegionSize != payloadSize) {
-         throw new IOException("tableRegionSize+groupRegionSize != payloadSize");
-      }
-      if (34 + payloadSize != cmp.length) {
-         throw new IOException("34+payloadSize != file length (" + (34 + payloadSize) + " vs " + cmp.length + ")");
-      }
-      byte[] groupRegion = new byte[groupRegionSize + 64];
-      System.arraycopy(cmp, 34 + tableRegionSize, groupRegion, 0, groupRegionSize);
-      return decodeRegions(cmp, tableRegionSize, groupRegion);
-   }
-
-   /**
-    * Movie (.mov) frame 0 decode. Same LzH2 container and header field
-    * offsets as .cmp (mode/flags/dims/lens all read at the same places),
-    * but the file holds a shared table region plus per-frame groups
-    * instead of one group (mode bit7 set, groupCount from the table
-    * cursor). Only frame 0 is decoded — the static viewer shows one
-    * frame per surface (animation over time is out of scope); the frame
-    * shown matches what cmpview.exe displays (verified pixel-exact, see
-    * docs/cmp-texture-format-reference.md ".mov" section).
-    */
-   public static CmpStage1 decodeMovFrame0(byte[] mov) throws IOException {
-      if (mov.length < 34 || mov[0] != 'L' || mov[1] != 'z' || mov[2] != 'H' || mov[3] != '2') {
-         throw new IOException("not a LzH2 .mov file");
-      }
-      // .mov table region is much bigger than a still's (multi-frame movie
-      // tables) and its size is NOT the u16 at 28 (that field reads 922 for
-      // a file whose real table runs 3791 bytes - meaning unknown). What IS
-      // reliable is the group header signature itself: field0 == 64 with
-      // trailing zero fields holds for every verified still (12/12
-      // sampled) and marks exactly one offset per .mov (verified across
-      // the .mov corpus, including windr3 whose wanted[0] is 624, not the
-      // usual 512, and whose height is 154, not 128). The table region is
-      // file[34..groupOff).
-      int groupOff = -1;
-      for (int o = 34; o + 16 <= mov.length; o++) {
-         if (u16(mov, o) == 64 && u16(mov, o + 12) == 0 && u16(mov, o + 14) == 0
-            && u16(mov, o + 2) > 0 && u16(mov, o + 2) < 12000
-            && u16(mov, o + 4) > 0 && u16(mov, o + 4) < 12000
-            && u16(mov, o + 6) > 0 && u16(mov, o + 6) < 12000
-            && u16(mov, o + 8) > 0 && u16(mov, o + 8) < 12000
-            && u16(mov, o + 10) > 0 && u16(mov, o + 10) < 12000) {
-            groupOff = o;
-            break;
-         }
-      }
-      if (groupOff < 0) {
-         throw new IOException("no group header (field0==64) found in .mov");
-      }
-      int tableRegionSize = groupOff - 34;
-      byte[] groupRegion = new byte[mov.length - groupOff + 64];
-      System.arraycopy(mov, groupOff, groupRegion, 0, mov.length - groupOff);
-      return decodeRegions(mov, tableRegionSize, groupRegion);
-   }
-
    /**
     * One group of a .cmp/.mov read the way gamma.dll's ScapePic reader does
     * (FUN_00442750 / FUN_00442bc0): the table region is file[34..34+u16@28),
@@ -432,8 +368,6 @@ public final class CmpStage1 {
       int flags = u8(cmp, 5);
       if ((flags & 0x80) == 0) throw new IOException("flags bit7 must be 1");
       if ((flags & 0x54) != 0) throw new IOException("flags bits 2/4/6 must be 0 (got 0x" + Integer.toHexString(flags) + ")");
-      int w = u16(cmp, 6);
-      int h = u16(cmp, 8);
       if (cmp[19] != 0) throw new IOException("header byte 19 must be 0");
       int[] byteLens = new int[5];
       for (int i = 0; i < 5; i++) byteLens[i] = u8(cmp, 14 + i);
@@ -452,7 +386,7 @@ public final class CmpStage1 {
       byte[] tableRegion = new byte[tableRegionSize];
       System.arraycopy(cmp, 34, tableRegion, 0, tableRegionSize);
       // groupRegion arrives pre-sliced (with read-ahead slack) from the
-      // caller: exact single-group slice for .cmp, rest-of-file for .mov.
+      // caller: the exact group of one frame-table entry (decodeGroupAt).
       // (The old +64 slack comment's rationale still applies: the shared
       // bit-window refill peeks 1-2 bytes ahead, per-channel realign backs
       // up, and LIT needs a couple of bytes past the true end.)
@@ -582,6 +516,6 @@ public final class CmpStage1 {
       skipRawBits(bc, bc.bitsAvail);
       byte[] litOut = decodeChannel(bc, huff[4], wanted[4]);
 
-      return new CmpStage1(w, h, palette, bitsOut, streamAOut, fillIdxOut, ctrlOut, litOut);
+      return new CmpStage1(palette, bitsOut, streamAOut, fillIdxOut, ctrlOut, litOut);
    }
 }

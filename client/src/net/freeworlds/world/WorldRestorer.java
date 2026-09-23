@@ -457,6 +457,8 @@ public final class WorldRestorer {
    private void readWObject(WNode node) throws IOException {
       int v = restoreVersion(C_WOBJECT);
       java.util.List<WNode> contents = null;
+      // Orden real (WObject.restoreWObjectState): contents, handlers
+      // (eventHandlers: sensores), actions; v0 no guarda actions.
       switch (v) {
          case 0:
          case 1:
@@ -464,15 +466,18 @@ public final class WorldRestorer {
             node.flags = restoreInt();
             restoreMaybeNull();
             contents = restoreVectorMaybeNull();
-            restoreVectorMaybeNull(); // handlers
+            node.handlers = restoreVectorMaybeNull();
+            if (v == 1) {
+               node.actions = restoreVectorMaybeNull(); // v1 si las guarda (WObject.java, case 1)
+            }
             break;
          case 2:
          case 3:
             readTransform(node);
             node.flags = restoreInt();
             contents = restoreVectorMaybeNull();
-            restoreVectorMaybeNull(); // handlers
-            restoreVectorMaybeNull(); // actions
+            node.handlers = restoreVectorMaybeNull();
+            node.actions = restoreVectorMaybeNull();
             if (v == 3) {
                restore(); // bumpCalc-ish single object (see real source: var1.restore())
             }
@@ -481,8 +486,8 @@ public final class WorldRestorer {
             readTransform(node);
             node.flags = restoreInt(); // WObject.flags (bit0=visible)
             contents = restoreVectorMaybeNull();
-            restoreVectorMaybeNull();
-            restoreVectorMaybeNull();
+            node.handlers = restoreVectorMaybeNull();
+            node.actions = restoreVectorMaybeNull();
             restore();
             restoreMaybeNull(); // sharer
             break;
@@ -493,8 +498,8 @@ public final class WorldRestorer {
             readTransform(node);
             node.flags = restoreInt(); // WObject.flags (bit0=visible)
             contents = restoreVectorMaybeNull();
-            restoreVectorMaybeNull();
-            restoreVectorMaybeNull();
+            node.handlers = restoreVectorMaybeNull();
+            node.actions = restoreVectorMaybeNull();
             restoreMaybeNull(); // bumpCalc
             restoreMaybeNull(); // sharer
             if (v == 6) {
@@ -505,8 +510,8 @@ public final class WorldRestorer {
             readTransform(node);
             node.flags = restoreInt(); // WObject.flags (bit0=visible)
             contents = restoreVectorMaybeNull();
-            restoreVectorMaybeNull();
-            restoreVectorMaybeNull();
+            node.handlers = restoreVectorMaybeNull();
+            node.actions = restoreVectorMaybeNull();
             restoreMaybeNull();
             restoreMaybeNull();
             restoreString(); // tooltip
@@ -518,9 +523,9 @@ public final class WorldRestorer {
             trace("after flags");
             contents = restoreVectorMaybeNull();
             trace("after contents");
-            restoreVectorMaybeNull();
+            node.handlers = restoreVectorMaybeNull();
             trace("after handlers");
-            restoreVectorMaybeNull();
+            node.actions = restoreVectorMaybeNull();
             trace("after actions");
             restoreMaybeNull();
             trace("after bumpCalc");
@@ -1088,7 +1093,7 @@ public final class WorldRestorer {
             readSuperRoot(node);
             // fall through
          case 0:
-            restoreVector(); // actions
+            node.actions = restoreVector(); // Sensor.actions (las que dispara)
             break;
          default:
             throw new IOException("unknown Sensor version " + v);
@@ -1159,7 +1164,7 @@ public final class WorldRestorer {
          case 2:
             readSuperRoot(node);
          case 0:
-            restoreVector();
+            node.actions = restoreVector(); // Sensor.actions
             return v;
          default:
             throw new IOException("unknown Sensor version " + v);
@@ -1278,28 +1283,33 @@ public final class WorldRestorer {
    }
 
    private void readAnimateAction(WNode node) throws IOException {
+      // AnimateAction.restoreState: v0/v1 cycleTime como float truncado a
+      // int y infiniteLoop = (cycles == 0); v2 igual con int; v3 guarda
+      // infiniteLoop explicito.
       int v = restoreVersion("NET.worlds.scape.AnimateAction");
       switch (v) {
          case 1:
             readAction(node, "NET.worlds.scape.Action");
             // fall through
          case 0:
-            restoreFloat();
-            restoreInt();
-            restoreString();
+            node.animCycleTime = (int) restoreFloat();
+            node.animCycles = restoreInt();
+            node.animInfiniteLoop = node.animCycles == 0;
+            node.animFrameList = restoreString();
             break;
          case 2:
             readAction(node, "NET.worlds.scape.Action");
-            restoreInt();
-            restoreInt();
-            restoreString();
+            node.animCycleTime = restoreInt();
+            node.animCycles = restoreInt();
+            node.animInfiniteLoop = node.animCycles == 0;
+            node.animFrameList = restoreString();
             break;
          case 3:
             readAction(node, "NET.worlds.scape.Action");
-            restoreBoolean();
-            restoreInt();
-            restoreInt();
-            restoreString();
+            node.animInfiniteLoop = restoreBoolean();
+            node.animCycleTime = restoreInt();
+            node.animCycles = restoreInt();
+            node.animFrameList = restoreString();
             break;
          default:
             throw new IOException("unknown AnimateAction version " + v);
@@ -1494,25 +1504,31 @@ public final class WorldRestorer {
       }
    }
 
+   /** SequenceAction.restoreState: v0/v1 loopCount &lt; 0 = infinito (se
+    * guarda el valor absoluto), v2 loopInfinite explicito. */
    private void readSequenceAction(WNode node) throws IOException {
       int v = restoreVersion("NET.worlds.scape.SequenceAction");
       switch (v) {
          case 0:
             readAction(node, "NET.worlds.scape.Action");
-            restoreVector();
-            restoreInt();
+            node.actions = restoreVector(); // SequenceAction.actions
+            node.seqLoopCount = restoreInt();
+            node.seqLoopInfinite = node.seqLoopCount < 0;
+            node.seqLoopCount = Math.abs(node.seqLoopCount);
             restoreBoolean();
             break;
          case 1:
             readAction(node, "NET.worlds.scape.Action");
-            restoreVector();
-            restoreInt();
+            node.actions = restoreVector(); // SequenceAction.actions
+            node.seqLoopCount = restoreInt();
+            node.seqLoopInfinite = node.seqLoopCount < 0;
+            node.seqLoopCount = Math.abs(node.seqLoopCount);
             break;
          case 2:
             readAction(node, "NET.worlds.scape.Action");
-            restoreBoolean();
-            restoreVector();
-            restoreInt();
+            node.seqLoopInfinite = restoreBoolean();
+            node.actions = restoreVector(); // SequenceAction.actions
+            node.seqLoopCount = restoreInt();
             break;
          default:
             throw new IOException("unknown SequenceAction version " + v);
@@ -1575,16 +1591,16 @@ public final class WorldRestorer {
       switch (v) {
          case 0:
             readAction(node, "NET.worlds.scape.Action");
-            restoreInt();
+            node.waitDuration = restoreInt(); // WaitAction.duration (s)
             break;
          case 1:
             readAction(node, "NET.worlds.scape.Action");
-            restoreFloat();
+            node.waitDuration = restoreFloat();
             restoreLong();
             break;
          case 2:
             readAction(node, "NET.worlds.scape.Action");
-            restoreFloat();
+            node.waitDuration = restoreFloat();
             break;
          default:
             throw new IOException("unknown WaitAction version " + v);
