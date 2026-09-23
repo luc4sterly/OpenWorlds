@@ -148,10 +148,10 @@ diagnosticados **comparando byte a byte contra el archivo real** — nunca
 ## Lo que queda sin cubrir (fuera del alcance de "posición + geometría")
 
 Las clases `Action`/`Sensor` (18 de las 33 clases del grafo real) se
-parsean correctamente para mantener el stream sincronizado, pero sus
-campos no se modelan específicamente en `WNode` — no hace falta para
-renderizar la escena, solo para la interactividad (teleports, clicks,
-animaciones), que está fuera del alcance de esta sesión.
+parsean correctamente para mantener el stream sincronizado. Desde
+2026-09-22 se conservan las que mueven texturas (ver "Acciones que cambian
+texturas" abajo); el resto de campos (teleports, clicks, movimientos) no
+se modela.
 
 ---
 
@@ -337,3 +337,101 @@ portal-a-portal valen 0.0 en el archivo porque el cliente los recalcula en
 sigue consumiendo igual (578 nodos, `END PERSISTER` intacto). De los 87
 portales de GroundZero, 56 resuelven dentro del mundo, 2 apuntan a otro
 `.world` y 29 estan desconectados en el propio dato.
+
+### Acciones que cambian texturas (2026-09-22)
+
+`WorldRestorer` guarda ahora, en vez de descartarlos:
+
+- `WObject.eventHandlers` y `WObject.actions` (`WNode.handlers`/`actions`),
+  en el orden real de `WObject.restoreWObjectState`: contents, handlers,
+  actions (la versión 0 no guarda actions; **la 1 sí**, y el parser la
+  saltaba: arreglado, aunque GroundZero no usa esas versiones).
+- `Sensor.actions` (en `WNode.actions` del sensor), `SequenceAction`
+  (componentes, `loopCount`, `loopInfinite`; en v0/v1 un `loopCount`
+  negativo es infinito), `WaitAction.duration` y los campos de
+  `AnimateAction` (`cycleTime` ms, `cycles`, `infiniteLoop`, `frameList`;
+  en v0/v1 `cycleTime` viene como float y `infiniteLoop = cycles == 0`).
+
+Qué hay en GroundZero (dueño = el objeto en cuya lista de acciones está):
+
+| Sala | Dueño | Disparo | Materiales | Cadencia |
+|---|---|---|---|---|
+| ReceptionView1 | 2× `Rect840Flag2` | StartupSensor | `f12h*.mov` … `f82h*.mov` | 8 en 1000 ms, bucle |
+| IconViewRoom1 | `Rect840` | StartupSensor | `drs12v*.mov`, `drs52v*.mov` | 2 en 6000 ms, bucle |
+| AvatarEnter | 4 Rects (suelo, techo, 2 muros) | StartupSensor | `avflr1/2/3/2.cmp` | 4 en 1000 ms, bucle |
+| Reception | 4 kioscos `Rect84cyan1..4` | StartupSensor → SequenceAction infinita | `knews*`/`kevent*`/`kstore*.cmp` | Wait 1 s + Animate (5 en 500 ms, 1 ciclo) … |
+
+El cliente propio las ejecuta con `net.freeworlds.world.TextureActions`
+(reglas y límites en su javadoc; checks en
+`client/test/net/freeworlds/world/TextureActionsCheck.java`): el
+StartupSensor dispara en el primer frame de la sala y las acciones vivas
+se llaman una vez por frame, como `RunningActionHandler`. Las acciones de
+StartupSensor que no cambian texturas (en `ReceptionView1`: 8
+`MoveAction` de pájaros, avión y logo) no se ejecutan y se listan en la
+consola.
+
+### Celdas de un Rect: `Surface.addSubPolys` (gamma.dll `0x004206d0`)
+
+Con un material de varias texturas (`Nh*`/`Nv*`, ver
+`docs/cmp-texture-format-reference.md`) el Rect no es un cuadrilátero sino
+una rejilla de celdas. Lo que dice el binario, que **no** es lo que dice el
+C de Ghidra de esa función:
+
+- El C lee los vértices 1, 2 y 4 sobre las mismas variables locales y
+  parece usar solo el 1 y el 4 para todo. En el desensamblado,
+  `0x00420768-0x00420794` guarda `x2-x1` y `u2-u1` en `[ebp-0x8c]` y
+  `[ebp-0x88]` **antes** de leer el vértice 4, y `0x00420b0c-0x00420b1a`
+  divide `x2-x1` entre `hRes*(u2-u1)`; `z` y `v` sí salen de los vértices
+  1 y 4 (`0x00420b00-0x00420b0b`). En un Rect (vértices de
+  `Rect.addRwChildren`: 1 = (0,0,0), 2 = (1,0,0), 4 = (0,0,1)) usar el
+  vértice 4 para x/u da 0/0 y ninguna celda.
+- Las celdas inicial y final se redondean con `frndint` bajo dos palabras
+  de control distintas: `0x00480a7c` = `0x077f` (hacia −∞) para uMin/vMin
+  y `0x00480a78` = `0x0b7f` (hacia +∞) para uMax/vMax.
+- Dentro de cada bloque se recorre la fila de celdas de abajo arriba y de
+  izquierda a derecha (salvo volteo, flags `0x100000`/`0x80000`, que
+  alterna de bloque en bloque), y el polígono *i* lleva el material
+  *i* mod *hRes·vRes*.
+
+Traducido en `net.freeworlds.world.MaterialTiles.rectCells`, con casos a
+mano en `client/test/net/freeworlds/world/MaterialTilesCheck.java`.
+
+### Portales: estado, cruce y llegada, como el original (2026-09-22)
+
+Corrige la sección de 2026-09-16 ("56 resuelven… 29 desconectados"):
+
+- **Cruzables = estado 2 y bumpables: 53/87.** El estado sale de
+  `Portal.postRestore` → `newFarSide` (con referencia al portal lejano) o
+  `reset()`/`findFarSidePortal` (sin ella). `WObject.detectBump` solo mira
+  objetos con `flags` bit 1 (`getBumpable`): los 3 espejos
+  autoconectados (`WestPortal1AuditoriumHall`, `EastPortal2AuditoriumHall`,
+  `EastPortalReflection`, flags `0x5`) no son bumpables y el original nunca
+  los cruza; el visor antes sí (contaba 56).
+- **Los 31 que no cruzan, por causa** (`WorldViewer --list-portals`):
+  29 sin `farSideRoomName` (`reset()` los deja en −1: 14
+  `WestPortalNNTrigger` de ReceptionView1 y 6 `EastPortal1Patch*Trigger`
+  de Garden MazeC7b, invisibles y bumpables, que solo disparan acciones;
+  y 9 extremos de portales de un solo sentido: `EastPortal1..3ReceptionView2`,
+  `EastPortal2..6ReceptionView1`, `WestPortal2Garden MazeC7b`); 2 a otro
+  `.world` (`UserHomePortal` → `home:AvatarGallery/avatar.world`,
+  `WestPortal1DcnEnter` → `rel:home:Dcn/dcn.world`), que no están en el
+  corpus (ni en `assets/` ni en `cachedir/`): el original los cargaría o
+  los descargaría (`World.load` → `loadedURLSelf`, `NetUpdate.loadWorld`).
+- **Detección**: `PassthroughBumpCalc` corta el camino del piloto contra
+  el borde inferior del portal (posición + `(1,0,1)·M`, en x/y) con
+  `BumpEventTemp.isCollision`, que solo acepta un sentido (camino a la
+  izquierda del borde = hacia +Y local).
+- **Llegada**: `_p2pxform` de `Portal.setTransform` (gamma.dll
+  `0x0041b170`) = inversa(LTM sin la escala propia) · [espejo: −columna x]
+  · `Rz(fartheta)` · `T(farx,fary,farz)`, con `recomputeFarPosition`
+  (posición propia del portal lejano + `(1,0,1)·M` en x/y salvo espejo;
+  `fartheta = (−getYaw + 180) % 360`) y `getYaw` de gamma.dll
+  `0x00425440`. El piloto entero se multiplica por esa matriz: la
+  posición de corte (+0.2) y, como vectores, el resto del camino y el
+  avance. Antes el visor ponía al jugador en `farx/fary` (la esquina
+  lejana del portal, fuera cual fuera el punto de cruce: cambia en 53/53)
+  con un rumbo deducido que discrepa del real en 40/53 portales
+  (típicamente 180°, mirando al portal del que se sale).
+- Comprobación: los 44 pares de ida y vuelta dan `p2p·p2p' = I` (error
+  máximo 1.2e-4), lo que no pasaría con el signo de `getYaw` al revés.
+  Casos a mano en `client/test/net/freeworlds/world/PortalLinkCheck.java`.

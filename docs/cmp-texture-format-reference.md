@@ -1461,3 +1461,76 @@ Implementación: `CmpStage1.decodeMovFrame0` + `CmpTexture.loadMov`.
 Límites honestos: frame 0 estático (sin animación temporal);
 ventana de película de cmpview incluye UI propia (poste/seek) que no
 es contenido — no confundir al verificar.
+
+### Corrección (2026-09-22): el "frame 0" de arriba era el ÚLTIMO frame
+
+La sección anterior queda superada en dos puntos, medidos sobre los 52
+`.mov` y los 159 `.cmp` de `content.zip`:
+
+1. **La firma de grupo encontraba el último frame, no el primero.** Los
+   frames van en el fichero en el orden de la tabla de frames que lee
+   `gamma.dll` (`FUN_00442750` cabecera, `FUN_00442bc0` por frame): tras
+   la región de tablas (`u16@28` bytes desde 34) y el cursor de paleta,
+   entradas de 20 bytes (offset absoluto u32, tamaño u16, siguiente u16,
+   referencia u16 o `0xFFFF`). Los grupos son contiguos y el último acaba
+   en el final del fichero (p. ej. `windr3`: 1037+2012 = 3049, …,
+   8555+3074 = 11629 bytes). El escaneo por firma (`field0==64` y ceros en
+   +12/+14) no casa con la cabecera de grupo del frame 0 y se paraba en el
+   último grupo en los 52 ficheros. Resultado de la ruta vieja: 49 `.mov`
+   mostraban exactamente el último frame (34 de 4 frames, 15 de 2); 2
+   (`logo256`, `splashscreen`) decodificaban el último grupo sin su frame
+   de referencia (no coincide con ningún frame); `windr3` además salía
+   traspuesto.
+2. **Ancho = `u16@8`, alto = `u16@6`.** `windr3.mov` es 154 de ancho por
+   128 de alto (64 pares de filas, 39 columnas de nibbles); la ruta vieja
+   lo daba como 128×154. En los `.cmp` no se nota porque los 159 son
+   cuadrados.
+
+`CmpTexture.loadRaw`/`loadMov`/`loadMovFrames` usan ya `CmpFrames` (la
+misma decodificación que usa el puente); `CmpStage1.decodeMovFrame0` y
+`CmpStage1.decode` se han retirado. Medido: **159/159 `.cmp` con el
+mismo RGB que antes, 52/52 `.mov` cambian de frame 0** (y los 52 decodifican
+todos sus frames). Fuera de `content.zip`, los `.mov` de avatar
+(21 en `base-avatars/`, 31 en `cachedir/`) pasan de 37/52 ficheros
+decodificables a 52/52: los 15 que fallaban tienen tamaños distintos de 128 (104×135,
+118×100, 150×150, 160×150…) o hasta 16 frames. Comprobación:
+`client/test/net/freeworlds/cmp/CmpTextureCheck.java`.
+
+La verificación "byte-exacta contra `cmpview.exe`" de `windr1` y
+`cbirda4` de 2026-09-13 comparaba, por tanto, el **último** frame (si aquella comparación era
+correcta, `cmpview` enseña el final de la película). No es una referencia
+del frame 0, y no es reproducible en este Mac (sin Wine).
+
+### Para qué usa el cliente los frames de un `.mov` (2026-09-22)
+
+Un `.mov` **no se reproduce en el tiempo** por sí mismo. En el Java
+original (`NET/worlds/scape`) sus frames son:
+
+- **Celdas de un Material** (`Material.calcRes`/`loadTextures`/
+  `syncBackgroundLoad`): el nombre `x2h*2v*.mov` pide 2×2 texturas del
+  fichero `x.mov`; la textura `k*hRes + c` es el frame
+  `hRes*vRes*sPos + (vRes-1-k)*hRes + c`, y el Rect se parte en esas celdas
+  (`Surface.addSubPolys`, gamma.dll `0x004206d0`; polígono *i* ←
+  material *i* mod *hRes·vRes*, `Surface.nativeSetMaterial` `0x00420500`).
+  Con un Rect de u = v = 1 queda el frame 0 arriba a la izquierda y los
+  demás en orden de lectura. `Ns*` elige el N-ésimo grupo de
+  *hRes·vRes* frames. En GroundZero **todos** los `.mov` se usan así, y
+  su número de frames es justo *hRes·vRes*: 34 de 4 frames con `2h*2v*`,
+  y los de 2 frames con `2h*` (banderas `f1`–`f8`, `signa&a`, `signtel`,
+  `time`) o `2v*` (`drs1`, `drs5`). Así, por ejemplo, los 14 `sky*.mov`
+  del fondo de `ReceptionView1` forman un único panorama continuo de
+  montañas: antes el visor estiraba sobre cada panel una sola celda.
+- **Caras de un Hologram** según el ángulo de vista
+  (`Hologram.setActiveSide`, nativo).
+- **Subimágenes de avatar** (`PosableShape`, fuera de este documento).
+
+Lo que sí cambia con el tiempo es el **Material entero**, con una
+`AnimateAction` disparada por un sensor (ver
+`docs/world-format-reference.md`, "Acciones que cambian texturas"): la
+bandera de `ReceptionView1` alterna `f12h*.mov` … `f82h*.mov` (8 fases
+en 1000 ms) y el cartel del probador `drs12v*.mov`/`drs52v*.mov` cada
+3 s.
+
+Implementación en el cliente propio: `net.freeworlds.world.MaterialTiles`
+(nombre → ficheros/frames y celdas) y `WorldViewer.drawRect`; checks en
+`client/test/net/freeworlds/world/MaterialTilesCheck.java`.

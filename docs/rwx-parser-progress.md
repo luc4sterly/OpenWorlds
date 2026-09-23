@@ -4,16 +4,6 @@ Generado por `tools/rwx-harness/compare.py`. Fuente de verdad del estado real ar
 
 **Resumen**: 118 OK / 0 con diferencias / 0 fallan  (de 118 archivos .rwx probados)
 
-> **Auditoría 2026-09-15 (macOS)**: el lado Java se reverificó ejecutando
-> `RwxExtractMain` sobre los 118 archivos de esta tabla: los 118
-> `triangleCount` y los 118 `materialCount` de la columna `java=` coinciden
-> con lo que produce el parser actual, sin avisos. El lado JS **no es
-> reproducible en este Mac**: `tools/node/bin/node` es un binario ELF de
-> Linux y no hay salidas JSON de `three-rwx-loader` cacheadas en el repo, así
-> que la parte "vs. three-rwx-loader" de esta tabla es histórica hasta que se
-> instale un node para macOS. `compare.py` sobrescribe este archivo al
-> ejecutarse: no correrlo sin node utilizable.
-
 | Archivo | Estado | Detalle |
 |---|---|---|
 | `assets/GROUNDZERO/ACCESORIES_GROUP.RWX` | OK | 108 t; materials: js=1 java=1 (informational only, see notes) |
