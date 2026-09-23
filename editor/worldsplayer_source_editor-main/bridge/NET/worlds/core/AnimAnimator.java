@@ -31,6 +31,10 @@ public final class AnimAnimator {
    /** Mezcla de cambio de implicito: {0 s, 0xfa ms} (FUN_00432d10). */
    static final AnimTime SHIFT_TIME = new AnimTime(0, 250);
 
+   /** Diagnostico: -Dfreeworlds.animLog=1 traza cada cambio de implicito y cada explicito. */
+   static final boolean LOG = "1".equals(System.getProperty("freeworlds.animLog")) || Boolean.getBoolean("freeworlds.animLog");
+
+   final AnimMotion motion;
    final boolean active = true;
    AnimGraph.Placeholder w1;
    AnimGraph.Placeholder root;
@@ -40,7 +44,8 @@ public final class AnimAnimator {
    int imp = 1;
    int exp = 0;
 
-   AnimAnimator() {
+   AnimAnimator(AnimTime now) {
+      this.motion = new AnimMotion(now);
       this.reset();
    }
 
@@ -155,6 +160,12 @@ public final class AnimAnimator {
       }
       this.applyChangeImp(type, expIdx);
       if (impIdx >= 0 && impIdx != this.imp) {
+         if (LOG && (impIdx > 2 || this.imp > 2)) {
+            AnimRegistry.AvatarType at = AnimRegistry.get().type(type);
+            System.out.println("[anim] " + (at == null ? "tipo " + type : at.attr("name")) + " en ("
+               + this.motion.pos[0] + "," + this.motion.pos[1] + "," + this.motion.pos[2] + "): implicito "
+               + this.imp + " -> " + impIdx + " (" + IMP_NAMES[impIdx < 1 || impIdx > 9 ? 1 : impIdx] + ")");
+         }
          this.imp = impIdx;
          if (this.imp == 0) {
             return 0.0F;
@@ -174,6 +185,9 @@ public final class AnimAnimator {
          }
          AnimGraph.Node cur = this.root.take();
          AnimTime d = p.duration();
+         if (LOG) {
+            System.out.println("[anim] explicito " + expIdx + " del tipo " + type + ": " + d);
+         }
          this.root.set(new AnimGraph.Overlay(cur, p, d));
          return (float) d.seconds();
       }
@@ -188,6 +202,50 @@ public final class AnimAnimator {
       // W2 es un placeholder (FUN_00439aa0), que siempre se devuelve a si mismo.
       this.root.advance(amount, dt);
    }
+
+   /**
+    * FUN_00433710 (desde update): apunta la hora (vtable [6]); si hay
+    * clump1 le pone la posicion y orientacion del movimiento
+    * (FUN_00434440 -&gt; FUN_004318e0); cantidad = distancia * |escala|
+    * (vtable [11]); dt = ahora - hora del update anterior; avanza la raiz
+    * y, si hay figura (clump2), le aplica la pose (FUN_00434470). El quinto
+    * argumento de update (lejos &gt; 700) llega aqui y no se lee (0x43372b
+    * y 0x433854 hacen ret 0x14 sin tocar 0x18(%ebp)).
+    */
+   public synchronized void update(AnimTime t, int clump1, int clump2, float scale) {
+      AnimTime prev = this.motion.lastUpdate;
+      this.motion.lastUpdate = t;
+      if (clump1 != 0) {
+         float[] q = this.motion.quat.clone();
+         AnimPose.normalize(q);
+         float[] m = net.freeworlds.bod.SeqSampler.quatToMatrix(q);
+         m[12] = this.motion.pos[0];
+         m[13] = this.motion.pos[1];
+         m[14] = this.motion.pos[2];
+         NativeScene.transformClump(clump1, m, NativeRw.REPLACE);
+      }
+      if (scale < 0.0F) {
+         scale = -scale;
+      }
+      float amount = this.motion.takeDistance() * scale;
+      AnimTime dt = t.minus(prev);
+      this.step(amount, dt);
+      if (clump2 != 0) {
+         NativeAnimator.applyPose(this.pose(), clump2);
+      }
+   }
+
+   /**
+    * Parte comun de FUN_004351b0 (moveto) y FUN_004352f0 (moveby) una vez
+    * calculadas posicion y orientacion: estado de implicitos del Rep,
+    * FUN_00432a30 y FUN_00432d10(tipo, estado, -1).
+    */
+   synchronized void moved(AnimMotion.State st, int type, float[] p, float[] q, AnimTime t) {
+      int state = st.moved(p, q, t);
+      this.motion.offer(p, q, t);
+      this.play(type, state, -1);
+   }
+
 
    /** La pose de la raiz (vtable +8 sobre +0x14). */
    public synchronized AnimPose pose() {
