@@ -698,35 +698,64 @@ public final class NativeScene {
       return c == null || c.verts.isEmpty() ? new float[6] : c.bbox.clone();
    }
 
-   private static int round(float f) {
-      return (int) Math.rint(f);
+   /**
+    * frndint under the two FPU control words addSubPolys loads: 0x077f at
+    * gamma.dll 0x00480a7c (RC = toward -inf) for the first cell and 0x0b7f
+    * at 0x00480a78 (RC = toward +inf) for the end.
+    */
+   static int floorCell(float f) {
+      return (int) Math.floor(f);
+   }
+
+   static int ceilCell(float f) {
+      return (int) Math.ceil(f);
    }
 
    /**
     * Surface.addSubPolys (gamma.dll 0x004206d0): split a 4-vertex surface
     * into hRes x vRes texture tiles per unit of UV, adding 4 new vertices
-    * and one quad per tile (vertices from index 5). The corner vertices 1
-    * and 4 give x/z and u/v; y is 0 (DAT_004712ac). Flags 0x100000 /
-    * 0x80000 are the V / U flip (Surface.setVFlip / setUFlip), which
-    * mirror every other tile. Returns the polygon handles (the Java
-    * polygonIDs array).
+    * and one quad per tile (vertices from index 5); y is 0 (DAT_004712ac).
+    * Read from the ASM (the Ghidra C of this function mixes up two vertex
+    * reads): vertex 1 gives x, z, u, v (0x00420718-0x00420745 -> [ebp-0x9c],
+    * [ebp-0x98], [ebp-0x94], [ebp-0x90]); x and u span to VERTEX 2
+    * (0x00420768-0x0042078f store x2-x1 and u2-u1 before vertex 4 is read
+    * at 0x00420795), z and v to vertex 4 (0x004207bc-0x004207f2); the
+    * steps are (z4-z1)/(vRes*(v4-v1)) and (x2-x1)/(hRes*(u2-u1))
+    * (0x00420b00-0x00420b18). The first cell is rounded down and the last
+    * up (floorCell / ceilCell). Flags 0x100000 / 0x80000 are the V / U
+    * flip (Surface.setVFlip / setUFlip), which mirror every other tile.
+    * Returns the polygon handles (the Java polygonIDs array). Same
+    * translation as client/src/net/freeworlds/world/MaterialTiles.rectCells.
     */
    public static int[] addSubPolys(int clump, int flags, int hRes, int vRes) {
       float[] p1 = getVertex(clump, 1);
       float[] t1 = getVertexUV(clump, 1);
       float x1 = p1[0], z1 = p1[2], u1 = t1[0], v1 = t1[1];
+      float[] p2 = getVertex(clump, 2);
+      float[] t2 = getVertexUV(clump, 2);
+      float du = t2[0] - u1;
+      float dxTotal = p2[0] - x1;
       float[] p4 = getVertex(clump, 4);
       float[] t4 = getVertexUV(clump, 4);
-      float x4 = p4[0], z4 = p4[2], u4 = t4[0], v4 = t4[1];
-      float u4s = u1 + (u4 - u1);
-      float uMin = u4s < u1 ? u4s : u1;
-      float v4s = v1 + (v4 - v1);
-      float vMin = v4s < v1 ? v4s : v1;
-      float uMax = u1 < u4s ? u4s : u1;
-      float vMax = v1 < v4s ? v4s : v1;
-      int col0 = round(uMin) * hRes;
-      int row = round(vMin) * vRes;
-      int count = (round(uMax) * hRes - col0) * (round(vMax) * vRes - row);
+      float dzTotal = p4[2] - z1;
+      float dv = t4[1] - v1;
+      float uEnd = u1 + du;
+      float uMin = uEnd < u1 ? uEnd : u1;
+      float vEnd = v1 + dv;
+      float vMin = vEnd < v1 ? vEnd : v1;
+      float uMax = u1 < uEnd ? uEnd : u1;
+      float vMax = v1 < vEnd ? vEnd : v1;
+      int col0 = floorCell(uMin) * hRes;
+      int row = floorCell(vMin) * vRes;
+      int colEnd = ceilCell(uMax) * hRes;
+      int rowEnd = ceilCell(vMax) * vRes;
+      int count = (colEnd - col0) * (rowEnd - row);
+      if (System.getProperty("freeworlds.traceSubPolys") != null) {
+         Clump k = clump(clump);
+         System.err.println("[RW] addSubPolys " + (k == null ? "-" : String.valueOf(k.data)) + " " + hRes + "x" + vRes
+            + " flags=0x" + Integer.toHexString(flags) + " x " + x1 + "+" + dxTotal + " z " + z1 + "+" + dzTotal
+            + " u " + u1 + "+" + du + " v " + v1 + "+" + dv + " -> " + count + " celdas");
+      }
       int[] polys = new int[count];
       if (count == 0) {
          return polys;
@@ -735,8 +764,8 @@ public final class NativeScene {
       float vHi = vRes * vMax;
       float uLo = hRes * uMin;
       float uHi = hRes * uMax;
-      float dz = (z4 - z1) / (vRes * (v4 - v1));
-      float dx = (x4 - x1) / (hRes * (u4 - u1));
+      float dz = dzTotal / ((float) vRes * dv);
+      float dx = dxTotal / ((float) hRes * du);
       boolean vFlipOn = (flags & 0x100000) != 0;
       boolean uFlipOn = (flags & 0x80000) != 0;
       boolean vFlip = vFlipOn && ((row / vRes) & 1) != 0;
@@ -744,9 +773,9 @@ public final class NativeScene {
       int vert = 5;
       int n = 0;
       int[] quad = new int[4];
-      for (; row < round(vMax) * vRes; row += vRes) {
+      for (; row < rowEnd; row += vRes) {
          boolean uFlip = uFlipStart;
-         for (int col = col0; col < round(uMax) * hRes; col += hRes) {
+         for (int col = col0; col < colEnd; col += hRes) {
             int sv = vFlip ? 0 : vRes - 1;
             while (sv > -1 && sv < vRes) {
                int iv = row + sv;
