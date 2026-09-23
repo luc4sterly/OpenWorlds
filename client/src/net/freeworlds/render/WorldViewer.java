@@ -9,6 +9,8 @@ import net.freeworlds.rwx.RwxMaterial;
 import net.freeworlds.rwx.RwxModel;
 import net.freeworlds.rwx.RwxParser;
 import net.freeworlds.rwx.RwxVector3;
+import net.freeworlds.world.MaterialTiles;
+import net.freeworlds.world.TextureActions;
 import net.freeworlds.world.WNode;
 import net.freeworlds.world.WorldRestorer;
 
@@ -157,7 +159,7 @@ public final class WorldViewer {
     private static final Map<String, String> texturesUnresolved = new TreeMap<>(); // name -> reason
     private static int materialTextureRefs = 0; // total non-null Texture directives seen (incl. repeats)
     // Same accounting, separately, for Rect surface materials (absolute
-    // dtex/*.cmp URLs + relative tex/* URLs, some .mov = no loader yet).
+    // dtex/*.cmp URLs + relative tex/* URLs, .mov por celdas: MaterialTiles).
     private static final Set<String> rectTexturesResolved = new TreeSet<>();
     private static final Map<String, String> rectTexturesUnresolved = new TreeMap<>();
     private static int rectTextureRefs = 0;
@@ -206,6 +208,10 @@ public final class WorldViewer {
      * world.roomsByName), para resolver a que WNode de sala saltar tras
      * cruzar un portal conectado por referencia de objeto. */
     private static final Map<WNode, String> portalOwnerRoom = new IdentityHashMap<>();
+
+    /** Texturas animadas por acciones (StartupSensor -> AnimateAction...),
+     * ver TextureActions; se crea en main() tras parsear el mundo. */
+    private static TextureActions textureActions;
 
       public static void main(String[] args) throws Exception {
          if (args.length < 2) {
@@ -272,6 +278,7 @@ public final class WorldViewer {
         WNode world = WorldRestorer.parse(data);
         worldRoot = world;
         collectPortalMatrices(world);
+        textureActions = new TextureActions(world);
 
         // --list-rooms vale en cualquier posición (no solo como sala):
         // evita abrir una ventana bloqueante por un orden de args distinto.
@@ -625,6 +632,12 @@ public final class WorldViewer {
       }
       for (int frame = 0; frame < frames && !glfwWindowShouldClose(window); frame++) {
          double now = glfwGetTime();
+         // Primer FrameEvent de la sala: StartupSensor (una vez); luego
+         // cada frame las acciones vivas (RunningActionHandler.handle).
+         if (frame == 0) {
+            startRoomActions(room, roomName, (long) (now * 1000.0));
+         }
+         textureActions.tick((long) (now * 1000.0));
          float dt = (float) Math.min(0.1, Math.max(1e-3, now - lastTime));
          lastTime = now;
          // Contadores POR FRAME (antes acumulaban toda la sesion y el
@@ -705,6 +718,7 @@ public final class WorldViewer {
                      room = cross.destRoom;
                      roomName = cross.destRoomName;
                      bbox = loadPlayRoom(room, floorQuads, blockerBoxes, propTris, portalNodes, portalQuads);
+                     startRoomActions(room, roomName, (long) (glfwGetTime() * 1000.0));
                      radius = Math.max(0.01f, distance(bbox));
                      cx = (bbox[0] + bbox[3]) / 2f;
                      cy = (bbox[1] + bbox[4]) / 2f;
@@ -1439,18 +1453,74 @@ public final class WorldViewer {
        drawnObjects++;
     }
 
+    /** Dispara los StartupSensor de la sala (TextureActions) e informa de
+     * las acciones que no mueven texturas y por tanto no se ejecutan. */
+    private static void startRoomActions(WNode room, String roomName, long nowMs) {
+       textureActions.startRoom(room, nowMs);
+       if (!textureActions.skipped.isEmpty()) {
+          System.out.println("Sala \"" + roomName + "\": acciones de StartupSensor no ejecutadas (no cambian texturas): "
+             + textureActions.skipped);
+          textureActions.skipped.clear();
+       }
+    }
+
     /** Draws one Rect surface node as a textured (or flat) quad. The node's
      * composed matrix (glMultMatrixf above) already places the unit quad;
      * UVs come from the real u/v/uOff/vOff (tiling like (2,8.4) relies on
      * GL_REPEAT, set at upload). Double-sided: Rect materials carry no
      * MaterialModes and winding through arbitrary spins is unverified —
      * from inside a closed room only inward faces are visible either way.
-     * Lighting is two-sided (see GlLighting.init) so backs get correct N·L. */
+     * Lighting is two-sided (see GlLighting.init) so backs get correct N·L.
+     *
+     * Material: el del nodo, o el que haya puesto una AnimateAction
+     * (textureActions.materialOverride, ver TextureActions). Con sufijo
+     * "Nh*"/"Nv*" (Material.getHiRes) el Rect se parte en las celdas de
+     * Surface.addSubPolys, cada una con su textura (MaterialTiles): asi se
+     * ven los .mov de GroundZero, cuyos frames son esas celdas. */
     private static void drawRect(WNode n) {
-       RwxMaterial mat = rectMaterial(n);
+       String override = textureActions == null ? null : textureActions.materialOverride.get(n);
+       String url = override != null ? override : (n.material != null ? n.material.matTextureUrl : null);
+       RwxMaterial mat = override != null ? urlMaterial(override) : rectMaterial(n);
        GlLighting.applyMaterial(mat);
        glDisable(GL_CULL_FACE);
-       int glTex = resolveRectTexture(n.material != null ? n.material.matTextureUrl : null);
+       // World-space normal: read back the real composed modelview (parent
+       // chain x node matrix, already current) and transform the two local
+       // edges through its linear part - exact with no matrix threading.
+       float[] ex = xformDir(1, 0, 0);
+       float[] ez = xformDir(0, 0, 1);
+       float[] nn = GlLighting.faceNormal(0, 0, 0, ex[0], ex[1], ex[2], ez[0], ez[1], ez[2]);
+       MaterialTiles tiles = url == null ? null : MaterialTiles.of(url.trim());
+       if (tiles != null && tiles.hiRes()) {
+          int[] ids = resolveRectTextures(url);
+          for (float[] c : MaterialTiles.rectCells(n.rectU, n.rectV, n.rectUOff, n.rectVOff, n.flags, tiles.hRes, tiles.vRes)) {
+             int glTex = ids[(int) c[8]];
+             if (glTex != 0) {
+                glEnable(GL_TEXTURE_2D);
+                glBindTexture(GL_TEXTURE_2D, glTex);
+             }
+             // v de RW cuenta desde la fila de arriba; la textura se sube
+             // volteada (uploadTexture), asi que t de GL = 1 - v.
+             glBegin(GL_QUADS);
+             glNormal3f(nn[0], nn[1], nn[2]);
+             glTexCoord2f(c[4], 1f - c[6]);
+             glVertex3f(c[0], 0f, c[2]);
+             glTexCoord2f(c[5], 1f - c[6]);
+             glVertex3f(c[1], 0f, c[2]);
+             glTexCoord2f(c[5], 1f - c[7]);
+             glVertex3f(c[1], 0f, c[3]);
+             glTexCoord2f(c[4], 1f - c[7]);
+             glVertex3f(c[0], 0f, c[3]);
+             glEnd();
+             if (glTex != 0) {
+                glDisable(GL_TEXTURE_2D);
+             }
+             drawnTriangles += 2;
+          }
+          glEnable(GL_CULL_FACE);
+          drawnObjects++;
+          return;
+       }
+       int glTex = resolveRectTexture(url);
        boolean texEnabled = false;
        if (glTex != 0) {
           glEnable(GL_TEXTURE_2D);
@@ -1460,12 +1530,6 @@ public final class WorldViewer {
        float u0 = n.rectUOff, v0 = n.rectVOff;
        float u1 = u0 + n.rectU, v1 = v0 + n.rectV;
        float[][] uvs = {{u0, v0}, {u1, v0}, {u1, v1}, {u0, v1}};
-       // World-space normal: read back the real composed modelview (parent
-       // chain x node matrix, already current) and transform the two local
-       // edges through its linear part - exact with no matrix threading.
-       float[] ex = xformDir(1, 0, 0);
-       float[] ez = xformDir(0, 0, 1);
-       float[] nn = GlLighting.faceNormal(0, 0, 0, ex[0], ex[1], ex[2], ez[0], ez[1], ez[2]);
        glBegin(GL_QUADS);
        glNormal3f(nn[0], nn[1], nn[2]);
        for (int i = 0; i < 4; i++) {
@@ -1639,47 +1703,75 @@ public final class WorldViewer {
        mat.specular = m.matSpecular;
        mat.opacity = m.matOpacity;
        if (m.matTextureUrl != null) {
-          mat.textureName = rectTextureBase(m.matTextureUrl); // non-null = textured (white base)
+          mat.textureName = m.matTextureUrl.trim(); // non-null = textured (white base)
        }
        return mat;
     }
 
-    /**
-     * Resolves a Rect material's texture URL (absolute
-     * http://.../dtex/x.cmp or relative tex/x.cmp, the latter sometimes
-     * with an animation suffix like 2h*2v*) to a GL texture id, or 0 for
-     * the flat-color fallback. Search order: extracted content.zip tex/
-     * dir, real dtex/ + tex/ dirs next to the .world. .mov (same codec,
-     * different container - undecodable, see session notes) and missing
-     * files count as unresolved, never guessed.
-     */
+    /** new Material(URL) del original (Material.java: Material(URL) ->
+     * Material(Color null, URL) -> Material(Color(128,128,128)) ->
+     * ambient 0.75, diffuse 0, specular 0, opacidad 1), que es lo que
+     * AnimateAction pone en su dueno por cada nombre de su lista. */
+    private static RwxMaterial urlMaterial(String url) {
+       RwxMaterial mat = new RwxMaterial();
+       mat.colorR = mat.colorG = mat.colorB = 128 / 255f;
+       mat.ambient = 0.75f;
+       mat.diffuse = 0f;
+       mat.specular = 0f;
+       mat.opacity = 1f;
+       mat.textureName = url.trim();
+       return mat;
+    }
+
+    /** Textura 0 de un material de Rect/RectPatch (ver resolveRectTextures). */
     private static int resolveRectTexture(String url) {
-       if (url == null) {
-          return 0;
-       }
+       return url == null ? 0 : resolveRectTextures(url)[0];
+    }
+
+    /**
+     * GL ids de las hRes*vRes texturas de un material (MaterialTiles: el
+     * fichero y el frame de cada una, como Material.loadTextures y
+     * syncBackgroundLoad), 0 donde no se puede (color plano). Cuenta la URL
+     * como resuelta solo si salen todas. Busca cada fichero en el tex/
+     * extraido de content.zip, y en dtex/ y tex/ junto al .world.
+     */
+    private static int[] resolveRectTextures(String url) {
        rectTextureRefs++;
-       String base = rectTextureBase(url);
-       String key = "rect:" + base.toLowerCase();
+       String key = url.trim();
+       MaterialTiles tiles = MaterialTiles.of(key);
+       int[] ids = new int[tiles.files.length];
+       String problem = null;
+       for (int k = 0; k < ids.length; k++) {
+          String[] why = new String[1];
+          ids[k] = rectTextureId(tiles.files[k], tiles.frames[k], tiles.framesNeeded(), tiles.movie(), why);
+          if (ids[k] == 0 && problem == null) {
+             problem = why[0];
+          }
+       }
+       if (problem == null) {
+          rectTexturesResolved.add(key);
+       } else if (!rectTexturesUnresolved.containsKey(key)) {
+          rectTexturesUnresolved.put(key, problem);
+       }
+       return ids;
+    }
+
+    /** Decoded .mov frames per file (lowercase base name), all frames at once. */
+    private static final Map<String, CmpTexture[]> movFrameCache = new HashMap<>();
+
+    private static int rectTextureId(String file, int frame, int framesNeeded, boolean movie, String[] why) {
+       String key = "rect:" + file.toLowerCase() + "#" + frame;
        if (glTextureCache.containsKey(key)) {
           int cached = glTextureCache.get(key);
-          if (cached != 0) {
-             rectTexturesResolved.add(base);
-          } else if (!rectTexturesUnresolved.containsKey(base)) {
-             rectTexturesUnresolved.put(base, "(cached failure, see first occurrence)");
+          if (cached == 0) {
+             why[0] = "(cached failure: " + file + " frame " + frame + ")";
           }
           return cached;
        }
-       // The extension lives at the very end (tex/cbirda42h*2v*.mov):
-       // animation tiling suffixes sit between stem and extension.
-       int dot = base.lastIndexOf('.');
-       String ext = dot >= 0 ? base.substring(dot + 1).toLowerCase() : "";
-       String stem = (dot >= 0 ? base.substring(0, dot) : base).toLowerCase();
-       int star = stem.indexOf('*');
-       if (star >= 0) {
-          stem = stem.substring(0, star);
-       }
+       int dot = file.lastIndexOf('.');
+       String ext = dot >= 0 ? file.substring(dot + 1).toLowerCase() : "";
        if (!ext.equals("cmp") && !ext.equals("mov")) {
-          rectTexturesUnresolved.put(base, ext.isEmpty() ? "no extension" : "referenced as ." + ext + ", no loader for that container");
+          why[0] = ext.isEmpty() ? "no extension" : "referenced as ." + ext + ", no loader for that container";
           glTextureCache.put(key, 0);
           return 0;
        }
@@ -1690,33 +1782,36 @@ public final class WorldViewer {
        }
        dirs.add(new File(baseDir, "dtex"));
        dirs.add(new File(baseDir, "tex"));
-       // Animation tiling suffixes (tex/cbirda42h*2v*.mov = cbirda4 +
-       // 2h*2v*, tex/time2h* = time + 2h*, tex/winwin12h*2v* = winwin1 +
-       // 2h*2v*): the real file is the stem minus that suffix. Exactly ONE
-       // digit + h/v (winwin12h -> winwin1, not winwin); the unstripped
-       // stem is always tried first, so legit digit-ending names still hit.
-       String animStripped = stem.replaceFirst("\\dh$", "").replaceFirst("\\dv$", "");
-       for (String cand : new String[]{stem, animStripped}) {
-          for (File dir : dirs) {
-             File f = findIgnoreCase(dir, cand + "." + ext);
-             if (f != null) {
-                try {
-                   // .mov = same LzH2 codec, multi-frame container: frame 0
-                   // of the frame table (CmpFrames, as gamma.dll).
-                   CmpTexture tex = ext.equals("mov") ? CmpTexture.loadMov(f) : CmpTexture.loadRaw(f);
-                   int id = uploadTexture(tex);
-                   glTextureCache.put(key, id);
-                   rectTexturesResolved.add(base);
-                   return id;
-                } catch (Exception e) {
-                   rectTexturesUnresolved.put(base, String.valueOf(e.getMessage()));
-                   glTextureCache.put(key, 0);
-                   return 0;
-                }
-             }
+       for (File dir : dirs) {
+          File f = findIgnoreCase(dir, file);
+          if (f == null) {
+             continue;
           }
+          int id = 0;
+          try {
+             if (movie) {
+                CmpTexture[] all = movFrameCache.get(file.toLowerCase());
+                if (all == null) {
+                   all = CmpTexture.loadMovFrames(f);
+                   movFrameCache.put(file.toLowerCase(), all);
+                }
+                // Material.syncBackgroundLoad: si la pelicula no tiene
+                // hRes*vRes*(sPos+1) frames, error de carga (sin textura).
+                if (all.length < framesNeeded) {
+                   why[0] = file + ": " + all.length + " frames, el material pide " + framesNeeded;
+                } else {
+                   id = uploadTexture(all[frame]);
+                }
+             } else {
+                id = uploadTexture(CmpTexture.loadRaw(f));
+             }
+          } catch (Exception e) {
+             why[0] = file + ": " + e.getMessage();
+          }
+          glTextureCache.put(key, id);
+          return id;
        }
-       rectTexturesUnresolved.put(base, "not found in tex/ archive, dtex/ or tex/ dirs");
+       why[0] = file + " not found in tex/ archive, dtex/ or tex/ dirs";
        glTextureCache.put(key, 0);
        return 0;
     }
@@ -1737,31 +1832,6 @@ public final class WorldViewer {
           }
        }
        return null;
-    }
-
-    /** Base filename of a Rect texture URL: after the last '/', animation
-     * tiling suffix (2h*2v* style, sitting between stem and extension in
-     * e.g. tex/cbirda42h*2v*.mov) stripped, extension preserved. */
-    private static String rectTextureBase(String url) {
-       String base = url.trim();
-       // Careful: absolute http:// URLs contain "://" - lastIndexOf(':')
-       // would hit the scheme... but they also contain '/', and the last
-       // '/' is always after the scheme, so prefer it when present.
-       int cut = base.lastIndexOf('/');
-       if (cut < 0) {
-          cut = base.lastIndexOf(':');
-       }
-       if (cut >= 0) {
-          base = base.substring(cut + 1);
-       }
-       int dot = base.lastIndexOf('.');
-       String ext = dot >= 0 ? base.substring(dot) : "";
-       String stem = dot >= 0 ? base.substring(0, dot) : base;
-       int star = stem.indexOf('*');
-       if (star >= 0) {
-          stem = stem.substring(0, star);
-       }
-       return stem + ext;
     }
 
     /**

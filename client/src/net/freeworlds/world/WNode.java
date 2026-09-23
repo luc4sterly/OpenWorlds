@@ -90,6 +90,26 @@ public final class WNode {
     public String portalFarSideRoomName;
     public float portalFarX, portalFarY, portalFarZ, portalFarTheta;
 
+    /** WObject.eventHandlers (sensores, SwitchableBehavior...) y
+     * WObject.actions tal como se guardan (WObject.restoreWObjectState:
+     * contents, handlers, actions). En un Sensor, actions = Sensor.actions
+     * (las acciones que dispara, Sensor.restoreStateVers). Null si el
+     * stream no las traia. */
+    public List<WNode> handlers;
+    public List<WNode> actions;
+    /** AnimateAction (AnimateAction.restoreState v0-v3): periodo del ciclo
+     * en ms, numero de ciclos, bucle infinito y lista de materiales
+     * (URLs separadas por espacios, AnimatingDoor.namesToMaterialArray). */
+    public int animCycleTime = 1000;
+    public int animCycles;
+    public boolean animInfiniteLoop;
+    public String animFrameList;
+    /** SequenceAction.loopCount / loopInfinite (componentes en actions). */
+    public int seqLoopCount = 1;
+    public boolean seqLoopInfinite;
+    /** WaitAction.duration en segundos. */
+    public float waitDuration = 1f;
+
    public WNode(String className) {
       this.className = className;
    }

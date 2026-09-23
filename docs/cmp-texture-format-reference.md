@@ -1500,3 +1500,37 @@ La verificación "byte-exacta contra `cmpview.exe`" de `windr1` y
 `cbirda4` de 2026-09-13 comparaba, por tanto, el **último** frame (si aquella comparación era
 correcta, `cmpview` enseña el final de la película). No es una referencia
 del frame 0, y no es reproducible en este Mac (sin Wine).
+
+### Para qué usa el cliente los frames de un `.mov` (2026-09-22)
+
+Un `.mov` **no se reproduce en el tiempo** por sí mismo. En el Java
+original (`NET/worlds/scape`) sus frames son:
+
+- **Celdas de un Material** (`Material.calcRes`/`loadTextures`/
+  `syncBackgroundLoad`): el nombre `x2h*2v*.mov` pide 2×2 texturas del
+  fichero `x.mov`; la textura `k*hRes + c` es el frame
+  `hRes*vRes*sPos + (vRes-1-k)*hRes + c`, y el Rect se parte en esas celdas
+  (`Surface.addSubPolys`, gamma.dll `0x004206d0`; polígono *i* ←
+  material *i* mod *hRes·vRes*, `Surface.nativeSetMaterial` `0x00420500`).
+  Con un Rect de u = v = 1 queda el frame 0 arriba a la izquierda y los
+  demás en orden de lectura. `Ns*` elige el N-ésimo grupo de
+  *hRes·vRes* frames. En GroundZero **todos** los `.mov` se usan así, y
+  su número de frames es justo *hRes·vRes*: 34 de 4 frames con `2h*2v*`,
+  y los de 2 frames con `2h*` (banderas `f1`–`f8`, `signa&a`, `signtel`,
+  `time`) o `2v*` (`drs1`, `drs5`). Así, por ejemplo, los 14 `sky*.mov`
+  del fondo de `ReceptionView1` forman un único panorama continuo de
+  montañas: antes el visor estiraba sobre cada panel una sola celda.
+- **Caras de un Hologram** según el ángulo de vista
+  (`Hologram.setActiveSide`, nativo).
+- **Subimágenes de avatar** (`PosableShape`, fuera de este documento).
+
+Lo que sí cambia con el tiempo es el **Material entero**, con una
+`AnimateAction` disparada por un sensor (ver
+`docs/world-format-reference.md`, "Acciones que cambian texturas"): la
+bandera de `ReceptionView1` alterna `f12h*.mov` … `f82h*.mov` (8 fases
+en 1000 ms) y el cartel del probador `drs12v*.mov`/`drs52v*.mov` cada
+3 s.
+
+Implementación en el cliente propio: `net.freeworlds.world.MaterialTiles`
+(nombre → ficheros/frames y celdas) y `WorldViewer.drawRect`; checks en
+`client/test/net/freeworlds/world/MaterialTilesCheck.java`.
