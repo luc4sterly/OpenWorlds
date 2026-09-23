@@ -45,6 +45,14 @@ public final class NativeScene {
        */
       float[] faceNormals;
       float[] vertNormals;
+      /**
+       * Hidden-surface state of RWL21: the lock counter clump+0xa0 (the tree
+       * is not built while a bulk edit holds it) and the polygon sort tree
+       * of hint mode 1, clump+0xa4/0xa8/0xac (NativeCamera.SortTree,
+       * built by 0x10033750, freed when the mode leaves 1).
+       */
+      int lock;
+      NativeCamera.SortTree sortTree;
 
       /** Any change to the vertices or polygons drops the cached normals. */
       void geomChanged() {
@@ -149,13 +157,31 @@ public final class NativeScene {
          c.bbox[i] = Math.min(c.bbox[i], v[i]);
          c.bbox[3 + i] = Math.max(c.bbox[3 + i], v[i]);
       }
-      c.hints |= 4;
+      addHint(c, 4);
       return c.verts.size();
    }
 
-   /** RwSetClumpVertexUV(clump, index, u, v). */
+   /**
+    * Largest UV the 16-bit driver takes: RwSetClumpVertexUV (RWL21
+    * 0x10017de0) compares against the device limit at globals+0x2c4 -> +0x74,
+    * which RWDL6D21 points at its table 0x10079088 (+0x74 = 0x100790fc =
+    * 256).
+    */
+   static final float MAX_UV = 256.0F;
+
+   /**
+    * RwSetClumpVertexUV(clump, index, u, v) (RWL21 0x10017de0): a
+    * coordinate is rejected (error 0xB, the vertex keeps its old UV) when its
+    * bits as unsigned exceed 0x80000000 (negative, -0.0 passes) or it is
+    * above MAX_UV (u: fcom with C0; v: must be below or equal). RW keeps it
+    * as uvFixed(); the float is kept here and converted where it is used.
+    */
    public static void setVertexUV(int h, int index, float u, float v) {
       Clump c = clump(h);
+      if (Integer.toUnsignedLong(Float.floatToRawIntBits(u)) > 0x80000000L || MAX_UV < u
+            || Integer.toUnsignedLong(Float.floatToRawIntBits(v)) > 0x80000000L || !(v <= MAX_UV)) {
+         return;
+      }
       if (c != null && index >= 1 && index <= c.verts.size()) {
          float[] vx = c.verts.get(index - 1);
          vx[3] = u;
@@ -173,12 +199,35 @@ public final class NativeScene {
       return new float[3];
    }
 
+   /**
+    * The vertex UV as RWL21 stores it (vert+0x64 / +0x68, written at
+    * 0x10017ed4 / 0x10017ef6): ftol(t * 65536.0) (0x10044788, truncation),
+    * plus 0x100 (half a texel of 128) when the result is below 0x10000,
+    * minus 0x100 otherwise.
+    */
+   public static int uvFixed(float t) {
+      int f = (int) (long) ((double) t * 65536.0);
+      return (f & 0xFFFF0000) == 0 ? f + 0x100 : f - 0x100;
+   }
+
+   /**
+    * RwGetClumpVertexUV (RWL21 0x10017f50) undoing uvFixed: s + 0x100, or
+    * s - 0x100 when that sum has no bits above 0xFFFF, times 1/65536.
+    */
+   static float uvFromFixed(int f) {
+      int t = f + 0x100;
+      if ((t & 0xFFFF0000) == 0) {
+         t = f - 0x100;
+      }
+      return (float) ((double) t * (1.0 / 65536.0));
+   }
+
    /** RwGetClumpVertexUV(clump, index, out uv). */
    public static float[] getVertexUV(int h, int index) {
       Clump c = clump(h);
       if (c != null && index >= 1 && index <= c.verts.size()) {
          float[] vx = c.verts.get(index - 1);
-         return new float[]{vx[3], vx[4]};
+         return new float[]{uvFromFixed(uvFixed(vx[3])), uvFromFixed(uvFixed(vx[4]))};
       }
       return new float[2];
    }
@@ -214,7 +263,7 @@ public final class NativeScene {
       Polygon p = new Polygon(c, idx);
       c.polys.add(p);
       c.geomChanged();
-      c.hints |= 4;
+      addHint(c, 4);
       p.handle = NativeRw.alloc(p);
       return p.handle;
    }
@@ -245,11 +294,64 @@ public final class NativeScene {
       return c == null ? null : c.data;
    }
 
+   /**
+    * RwSetClumpHints (RWL21 0x10002700): hints above 7 are rejected (error
+    * 0x30); the value stored is what FUN_10033600 returns.
+    */
    public static void setClumpHints(int h, int hints) {
       Clump c = clump(h);
-      if (c != null) {
-         c.hints = hints;
+      if (c != null && (hints & ~7) == 0) {
+         c.hints = hintsChanged(c, hints);
       }
+   }
+
+   /**
+    * Hidden-surface mode of a clump (RWL21 0x10032980 / 0x100329b0): hint 4
+    * (editable) = 2, else hint 2 (HS) = 1, else 0.
+    */
+   static int hsMode(int hints) {
+      return (hints & 4) != 0 ? 2 : (hints & 2) >> 1;
+   }
+
+   /**
+    * RWL21 FUN_10033600, run by every hint change: mode 1 with more than
+    * 1000 polygons becomes editable (hint 4 added); leaving mode 1 frees
+    * the sort tree; entering it builds the tree (FUN_10033750) unless the
+    * clump is locked (clump+0xa0). Returns the hints to store.
+    */
+   static int hintsChanged(Clump c, int hints) {
+      if (hsMode(hints) == 1 && c.polys.size() > 1000) {
+         hints |= 4;
+      }
+      int oldMode = hsMode(c.hints);
+      int newMode = hsMode(hints);
+      if (oldMode == newMode) {
+         return hints;
+      }
+      if (oldMode == 1) {
+         c.sortTree = null;
+      }
+      c.hints = (hints ^ c.hints) & 6 ^ c.hints;
+      if (newMode == 1) {
+         c.sortTree = null;
+         if (c.lock == 0) {
+            c.sortTree = NativeCamera.buildSortTree(c);
+         }
+      }
+      return hints;
+   }
+
+   /** RwAddHintToClump as RwAddVertexToClump / RwAddPolygonToClump / RwSetClumpVertex use it (0x10004ad0, 0x10003830, 0x10032310). */
+   static void addHint(Clump c, int hint) {
+      if ((c.hints & hint) != hint) {
+         c.hints = hintsChanged(c, c.hints | hint);
+      }
+   }
+
+   /** Hint mode of a clump handle, for the checks. */
+   public static int getClumpHSMode(int h) {
+      Clump c = clump(h);
+      return c == null ? 0 : hsMode(c.hints);
    }
 
    public static void setClumpState(int h, int state) {
@@ -891,6 +993,7 @@ public final class NativeScene {
             c.bbox[3 + i] = Math.max(c.bbox[3 + i], vv[i]);
          }
          c.geomChanged();
+         addHint(c, 4);
       }
    }
 
@@ -1014,6 +1117,11 @@ public final class NativeScene {
          q.handle = NativeRw.alloc(q);
          d.polys.add(q);
       }
+      // FUN_10032a30: the copy takes the hint mode and, in mode 1, builds
+      // its own sort tree.
+      if (hsMode(d.hints) == 1 && d.lock == 0) {
+         d.sortTree = NativeCamera.buildSortTree(d);
+      }
       for (Clump k : c.children) {
          addChildToClump(copy, duplicateClump(k.handle));
       }
@@ -1064,7 +1172,8 @@ public final class NativeScene {
          q.handle = NativeRw.alloc(q);
          dst.polys.add(q);
       }
-      dst.hints |= 4;
+      dst.geomChanged();
+      addHint(dst, 4);
    }
 
    /** Handles of the direct children, in order. */

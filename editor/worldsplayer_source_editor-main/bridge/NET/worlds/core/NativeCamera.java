@@ -1025,7 +1025,11 @@ public final class NativeCamera {
       float[] vnorm = null;
       float[] lit = litBuf;
       float[] faces = faceNormals(k);
-      for (int pi = 0; pi < k.polys.size(); pi++) {
+      // Hint mode 1 draws in the order of the clump's sort tree
+      // (0x10032b50 -> 0x10033ed0); modes 0 and 2 in clump order.
+      SortTree tree = NativeScene.hsMode(k.hints) == 1 ? k.sortTree : null;
+      for (int oi = 0; oi < k.polys.size(); oi++) {
+         int pi = tree == null ? oi : tree.index[oi];
          NativeScene.Polygon poly = k.polys.get(pi);
          NativeScene.Material mat = NativeScene.material(poly.material);
          int n = poly.indices.length;
@@ -1228,6 +1232,329 @@ public final class NativeCamera {
 
    /** Vertices whose adjacent normals cancelled out and took RW's first-polygon fallback. */
    static int degenerateVertexNormals;
+
+   // ------------------------------------------------------------------
+   // Polygon sort tree of a clump in hint mode 1 (RWL21 0x10033750)
+
+   /**
+    * What RWL21 keeps on a clump in hint mode 1 (rwHS without
+    * rwEDITABLE): the polygons in drawing order (clump+0xac), the lengths
+    * of the runs that alternate between "no depth test" and "depth test"
+    * (clump+0xa8, closed by a 0) and whether the first run is a depth-test
+    * one (clump+0xa4). Built once when the clump enters mode 1, not per
+    * frame; the order does not depend on the camera.
+    */
+   public static final class SortTree {
+      final NativeScene.Polygon[] order;
+      /** The same order as indices into the clump's polygon list. */
+      final int[] index;
+      final int[] runs;
+      final boolean firstConflict;
+
+      SortTree(NativeScene.Polygon[] order, int[] index, int[] runs, boolean firstConflict) {
+         this.order = order;
+         this.index = index;
+         this.runs = runs;
+         this.firstConflict = firstConflict;
+      }
+   }
+
+   /** Tree node of 0x10033750 (0x28 bytes from pool DAT_1005af00). */
+   private static final class SortNode {
+      /** +0: polygons that go before this one; +4: after; +8: next node that shares this place. */
+      SortNode back;
+      SortNode front;
+      SortNode next;
+      /** +0xc: unit normal; +0x18: plane distance; +0x1c: length of the normal sum. */
+      float nx;
+      float ny;
+      float nz;
+      float dist;
+      float area;
+      /** +0x20: the polygon, by index in the clump; +0x24: conflict flag. */
+      int poly;
+      int conflict;
+   }
+
+   /** RwDotProduct (RWL21 0x10051164): (a0*b0 + a1*b1) + a2*b2 on the x87 stack. */
+   static double dot(float ax, float ay, float az, float bx, float by, float bz) {
+      return ((double) ax * bx + (double) ay * by) + (double) az * bz;
+   }
+
+   /**
+    * RWL21 0x10001100 for the sort tree: the centroid (RwAddVector from
+    * the first vertex, then RwScaleVector by 1/n; out[0..2]), the fan sum
+    * of cross(v[i]-v0, v[i+1]-v0) normalised (out[3..5]) and its length
+    * before normalising (the return value, out[6]).
+    */
+   static float[] polygonPlane(NativeScene.Clump k, NativeScene.Polygon poly) {
+      int n = poly.indices.length;
+      float[] v0 = k.verts.get(poly.indices[0] - 1);
+      float cx = v0[0], cy = v0[1], cz = v0[2];
+      for (int i = 1; i < n; i++) {
+         float[] v = k.verts.get(poly.indices[i] - 1);
+         cx = cx + v[0];
+         cy = cy + v[1];
+         cz = cz + v[2];
+      }
+      float inv = (float) (1.0 / n);
+      cx *= inv;
+      cy *= inv;
+      cz *= inv;
+      float sx = 0.0F, sy = 0.0F, sz = 0.0F;
+      float[] a = k.verts.get(poly.indices[1] - 1);
+      float ax = a[0] - v0[0], ay = a[1] - v0[1], az = a[2] - v0[2];
+      for (int i = 2; i < n; i++) {
+         float[] b = k.verts.get(poly.indices[i] - 1);
+         float bx = b[0] - v0[0], by = b[1] - v0[1], bz = b[2] - v0[2];
+         sx = sx + (float) ((double) ay * bz - (double) az * by);
+         sy = sy + (float) ((double) az * bx - (double) ax * bz);
+         sz = sz + (float) ((double) ax * by - (double) ay * bx);
+         ax = bx;
+         ay = by;
+         az = bz;
+      }
+      float len = (float) Math.sqrt(dot(sx, sy, sz, sx, sy, sz));
+      if (len > 0.0F) {
+         float r = 1.0F / len;
+         sx *= r;
+         sy *= r;
+         sz *= r;
+      }
+      return new float[]{cx, cy, cz, sx, sy, sz, len};
+   }
+
+   /** 0.001f (RWL21 _DAT_10052268), the plane thickness of the classifier. */
+   private static final float PLANE_EPS = 0.001F;
+
+   /**
+    * RWL21 0x10033cc0(A, B): how polygon B has to be ordered against A,
+    * from the side of each other's plane their vertices lie on. A vertex
+    * is in front when dot - dist > 0.001 (fcom on the unrounded value); it
+    * is on the plane when the value rounded to float has its bits, as
+    * unsigned, at most 0xba83126f (so -0.001f..0.001), and behind
+    * otherwise. Returns 0 (same polygon), 3 (either order), -1 (B before
+    * A), 1 (B after A) or 2 (they cross: depth test needed).
+    */
+   static int classify(NativeScene.Clump k, SortNode a, SortNode b) {
+      if (a.poly == b.poly) {
+         return 0;
+      }
+      int[] ib = k.polys.get(b.poly).indices;
+      int[] ia = k.polys.get(a.poly).indices;
+      int front1 = 0, on1 = 0;
+      for (int idx : ib) {
+         float[] v = k.verts.get(idx - 1);
+         double d = dot(a.nx, a.ny, a.nz, v[0], v[1], v[2]) - a.dist;
+         if (d > PLANE_EPS) {
+            front1++;
+         } else if (Integer.toUnsignedLong(Float.floatToRawIntBits((float) d)) <= 0xba83126fL) {
+            on1++;
+         }
+      }
+      int front2 = 0, on2 = 0;
+      for (int idx : ia) {
+         float[] v = k.verts.get(idx - 1);
+         double d = dot(b.nx, b.ny, b.nz, v[0], v[1], v[2]) - b.dist;
+         if (d > PLANE_EPS) {
+            front2++;
+         } else if (Integer.toUnsignedLong(Float.floatToRawIntBits((float) d)) <= 0xba83126fL) {
+            on2++;
+         }
+      }
+      int nb = ib.length, na = ia.length;
+      if (front1 == 0 && front2 == 0) {
+         return 3;
+      }
+      if (on1 == nb - front1 && na - front2 == on2) {
+         return 3;
+      }
+      if (front1 == 0) {
+         return -1;
+      }
+      if (on1 == nb - front1) {
+         return 1;
+      }
+      if (front2 == 0) {
+         return 1;
+      }
+      return na - front2 - on2 == 0 ? -1 : 2;
+   }
+
+   /**
+    * RWL21 0x10033750, run when a clump enters hint mode 1 (FUN_10033600,
+    * or 0x100329e0 when a locked bulk edit ends): one node per polygon, in
+    * clump order, with the plane of 0x10001100 (dist = centroid . normal);
+    * each node is inserted from the root comparing it with every node of
+    * the list at that place (0x10033cc0): with no before/after answer it
+    * joins the list, otherwise it goes down to the side whose nodes add up
+    * the larger area (after on a tie), and the nodes of the other side
+    * that disagree, plus the new one, are marked as conflicting, as are
+    * both nodes of a crossing pair. The tree is then read in order (before
+    * side, the list, after side); each list is written with the nodes of
+    * the current run's flag first. Consecutive nodes with the same flag
+    * form the runs. Null for a clump without polygons (0x10033750 then
+    * returns without arrays).
+    */
+   static SortTree buildSortTree(NativeScene.Clump k) {
+      int n = k.polys.size();
+      if (n == 0) {
+         return null;
+      }
+      SortNode[] nodes = new SortNode[n];
+      for (int i = 0; i < n; i++) {
+         SortNode s = new SortNode();
+         float[] pl = polygonPlane(k, k.polys.get(i));
+         s.poly = i;
+         s.area = pl[6];
+         s.nx = pl[3];
+         s.ny = pl[4];
+         s.nz = pl[5];
+         s.dist = (float) dot(pl[0], pl[1], pl[2], s.nx, s.ny, s.nz);
+         nodes[i] = s;
+      }
+      SortNode root = null;
+      List<SortNode> before = new ArrayList<SortNode>();
+      List<SortNode> after = new ArrayList<SortNode>();
+      for (int i = 0; i < n; i++) {
+         SortNode s = nodes[i];
+         if (root == null) {
+            root = s;
+            continue;
+         }
+         SortNode cur = root;
+         while (true) {
+            before.clear();
+            after.clear();
+            float areaBefore = 0.0F, areaAfter = 0.0F;
+            for (SortNode m = cur; m != null; m = m.next) {
+               int r = classify(k, m, s);
+               if (r == -1) {
+                  before.add(m);
+                  areaBefore = areaBefore + m.area;
+               } else if (r == 1) {
+                  after.add(m);
+                  areaAfter = areaAfter + m.area;
+               } else if (r == 2) {
+                  m.conflict = 1;
+                  s.conflict = 1;
+               }
+            }
+            int side;
+            if (before.isEmpty() && after.isEmpty()) {
+               side = 3;
+            } else if (areaAfter < areaBefore) {
+               if (!after.isEmpty()) {
+                  for (SortNode m : after) {
+                     m.conflict = 1;
+                  }
+                  s.conflict = 1;
+               }
+               side = -1;
+            } else {
+               if (!before.isEmpty()) {
+                  for (SortNode m : before) {
+                     m.conflict = 1;
+                  }
+                  s.conflict = 1;
+               }
+               side = 1;
+            }
+            if (side == -1) {
+               if (cur.back != null) {
+                  cur = cur.back;
+                  continue;
+               }
+               cur.back = s;
+            } else if (side == 1) {
+               if (cur.front != null) {
+                  cur = cur.front;
+                  continue;
+               }
+               cur.front = s;
+            } else {
+               s.next = cur.next;
+               cur.next = s;
+            }
+            break;
+         }
+      }
+      // in-order walk with an explicit stack (0x10033a5a..0x10033b13)
+      SortNode[] out = new SortNode[n];
+      int count = 0;
+      int flag = 0;
+      SortNode[] stack = new SortNode[n];
+      int sp = 0;
+      SortNode walk = root;
+      while (true) {
+         for (; walk != null; walk = walk.back) {
+            stack[sp++] = walk;
+         }
+         if (sp == 0) {
+            break;
+         }
+         SortNode top = stack[--sp];
+         if (count == 0) {
+            flag = top.conflict;
+         }
+         for (SortNode m = top; m != null; m = m.next) {
+            if (m.conflict == flag) {
+               out[count++] = m;
+            }
+         }
+         for (SortNode m = top; m != null; m = m.next) {
+            if (m.conflict != flag) {
+               out[count++] = m;
+            }
+         }
+         flag = out[count - 1].conflict;
+         walk = top.front;
+      }
+      // runs (0x10033be3..0x10033c7f)
+      NativeScene.Polygon[] order = new NativeScene.Polygon[n];
+      int[] index = new int[n];
+      int[] runs = new int[n + 1];
+      int runIdx = 0, len = 0, cur = out[0].conflict;
+      for (int i = 0; i < n; i++) {
+         if (out[i].conflict != cur) {
+            runs[runIdx++] = len;
+            len = 0;
+            cur = out[i].conflict;
+         }
+         len++;
+         order[i] = k.polys.get(out[i].poly);
+         index[i] = out[i].poly;
+      }
+      runs[runIdx] = len;
+      int[] trimmed = new int[runIdx + 2];
+      System.arraycopy(runs, 0, trimmed, 0, runIdx + 1);
+      return new SortTree(order, index, trimmed, out[0].conflict != 0);
+   }
+
+   /**
+    * For the checks: the sort tree of a clump as polygon indices (0-based,
+    * clump order) in drawing order, then -1, the run lengths (ending in
+    * 0), -1 and the flag of the first run. Null when there is no tree.
+    */
+   public static int[] sortTreeOf(int clump) {
+      NativeScene.Clump k = NativeScene.clump(clump);
+      if (k == null || k.sortTree == null) {
+         return null;
+      }
+      SortTree t = k.sortTree;
+      int[] out = new int[t.order.length + t.runs.length + 3];
+      int o = 0;
+      for (int i : t.index) {
+         out[o++] = i;
+      }
+      out[o++] = -1;
+      for (int r : t.runs) {
+         out[o++] = r;
+      }
+      out[o++] = -1;
+      out[o] = t.firstConflict ? 1 : 0;
+      return out;
+   }
 
    // Scratch buffers of the draw pass. The original transforms into the
    // driver's own vertex array; here they just keep the frame from

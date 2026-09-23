@@ -10,6 +10,11 @@ import NET.worlds.core.NativeScene;
  */
 public final class SubPolysCheck {
    private static int failures;
+   /**
+    * Las UV se leen con RwGetClumpVertexUV, que devuelve el valor fijo
+    * 16.16 de RWL21 (NativeScene.uvFixed): 0.3 vuelve como 0.29998779.
+    */
+   private static final float TOL = 1.0F / 65536.0F;
 
    private static int rect(float u, float v, float uo, float vo) {
       int c = NativeScene.createClump();
@@ -33,7 +38,7 @@ public final class SubPolysCheck {
          float[] t = NativeScene.getVertexUV(clump, v + i);
          float[] got = {p[0], p[2], t[0], t[1]};
          for (int j = 0; j < 4; j++) {
-            if (Math.abs(got[j] - want[i][j]) > 1.0E-5F || p[1] != 0.0F) {
+            if (Math.abs(got[j] - want[i][j]) > TOL || p[1] != 0.0F) {
                System.out.println("FALLA " + what + " celda " + k + " vertice " + i + " componente " + j + ": " + got[j] + " != " + want[i][j]);
                failures++;
                return;
