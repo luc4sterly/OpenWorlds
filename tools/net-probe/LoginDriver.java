@@ -119,20 +119,24 @@ public class LoginDriver {
    /** Drones (avatares remotos) de todas las salas de todos los mundos cargados. */
    private static void dumpDrones() {
       int n = 0;
+      int nw = 0;
+      int nr = 0;
       try {
          java.util.Enumeration<?> ws = NET.worlds.scape.World.getWorlds();
          while (ws.hasMoreElements()) {
             NET.worlds.scape.World w = (NET.worlds.scape.World)ws.nextElement();
+            nw++;
             java.util.Enumeration<?> rs = w.getRooms();
             while (rs.hasMoreElements()) {
                NET.worlds.scape.Room r = (NET.worlds.scape.Room)rs.nextElement();
+               nr++;
                java.util.Enumeration<?> cs = r.getContents();
                while (cs.hasMoreElements()) {
                   Object o = cs.nextElement();
                   if (o instanceof NET.worlds.scape.Drone) {
                      NET.worlds.scape.Drone d = (NET.worlds.scape.Drone)o;
                      System.out.println("[DRONES " + (System.currentTimeMillis() - T0) + "ms] " + d.getClass().getSimpleName()
-                        + " '" + d.getName() + "' en " + r.getName() + " @ " + d.getPosition());
+                        + " '" + d.getName() + "' en " + r.getName() + " @ " + d.getX() + "," + d.getY() + "," + d.getZ());
                      n++;
                   }
                }
@@ -140,8 +144,9 @@ public class LoginDriver {
          }
       } catch (RuntimeException e) {
          log("dumpDrones: " + e);
+         e.printStackTrace(System.out);
       }
-      System.out.println("[DRONES " + (System.currentTimeMillis() - T0) + "ms] total " + n);
+      System.out.println("[DRONES " + (System.currentTimeMillis() - T0) + "ms] total " + n + " (mundos " + nw + ", salas " + nr + ")");
    }
 
    private static Window findWindow(String className) {
