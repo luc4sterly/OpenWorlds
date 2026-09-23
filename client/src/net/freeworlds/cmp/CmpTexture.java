@@ -7,8 +7,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A real .cmp texture decoded through the verified {@link CmpStage2} scanline
- * reconstructor, mapped to RGB through a palette file.
+ * A .cmp/.mov texture as top-down RGB.
+ *
+ * Real files ({@link #loadRaw}, {@link #loadMov}, {@link #loadMovFrames})
+ * go through {@link CmpFrames}: header, frame table and per-frame decode
+ * as gamma.dll's ScapePic reader (FUN_00442750 / FUN_00442bc0), width =
+ * u16@8, height = u16@6, palette embedded in the file.
+ *
+ * {@link #load} is the legacy loader for pre-captured Stage-2 streams
+ * plus a hand-voted palette (RwxViewer, tools/gamma-dll-debug-harness);
+ * the rest of this comment describes that path only.
  *
  * Scope, stated honestly (see tools/gamma-dll-debug-harness/
  * cmp-stage2-decoder/README.md, round-5 section):
@@ -103,59 +111,95 @@ public final class CmpTexture {
    }
 
    /**
-    * Load and decode a real .cmp file directly (no pre-captured streams, no
-    * hand-written palette.txt) via {@link CmpStage1} - the real Stage 1
-    * Huffman/palette decoder (2026-09-12 session).
-    *
-    * pass0Top: brute-force-confirmed false for BOTH known files (test4b.cmp,
-    * sball.cmp) once the palette and LIT-channel fixes below are in place -
-    * an earlier pass this session mistakenly derived it from flags bit 0
-    * (getting test4b backwards) because that guess was fit against the
-    * THEN-broken LIT decode; with LIT fixed, neither known file's real
-    * orientation correlates with that bit, so it's hardcoded false pending
-    * more real examples that might disagree.
-    * evenIsA: still derived from flags bit 0 (unverified beyond "makes no
-    * observable difference" for test4b, whose regions are uniform either
-    * way; not yet checked against a file where it would actually matter).
+    * Load and decode a real .cmp still: frame 0 of {@link CmpFrames}, the
+    * same decode gamma.dll's ScapePic reader does (FUN_00442750 header +
+    * frame table, FUN_00442bc0 per frame). Measured on the 159 .cmp of
+    * GroundZero/content.zip (2026-09-22): byte-identical RGB to the
+    * previous CmpStage1.decode + render path, so nothing changes for
+    * stills (all 159 are square; the old path read width from u16@6).
     */
    public static CmpTexture loadRaw(File cmpFile) throws IOException {
-      byte[] cmp = read(cmpFile);
-      CmpStage1 s1 = CmpStage1.decode(cmp);
-      int flags = cmp[5] & 0xFF;
-      boolean pass0Top = false;
-      boolean evenIsA = (flags & 0x01) != 0;
-      // CmpStage2 reads its 5 input streams with generous internal
-      // read-ahead (it was designed against oversized pre-captured dumps -
-      // see CmpStage2's own history); CmpStage1's streams are exactly
-      // sized to their real content, so pad with slack headroom.
-      return render(s1.width, s1.height, s1.palette, pad(s1.streamA), pad(s1.streamCtrl),
-         pad(s1.streamLit), pad(s1.streamFillIdx), pad(s1.bits), pass0Top, evenIsA, cmpFile.getName());
+      return frame(CmpFrames.decode(read(cmpFile), 1), 0, cmpFile.getName(), false);
    }
 
    /**
-    * Load a .mov movie file's frame 0 as a static texture (movies animate
-    * over time via the client's video path; the static viewer shows the
-    * frame cmpview.exe displays, verified pixel-exact per file - see
-    * docs/cmp-texture-format-reference.md ".mov" section). Same container
-    * and Stage 1/2 machinery as .cmp, only the group framing differs.
+    * Frame 0 of a .mov (see {@link #loadMovFrames}). What a Material shows
+    * for a plain "x.mov" texture: Material.calcRes sets sPos = 0 and
+    * hRes = vRes = 1, so syncBackgroundLoad takes frames[0] of the movie
+    * (NET/worlds/scape/Material.java, calcRes + syncBackgroundLoad).
+    *
+    * Before 2026-09-22 this located the group by a header signature
+    * (CmpStage1.decodeMovFrame0, removed) and decoded the LAST frame of
+    * every movie; windr3 also came out 128x154 instead of 154x128.
     */
    public static CmpTexture loadMov(File movFile) throws IOException {
-      byte[] mov = read(movFile);
-      CmpStage1 s1 = CmpStage1.decodeMovFrame0(mov);
-      // Movie palettes hold 255 entries (indices 0..254); index 255 is the
-      // paper/transparent background cmpview.exe shows as its white canvas
-      // (verified: cbirda4 background renders white in cmpview while our
-      // index-255 pixels would otherwise fall back to magenta). Stills
-      // always carry a real entry 255, so this applies to movies only.
-      if (s1.palette[255] == null) {
-         s1.palette[255] = new int[]{255, 255, 255};
-      }
-      int flags = mov[5] & 0xFF;
-      boolean pass0Top = false;
-      boolean evenIsA = (flags & 0x01) != 0;
-      return render(s1.width, s1.height, s1.palette, pad(s1.streamA), pad(s1.streamCtrl),
-         pad(s1.streamLit), pad(s1.streamFillIdx), pad(s1.bits), pass0Top, evenIsA, movFile.getName());
+      return frame(CmpFrames.decode(read(movFile), 1), 0, movFile.getName(), true);
    }
+
+   /**
+    * Every frame of a .mov in frame-table order (CmpFrames: one shared
+    * history, frame i starting from frame i-1 as gamma.dll's DIB does).
+    * In the original these frames are not played over time by the
+    * texture itself: Material uses them as the hRes x vRes tiles of one
+    * surface (and the "Ns*" suffix picks the N-th group of tiles), and
+    * Hologram uses them as view-angle sides - see
+    * docs/cmp-texture-format-reference.md ".mov".
+    */
+   public static CmpTexture[] loadMovFrames(File movFile) throws IOException {
+      CmpFrames f = CmpFrames.decode(read(movFile), Integer.MAX_VALUE);
+      CmpTexture[] out = new CmpTexture[f.frames.length];
+      for (int i = 0; i < out.length; i++) {
+         out[i] = frame(f, i, movFile.getName(), true);
+      }
+      return out;
+   }
+
+   /**
+    * One frame of a decoded ScapePic as top-down RGB, width x height
+    * cropped from the dibW-wide index plane. Movie palettes hold 255
+    * entries (indices 0..254); index 255 is the paper/transparent
+    * background cmpview.exe shows as its white canvas (verified: cbirda4
+    * background renders white in cmpview while our index-255 pixels would
+    * otherwise fall back to magenta). Stills always carry a real entry
+    * 255, so that fallback applies to movies only.
+    */
+   private static CmpTexture frame(CmpFrames f, int i, String label, boolean movie) throws IOException {
+      if (i >= f.frames.length) {
+         throw new IOException(label + ": frame " + i + " not decoded (" + f.frames.length + " frames)");
+      }
+      int w = f.width;
+      int h = f.height;
+      byte[] idx = f.frames[i];
+      byte[] rgb = new byte[w * h * 3];
+      int missing = 0;
+      for (int y = 0; y < h; y++) {
+         for (int x = 0; x < w; x++) {
+            int k = idx[y * f.dibW + x] & 0xFF;
+            int[] c = f.palette[k];
+            if (c == null && movie && k == 255) {
+               c = WHITE;
+            }
+            int o = (y * w + x) * 3;
+            if (c == null) {
+               missing++;
+               rgb[o] = (byte) 255;
+               rgb[o + 1] = 0;
+               rgb[o + 2] = (byte) 255;
+            } else {
+               rgb[o] = (byte) c[0];
+               rgb[o + 1] = (byte) c[1];
+               rgb[o + 2] = (byte) c[2];
+            }
+         }
+      }
+      if (missing > 0) {
+         System.out.println("CmpTexture " + label + ": " + missing
+            + " pixels used unmapped palette indices (magenta, see docs)");
+      }
+      return new CmpTexture(w, h, rgb);
+   }
+
+   private static final int[] WHITE = {255, 255, 255};
 
    private static byte[] pad(byte[] a) {
       byte[] b = new byte[a.length + 512];

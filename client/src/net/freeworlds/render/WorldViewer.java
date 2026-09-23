@@ -1702,8 +1702,7 @@ public final class WorldViewer {
              if (f != null) {
                 try {
                    // .mov = same LzH2 codec, multi-frame container: frame 0
-                   // as the static texture (verified byte-exact vs
-                   // cmpview.exe, see CmpStage1.decodeMovFrame0).
+                   // of the frame table (CmpFrames, as gamma.dll).
                    CmpTexture tex = ext.equals("mov") ? CmpTexture.loadMov(f) : CmpTexture.loadRaw(f);
                    int id = uploadTexture(tex);
                    glTextureCache.put(key, id);
@@ -1912,6 +1911,10 @@ public final class WorldViewer {
          buf.put(texture.rgb, y * rowBytes, rowBytes);
       }
       buf.flip();
+      // Filas de 3*ancho bytes sin relleno: con el alineamiento por
+      // defecto (4) una textura de ancho no multiplo de 4 (windr3.mov,
+      // 154 de ancho desde CmpFrames) saldria cizallada.
+      glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texture.width, texture.height,
          0, GL_RGB, GL_UNSIGNED_BYTE, buf);
       return id;

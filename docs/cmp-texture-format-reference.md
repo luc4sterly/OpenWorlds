@@ -1461,3 +1461,42 @@ Implementación: `CmpStage1.decodeMovFrame0` + `CmpTexture.loadMov`.
 Límites honestos: frame 0 estático (sin animación temporal);
 ventana de película de cmpview incluye UI propia (poste/seek) que no
 es contenido — no confundir al verificar.
+
+### Corrección (2026-09-22): el "frame 0" de arriba era el ÚLTIMO frame
+
+La sección anterior queda superada en dos puntos, medidos sobre los 52
+`.mov` y los 159 `.cmp` de `content.zip`:
+
+1. **La firma de grupo encontraba el último frame, no el primero.** Los
+   frames van en el fichero en el orden de la tabla de frames que lee
+   `gamma.dll` (`FUN_00442750` cabecera, `FUN_00442bc0` por frame): tras
+   la región de tablas (`u16@28` bytes desde 34) y el cursor de paleta,
+   entradas de 20 bytes (offset absoluto u32, tamaño u16, siguiente u16,
+   referencia u16 o `0xFFFF`). Los grupos son contiguos y el último acaba
+   en el final del fichero (p. ej. `windr3`: 1037+2012 = 3049, …,
+   8555+3074 = 11629 bytes). El escaneo por firma (`field0==64` y ceros en
+   +12/+14) no casa con la cabecera de grupo del frame 0 y se paraba en el
+   último grupo en los 52 ficheros. Resultado de la ruta vieja: 49 `.mov`
+   mostraban exactamente el último frame (34 de 4 frames, 15 de 2); 2
+   (`logo256`, `splashscreen`) decodificaban el último grupo sin su frame
+   de referencia (no coincide con ningún frame); `windr3` además salía
+   traspuesto.
+2. **Ancho = `u16@8`, alto = `u16@6`.** `windr3.mov` es 154 de ancho por
+   128 de alto (64 pares de filas, 39 columnas de nibbles); la ruta vieja
+   lo daba como 128×154. En los `.cmp` no se nota porque los 159 son
+   cuadrados.
+
+`CmpTexture.loadRaw`/`loadMov`/`loadMovFrames` usan ya `CmpFrames` (la
+misma decodificación que usa el puente); `CmpStage1.decodeMovFrame0` y
+`CmpStage1.decode` se han retirado. Medido: **159/159 `.cmp` con el
+mismo RGB que antes, 52/52 `.mov` cambian de frame 0** (y los 52 decodifican
+todos sus frames). Fuera de `content.zip`, los `.mov` de avatar
+(21 en `base-avatars/`, 31 en `cachedir/`) pasan de 37/52 ficheros
+decodificables a 52/52: los 15 que fallaban tienen tamaños distintos de 128 (104×135,
+118×100, 150×150, 160×150…) o hasta 16 frames. Comprobación:
+`client/test/net/freeworlds/cmp/CmpTextureCheck.java`.
+
+La verificación "byte-exacta contra `cmpview.exe`" de `windr1` y
+`cbirda4` de 2026-09-13 comparaba, por tanto, el **último** frame (si aquella comparación era
+correcta, `cmpview` enseña el final de la película). No es una referencia
+del frame 0, y no es reproducible en este Mac (sin Wine).
