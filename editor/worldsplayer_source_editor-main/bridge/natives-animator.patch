@@ -1,0 +1,37 @@
+diff a/NET/worlds/scape/DroneAnimator.java b/NET/worlds/scape/DroneAnimator.java
+--- a/NET/worlds/scape/DroneAnimator.java
++++ b/NET/worlds/scape/DroneAnimator.java
+@@ -13,20 +13,22 @@
+ 
+    public static void init(String var0) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "init", new Object[]{var0});
++      NET.worlds.core.NativeAnimator.init(var0); // 0x00416280 -> FUN_004349d0
+    }
+ 
+    public static void loadconfig(String var0) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "loadconfig", new Object[]{var0});
++      NET.worlds.core.NativeAnimator.loadconfig(var0); // 0x00416360 -> FUN_00434b70
+    }
+ 
+    public static int getnameindex(String var0) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "getnameindex", new Object[]{var0});
+-      return 0;
++      return NET.worlds.core.NativeAnimator.getnameindex(var0); // 0x004163b0 -> FUN_0042c8a0
+    }
+ 
+    public static String getindexgeom(int var0) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "getindexgeom", new Object[]{var0});
+-      return null;
++      return NET.worlds.core.NativeAnimator.getindexgeom(var0); // 0x004163f0 -> FUN_00434d10
+    }
+ 
+    public static void prepFigure(WObject var0, boolean var1) {
+@@ -104,7 +106,7 @@
+ 
+    public static synchronized Vector getActionList(int var0) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "getActionList", new Object[]{var0});
+-      return null;
++      return NET.worlds.core.NativeAnimator.getActionList(var0); // 0x004166c0 -> FUN_00434e50
+    }
+ 
+    protected static int CreateRep() {
