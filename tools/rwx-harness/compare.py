@@ -17,14 +17,27 @@ Usage: python3 compare.py [--dir <rwx-dir>] [--limit N]
 """
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 HARNESS_DIR = ROOT / "tools" / "rwx-harness"
-NODE_BIN = ROOT / "tools" / "node" / "bin" / "node"
-CLIENT_OUT = ROOT / "client" / "out"
+# Seleccion de node: FREEWORLDS_NODE_BIN (env) > tools/node-macos/bin/node
+# (Node oficial darwin-x64, provisionado 2026-09-23, ver docs/roadmap.md H0)
+# > tools/node/bin/node (el de siempre; es un ELF de Linux en este repo, no
+# corre en macOS - se deja como ultimo recurso para Linux/WSL2).
+if os.environ.get("FREEWORLDS_NODE_BIN"):
+    NODE_BIN = Path(os.environ["FREEWORLDS_NODE_BIN"])
+elif (ROOT / "tools" / "node-macos" / "bin" / "node").is_file():
+    NODE_BIN = ROOT / "tools" / "node-macos" / "bin" / "node"
+else:
+    NODE_BIN = ROOT / "tools" / "node" / "bin" / "node"
+# CLIENT_OUT: FREEWORLDS_CLIENT_OUT (env, p.ej. el build temporal de
+# tools/verify-corpus.sh) > client/out (el de siempre, ver run-game.sh).
+CLIENT_OUT = Path(os.environ["FREEWORLDS_CLIENT_OUT"]) if os.environ.get("FREEWORLDS_CLIENT_OUT") \
+    else ROOT / "client" / "out"
 PROGRESS_MD = ROOT / "docs" / "rwx-parser-progress.md"
 
 VERTEX_TOL = 1e-3
@@ -133,11 +146,30 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dir", default=str(ROOT / "assets"))
     ap.add_argument("--limit", type=int, default=None)
+    # --files-from: lista explicita de .rwx (uno por linea), en vez de
+    # --dir + rglob. Anadido para tools/verify-corpus.sh (hito H0,
+    # docs/roadmap.md): el corpus verificado de 118 archivos es la union de
+    # dos directorios (assets/GROUNDZERO + assets/WorldsPlayer/GroundZero/
+    # tex/), y --dir solo admite uno; con --files-from se cubre el corpus
+    # completo en una sola pasada (y una sola escritura de
+    # docs/rwx-parser-progress.md, en vez de que una segunda llamada con
+    # --dir pise la tabla de la primera).
+    ap.add_argument("--files-from", default=None)
     args = ap.parse_args()
 
-    files = sorted(Path(args.dir).rglob("*.[Rr][Ww][Xx]"))
+    if args.files_from:
+        with open(args.files_from) as fh:
+            files = sorted(Path(line.strip()) for line in fh if line.strip())
+    else:
+        files = sorted(Path(args.dir).rglob("*.[Rr][Ww][Xx]"))
     if args.limit:
         files = files[: args.limit]
+    # Rutas absolutas SIEMPRE, antes de tocar nada: run_js() fija cwd=
+    # HARNESS_DIR al lanzar node, asi que una ruta relativa (posible con
+    # --files-from, p.ej. "assets/GROUNDZERO/BASKET.RWX") se resolveria mal
+    # (relativa a tools/rwx-harness/, no a ROOT). --dir ya solo produce
+    # absolutas via rglob sobre un --dir absoluto, esto no le cambia nada.
+    files = [f if f.is_absolute() else (ROOT / f) for f in files]
 
     if not CLIENT_OUT.exists():
         print(f"error: {CLIENT_OUT} does not exist - compile the Java parser first", file=sys.stderr)
