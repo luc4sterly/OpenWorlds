@@ -527,6 +527,34 @@ public final class NativeCamera {
       return new int[]{x, y, x2 - x, y2 - y};
    }
 
+   /**
+    * WObject.nativeInCamSpace (gamma.dll 0x00413910): null when there is
+    * no camera or clump or when RwGetClumpState is not 2 (0x00419570);
+    * otherwise RwGetClumpOrigin (RWL21 0x10005930, the LTM translation)
+    * through RwInvertMatrix of RwGetCameraLTM (0x004191d0 -> 0x00419860)
+    * with RwTransformPoint (0x0041a080).
+    */
+   public static float[] inCamSpace(int camH, int clump) {
+      Cam c = cam(camH);
+      if (c == null || NativeScene.clump(clump) == null || NativeScene.getClumpState(clump) != 2) {
+         return null;
+      }
+      float[] ltm = new float[16];
+      NativeScene.getClumpLTM(clump, ltm);
+      float[] inv = new float[16];
+      NativeRw.invert(c.ltm, inv);
+      float[] p = NativeRw.transformPoint(inv, ltm[12], ltm[13], ltm[14]);
+      Object d = NativeScene.getClumpData(clump);
+      if (System.getProperty("freeworlds.traceInCamSpace") != null && inCamTraced.add(d)) {
+         System.err.println("[RW] inCamSpace " + (d == null ? "-" : d.getClass().getSimpleName() + ":" + d)
+            + " -> (" + p[0] + "," + p[1] + "," + p[2] + ")");
+      }
+      return p;
+   }
+
+   /** -Dfreeworlds.traceInCamSpace: first point got by each object. */
+   private static final java.util.Set<Object> inCamTraced = java.util.Collections.synchronizedSet(new java.util.HashSet<Object>());
+
    private static float[] toCamera(Cam c, float wx, float wy, float wz) {
       float dx = wx - c.ltm[12], dy = wy - c.ltm[13], dz = wz - c.ltm[14];
       return new float[]{
@@ -1025,7 +1053,11 @@ public final class NativeCamera {
       float[] vnorm = null;
       float[] lit = litBuf;
       float[] faces = faceNormals(k);
-      for (int pi = 0; pi < k.polys.size(); pi++) {
+      // Hint mode 1 draws in the order of the clump's sort tree
+      // (0x10032b50 -> 0x10033ed0); modes 0 and 2 in clump order.
+      SortTree tree = NativeScene.hsMode(k.hints) == 1 ? k.sortTree : null;
+      for (int oi = 0; oi < k.polys.size(); oi++) {
+         int pi = tree == null ? oi : tree.index[oi];
          NativeScene.Polygon poly = k.polys.get(pi);
          NativeScene.Material mat = NativeScene.material(poly.material);
          int n = poly.indices.length;
@@ -1091,6 +1123,20 @@ public final class NativeCamera {
          // before, covers area outside those triangles whenever the
          // projected polygon is warped or concave, and interpolates the
          // texture and the shading over the wrong domain.
+         if (!p.pick) {
+            // The driver's own triangles (see rasterTri): the fan is walked
+            // from its LAST triangle back to the first, (v0, v[i], v[i+1])
+            // for a front polygon and (v0, v[i+1], v[i]) for the back of a
+            // double-sided one (the 0x10000 flag the caller passes).
+            for (int t = m2 - 2; t >= 1; t--) {
+               if (front) {
+                  rasterTri(p, cl[0], cl[t], cl[t + 1], mat, tex, k, facet);
+               } else {
+                  rasterTri(p, cl[0], cl[t + 1], cl[t], mat, tex, k, facet);
+               }
+            }
+            continue;
+         }
          for (int t = 1; t + 1 < m2; t++) {
             triV[0] = cl[0];
             triV[1] = cl[t];
@@ -1104,6 +1150,551 @@ public final class NativeCamera {
             raster(p, triV, triX, triY, mat, tex, k, facet);
          }
       }
+   }
+
+   // ------------------------------------------------------------------
+   // Triangle setup and spans of the 16-bit driver (RWDL6D21)
+
+   /**
+    * Reciprocal table DAT_10079214 (0x2080 bytes), built in the driver's
+    * open (0x1000a008..0x1000a03e): for dx = -32..32 and dy = 1..31,
+    * entry [(dx + 32) * 32 + dy] = (dx << 16) / dy with idiv (truncation
+    * toward zero); entry dy = 0 of each row is never written.
+    */
+   static final int[] RECIP = buildRecip();
+
+   private static int[] buildRecip() {
+      int[] t = new int[65 * 32];
+      for (int row = 0, num = -0x200000; num <= 0x200000; num += 0x10000, row += 32) {
+         for (int dy = 1; dy < 32; dy++) {
+            t[row + dy] = num / dy;
+         }
+      }
+      return t;
+   }
+
+   /**
+    * Edge slope in 16.16 as every triangle setup computes it (0x100259e0,
+    * 0x10019fa0, 0x1002d200...): dy = 1 -> dx << 16, dy = 2 -> dx * 0x8000,
+    * |dx| < 32 and dy < 32 -> the reciprocal table (base + 0x1000 = row
+    * dx = 0), otherwise (dx << 16) / dy with idiv.
+    */
+   public static int slope(int dx, int dy) {
+      if (dy == 1) {
+         return dx * 0x10000;
+      }
+      if (dy == 2) {
+         return dx * 0x8000;
+      }
+      if (dy < 32 && -32 < dx && dx < 32) {
+         return RECIP[(dx + 32) * 32 + dy];
+      }
+      return dx * 0x10000 / dy;
+   }
+
+   /** 512.0f (_DAT_10078100) and 1/512 (_DAT_100780f8) of the textured setups. */
+   private static final float UV_SCALE = 0.001953125F;
+
+   /**
+    * Screen position in 16.16 of a clipped vertex, as the driver's vertex
+    * transform (0x10069650, perspective branch, FPU set to 24-bit
+    * precision) stores it: round-to-nearest of X * (1/Z) * (vpW * 65536),
+    * relative to the viewport.
+    */
+   static int screen16(float x, float z, int size) {
+      float f = 1.0F / z;
+      float s = (float) (int) (size * 65536.0);
+      return (int) Math.rint(x * f * s);
+   }
+
+   /** One vertex of the driver triangle: screen 16.16, camera Z, UV fixed, lighting, 1/Z and world position. */
+   private static final class DVert {
+      int x16;
+      int y16;
+      float z;
+      int u;
+      int v;
+      float[] a;
+   }
+
+   private static final DVert[] dv = {new DVert(), new DVert(), new DVert()};
+
+   private static DVert dvert(int i, float[] c, Cam cam) {
+      DVert d = dv[i];
+      d.x16 = screen16(c[0], c[2], cam.vpW);
+      d.y16 = screen16(c[1], c[2], cam.vpH);
+      d.z = c[2];
+      d.u = NativeScene.uvFixed(c[3]);
+      d.v = NativeScene.uvFixed(c[4]);
+      d.a = c;
+      return d;
+   }
+
+   /** Edge state of one side of the triangle, stepped once per scanline. */
+   private static final class Edge {
+      int x;
+      int dx;
+      /** perspective terms q, u*q, v*q (floats, 0x1007f440.. / 0x1007f458..) */
+      float q;
+      float dq;
+      float uq;
+      float duq;
+      float vq;
+      float dvq;
+      /** 1/Z and lighting r, g, b, linear per scanline (bridge approximation of the depth / colour setup) */
+      final float[] at = new float[4];
+      final float[] dat = new float[4];
+
+      void set(DVert s, float qs, float uqs, float vqs, DVert e, float qe, float uqe, float vqe, int dy, int xs16, int slope) {
+         this.x = xs16;
+         this.dx = slope;
+         float inv = 1.0F / (float) dy;
+         this.q = qs;
+         this.uq = uqs;
+         this.vq = vqs;
+         this.dq = (qe - qs) * inv;
+         this.duq = (uqe - uqs) * inv;
+         this.dvq = (vqe - vqs) * inv;
+         for (int i = 0; i < 4; i++) {
+            float a = i == 0 ? 1.0F / s.z : s.a[4 + i];
+            float b = i == 0 ? 1.0F / e.z : e.a[4 + i];
+            this.at[i] = a;
+            this.dat[i] = (b - a) * inv;
+         }
+      }
+
+      void step() {
+         this.x += this.dx;
+         this.q = this.q + this.dq;
+         this.uq = this.uq + this.duq;
+         this.vq = this.vq + this.dvq;
+         for (int i = 0; i < 4; i++) {
+            this.at[i] += this.dat[i];
+         }
+      }
+   }
+
+   private static final Edge edgeA = new Edge();
+   private static final Edge edgeB = new Edge();
+
+   /**
+    * A triangle as the 16-bit driver fills it, from the setups 0x100259e0
+    * (Gouraud), 0x10019fa0 (flat) and 0x1002d200 (textured, perspective),
+    * which share their geometry:
+    *
+    * - the vertices are rotated, keeping their cyclic order, so the first
+    *   has the smallest 16.16 y; from then on only the INTEGER parts of x
+    *   and y are used (the vertex snaps to the pixel grid);
+    * - edge a runs top -> second vertex (left), edge b top -> third (right),
+    *   with 16.16 slopes from slope(); a triangle whose right edge is not
+    *   at least one unit to the right is dropped (wrong winding);
+    * - each scanline first steps both edges and then fills
+    *   x = (xa >> 16) .. (xb >> 16) - 1 (the span routine 0x1002cbb0 /
+    *   0x1006a340): the first row drawn, y_top, already uses the edge one
+    *   step down;
+    * - textured: per-vertex q_i = Z_j * Z_k and u_i * (1/512) * q_i
+    *   (u in RWL21's fixed 16.16, NativeScene.uvFixed), stepped per line
+    *   along each edge in float; spans of up to 16 pixels interpolate
+    *   linearly between the perspective-correct ends, longer spans divide
+    *   once every 16 pixels (texSpan);
+    * - texel 0 is transparent.
+    *
+    * The depth buffer and the untextured shading keep the bridge's
+    * approximation (1/Z and lighting linear in screen space along the same
+    * edges), see ⚠️ in bridge/README.md.
+    */
+   private static void rasterTri(Pass p, float[] c0, float[] c1, float[] c2, NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k, float[] facetLit) {
+      Cam c = p.c;
+      DVert a = dvert(0, c0, c), b = dvert(1, c1, c), d = dvert(2, c2, c);
+      // rotation to the top vertex (0x1002d200 head)
+      DVert t0 = a, t1 = b, t2 = d;
+      if (b.y16 < a.y16) {
+         if (b.y16 < d.y16) {
+            t0 = b;
+            t1 = d;
+            t2 = a;
+         } else {
+            t0 = d;
+            t1 = a;
+            t2 = b;
+         }
+      } else if (d.y16 < a.y16) {
+         t0 = d;
+         t1 = a;
+         t2 = b;
+      }
+      int yT = t0.y16 >> 16, xT = t0.x16 >> 16;
+      int y3 = t1.y16 >> 16, x3 = t1.x16 >> 16;
+      int y4 = t2.y16 >> 16, x4 = t2.x16 >> 16;
+      // q_i = product of the other two camera Z (0x1007f330/334/338) and u*q, v*q
+      float qT = t2.z * t1.z, q3 = t2.z * t0.z, q4 = t1.z * t0.z;
+      float uT = (float) t0.u * UV_SCALE * qT, vT = (float) t0.v * UV_SCALE * qT;
+      float u3 = (float) t1.u * UV_SCALE * q3, v3 = (float) t1.v * UV_SCALE * q3;
+      float u4 = (float) t2.u * UV_SCALE * q4, v4 = (float) t2.v * UV_SCALE * q4;
+      int dy1 = y3 - yT;
+      int row = yT;
+      // untextured, opaque, per-vertex lit: the Gouraud triangle 0x100259e0
+      gouraud = tex == null && facetLit == null && mat != null && mat.opacity >= 1.0F;
+      int[] cT = null, c3 = null, c4 = null;
+      if (gouraud) {
+         int base = device565(mat.color[0], mat.color[1], mat.color[2]);
+         cT = vertexColour(t0, base);
+         c3 = vertexColour(t1, base);
+         c4 = vertexColour(t2, base);
+         rowDither = DITHER_ROWS[(c.vpY & 7) + (yT & 7)];
+      }
+      if (dy1 < 1) {
+         if (xT - x3 < 1) {
+            return;
+         }
+         int dy = y4 - y3;
+         if (dy == 0) {
+            return;
+         }
+         if (gouraud) {
+            // colour from the second vertex; across x towards the top one
+            int w = xT - x3;
+            gAcc = packRG(c3[0], c3[1]);
+            gStep = pack(div(c4[0] - c3[0], dy), div(c4[1] - c3[1], dy));
+            gGrad = pack(div(cT[0] - c3[0], w), div(cT[1] - c3[1], w));
+            bAcc = c3[2] << 8;
+            bStep = (short) div(c4[2] - c3[2], dy);
+            bGrad = (short) div(cT[2] - c3[2], w);
+         }
+         edgeA.set(t1, q3, u3, v3, t2, q4, u4, v4, dy, x3 << 16, slope(x4 - x3, dy));
+         edgeB.set(t0, qT, uT, vT, t2, q4, u4, v4, dy, xT << 16, slope(x4 - xT, dy));
+         spans(p, row, dy, mat, tex, k, facetLit);
+         return;
+      }
+      int dxa = slope(x3 - xT, dy1);
+      int dy2 = y4 - yT;
+      if (dy2 < 1) {
+         if (x4 - xT < 1) {
+            return;
+         }
+         if (gouraud) {
+            int w = x4 - xT;
+            gAcc = packRG(cT[0], cT[1]);
+            gStep = pack(div(c3[0] - cT[0], dy1), div(c3[1] - cT[1], dy1));
+            gGrad = pack(div(c4[0] - cT[0], w), div(c4[1] - cT[1], w));
+            bAcc = cT[2] << 8;
+            bStep = (short) div(c3[2] - cT[2], dy1);
+            bGrad = (short) div(c4[2] - cT[2], w);
+         }
+         edgeA.set(t0, qT, uT, vT, t1, q3, u3, v3, dy1, xT << 16, dxa);
+         edgeB.set(t2, q4, u4, v4, t1, q3, u3, v3, dy1, x4 << 16, slope(x3 - x4, dy1));
+         spans(p, row, dy1, mat, tex, k, facetLit);
+         return;
+      }
+      int dxb = slope(x4 - xT, dy2);
+      if (dxb - dxa < 1) {
+         return;
+      }
+      edgeA.set(t0, qT, uT, vT, t1, q3, u3, v3, dy1, xT << 16, dxa);
+      edgeB.set(t0, qT, uT, vT, t2, q4, u4, v4, dy2, xT << 16, dxb);
+      if (gouraud) {
+         // per line along edge a; across x from the difference of the two
+         // edges' per-line steps over the difference of their slopes
+         int w = dxb - dxa;
+         gAcc = packRG(cT[0], cT[1]);
+         gStep = pack(div(c3[0] - cT[0], dy1), div(c3[1] - cT[1], dy1));
+         int dr = div(c4[0] - cT[0], dy2) - (gStep >> 16);
+         gGrad = dr != 0 ? dr * 0x10000 / w << 16 : 0;
+         int dg = div(c4[1] - cT[1], dy2) - (short) gStep;
+         if (dg != 0) {
+            int u = gGrad | dg * 0x10000 / w & 0xFFFF;
+            gGrad = u + (u & 0x8000) * -2;
+         }
+         bAcc = cT[2] << 8;
+         bStep = (short) div(c3[2] - cT[2], dy1);
+         int db = div(c4[2] - cT[2], dy2) - (short) bStep;
+         bGrad = db != 0 ? (short) (db * 0x10000 / w) : 0;
+      }
+      if (dy1 < dy2) {
+         row = spans(p, row, dy1, mat, tex, k, facetLit);
+         int rest = dy2 - dy1;
+         edgeA.set(t1, q3, u3, v3, t2, q4, u4, v4, rest, x3 << 16, slope(x4 - x3, rest));
+         if (gouraud) {
+            // the accumulators carry on; only edge a's per-line step changes
+            gStep = pack(div(c4[0] - c3[0], rest), div(c4[1] - c3[1], rest));
+            bStep = (short) div(c4[2] - c3[2], rest);
+         }
+         spans(p, row, rest, mat, tex, k, facetLit);
+      } else {
+         row = spans(p, row, dy2, mat, tex, k, facetLit);
+         int rest = dy1 - dy2;
+         if (rest == 0) {
+            return;
+         }
+         edgeB.set(t2, q4, u4, v4, t1, q3, u3, v3, rest, x4 << 16, slope(x3 - x4, rest));
+         spans(p, row, rest, mat, tex, k, facetLit);
+      }
+   }
+
+   private static int[] spanUV = new int[64];
+
+   // Gouraud state of 0x100259e0 / span 0x1006a340: R and G of the left
+   // edge packed in one 32-bit word (R 8.8 in bits 16..31, G 8.8 in bits
+   // 0..15, carries included: 0x1007f2c0), its per-line step (0x1007f2c4)
+   // and per-pixel gradient (0x1007f2c8); B 8.8 apart (0x1007f2cc /
+   // 0x1007f2d0 / 0x1007f2d4); the row dither word (0x1007f2a4).
+   private static boolean gouraud;
+   private static int gAcc;
+   private static int gStep;
+   private static int gGrad;
+   private static int bAcc;
+   private static int bStep;
+   private static int bGrad;
+   private static int rowDither;
+
+   /** Dither words 0x10079240 (x) and 0x10079280 (y): each is the previous one xor (itself >>> 6). */
+   public static final int[] DITHER_COLS = {0x08022002, 0x08222882, 0x0802a020, 0x0822aaa0, 0x0802200a, 0x0822288a, 0x0802a028, 0x0822aaa8,
+      0x08022002, 0x08222882, 0x0802a020, 0x0822aaa0, 0x0802200a, 0x0822288a, 0x0802a028, 0x0822aaa8};
+   static final int[] DITHER_ROWS = {0x0c033003, 0x0c333cc3, 0x0c03f030, 0x0c33fff0, 0x0c03300f, 0x0c333ccf, 0x0c03f03c, 0x0c33fffc,
+      0x0c033003, 0x0c333cc3, 0x0c03f030, 0x0c33fff0, 0x0c03300f, 0x0c333ccf, 0x0c03f03c, 0x0c33fffc};
+
+   /** Ramp outputs (5 bits) of a vertex for the material colour: R, G (top 5 of 6), B (0x100259e0 head). */
+   private static int[] vertexColour(DVert d, int c565) {
+      int ir = clampRamp(d.a[5]), ig = clampRamp(d.a[6]), ib = clampRamp(d.a[7]);
+      return new int[]{RAMP[ir * 32 + (c565 >> 11 & 0x1F)], RAMP[ig * 32 + (c565 >> 6 & 0x1F)], RAMP[ib * 32 + (c565 & 0x1F)]};
+   }
+
+   private static int clampRamp(float f) {
+      int i = (int) f;
+      return i < 0 ? 0 : i > 31 ? 31 : i;
+   }
+
+   /** (g | r << 16) << 8 (0x100259e0). */
+   public static int packRG(int r, int g) {
+      return (g | r << 16) << 8;
+   }
+
+   /** Two 8.8 steps in one word, the low one sign-corrected: (hi << 16 | lo & 0xffff) + (lo & 0x8000) * -2. */
+   public static int pack(int hi, int lo) {
+      return (hi << 16 | lo & 0xFFFF) + (lo & 0x8000) * -2;
+   }
+
+   /**
+    * Step of a colour over n rows or pixels as the setups divide it:
+    * diff (in 8.8, i.e. components * 256) when n is 1, diff >> 1 when n
+    * is 2, idiv otherwise.
+    */
+   static int div(int diff5, int n) {
+      int diff = diff5 * 0x100;
+      if (diff == 0 || n == 1) {
+         return diff;
+      }
+      if (n == 2) {
+         return diff >> 1;
+      }
+      return diff / n;
+   }
+
+   /**
+    * One Gouraud pixel of 0x1006a340: R and B take the integer part of
+    * their accumulators; G adds its fraction to the dither byte and the
+    * carry goes into G (it can overflow into R's low bit, as the add is
+    * done on the byte that holds R << 5 and G). Returns the 5-6-5 value.
+    */
+   public static int gouraudPixel(int accRG, int accB, int thr) {
+      int r = accRG >>> 24;
+      int gInt = accRG >>> 8 & 0xFF;
+      int gFrac = accRG & 0xFF;
+      int carry = gFrac + (thr & 0xFF) > 0xFF ? 1 : 0;
+      int e = r << 5;
+      e = (e & ~0xFF) | ((e & 0xFF) + gInt + carry & 0xFF);
+      e <<= 6;
+      e |= accB >>> 8 & 0xFF;
+      return e & 0xFFFF;
+   }
+
+   /**
+    * Texture coordinates of one span as 0x1002cbb0 packs them: v in bits
+    * 0..13 (texel = bits 7..13) and u in bits 16..31 (texel = bits
+    * 25..31), both from 16.16 values with 9 fractional bits per texel.
+    * cnt <= 16: linear between the perspective-correct ends, step =
+    * (end - start) * (float)(1/cnt) truncated. cnt > 16: q, uq, vq advance
+    * by 16 * (1/cnt) of the span per block; at each block end u, v are
+    * divided again (512/q) and the 16 pixels step by
+    * ((dv & 0xfffc0) >> 6) | ((du & ~15) << 12); the tail divides by the
+    * right edge and steps by (start - end) / -n (idiv). Returns the packed
+    * value for each pixel in out[0..cnt-1].
+    */
+   public static int[] texSpan(float qa, float uqa, float vqa, float qb, float uqb, float vqb, int cnt, int[] out) {
+      if (out == null || out.length < cnt) {
+         out = new int[Math.max(cnt, 16)];
+      }
+      float invf = (float) (1.0 / cnt);
+      if (cnt <= 16) {
+         double aa = 512.0 / qa;
+         double bb = 512.0 / qb;
+         double ul = uqa * aa, vl = vqa * aa;
+         int pk = (ftol(vl) & 0x3fffc) >>> 2 | ftol(ul) << 16;
+         int dvv = ftol((vqb * bb - vl) * invf);
+         int duu = ftol((uqb * bb - ul) * invf);
+         int step = (dvv & 0x3fffc) >>> 2 | duu << 16;
+         for (int i = 0; i < cnt; i++) {
+            out[i] = pk;
+            pk += step;
+         }
+         return out;
+      }
+      double f16 = (double) invf * 16.0;
+      float dU16 = (float) ((uqb - uqa) * f16);
+      float dV16 = (float) ((vqb - vqa) * f16);
+      float dQ16 = (float) (f16 * (qb - qa));
+      double aa = 512.0 / qa;
+      int u0 = ftol(uqa * aa);
+      int v0 = ftol(aa * vqa);
+      float uq = uqa, vq = vqa, q = qa;
+      int blocks = cnt >> 4;
+      int o = 0;
+      for (int bl = 0; bl < blocks; bl++) {
+         uq = (float) ((double) uq + dU16);
+         vq = (float) ((double) vq + dV16);
+         q = (float) ((double) dQ16 + q);
+         double r = 512.0 / q;
+         int u1 = ftol(uq * r);
+         int v1 = ftol(r * vq);
+         int step = ((v1 - v0) & 0xfffc0) >>> 6 | ((u1 - u0) & ~0xf) << 12;
+         int pk = (v0 & 0xfffc) >>> 2 | u0 << 16;
+         for (int i = 0; i < 16; i++) {
+            out[o++] = pk;
+            pk += step;
+         }
+         u0 = u1;
+         v0 = v1;
+      }
+      int n = o - cnt;
+      if (n < 0) {
+         double r = 512.0 / qb;
+         int pk = (v0 & 0xfffc) >>> 2 | u0 << 16;
+         int dvv = (v0 - ftol(vqb * r)) / n;
+         int duu = (u0 - ftol(r * uqb)) / n;
+         int step = (dvv & 0xfffc) >>> 2 | duu << 16;
+         while (o < cnt) {
+            out[o++] = pk;
+            pk += step;
+         }
+      }
+      return out;
+   }
+
+   /** __ftol (RWDL6D21 0x1005ff48): truncation to 64 bits, low 32 kept. */
+   static int ftol(double d) {
+      return (int) (long) d;
+   }
+
+   /** Texel of a packed span value (0x1002cd8b..0x1002cda1). */
+   public static int texelIndex(int pk) {
+      return ((pk >>> 7) & 0x7F) * NativeTextures.SIZE + (pk >>> 25);
+   }
+
+   private static final float[] spanAt = new float[4];
+
+   /** count scanlines from row; returns the next row. */
+   private static int spans(Pass p, int row, int count, NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k, float[] facetLit) {
+      Cam c = p.c;
+      int base = mat == null ? 0 : device565(mat.color[0], mat.color[1], mat.color[2]);
+      boolean litTex = mat != null && (mat.textureModes & 1) != 0;
+      int opacity = mat == null ? 255 : (mat.opacity >= 1.0F ? 255 : ((int) (mat.opacity * 65536.0F) >> 8) & 0xFC);
+      float flatR = facetLit != null ? facetLit[0] : 31.0F;
+      float flatG = facetLit != null ? facetLit[1] : 31.0F;
+      float flatB = facetLit != null ? facetLit[2] : 31.0F;
+      int ox = c.renderOffX + c.vpX, oy = c.renderOffY + c.vpY;
+      int xMin = Math.max(0, c.renderOffX), xMax = Math.min(c.width, c.renderOffX + c.vpW);
+      int yMin = Math.max(0, c.renderOffY), yMax = Math.min(c.height, c.renderOffY + c.vpH);
+      int wrote = 0;
+      for (int r = 0; r < count; r++, row++) {
+         edgeA.step();
+         edgeB.step();
+         int xl = edgeA.x >> 16, xr = edgeB.x >> 16;
+         int cnt = xr - xl;
+         int y = row + oy;
+         int thr = 0, acc = 0, accB = 0;
+         if (gouraud) {
+            gAcc += gStep;
+            bAcc += bStep;
+            acc = gAcc;
+            accB = bAcc;
+            thr = DITHER_COLS[(c.vpX & 7) + (xl & 7)];
+            thr = (thr & ~0xFF) | ((thr ^ rowDither) & 0xFF);
+            rowDither ^= rowDither >>> 6;
+         }
+         if (cnt <= 0 || y < yMin || y >= yMax) {
+            continue;
+         }
+         int[] uv = null;
+         if (tex != null) {
+            uv = spanUV = texSpan(edgeA.q, edgeA.uq, edgeA.vq, edgeB.q, edgeB.uq, edgeB.vq, cnt, spanUV);
+         }
+         int rowBase = y * c.width;
+         int ditherRow = DITHER_Y[y & 7];
+         float invCnt = 1.0F / cnt;
+         for (int i = 0; i < cnt; i++) {
+            int x = xl + i + ox;
+            if (x < xMin || x >= xMax) {
+               continue;
+            }
+            float tt = i * invCnt;
+            for (int j = 0; j < 4; j++) {
+               spanAt[j] = edgeA.at[j] + (edgeB.at[j] - edgeA.at[j]) * tt;
+            }
+            float iz = spanAt[0];
+            int zi = rowBase + x;
+            int gpix = 0;
+            if (gouraud) {
+               gpix = gouraudPixel(acc, accB, thr);
+               acc += gGrad;
+               accB += bGrad;
+               thr ^= thr >>> 6;
+            }
+            if (iz <= p.z[zi]) {
+               continue;
+            }
+            if (opacity != 255) {
+               int dd = (DITHER_X[x & 7] ^ ditherRow) & 0xFF;
+               if (opacity <= dd) {
+                  continue;
+               }
+            }
+            int pix;
+            if (tex != null) {
+               int texel = tex.pixels[texelIndex(uv[i])] & 0xFFFF;
+               if (texel == 0) {
+                  continue;
+               }
+               pix = litTex ? lit565(texel, flatR, flatG, flatB) : texel;
+               p.texPixels++;
+            } else if (gouraud) {
+               pix = gpix;
+               p.flatPixels++;
+            } else {
+               pix = lit565(base, spanAt[1], spanAt[2], spanAt[3]);
+               p.flatPixels++;
+            }
+            p.z[zi] = iz;
+            c.raster[zi] = (short) pix;
+            wrote++;
+            if (probeX >= 0 && x == probeX && y == probeY && c.width == mainWidth) {
+               probeHit = describe(mat, tex, k) + " px=#" + Integer.toHexString(pix);
+            }
+         }
+      }
+      framePixels += wrote;
+      if (tex != null) {
+         frameTexPixels += wrote;
+      }
+      if (p.matPixels != null && wrote > 0) {
+         String key = describe(mat, tex, k);
+         int[] n2 = p.matPixels.get(key);
+         if (n2 == null) {
+            p.matPixels.put(key, new int[]{wrote});
+         } else {
+            n2[0] += wrote;
+         }
+      }
+      return row;
    }
 
    /**
@@ -1228,6 +1819,329 @@ public final class NativeCamera {
 
    /** Vertices whose adjacent normals cancelled out and took RW's first-polygon fallback. */
    static int degenerateVertexNormals;
+
+   // ------------------------------------------------------------------
+   // Polygon sort tree of a clump in hint mode 1 (RWL21 0x10033750)
+
+   /**
+    * What RWL21 keeps on a clump in hint mode 1 (rwHS without
+    * rwEDITABLE): the polygons in drawing order (clump+0xac), the lengths
+    * of the runs that alternate between "no depth test" and "depth test"
+    * (clump+0xa8, closed by a 0) and whether the first run is a depth-test
+    * one (clump+0xa4). Built once when the clump enters mode 1, not per
+    * frame; the order does not depend on the camera.
+    */
+   public static final class SortTree {
+      final NativeScene.Polygon[] order;
+      /** The same order as indices into the clump's polygon list. */
+      final int[] index;
+      final int[] runs;
+      final boolean firstConflict;
+
+      SortTree(NativeScene.Polygon[] order, int[] index, int[] runs, boolean firstConflict) {
+         this.order = order;
+         this.index = index;
+         this.runs = runs;
+         this.firstConflict = firstConflict;
+      }
+   }
+
+   /** Tree node of 0x10033750 (0x28 bytes from pool DAT_1005af00). */
+   private static final class SortNode {
+      /** +0: polygons that go before this one; +4: after; +8: next node that shares this place. */
+      SortNode back;
+      SortNode front;
+      SortNode next;
+      /** +0xc: unit normal; +0x18: plane distance; +0x1c: length of the normal sum. */
+      float nx;
+      float ny;
+      float nz;
+      float dist;
+      float area;
+      /** +0x20: the polygon, by index in the clump; +0x24: conflict flag. */
+      int poly;
+      int conflict;
+   }
+
+   /** RwDotProduct (RWL21 0x10051164): (a0*b0 + a1*b1) + a2*b2 on the x87 stack. */
+   static double dot(float ax, float ay, float az, float bx, float by, float bz) {
+      return ((double) ax * bx + (double) ay * by) + (double) az * bz;
+   }
+
+   /**
+    * RWL21 0x10001100 for the sort tree: the centroid (RwAddVector from
+    * the first vertex, then RwScaleVector by 1/n; out[0..2]), the fan sum
+    * of cross(v[i]-v0, v[i+1]-v0) normalised (out[3..5]) and its length
+    * before normalising (the return value, out[6]).
+    */
+   static float[] polygonPlane(NativeScene.Clump k, NativeScene.Polygon poly) {
+      int n = poly.indices.length;
+      float[] v0 = k.verts.get(poly.indices[0] - 1);
+      float cx = v0[0], cy = v0[1], cz = v0[2];
+      for (int i = 1; i < n; i++) {
+         float[] v = k.verts.get(poly.indices[i] - 1);
+         cx = cx + v[0];
+         cy = cy + v[1];
+         cz = cz + v[2];
+      }
+      float inv = (float) (1.0 / n);
+      cx *= inv;
+      cy *= inv;
+      cz *= inv;
+      float sx = 0.0F, sy = 0.0F, sz = 0.0F;
+      float[] a = k.verts.get(poly.indices[1] - 1);
+      float ax = a[0] - v0[0], ay = a[1] - v0[1], az = a[2] - v0[2];
+      for (int i = 2; i < n; i++) {
+         float[] b = k.verts.get(poly.indices[i] - 1);
+         float bx = b[0] - v0[0], by = b[1] - v0[1], bz = b[2] - v0[2];
+         sx = sx + (float) ((double) ay * bz - (double) az * by);
+         sy = sy + (float) ((double) az * bx - (double) ax * bz);
+         sz = sz + (float) ((double) ax * by - (double) ay * bx);
+         ax = bx;
+         ay = by;
+         az = bz;
+      }
+      float len = (float) Math.sqrt(dot(sx, sy, sz, sx, sy, sz));
+      if (len > 0.0F) {
+         float r = 1.0F / len;
+         sx *= r;
+         sy *= r;
+         sz *= r;
+      }
+      return new float[]{cx, cy, cz, sx, sy, sz, len};
+   }
+
+   /** 0.001f (RWL21 _DAT_10052268), the plane thickness of the classifier. */
+   private static final float PLANE_EPS = 0.001F;
+
+   /**
+    * RWL21 0x10033cc0(A, B): how polygon B has to be ordered against A,
+    * from the side of each other's plane their vertices lie on. A vertex
+    * is in front when dot - dist > 0.001 (fcom on the unrounded value); it
+    * is on the plane when the value rounded to float has its bits, as
+    * unsigned, at most 0xba83126f (so -0.001f..0.001), and behind
+    * otherwise. Returns 0 (same polygon), 3 (either order), -1 (B before
+    * A), 1 (B after A) or 2 (they cross: depth test needed).
+    */
+   static int classify(NativeScene.Clump k, SortNode a, SortNode b) {
+      if (a.poly == b.poly) {
+         return 0;
+      }
+      int[] ib = k.polys.get(b.poly).indices;
+      int[] ia = k.polys.get(a.poly).indices;
+      int front1 = 0, on1 = 0;
+      for (int idx : ib) {
+         float[] v = k.verts.get(idx - 1);
+         double d = dot(a.nx, a.ny, a.nz, v[0], v[1], v[2]) - a.dist;
+         if (d > PLANE_EPS) {
+            front1++;
+         } else if (Integer.toUnsignedLong(Float.floatToRawIntBits((float) d)) <= 0xba83126fL) {
+            on1++;
+         }
+      }
+      int front2 = 0, on2 = 0;
+      for (int idx : ia) {
+         float[] v = k.verts.get(idx - 1);
+         double d = dot(b.nx, b.ny, b.nz, v[0], v[1], v[2]) - b.dist;
+         if (d > PLANE_EPS) {
+            front2++;
+         } else if (Integer.toUnsignedLong(Float.floatToRawIntBits((float) d)) <= 0xba83126fL) {
+            on2++;
+         }
+      }
+      int nb = ib.length, na = ia.length;
+      if (front1 == 0 && front2 == 0) {
+         return 3;
+      }
+      if (on1 == nb - front1 && na - front2 == on2) {
+         return 3;
+      }
+      if (front1 == 0) {
+         return -1;
+      }
+      if (on1 == nb - front1) {
+         return 1;
+      }
+      if (front2 == 0) {
+         return 1;
+      }
+      return na - front2 - on2 == 0 ? -1 : 2;
+   }
+
+   /**
+    * RWL21 0x10033750, run when a clump enters hint mode 1 (FUN_10033600,
+    * or 0x100329e0 when a locked bulk edit ends): one node per polygon, in
+    * clump order, with the plane of 0x10001100 (dist = centroid . normal);
+    * each node is inserted from the root comparing it with every node of
+    * the list at that place (0x10033cc0): with no before/after answer it
+    * joins the list, otherwise it goes down to the side whose nodes add up
+    * the larger area (after on a tie), and the nodes of the other side
+    * that disagree, plus the new one, are marked as conflicting, as are
+    * both nodes of a crossing pair. The tree is then read in order (before
+    * side, the list, after side); each list is written with the nodes of
+    * the current run's flag first. Consecutive nodes with the same flag
+    * form the runs. Null for a clump without polygons (0x10033750 then
+    * returns without arrays).
+    */
+   static SortTree buildSortTree(NativeScene.Clump k) {
+      int n = k.polys.size();
+      if (n == 0) {
+         return null;
+      }
+      SortNode[] nodes = new SortNode[n];
+      for (int i = 0; i < n; i++) {
+         SortNode s = new SortNode();
+         float[] pl = polygonPlane(k, k.polys.get(i));
+         s.poly = i;
+         s.area = pl[6];
+         s.nx = pl[3];
+         s.ny = pl[4];
+         s.nz = pl[5];
+         s.dist = (float) dot(pl[0], pl[1], pl[2], s.nx, s.ny, s.nz);
+         nodes[i] = s;
+      }
+      SortNode root = null;
+      List<SortNode> before = new ArrayList<SortNode>();
+      List<SortNode> after = new ArrayList<SortNode>();
+      for (int i = 0; i < n; i++) {
+         SortNode s = nodes[i];
+         if (root == null) {
+            root = s;
+            continue;
+         }
+         SortNode cur = root;
+         while (true) {
+            before.clear();
+            after.clear();
+            float areaBefore = 0.0F, areaAfter = 0.0F;
+            for (SortNode m = cur; m != null; m = m.next) {
+               int r = classify(k, m, s);
+               if (r == -1) {
+                  before.add(m);
+                  areaBefore = areaBefore + m.area;
+               } else if (r == 1) {
+                  after.add(m);
+                  areaAfter = areaAfter + m.area;
+               } else if (r == 2) {
+                  m.conflict = 1;
+                  s.conflict = 1;
+               }
+            }
+            int side;
+            if (before.isEmpty() && after.isEmpty()) {
+               side = 3;
+            } else if (areaAfter < areaBefore) {
+               if (!after.isEmpty()) {
+                  for (SortNode m : after) {
+                     m.conflict = 1;
+                  }
+                  s.conflict = 1;
+               }
+               side = -1;
+            } else {
+               if (!before.isEmpty()) {
+                  for (SortNode m : before) {
+                     m.conflict = 1;
+                  }
+                  s.conflict = 1;
+               }
+               side = 1;
+            }
+            if (side == -1) {
+               if (cur.back != null) {
+                  cur = cur.back;
+                  continue;
+               }
+               cur.back = s;
+            } else if (side == 1) {
+               if (cur.front != null) {
+                  cur = cur.front;
+                  continue;
+               }
+               cur.front = s;
+            } else {
+               s.next = cur.next;
+               cur.next = s;
+            }
+            break;
+         }
+      }
+      // in-order walk with an explicit stack (0x10033a5a..0x10033b13)
+      SortNode[] out = new SortNode[n];
+      int count = 0;
+      int flag = 0;
+      SortNode[] stack = new SortNode[n];
+      int sp = 0;
+      SortNode walk = root;
+      while (true) {
+         for (; walk != null; walk = walk.back) {
+            stack[sp++] = walk;
+         }
+         if (sp == 0) {
+            break;
+         }
+         SortNode top = stack[--sp];
+         if (count == 0) {
+            flag = top.conflict;
+         }
+         for (SortNode m = top; m != null; m = m.next) {
+            if (m.conflict == flag) {
+               out[count++] = m;
+            }
+         }
+         for (SortNode m = top; m != null; m = m.next) {
+            if (m.conflict != flag) {
+               out[count++] = m;
+            }
+         }
+         flag = out[count - 1].conflict;
+         walk = top.front;
+      }
+      // runs (0x10033be3..0x10033c7f)
+      NativeScene.Polygon[] order = new NativeScene.Polygon[n];
+      int[] index = new int[n];
+      int[] runs = new int[n + 1];
+      int runIdx = 0, len = 0, cur = out[0].conflict;
+      for (int i = 0; i < n; i++) {
+         if (out[i].conflict != cur) {
+            runs[runIdx++] = len;
+            len = 0;
+            cur = out[i].conflict;
+         }
+         len++;
+         order[i] = k.polys.get(out[i].poly);
+         index[i] = out[i].poly;
+      }
+      runs[runIdx] = len;
+      int[] trimmed = new int[runIdx + 2];
+      System.arraycopy(runs, 0, trimmed, 0, runIdx + 1);
+      return new SortTree(order, index, trimmed, out[0].conflict != 0);
+   }
+
+   /**
+    * For the checks: the sort tree of a clump as polygon indices (0-based,
+    * clump order) in drawing order, then -1, the run lengths (ending in
+    * 0), -1 and the flag of the first run. Null when there is no tree.
+    */
+   public static int[] sortTreeOf(int clump) {
+      NativeScene.Clump k = NativeScene.clump(clump);
+      if (k == null || k.sortTree == null) {
+         return null;
+      }
+      SortTree t = k.sortTree;
+      int[] out = new int[t.order.length + t.runs.length + 3];
+      int o = 0;
+      for (int i : t.index) {
+         out[o++] = i;
+      }
+      out[o++] = -1;
+      for (int r : t.runs) {
+         out[o++] = r;
+      }
+      out[o++] = -1;
+      out[o] = t.firstConflict ? 1 : 0;
+      return out;
+   }
 
    // Scratch buffers of the draw pass. The original transforms into the
    // driver's own vertex array; here they just keep the frame from
