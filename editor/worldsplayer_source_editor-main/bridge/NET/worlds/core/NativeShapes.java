@@ -103,6 +103,184 @@ public final class NativeShapes {
       }
    }
 
+   // ------------------------------------------------------------ convertSpecial
+
+   /** The Java side of 0x0041e780: builds and adds the object (Shape.convertSpecial hunk). */
+   public interface SpecialSink {
+      /**
+       * name == null: {@code new Rect(q, p, null)} then {@code setVisible(false)};
+       * otherwise {@code new TwoWayPortal(name, q, p)}; then
+       * {@code setAutobuilt(true)} and {@code room.add(obj)}.
+       */
+      void make(Object room, String name, float[] q, float[] p);
+   }
+
+   /** DAT_00470acc / DAT_00470ad0: +-1/64, strict on both sides. */
+   private static final float SPECIAL_EPS = 0.015625F;
+
+   /**
+    * Shape.convertSpecial (gamma.dll 0x0041f1b0 -> FUN_0041efd0): the
+    * hierarchy post-order (children first, in order; FUN_0041efd0 unrolls
+    * nine levels and recurses) and, for each clump, FUN_0041ee70.
+    */
+   public static void convertSpecial(int clump, SpecialSink sink) {
+      for (int child : NativeScene.childHandles(clump)) {
+         convertSpecial(child, sink);
+      }
+      convertSpecialClump(clump, sink);
+   }
+
+   /**
+    * FUN_0041ee70: only a clump in a scene whose data is set (the Room;
+    * RwGetClumpOwner + RwGetSceneData) and whose tag has bit 0x40000000
+    * (a TwoWayPortal whose name is packed in the tag) or 0x20000000 (a
+    * Rect). The name is 5 characters of 6 bits from bit 24 down to bit 0,
+    * each + 0x20, spaces left out and A-Z lower-cased (DAT_00482818). Each
+    * polygon, found by tag 1..n (FUN_004189c0), goes to {@link #special}.
+    */
+   static void convertSpecialClump(int clump, SpecialSink sink) {
+      int owner = NativeScene.getClumpOwner(clump);
+      if (owner == 0) {
+         return;
+      }
+      Object room = NativeScene.getSceneData(owner);
+      if (room == null) {
+         return;
+      }
+      int tag = NativeScene.getClumpTag(clump);
+      String name;
+      if ((tag & 0x40000000) != 0) {
+         StringBuilder sb = new StringBuilder();
+         for (int shift = 0x18; shift >= 0; shift -= 6) {
+            char ch = (char) (((tag >> shift) & 0x3f) + 0x20);
+            if (ch != ' ') {
+               sb.append(ch >= 'A' && ch <= 'Z' ? (char) (ch + 0x20) : ch);
+            }
+         }
+         name = sb.toString();
+      } else if ((tag & 0x20000000) != 0) {
+         name = null;
+      } else {
+         return;
+      }
+      int n = NativeScene.clump(clump).polys.size();
+      for (int i = 1; i <= n; i++) {
+         NativeScene.Polygon p = taggedPolygon(clump, i);
+         if (p != null) {
+            special(clump, p, room, name, sink);
+         }
+      }
+   }
+
+   /**
+    * FUN_004189c0: RwFindTaggedPolygon(clump, tag) and, if there is none,
+    * every polygon retagged 1, 2, ... in order (0x00418720) and found again.
+    */
+   static NativeScene.Polygon taggedPolygon(int clump, int tag) {
+      NativeScene.Clump c = NativeScene.clump(clump);
+      for (NativeScene.Polygon p : c.polys) {
+         if (p.tag == tag) {
+            return p;
+         }
+      }
+      int k = 1;
+      for (NativeScene.Polygon p : c.polys) {
+         NativeScene.setPolygonTag(p.handle, k++);
+      }
+      for (NativeScene.Polygon p : c.polys) {
+         if (p.tag == tag) {
+            return p;
+         }
+      }
+      return null;
+   }
+
+   private static boolean near(float d) {
+      return d < SPECIAL_EPS && -SPECIAL_EPS < d;
+   }
+
+   /**
+    * FUN_0041e780: a triangle that is half of an upright rectangle. With
+    * vertices a, b, c (RwGetClumpVertex, clump space): the two with the
+    * same y (within 1/64) are the base; the third, P, has to be above one
+    * of them in x and z, and the other one, Q, is the far corner. If P is
+    * not higher than Q nothing is made. Unless P stood over the second
+    * vertex of the pair as the binary orders it, P and Q swap x and z.
+    * Both corners go through the clump LTM (RwPushScratchMatrix +
+    * RwGetClumpLTM + RwTransformPoint) and the object is made with (Q, P).
+    * Errors are printed with Std.printlnOut (FUN_00402b70).
+    */
+   static void special(int clump, NativeScene.Polygon poly, Object room, String name, SpecialSink sink) {
+      if (poly.indices.length != 3) {
+         Std.printlnOut("Special clump contains a non-triangle");
+         return;
+      }
+      float[] a = NativeScene.getVertex(clump, poly.indices[0]);
+      float[] b = NativeScene.getVertex(clump, poly.indices[1]);
+      float[] c = NativeScene.getVertex(clump, poly.indices[2]);
+      float[] p;
+      float[] q;
+      boolean flip;
+      if (near(a[1] - b[1])) {
+         p = c;
+         if (near(a[0] - c[0]) && near(a[2] - c[2])) {
+            q = b;
+            flip = false;
+         } else if (near(b[0] - c[0]) && near(b[2] - c[2])) {
+            q = a;
+            flip = true;
+         } else {
+            Std.printlnOut("Special clump has a non-vertical side");
+            return;
+         }
+      } else if (near(a[1] - c[1])) {
+         p = b;
+         if (near(a[0] - b[0]) && near(a[2] - b[2])) {
+            q = c;
+            flip = true;
+         } else if (near(c[0] - b[0]) && near(c[2] - b[2])) {
+            q = a;
+            flip = false;
+         } else {
+            Std.printlnOut("Special clump has a non-vertical side");
+            return;
+         }
+      } else if (near(b[1] - c[1])) {
+         p = a;
+         if (near(a[0] - b[0]) && near(a[2] - b[2])) {
+            q = c;
+            flip = false;
+         } else if (near(a[0] - c[0]) && near(a[2] - c[2])) {
+            q = b;
+            flip = true;
+         } else {
+            Std.printlnOut("Special clump has a non-vertical side");
+            return;
+         }
+      } else {
+         Std.printlnOut("Special clump has a non-horizontal base");
+         return;
+      }
+      p = p.clone();
+      q = q.clone();
+      if (p[1] <= q[1]) {
+         return;
+      }
+      if (!flip) {
+         float t = p[0];
+         p[0] = q[0];
+         q[0] = t;
+         t = p[2];
+         p[2] = q[2];
+         q[2] = t;
+      }
+      float[] ltm = new float[16];
+      NativeScene.getClumpLTM(clump, ltm);
+      float[] qw = NativeRw.transformPoint(ltm, q[0], q[1], q[2]);
+      float[] pw = NativeRw.transformPoint(ltm, p[0], p[1], p[2]);
+      sink.make(room, name, qw, pw);
+   }
+
    // ------------------------------------------------------------ .rwg
 
    /** The object FUN_0041c970 builds for ShapeLoader.loadBinaryFile. */
