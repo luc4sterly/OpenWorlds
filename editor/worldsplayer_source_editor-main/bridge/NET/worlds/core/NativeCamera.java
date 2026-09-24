@@ -527,6 +527,34 @@ public final class NativeCamera {
       return new int[]{x, y, x2 - x, y2 - y};
    }
 
+   /**
+    * WObject.nativeInCamSpace (gamma.dll 0x00413910): null when there is
+    * no camera or clump or when RwGetClumpState is not 2 (0x00419570);
+    * otherwise RwGetClumpOrigin (RWL21 0x10005930, the LTM translation)
+    * through RwInvertMatrix of RwGetCameraLTM (0x004191d0 -> 0x00419860)
+    * with RwTransformPoint (0x0041a080).
+    */
+   public static float[] inCamSpace(int camH, int clump) {
+      Cam c = cam(camH);
+      if (c == null || NativeScene.clump(clump) == null || NativeScene.getClumpState(clump) != 2) {
+         return null;
+      }
+      float[] ltm = new float[16];
+      NativeScene.getClumpLTM(clump, ltm);
+      float[] inv = new float[16];
+      NativeRw.invert(c.ltm, inv);
+      float[] p = NativeRw.transformPoint(inv, ltm[12], ltm[13], ltm[14]);
+      Object d = NativeScene.getClumpData(clump);
+      if (System.getProperty("freeworlds.traceInCamSpace") != null && inCamTraced.add(d)) {
+         System.err.println("[RW] inCamSpace " + (d == null ? "-" : d.getClass().getSimpleName() + ":" + d)
+            + " -> (" + p[0] + "," + p[1] + "," + p[2] + ")");
+      }
+      return p;
+   }
+
+   /** -Dfreeworlds.traceInCamSpace: first point got by each object. */
+   private static final java.util.Set<Object> inCamTraced = java.util.Collections.synchronizedSet(new java.util.HashSet<Object>());
+
    private static float[] toCamera(Cam c, float wx, float wy, float wz) {
       float dx = wx - c.ltm[12], dy = wy - c.ltm[13], dz = wz - c.ltm[14];
       return new float[]{

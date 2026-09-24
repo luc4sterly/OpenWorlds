@@ -1923,7 +1923,28 @@ diff a/NET/worlds/scape/WObject.java b/NET/worlds/scape/WObject.java
     }
  
     public final boolean hasClump() {
-@@ -374,32 +379,82 @@
+@@ -364,7 +369,19 @@
+ 
+    public boolean nativeInCamSpace(Camera var1, Point3Temp var2) {
+       NET.worlds.core.NativeMock.log("WObject", "nativeInCamSpace", new Object[]{var1, var2});
+-      return true;
++      // gamma.dll 0x00413910: false without camera or clump, or when
++      // RwGetClumpState != 2 (0x00419570); otherwise the clump origin
++      // (RwGetClumpOrigin, LTM row 3) through the inverse of the camera
++      // LTM (RwGetCameraLTM + RwInvertMatrix, 0x004191d0 / 0x00419860)
++      // into the Point3 (x, y, z fields, 0x0041ab00).
++      float[] p = NET.worlds.core.NativeCamera.inCamSpace(var1.rwCameraID(), this.clumpID);
++      if (p == null) {
++         return false;
++      }
++      var2.x = p[0];
++      var2.y = p[1];
++      var2.z = p[2];
++      return true;
+    }
+ 
+    public Point3Temp inCamSpace(Camera var1) {
+@@ -374,32 +391,82 @@
  
     protected void voidClump() {
        NET.worlds.core.NativeMock.log("WObject", "voidClump", new Object[0]);
