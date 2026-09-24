@@ -67,7 +67,9 @@ public final class RwgBinaryCheck {
          NativeTextures.Texture et = NativeTextures.texture(em.texture);
          check("e3 textura leída por RwGetNamedTexture", et != null && (et.pixels[0] & 0xFFFF) == 0xF800);
          eq("e3 luz por vértice (palabra 0x15)", em.lightSampling, 2);
-         eq("e3 tag 1 -> hints 2", NativeScene.clump(e3).hints, 2);
+         // el callback pone hints 2 (modo HS 1) y FUN_10033600 lo pasa a
+         // editable (| 4) porque e3 tiene 2400 poligonos > 0x3e8 (0x1003362b)
+         eq("e3 tag 1 -> hints 2, > 1000 poligonos -> 6", NativeScene.clump(e3).hints, 6);
       }
 
       // --- AVATAR.RWG: ATOM vacío = clump válido y vacío (no 0)
