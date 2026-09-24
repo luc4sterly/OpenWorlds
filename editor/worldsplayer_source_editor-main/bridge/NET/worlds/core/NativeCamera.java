@@ -1123,6 +1123,20 @@ public final class NativeCamera {
          // before, covers area outside those triangles whenever the
          // projected polygon is warped or concave, and interpolates the
          // texture and the shading over the wrong domain.
+         if (!p.pick) {
+            // The driver's own triangles (see rasterTri): the fan is walked
+            // from its LAST triangle back to the first, (v0, v[i], v[i+1])
+            // for a front polygon and (v0, v[i+1], v[i]) for the back of a
+            // double-sided one (the 0x10000 flag the caller passes).
+            for (int t = m2 - 2; t >= 1; t--) {
+               if (front) {
+                  rasterTri(p, cl[0], cl[t], cl[t + 1], mat, tex, k, facet);
+               } else {
+                  rasterTri(p, cl[0], cl[t + 1], cl[t], mat, tex, k, facet);
+               }
+            }
+            continue;
+         }
          for (int t = 1; t + 1 < m2; t++) {
             triV[0] = cl[0];
             triV[1] = cl[t];
@@ -1136,6 +1150,404 @@ public final class NativeCamera {
             raster(p, triV, triX, triY, mat, tex, k, facet);
          }
       }
+   }
+
+   // ------------------------------------------------------------------
+   // Triangle setup and spans of the 16-bit driver (RWDL6D21)
+
+   /**
+    * Reciprocal table DAT_10079214 (0x2080 bytes), built in the driver's
+    * open (0x1000a008..0x1000a03e): for dx = -32..32 and dy = 1..31,
+    * entry [(dx + 32) * 32 + dy] = (dx << 16) / dy with idiv (truncation
+    * toward zero); entry dy = 0 of each row is never written.
+    */
+   static final int[] RECIP = buildRecip();
+
+   private static int[] buildRecip() {
+      int[] t = new int[65 * 32];
+      for (int row = 0, num = -0x200000; num <= 0x200000; num += 0x10000, row += 32) {
+         for (int dy = 1; dy < 32; dy++) {
+            t[row + dy] = num / dy;
+         }
+      }
+      return t;
+   }
+
+   /**
+    * Edge slope in 16.16 as every triangle setup computes it (0x100259e0,
+    * 0x10019fa0, 0x1002d200...): dy = 1 -> dx << 16, dy = 2 -> dx * 0x8000,
+    * |dx| < 32 and dy < 32 -> the reciprocal table (base + 0x1000 = row
+    * dx = 0), otherwise (dx << 16) / dy with idiv.
+    */
+   public static int slope(int dx, int dy) {
+      if (dy == 1) {
+         return dx * 0x10000;
+      }
+      if (dy == 2) {
+         return dx * 0x8000;
+      }
+      if (dy < 32 && -32 < dx && dx < 32) {
+         return RECIP[(dx + 32) * 32 + dy];
+      }
+      return dx * 0x10000 / dy;
+   }
+
+   /** 512.0f (_DAT_10078100) and 1/512 (_DAT_100780f8) of the textured setups. */
+   private static final float UV_SCALE = 0.001953125F;
+
+   /**
+    * Screen position in 16.16 of a clipped vertex, as the driver's vertex
+    * transform (0x10069650, perspective branch, FPU set to 24-bit
+    * precision) stores it: round-to-nearest of X * (1/Z) * (vpW * 65536),
+    * relative to the viewport.
+    */
+   static int screen16(float x, float z, int size) {
+      float f = 1.0F / z;
+      float s = (float) (int) (size * 65536.0);
+      return (int) Math.rint(x * f * s);
+   }
+
+   /** One vertex of the driver triangle: screen 16.16, camera Z, UV fixed, lighting, 1/Z and world position. */
+   private static final class DVert {
+      int x16;
+      int y16;
+      float z;
+      int u;
+      int v;
+      float[] a;
+   }
+
+   private static final DVert[] dv = {new DVert(), new DVert(), new DVert()};
+
+   private static DVert dvert(int i, float[] c, Cam cam) {
+      DVert d = dv[i];
+      d.x16 = screen16(c[0], c[2], cam.vpW);
+      d.y16 = screen16(c[1], c[2], cam.vpH);
+      d.z = c[2];
+      d.u = NativeScene.uvFixed(c[3]);
+      d.v = NativeScene.uvFixed(c[4]);
+      d.a = c;
+      return d;
+   }
+
+   /** Edge state of one side of the triangle, stepped once per scanline. */
+   private static final class Edge {
+      int x;
+      int dx;
+      /** perspective terms q, u*q, v*q (floats, 0x1007f440.. / 0x1007f458..) */
+      float q;
+      float dq;
+      float uq;
+      float duq;
+      float vq;
+      float dvq;
+      /** 1/Z and lighting r, g, b, linear per scanline (bridge approximation of the depth / colour setup) */
+      final float[] at = new float[4];
+      final float[] dat = new float[4];
+
+      void set(DVert s, float qs, float uqs, float vqs, DVert e, float qe, float uqe, float vqe, int dy, int xs16, int slope) {
+         this.x = xs16;
+         this.dx = slope;
+         float inv = 1.0F / (float) dy;
+         this.q = qs;
+         this.uq = uqs;
+         this.vq = vqs;
+         this.dq = (qe - qs) * inv;
+         this.duq = (uqe - uqs) * inv;
+         this.dvq = (vqe - vqs) * inv;
+         for (int i = 0; i < 4; i++) {
+            float a = i == 0 ? 1.0F / s.z : s.a[4 + i];
+            float b = i == 0 ? 1.0F / e.z : e.a[4 + i];
+            this.at[i] = a;
+            this.dat[i] = (b - a) * inv;
+         }
+      }
+
+      void step() {
+         this.x += this.dx;
+         this.q = this.q + this.dq;
+         this.uq = this.uq + this.duq;
+         this.vq = this.vq + this.dvq;
+         for (int i = 0; i < 4; i++) {
+            this.at[i] += this.dat[i];
+         }
+      }
+   }
+
+   private static final Edge edgeA = new Edge();
+   private static final Edge edgeB = new Edge();
+
+   /**
+    * A triangle as the 16-bit driver fills it, from the setups 0x100259e0
+    * (Gouraud), 0x10019fa0 (flat) and 0x1002d200 (textured, perspective),
+    * which share their geometry:
+    *
+    * - the vertices are rotated, keeping their cyclic order, so the first
+    *   has the smallest 16.16 y; from then on only the INTEGER parts of x
+    *   and y are used (the vertex snaps to the pixel grid);
+    * - edge a runs top -> second vertex (left), edge b top -> third (right),
+    *   with 16.16 slopes from slope(); a triangle whose right edge is not
+    *   at least one unit to the right is dropped (wrong winding);
+    * - each scanline first steps both edges and then fills
+    *   x = (xa >> 16) .. (xb >> 16) - 1 (the span routine 0x1002cbb0 /
+    *   0x1006a340): the first row drawn, y_top, already uses the edge one
+    *   step down;
+    * - textured: per-vertex q_i = Z_j * Z_k and u_i * (1/512) * q_i
+    *   (u in RWL21's fixed 16.16, NativeScene.uvFixed), stepped per line
+    *   along each edge in float; spans of up to 16 pixels interpolate
+    *   linearly between the perspective-correct ends, longer spans divide
+    *   once every 16 pixels (texSpan);
+    * - texel 0 is transparent.
+    *
+    * The depth buffer and the untextured shading keep the bridge's
+    * approximation (1/Z and lighting linear in screen space along the same
+    * edges), see ⚠️ in bridge/README.md.
+    */
+   private static void rasterTri(Pass p, float[] c0, float[] c1, float[] c2, NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k, float[] facetLit) {
+      Cam c = p.c;
+      DVert a = dvert(0, c0, c), b = dvert(1, c1, c), d = dvert(2, c2, c);
+      // rotation to the top vertex (0x1002d200 head)
+      DVert t0 = a, t1 = b, t2 = d;
+      if (b.y16 < a.y16) {
+         if (b.y16 < d.y16) {
+            t0 = b;
+            t1 = d;
+            t2 = a;
+         } else {
+            t0 = d;
+            t1 = a;
+            t2 = b;
+         }
+      } else if (d.y16 < a.y16) {
+         t0 = d;
+         t1 = a;
+         t2 = b;
+      }
+      int yT = t0.y16 >> 16, xT = t0.x16 >> 16;
+      int y3 = t1.y16 >> 16, x3 = t1.x16 >> 16;
+      int y4 = t2.y16 >> 16, x4 = t2.x16 >> 16;
+      // q_i = product of the other two camera Z (0x1007f330/334/338) and u*q, v*q
+      float qT = t2.z * t1.z, q3 = t2.z * t0.z, q4 = t1.z * t0.z;
+      float uT = (float) t0.u * UV_SCALE * qT, vT = (float) t0.v * UV_SCALE * qT;
+      float u3 = (float) t1.u * UV_SCALE * q3, v3 = (float) t1.v * UV_SCALE * q3;
+      float u4 = (float) t2.u * UV_SCALE * q4, v4 = (float) t2.v * UV_SCALE * q4;
+      int dy1 = y3 - yT;
+      int row = yT;
+      if (dy1 < 1) {
+         if (xT - x3 < 1) {
+            return;
+         }
+         int dy = y4 - y3;
+         if (dy == 0) {
+            return;
+         }
+         edgeA.set(t1, q3, u3, v3, t2, q4, u4, v4, dy, x3 << 16, slope(x4 - x3, dy));
+         edgeB.set(t0, qT, uT, vT, t2, q4, u4, v4, dy, xT << 16, slope(x4 - xT, dy));
+         spans(p, row, dy, mat, tex, k, facetLit);
+         return;
+      }
+      int dxa = slope(x3 - xT, dy1);
+      int dy2 = y4 - yT;
+      if (dy2 < 1) {
+         if (x4 - xT < 1) {
+            return;
+         }
+         edgeA.set(t0, qT, uT, vT, t1, q3, u3, v3, dy1, xT << 16, dxa);
+         edgeB.set(t2, q4, u4, v4, t1, q3, u3, v3, dy1, x4 << 16, slope(x3 - x4, dy1));
+         spans(p, row, dy1, mat, tex, k, facetLit);
+         return;
+      }
+      int dxb = slope(x4 - xT, dy2);
+      if (dxb - dxa < 1) {
+         return;
+      }
+      edgeA.set(t0, qT, uT, vT, t1, q3, u3, v3, dy1, xT << 16, dxa);
+      edgeB.set(t0, qT, uT, vT, t2, q4, u4, v4, dy2, xT << 16, dxb);
+      if (dy1 < dy2) {
+         row = spans(p, row, dy1, mat, tex, k, facetLit);
+         int rest = dy2 - dy1;
+         edgeA.set(t1, q3, u3, v3, t2, q4, u4, v4, rest, x3 << 16, slope(x4 - x3, rest));
+         spans(p, row, rest, mat, tex, k, facetLit);
+      } else {
+         row = spans(p, row, dy2, mat, tex, k, facetLit);
+         int rest = dy1 - dy2;
+         if (rest == 0) {
+            return;
+         }
+         edgeB.set(t2, q4, u4, v4, t1, q3, u3, v3, rest, x4 << 16, slope(x3 - x4, rest));
+         spans(p, row, rest, mat, tex, k, facetLit);
+      }
+   }
+
+   private static int[] spanUV = new int[64];
+
+   /**
+    * Texture coordinates of one span as 0x1002cbb0 packs them: v in bits
+    * 0..13 (texel = bits 7..13) and u in bits 16..31 (texel = bits
+    * 25..31), both from 16.16 values with 9 fractional bits per texel.
+    * cnt <= 16: linear between the perspective-correct ends, step =
+    * (end - start) * (float)(1/cnt) truncated. cnt > 16: q, uq, vq advance
+    * by 16 * (1/cnt) of the span per block; at each block end u, v are
+    * divided again (512/q) and the 16 pixels step by
+    * ((dv & 0xfffc0) >> 6) | ((du & ~15) << 12); the tail divides by the
+    * right edge and steps by (start - end) / -n (idiv). Returns the packed
+    * value for each pixel in out[0..cnt-1].
+    */
+   public static int[] texSpan(float qa, float uqa, float vqa, float qb, float uqb, float vqb, int cnt, int[] out) {
+      if (out == null || out.length < cnt) {
+         out = new int[Math.max(cnt, 16)];
+      }
+      float invf = (float) (1.0 / cnt);
+      if (cnt <= 16) {
+         double aa = 512.0 / qa;
+         double bb = 512.0 / qb;
+         double ul = uqa * aa, vl = vqa * aa;
+         int pk = (ftol(vl) & 0x3fffc) >>> 2 | ftol(ul) << 16;
+         int dvv = ftol((vqb * bb - vl) * invf);
+         int duu = ftol((uqb * bb - ul) * invf);
+         int step = (dvv & 0x3fffc) >>> 2 | duu << 16;
+         for (int i = 0; i < cnt; i++) {
+            out[i] = pk;
+            pk += step;
+         }
+         return out;
+      }
+      double f16 = (double) invf * 16.0;
+      float dU16 = (float) ((uqb - uqa) * f16);
+      float dV16 = (float) ((vqb - vqa) * f16);
+      float dQ16 = (float) (f16 * (qb - qa));
+      double aa = 512.0 / qa;
+      int u0 = ftol(uqa * aa);
+      int v0 = ftol(aa * vqa);
+      float uq = uqa, vq = vqa, q = qa;
+      int blocks = cnt >> 4;
+      int o = 0;
+      for (int bl = 0; bl < blocks; bl++) {
+         uq = (float) ((double) uq + dU16);
+         vq = (float) ((double) vq + dV16);
+         q = (float) ((double) dQ16 + q);
+         double r = 512.0 / q;
+         int u1 = ftol(uq * r);
+         int v1 = ftol(r * vq);
+         int step = ((v1 - v0) & 0xfffc0) >>> 6 | ((u1 - u0) & ~0xf) << 12;
+         int pk = (v0 & 0xfffc) >>> 2 | u0 << 16;
+         for (int i = 0; i < 16; i++) {
+            out[o++] = pk;
+            pk += step;
+         }
+         u0 = u1;
+         v0 = v1;
+      }
+      int n = o - cnt;
+      if (n < 0) {
+         double r = 512.0 / qb;
+         int pk = (v0 & 0xfffc) >>> 2 | u0 << 16;
+         int dvv = (v0 - ftol(vqb * r)) / n;
+         int duu = (u0 - ftol(r * uqb)) / n;
+         int step = (dvv & 0xfffc) >>> 2 | duu << 16;
+         while (o < cnt) {
+            out[o++] = pk;
+            pk += step;
+         }
+      }
+      return out;
+   }
+
+   /** __ftol (RWDL6D21 0x1005ff48): truncation to 64 bits, low 32 kept. */
+   static int ftol(double d) {
+      return (int) (long) d;
+   }
+
+   /** Texel of a packed span value (0x1002cd8b..0x1002cda1). */
+   public static int texelIndex(int pk) {
+      return ((pk >>> 7) & 0x7F) * NativeTextures.SIZE + (pk >>> 25);
+   }
+
+   private static final float[] spanAt = new float[4];
+
+   /** count scanlines from row; returns the next row. */
+   private static int spans(Pass p, int row, int count, NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k, float[] facetLit) {
+      Cam c = p.c;
+      int base = mat == null ? 0 : device565(mat.color[0], mat.color[1], mat.color[2]);
+      boolean litTex = mat != null && (mat.textureModes & 1) != 0;
+      int opacity = mat == null ? 255 : (mat.opacity >= 1.0F ? 255 : ((int) (mat.opacity * 65536.0F) >> 8) & 0xFC);
+      float flatR = facetLit != null ? facetLit[0] : 31.0F;
+      float flatG = facetLit != null ? facetLit[1] : 31.0F;
+      float flatB = facetLit != null ? facetLit[2] : 31.0F;
+      int ox = c.renderOffX + c.vpX, oy = c.renderOffY + c.vpY;
+      int xMin = Math.max(0, c.renderOffX), xMax = Math.min(c.width, c.renderOffX + c.vpW);
+      int yMin = Math.max(0, c.renderOffY), yMax = Math.min(c.height, c.renderOffY + c.vpH);
+      int wrote = 0;
+      for (int r = 0; r < count; r++, row++) {
+         edgeA.step();
+         edgeB.step();
+         int xl = edgeA.x >> 16, xr = edgeB.x >> 16;
+         int cnt = xr - xl;
+         int y = row + oy;
+         if (cnt <= 0 || y < yMin || y >= yMax) {
+            continue;
+         }
+         int[] uv = null;
+         if (tex != null) {
+            uv = spanUV = texSpan(edgeA.q, edgeA.uq, edgeA.vq, edgeB.q, edgeB.uq, edgeB.vq, cnt, spanUV);
+         }
+         int rowBase = y * c.width;
+         int ditherRow = DITHER_Y[y & 7];
+         float invCnt = 1.0F / cnt;
+         for (int i = 0; i < cnt; i++) {
+            int x = xl + i + ox;
+            if (x < xMin || x >= xMax) {
+               continue;
+            }
+            float tt = i * invCnt;
+            for (int j = 0; j < 4; j++) {
+               spanAt[j] = edgeA.at[j] + (edgeB.at[j] - edgeA.at[j]) * tt;
+            }
+            float iz = spanAt[0];
+            int zi = rowBase + x;
+            if (iz <= p.z[zi]) {
+               continue;
+            }
+            if (opacity != 255) {
+               int dd = (DITHER_X[x & 7] ^ ditherRow) & 0xFF;
+               if (opacity <= dd) {
+                  continue;
+               }
+            }
+            int pix;
+            if (tex != null) {
+               int texel = tex.pixels[texelIndex(uv[i])] & 0xFFFF;
+               if (texel == 0) {
+                  continue;
+               }
+               pix = litTex ? lit565(texel, flatR, flatG, flatB) : texel;
+               p.texPixels++;
+            } else {
+               pix = lit565(base, spanAt[1], spanAt[2], spanAt[3]);
+               p.flatPixels++;
+            }
+            p.z[zi] = iz;
+            c.raster[zi] = (short) pix;
+            wrote++;
+            if (probeX >= 0 && x == probeX && y == probeY && c.width == mainWidth) {
+               probeHit = describe(mat, tex, k) + " px=#" + Integer.toHexString(pix);
+            }
+         }
+      }
+      framePixels += wrote;
+      if (tex != null) {
+         frameTexPixels += wrote;
+      }
+      if (p.matPixels != null && wrote > 0) {
+         String key = describe(mat, tex, k);
+         int[] n2 = p.matPixels.get(key);
+         if (n2 == null) {
+            p.matPixels.put(key, new int[]{wrote});
+         } else {
+            n2[0] += wrote;
+         }
+      }
+      return row;
    }
 
    /**
