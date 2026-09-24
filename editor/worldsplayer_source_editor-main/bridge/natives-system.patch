@@ -144,3 +144,78 @@ diff a/NET/worlds/core/SystemInfo.java b/NET/worlds/core/SystemInfo.java
 +      return NativeSysInfo.processorType();
     }
  }
+diff a/NET/worlds/scape/VehicleShape.java b/NET/worlds/scape/VehicleShape.java
+--- a/NET/worlds/scape/VehicleShape.java
++++ b/NET/worlds/scape/VehicleShape.java
+@@ -97,51 +97,62 @@
+ 
+    protected void nativeAnalyzeShape(int var1, float var2) {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeAnalyzeShape", new Object[]{var1, var2});
++      // gamma.dll 0x0043f580: caja del árbol en pies, centro, inercia y ruedas
++      NET.worlds.core.NativeSysVehicle.analyzeShape(var1, var2);
+    }
+ 
+    protected float nativeGetTirePosX(int var1) {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetTirePosX", new Object[]{var1});
+-      return 0.0F;
++      // 0x0043f4c0: DAT_0049df10 + var1 * 0xc
++      return NET.worlds.core.NativeSysVehicle.tire(var1, 0);
+    }
+ 
+    protected float nativeGetTirePosY(int var1) {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetTirePosY", new Object[]{var1});
+-      return 0.0F;
++      // 0x0043f4e0: DAT_0049df14 + var1 * 0xc
++      return NET.worlds.core.NativeSysVehicle.tire(var1, 1);
+    }
+ 
+    protected float nativeGetTirePosZ(int var1) {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetTirePosZ", new Object[]{var1});
+-      return 0.0F;
++      // 0x0043f500: DAT_0049df18 + var1 * 0xc
++      return NET.worlds.core.NativeSysVehicle.tire(var1, 2);
+    }
+ 
+    protected float nativeGetCogX() {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetCogX", new Object[0]);
+-      return 0.0F;
++      // 0x0043f520: DAT_0049def8
++      return NET.worlds.core.NativeSysVehicle.cog(0);
+    }
+ 
+    protected float nativeGetCogY() {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetCogY", new Object[0]);
+-      return 0.0F;
++      // 0x0043f530: DAT_0049defc
++      return NET.worlds.core.NativeSysVehicle.cog(1);
+    }
+ 
+    protected float nativeGetCogZ() {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetCogZ", new Object[0]);
+-      return 0.0F;
++      // 0x0043f540: DAT_0049df00
++      return NET.worlds.core.NativeSysVehicle.cog(2);
+    }
+ 
+    protected float nativeGetMoiX() {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetMoiX", new Object[0]);
+-      return 0.0F;
++      // 0x0043f550: DAT_0049df04
++      return NET.worlds.core.NativeSysVehicle.moi(0);
+    }
+ 
+    protected float nativeGetMoiY() {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetMoiY", new Object[0]);
+-      return 0.0F;
++      // 0x0043f560: DAT_0049df08
++      return NET.worlds.core.NativeSysVehicle.moi(1);
+    }
+ 
+    protected float nativeGetMoiZ() {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetMoiZ", new Object[0]);
+-      return 0.0F;
++      // 0x0043f570: DAT_0049df0c
++      return NET.worlds.core.NativeSysVehicle.moi(2);
+    }
+ 
+    public void prerender(Camera var1) {
