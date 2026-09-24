@@ -41,6 +41,120 @@ rellenado con suposiciones.
 > 3. Hay **8 `.rwg` reales** en el repo (incluye `e3.rwg` y las copias de
 >    `AVATAR`/`IDLE` en `assets/WorldsPlayer/`), todos de un solo `ATOM`.
 
+> **Traducción desde los binarios (2026-09-24) — prevalece sobre todo lo
+> de abajo.** El formato ya no se deduce de bytes: se ha traducido del
+> lector real, `RwReadStreamChunk` de `RWL21.DLL` (0x10039e40, leído en
+> ensamblador con `objdump`, el C de Ghidra de esa función está roto) y de
+> la parte de `gamma.dll` que abre el fichero. Implementado en
+> `client/src/net/freeworlds/rwg/RwgParser.java`, comprobado en
+> `client/test/net/freeworlds/rwg/RwgTablesCheck.java`. Ver la sección
+> "Formato según el binario" justo debajo.
+
+## Formato según el binario (RWL21 + gamma.dll)
+
+Todo big-endian. Un chunk es `[tag][longitud][contenido]`. RW **no** lee
+los hijos por posición: cada lector busca el chunk que quiere con un
+bucle (p. ej. 0x1003a205) que lee un tag y, si no es el buscado, salta
+ese chunk con `RwSkipStreamChunk` (0x10039cd0); nunca salta al final del
+chunk padre. Un `STRT` se lee con un máximo: se leen min(longitud, máx)
+bytes y se salta (longitud − máx) con signo (0x1003b17a). gamma abre el
+fichero en memoria (`RwOpenStream(3,1,…)`, FUN_004181d0): leer o saltar
+más allá del final es el error 0x58 y una lectura de 0 bytes es un error.
+Cualquier FALSE aborta el CLUM entero y `finishLoadingBinaryFile`
+devuelve −1.
+
+**Cabecera (gamma.dll, no RW).** `FUN_00419af0`: tag `ZZZ[`, longitud L
+(tiene que ser > 8), y las palabras `0x13765342`, `1`. Los L−8 bytes
+siguientes (`FUN_00419a20`) **no son el nombre del objeto**: son la
+**lista de texturas** que `FUN_0041c970` (el constructor de
+`ShapeLoader.loadBinaryFile` 0x0041e5d0) pide a Java *antes* de leer el
+CLUM, cadena a cadena hasta una vacía, con `.cmp` (DAT_00470a7c) si el
+nombre no tiene punto, vía `ShapeLoader.startTextureLoad`. Solo si la
+lista acaba en la cadena vacía se marca la carga como buena (`this+0xc`,
+que `finishLoadingBinaryFile` 0x0041e630 exige). IDLE → `idle.cmp`, e3 →
+`earthkin.cmp`, AVATAR/ball/table → nada.
+
+**CLUM** (0x1003a03d): crea un contexto con cinco listas y busca, en este
+orden, `RALT`, `TELT`, `MALT` y el `ATOM` raíz.
+
+| Chunk | Contenido | Dirección |
+|---|---|---|
+| `RALT` | STRT(12) `[n, ?, ?]` y n chunks `RAST` (STRT de 10 enteros: ancho, alto, ?, paso, formato; y un `DATA` con los píxeles) | 0x1003c4e3, RAST 0x1003c72a. ⚠️ sin muestra real: todo el corpus tiene n = 0 |
+| `TELT` | STRT(12) `[n, tamaño de registro, ?]`; por entrada **siempre** lee 0x14 bytes = 5 enteros `[raster, raster del mipmap, ?, ?, ?]` y, si el tamaño de registro es **menor** que 0x14, salta además (0x14 − tamaño) hacia delante; luego busca un `STNG` con el nombre | 0x1003cb3f, 0x1003cc68 |
+| `MALT` | STRT(12) `[n, tamaño de registro, ?]`; por material lee 0x28 bytes = 10 enteros y, si el tamaño es mayor, salta el resto | 0x1003bfce, 0x1003c0ab |
+| `ATOM` | STRT(0x34) de 13 enteros, 2 `MATX`, `VLST`, `PLST` y los ATOM hijos | 0x1003b569 |
+
+**Entrada de TELT → textura.** Raster 0 (el único caso del corpus):
+textura con nombre (0x1003cde9): se busca en el diccionario de texturas
+actual (FUN_100184d0) y, si no está y existe un fichero con ese nombre en
+la ruta de formas (FUN_10021270: tal cual y con `.ras`, `.tex`, `.env`,
+`.bmp`, `.rle`, leídas en DAT_1005ad00..1005ace0), `RwGetNamedTexture`;
+si no hay textura, error 0x5e y **el CLUM falla**. Raster ≠ 0
+(0x1003cd40): textura nueva sobre ese raster de RALT (y el del mipmap si
+≠ 0) y al diccionario con el nombre (⚠️ sin muestra real). La textura se
+añade a la lista **solo si no estaba ya** (0x1003ce42), así que dos
+entradas que den la misma textura ocupan un solo índice.
+
+**Registro de MALT → material** (RwCreateMaterial y 0x1003c119..c180):
+
+| Campo | Destino |
+|---|---|
+| [0] | textura: índice base 1 en la lista de TELT (0 o fuera de rango = ninguna) → `RwSetMaterialTexture` |
+| [1] | palabra 0 del material: muestreo. Geometría = 1 si < 4, 2 si < 8, 3 si < 0xc, si no 4 (RwGetMaterialGeometrySampling 0x10019e40); luz = 2 si bit 0, si no 1 (0x10019ea0) |
+| [2] | byte de material+0x30: `& 0x1f` modos de textura (1 lit, 2 foreshorten, 4 filter, 0x10 trilinear), `& 0xc0` modos de material (0x80 doble cara) |
+| [3..5] | color r, g, b (reales) → `RwSetMaterialColor` |
+| [6] | opacidad → `RwSetMaterialOpacity` |
+| [7..9] | ambiente, difusa, especular → `RwSetMaterialSurface` |
+
+Valores reales: IDLE `[1, 0x14, 2, 0.96875, 0.984375, 0.96875, 1, 0.75,
+0, 0]` (textura "idle", sólido, faceta, foreshorten sin lit, ambiente
+0.75 = el "autoiluminado" de gamma FUN_00417950); e3 `[1, 0x15, 2, 0.5,
+0.5, 0.5, 1, 0.1, 0.5, 0.9]` (por vértice); ball 512 materiales rojos
+`[0, 0xd, 1, …]`, uno por triángulo; table uno naranja.
+
+**ATOM, STRT de 13:** [0] → clump+0x8c y [1] → clump+0x90 (⚠️
+significado sin determinar), [2] tag (+0xe8), [3..7] sin leer, [8]
+hints, [9] alineación de ejes (+0x18c), [10] estado (+0x190, 1 OFF 2 ON),
+[11] **número de ATOM hijos** (se leen tras PLST y se cuelgan con
+`RwAddChildToClump`; ⚠️ sin muestra real, todo el corpus tiene 0), [12]
+frecuencia de muestreo de luz (real). Los dos MATX van a clump+0xec y
+clump+0x130.
+
+**VLST** (0x1003b1be): STRT `[n, tamaño, banderas]`. Registro: x,y,z;
+bandera 1 normal (marca el vértice con 0x40, normal puesta); bandera 2
+u,v; bandera 4 tres reales (vértice +0x10..+0x18, ⚠️ significado sin
+determinar). UV y bandera 4 se guardan a 16.16 (× 65536.0 =
+DAT_10052298, `__ftol`). Los 8 primeros registros son la caja local
+(ver corrección de la auditoría, abajo).
+
+**PLST** (0x1003a583): STRT `[n, tamaño, banderas]`. Registro:
+**material** (índice base 1 en MALT; es el campo que antes se llamó
+"id/flag" y que en ball cuenta 1..512), número de vértices, índices;
+bandera 1 normal de cara (polígono +0x10); bandera 4 tres reales a 16.16
+(polígono +0x04..+0x0c, ⚠️ sin determinar); bandera 0x10 tag (16 bits en
++0x38). El "número de campos finales por fichero" (6 en cube/ball/table,
+7 en IDLE) es esto: banderas 7 → 3+3, banderas 0x17 → 3+3+1. Cada
+polígono pasa por FUN_10001220, que quita índices repetidos seguidos y el
+último si repite el primero; con menos de 3 el PLST entero falla.
+
+**Callback de gamma tras leer** (FUN_00419a60 → `RwForAllClumpsInHierarchy`
+con 0x004187e0 sin 3D por hardware): tag < 0x4000000 → `RwSetClumpHints(2)`;
+si no, `RwSetClumpState(OFF)`. Lo mismo tras un `.rwx` (FUN_004199c0).
+
+**Consecuencias medidas en el corpus:**
+
+- **`cube.rwg` no lo lee RW 2.1 de WorldsPlayer.** Su TELT tiene registros
+  de 16 bytes (`[0,1,0,1]`); RW lee 20 (se come el tag `STNG`), salta 4
+  más (su longitud) y la búsqueda del STNG acaba fuera del stream (0x5a).
+  Seguramente lo generó otra versión de RWX2RWG; ⚠️ confirmarlo exigiría
+  cargarlo en el original bajo Wine.
+- `AVATAR.RWG` (el `xShape` por defecto) es un clump **válido y vacío**:
+  0 vértices, 0 polígonos, tag 0, estado ON.
+- IDLE y e3 **exigen** su textura en el diccionario (o un fichero
+  `.ras/.tex/.env/.bmp/.rle` con ese nombre): en el cliente la pone ahí
+  la carga previa de la cabecera (`idle.cmp` está en `WorldsPlayer/`).
+- `table.rwg`: 524 vértices (532 registros − 8).
+
 ## Actualización importante: se encontró un corpus real más grande dentro
 ## del tutorial oficial de GammaDocs (`cube.rwg`, `ball.rwg`, `table.rwg` +
 ## `table.rwx` fuente, ahora en `assets/gammatutorial-samples/`)
