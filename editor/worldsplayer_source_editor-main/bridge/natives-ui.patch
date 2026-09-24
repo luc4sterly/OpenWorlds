@@ -1,0 +1,14 @@
+diff a/NET/worlds/console/Console.java b/NET/worlds/console/Console.java
+--- a/NET/worlds/console/Console.java
++++ b/NET/worlds/console/Console.java
+@@ -1502,6 +1502,10 @@
+    }
+ 
+    static {
++      // adaptacion de plataforma del puente (no es de gamma.dll): devuelve
++      // a los TextField/TextArea los eventos 1.0 que el JDK moderno deja de
++      // generarles; ver NET.worlds.core.NativeUiEvents
++      NET.worlds.core.NativeUiEvents.install();
+       WhisperManager.whisperManager().setParent(frame);
+    }
+ }
