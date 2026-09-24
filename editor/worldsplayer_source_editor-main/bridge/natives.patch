@@ -1365,7 +1365,7 @@ diff a/NET/worlds/scape/Shape.java b/NET/worlds/scape/Shape.java
     }
  
     public synchronized boolean setLOD(float var1) {
-@@ -417,20 +440,51 @@
+@@ -417,20 +440,64 @@
  
     public void nativeSetMaterial(Material var1) {
        NET.worlds.core.NativeMock.log("Shape", "nativeSetMaterial", new Object[]{var1});
@@ -1411,15 +1411,28 @@ diff a/NET/worlds/scape/Shape.java b/NET/worlds/scape/Shape.java
  
     private static void convertSpecial(int var0) {
        NET.worlds.core.NativeMock.log("Shape", "convertSpecial", new Object[]{var0});
-+      // gamma.dll 0x0041f1b0 -> 0x0041efd0 / 0x0041ee70: walks the hierarchy and,
-+      // for clumps whose tag has bit 0x40000000 (a 4-character name packed in
-+      // 6-bit characters) or 0x20000000, turns their polygons into Java objects
-+      // through 0x0041e780. ⚠️ NO IMPLEMENTADO: shapes keep their plain
-+      // geometry, so the "special" surfaces of a .rwx shape are not created.
++      // gamma.dll 0x0041f1b0 -> FUN_0041efd0 / FUN_0041ee70 (NativeShapes.convertSpecial):
++      // each triangle of a clump tagged 0x40000000 (name) or 0x20000000 becomes,
++      // in FUN_0041e780, a TwoWayPortal(name, q, p) or a Rect(q, p, null) with
++      // setVisible(false); then setAutobuilt(true) and room.add (the scene data)
++      NET.worlds.core.NativeShapes.convertSpecial(var0, new NET.worlds.core.NativeShapes.SpecialSink() {
++         public void make(Object room, String name, float[] q, float[] p) {
++            WObject o;
++            if (name == null) {
++               Rect r = new Rect(q[0], q[1], q[2], p[0], p[1], p[2], null);
++               r.setVisible(false);
++               o = r;
++            } else {
++               o = new TwoWayPortal(name, q[0], q[1], q[2], p[0], p[1], p[2]);
++            }
++            o.setAutobuilt(true);
++            ((WObject)room).add(o);
++         }
++      });
     }
  
     public static void nativeInit() {
-@@ -439,11 +493,22 @@
+@@ -439,11 +506,22 @@
  
     private static int makeDefaultShape() {
        NET.worlds.core.NativeMock.log("Shape", "makeDefaultShape", new Object[0]);
@@ -1446,23 +1459,26 @@ diff a/NET/worlds/scape/Shape.java b/NET/worlds/scape/Shape.java
 diff a/NET/worlds/scape/ShapeLoader.java b/NET/worlds/scape/ShapeLoader.java
 --- a/NET/worlds/scape/ShapeLoader.java
 +++ b/NET/worlds/scape/ShapeLoader.java
-@@ -106,21 +106,44 @@
+@@ -102,25 +102,54 @@
+ 
+    private void loadTextFile(String var1, URL var2) {
+       NET.worlds.core.NativeMock.log("ShapeLoader", "loadTextFile", new Object[]{var1, var2});
++      // gamma.dll 0x0041cba0: before RW reads the script, every "texture" /
++      // "textureext" line asks Java for its texture (NativeShapes.scanTextures)
++      java.util.List<String> names = NET.worlds.core.NativeShapes.scanTextures(var1);
++      for (int i = 0; i < names.size(); i++) {
++         this.startTextureLoad(names.get(i), var2);
++      }
+    }
  
     private int finishLoadingTextFile(String var1) {
        NET.worlds.core.NativeMock.log("ShapeLoader", "finishLoadingTextFile", new Object[]{var1});
 -      return 0;
++      // gamma.dll 0x0041ce20: FUN_004199c0 (RwReadShape + 0x004187e0); the
++      // textures were already asked for by loadTextFile
 +      NET.worlds.core.NativeShapes.Shape s = NET.worlds.core.NativeShapes.readShape(var1);
 +      if (s.clump == 0) {
 +         return -1;
-+      }
-+      NET.worlds.network.URL base = this.shape.realFile != null ? this.shape.realFile : this.shape.getURL();
-+      if (base != null) {
-+         for (int i = 0; i < s.textures.size(); i++) {
-+            // gamma.dll 0x0041cba0 pre-scans the script and asks Java for each
-+            // texture, adding ".bmp" when the name carries no extension
-+            String name = (String)s.textures.get(i);
-+            this.startTextureLoad(name.indexOf(46) < 0 ? name + ".bmp" : name, base);
-+         }
 +      }
 +      this.shape.animatableClumpID = s.clump;
 +      return s.clump;
@@ -1481,7 +1497,14 @@ diff a/NET/worlds/scape/ShapeLoader.java b/NET/worlds/scape/ShapeLoader.java
     private int loadBinaryFile(String var1, URL var2) {
        NET.worlds.core.NativeMock.log("ShapeLoader", "loadBinaryFile", new Object[]{var1, var2});
 -      return 0;
-+      return NET.worlds.core.NativeShapes.openBinary(var1);
++      // gamma.dll 0x0041e5d0 -> FUN_0041c970: the header's texture list is
++      // asked for before RW reads the CLUM
++      int h = NET.worlds.core.NativeShapes.openBinary(var1);
++      java.util.List<String> names = NET.worlds.core.NativeShapes.binaryTextureRequests(h);
++      for (int i = 0; i < names.size(); i++) {
++         this.startTextureLoad(names.get(i), var2);
++      }
++      return h;
     }
  
     private int finishLoadingBinaryFile(int var1, boolean var2) {
