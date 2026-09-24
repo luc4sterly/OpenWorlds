@@ -63,6 +63,18 @@ public final class RasterSpanCheck {
       expect("20 px con perspectiva: " + texU(s[0]) + "," + texU(s[8]) + "," + texU(s[15]) + "," + texU(s[16]) + "," + texU(s[19]),
          texU(s[0]) == 0 && texU(s[8]) == 35 && texU(s[15]) == 66 && texU(s[16]) == 71 && texU(s[19]) == 77);
 
+      // Gouraud 0x1006a340: R y B enteros, G + acarreo de (fraccion + umbral).
+      expect("gouraud sin acarreo", NativeCamera.gouraudPixel(NativeCamera.packRG(10, 20), 5 << 8, 0x80) == 21765);
+      expect("gouraud con acarreo", NativeCamera.gouraudPixel(NativeCamera.packRG(10, 20) | 0x90, 5 << 8, 0x80) == 21829);
+      // G = 31 + acarreo desborda al bit bajo de R (11, G 0): 22533
+      expect("gouraud desborde a R", NativeCamera.gouraudPixel(NativeCamera.packRG(10, 31) | 0xFF, 5 << 8, 0x01) == 22533);
+      expect("pack(1,-1) = 65535", NativeCamera.pack(1, -1) == 65535);
+      boolean seq = true;
+      for (int i = 0; i < 7; i++) {
+         int d = NativeCamera.DITHER_COLS[i];
+         seq &= (d ^ d >>> 6) == NativeCamera.DITHER_COLS[i + 1];
+      }
+      expect("tabla de tramado x: cada palabra = anterior ^ (anterior >>> 6)", seq);
       if (failures != 0) {
          System.out.println(failures + " fallos");
          System.exit(1);

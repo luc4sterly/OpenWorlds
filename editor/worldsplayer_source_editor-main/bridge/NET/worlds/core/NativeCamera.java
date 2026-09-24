@@ -1333,6 +1333,16 @@ public final class NativeCamera {
       float u4 = (float) t2.u * UV_SCALE * q4, v4 = (float) t2.v * UV_SCALE * q4;
       int dy1 = y3 - yT;
       int row = yT;
+      // untextured, opaque, per-vertex lit: the Gouraud triangle 0x100259e0
+      gouraud = tex == null && facetLit == null && mat != null && mat.opacity >= 1.0F;
+      int[] cT = null, c3 = null, c4 = null;
+      if (gouraud) {
+         int base = device565(mat.color[0], mat.color[1], mat.color[2]);
+         cT = vertexColour(t0, base);
+         c3 = vertexColour(t1, base);
+         c4 = vertexColour(t2, base);
+         rowDither = DITHER_ROWS[(c.vpY & 7) + (yT & 7)];
+      }
       if (dy1 < 1) {
          if (xT - x3 < 1) {
             return;
@@ -1340,6 +1350,16 @@ public final class NativeCamera {
          int dy = y4 - y3;
          if (dy == 0) {
             return;
+         }
+         if (gouraud) {
+            // colour from the second vertex; across x towards the top one
+            int w = xT - x3;
+            gAcc = packRG(c3[0], c3[1]);
+            gStep = pack(div(c4[0] - c3[0], dy), div(c4[1] - c3[1], dy));
+            gGrad = pack(div(cT[0] - c3[0], w), div(cT[1] - c3[1], w));
+            bAcc = c3[2] << 8;
+            bStep = (short) div(c4[2] - c3[2], dy);
+            bGrad = (short) div(cT[2] - c3[2], w);
          }
          edgeA.set(t1, q3, u3, v3, t2, q4, u4, v4, dy, x3 << 16, slope(x4 - x3, dy));
          edgeB.set(t0, qT, uT, vT, t2, q4, u4, v4, dy, xT << 16, slope(x4 - xT, dy));
@@ -1352,6 +1372,15 @@ public final class NativeCamera {
          if (x4 - xT < 1) {
             return;
          }
+         if (gouraud) {
+            int w = x4 - xT;
+            gAcc = packRG(cT[0], cT[1]);
+            gStep = pack(div(c3[0] - cT[0], dy1), div(c3[1] - cT[1], dy1));
+            gGrad = pack(div(c4[0] - cT[0], w), div(c4[1] - cT[1], w));
+            bAcc = cT[2] << 8;
+            bStep = (short) div(c3[2] - cT[2], dy1);
+            bGrad = (short) div(c4[2] - cT[2], w);
+         }
          edgeA.set(t0, qT, uT, vT, t1, q3, u3, v3, dy1, xT << 16, dxa);
          edgeB.set(t2, q4, u4, v4, t1, q3, u3, v3, dy1, x4 << 16, slope(x3 - x4, dy1));
          spans(p, row, dy1, mat, tex, k, facetLit);
@@ -1363,10 +1392,33 @@ public final class NativeCamera {
       }
       edgeA.set(t0, qT, uT, vT, t1, q3, u3, v3, dy1, xT << 16, dxa);
       edgeB.set(t0, qT, uT, vT, t2, q4, u4, v4, dy2, xT << 16, dxb);
+      if (gouraud) {
+         // per line along edge a; across x from the difference of the two
+         // edges' per-line steps over the difference of their slopes
+         int w = dxb - dxa;
+         gAcc = packRG(cT[0], cT[1]);
+         gStep = pack(div(c3[0] - cT[0], dy1), div(c3[1] - cT[1], dy1));
+         int dr = div(c4[0] - cT[0], dy2) - (gStep >> 16);
+         gGrad = dr != 0 ? dr * 0x10000 / w << 16 : 0;
+         int dg = div(c4[1] - cT[1], dy2) - (short) gStep;
+         if (dg != 0) {
+            int u = gGrad | dg * 0x10000 / w & 0xFFFF;
+            gGrad = u + (u & 0x8000) * -2;
+         }
+         bAcc = cT[2] << 8;
+         bStep = (short) div(c3[2] - cT[2], dy1);
+         int db = div(c4[2] - cT[2], dy2) - (short) bStep;
+         bGrad = db != 0 ? (short) (db * 0x10000 / w) : 0;
+      }
       if (dy1 < dy2) {
          row = spans(p, row, dy1, mat, tex, k, facetLit);
          int rest = dy2 - dy1;
          edgeA.set(t1, q3, u3, v3, t2, q4, u4, v4, rest, x3 << 16, slope(x4 - x3, rest));
+         if (gouraud) {
+            // the accumulators carry on; only edge a's per-line step changes
+            gStep = pack(div(c4[0] - c3[0], rest), div(c4[1] - c3[1], rest));
+            bStep = (short) div(c4[2] - c3[2], rest);
+         }
          spans(p, row, rest, mat, tex, k, facetLit);
       } else {
          row = spans(p, row, dy2, mat, tex, k, facetLit);
@@ -1380,6 +1432,81 @@ public final class NativeCamera {
    }
 
    private static int[] spanUV = new int[64];
+
+   // Gouraud state of 0x100259e0 / span 0x1006a340: R and G of the left
+   // edge packed in one 32-bit word (R 8.8 in bits 16..31, G 8.8 in bits
+   // 0..15, carries included: 0x1007f2c0), its per-line step (0x1007f2c4)
+   // and per-pixel gradient (0x1007f2c8); B 8.8 apart (0x1007f2cc /
+   // 0x1007f2d0 / 0x1007f2d4); the row dither word (0x1007f2a4).
+   private static boolean gouraud;
+   private static int gAcc;
+   private static int gStep;
+   private static int gGrad;
+   private static int bAcc;
+   private static int bStep;
+   private static int bGrad;
+   private static int rowDither;
+
+   /** Dither words 0x10079240 (x) and 0x10079280 (y): each is the previous one xor (itself >>> 6). */
+   public static final int[] DITHER_COLS = {0x08022002, 0x08222882, 0x0802a020, 0x0822aaa0, 0x0802200a, 0x0822288a, 0x0802a028, 0x0822aaa8,
+      0x08022002, 0x08222882, 0x0802a020, 0x0822aaa0, 0x0802200a, 0x0822288a, 0x0802a028, 0x0822aaa8};
+   static final int[] DITHER_ROWS = {0x0c033003, 0x0c333cc3, 0x0c03f030, 0x0c33fff0, 0x0c03300f, 0x0c333ccf, 0x0c03f03c, 0x0c33fffc,
+      0x0c033003, 0x0c333cc3, 0x0c03f030, 0x0c33fff0, 0x0c03300f, 0x0c333ccf, 0x0c03f03c, 0x0c33fffc};
+
+   /** Ramp outputs (5 bits) of a vertex for the material colour: R, G (top 5 of 6), B (0x100259e0 head). */
+   private static int[] vertexColour(DVert d, int c565) {
+      int ir = clampRamp(d.a[5]), ig = clampRamp(d.a[6]), ib = clampRamp(d.a[7]);
+      return new int[]{RAMP[ir * 32 + (c565 >> 11 & 0x1F)], RAMP[ig * 32 + (c565 >> 6 & 0x1F)], RAMP[ib * 32 + (c565 & 0x1F)]};
+   }
+
+   private static int clampRamp(float f) {
+      int i = (int) f;
+      return i < 0 ? 0 : i > 31 ? 31 : i;
+   }
+
+   /** (g | r << 16) << 8 (0x100259e0). */
+   public static int packRG(int r, int g) {
+      return (g | r << 16) << 8;
+   }
+
+   /** Two 8.8 steps in one word, the low one sign-corrected: (hi << 16 | lo & 0xffff) + (lo & 0x8000) * -2. */
+   public static int pack(int hi, int lo) {
+      return (hi << 16 | lo & 0xFFFF) + (lo & 0x8000) * -2;
+   }
+
+   /**
+    * Step of a colour over n rows or pixels as the setups divide it:
+    * diff (in 8.8, i.e. components * 256) when n is 1, diff >> 1 when n
+    * is 2, idiv otherwise.
+    */
+   static int div(int diff5, int n) {
+      int diff = diff5 * 0x100;
+      if (diff == 0 || n == 1) {
+         return diff;
+      }
+      if (n == 2) {
+         return diff >> 1;
+      }
+      return diff / n;
+   }
+
+   /**
+    * One Gouraud pixel of 0x1006a340: R and B take the integer part of
+    * their accumulators; G adds its fraction to the dither byte and the
+    * carry goes into G (it can overflow into R's low bit, as the add is
+    * done on the byte that holds R << 5 and G). Returns the 5-6-5 value.
+    */
+   public static int gouraudPixel(int accRG, int accB, int thr) {
+      int r = accRG >>> 24;
+      int gInt = accRG >>> 8 & 0xFF;
+      int gFrac = accRG & 0xFF;
+      int carry = gFrac + (thr & 0xFF) > 0xFF ? 1 : 0;
+      int e = r << 5;
+      e = (e & ~0xFF) | ((e & 0xFF) + gInt + carry & 0xFF);
+      e <<= 6;
+      e |= accB >>> 8 & 0xFF;
+      return e & 0xFFFF;
+   }
 
    /**
     * Texture coordinates of one span as 0x1002cbb0 packs them: v in bits
@@ -1484,6 +1611,16 @@ public final class NativeCamera {
          int xl = edgeA.x >> 16, xr = edgeB.x >> 16;
          int cnt = xr - xl;
          int y = row + oy;
+         int thr = 0, acc = 0, accB = 0;
+         if (gouraud) {
+            gAcc += gStep;
+            bAcc += bStep;
+            acc = gAcc;
+            accB = bAcc;
+            thr = DITHER_COLS[(c.vpX & 7) + (xl & 7)];
+            thr = (thr & ~0xFF) | ((thr ^ rowDither) & 0xFF);
+            rowDither ^= rowDither >>> 6;
+         }
          if (cnt <= 0 || y < yMin || y >= yMax) {
             continue;
          }
@@ -1505,6 +1642,13 @@ public final class NativeCamera {
             }
             float iz = spanAt[0];
             int zi = rowBase + x;
+            int gpix = 0;
+            if (gouraud) {
+               gpix = gouraudPixel(acc, accB, thr);
+               acc += gGrad;
+               accB += bGrad;
+               thr ^= thr >>> 6;
+            }
             if (iz <= p.z[zi]) {
                continue;
             }
@@ -1522,6 +1666,9 @@ public final class NativeCamera {
                }
                pix = litTex ? lit565(texel, flatR, flatG, flatB) : texel;
                p.texPixels++;
+            } else if (gouraud) {
+               pix = gpix;
+               p.flatPixels++;
             } else {
                pix = lit565(base, spanAt[1], spanAt[2], spanAt[3]);
                p.flatPixels++;
