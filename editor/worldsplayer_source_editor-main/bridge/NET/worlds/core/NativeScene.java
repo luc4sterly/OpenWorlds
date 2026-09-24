@@ -528,15 +528,23 @@ public final class NativeScene {
       return s.handle;
    }
 
-   /** RwDestroyScene. ⚠️ VERIFICAR: assumed to destroy its clumps and lights (not extracted from RWL21). */
+   /**
+    * RwDestroyScene (RWL21 0x100306b0): the default scene is refused
+    * (error 0x1a; here it has no Scene object). Otherwise every light goes
+    * through RwDestroyLight, the scene tree is torn down and EVERY clump
+    * node of the scene (each clump of each hierarchy has its own) is freed
+    * with its clump by FUN_10004010, which destroys that clump's own
+    * polygons and geometry, not its children (they are nodes of the same
+    * scene and get destroyed on their own turn).
+    */
    public static void destroyScene(int h) {
       Scene s = scene(h);
       if (s == null) {
          return;
       }
       for (Clump c : new ArrayList<Clump>(s.clumps)) {
-         if (c.parent == null && NativeRw.get(c.handle) == c) {
-            destroyClump(c.handle);
+         if (NativeRw.get(c.handle) == c) {
+            destroyClumpOnly(c.handle);
          }
       }
       for (Light l : s.lights) {
