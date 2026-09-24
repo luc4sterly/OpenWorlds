@@ -412,6 +412,10 @@ public final class NativeUiEvents {
       System.err.println("[TYPECHAT] foco en la linea de chat: " + (owner == line) + "; tecleo \"" + text + "\" + Intro");
       Component target = owner != null ? owner : line;
       for (int i = 0; i <= text.length(); i++) {
+         if (i == text.length()) {
+            Thread.sleep(200);
+            System.err.println("[TYPECHAT] antes de Intro la linea dice \"" + ((java.awt.TextComponent) line).getText() + "\"");
+         }
          char ch = i < text.length() ? text.charAt(i) : '\n';
          int code = ch == '\n' ? KeyEvent.VK_ENTER : KeyEvent.getExtendedKeyCodeForChar(ch);
          int mods = Character.isUpperCase(ch) ? InputEvent.SHIFT_DOWN_MASK : 0;
@@ -421,5 +425,7 @@ public final class NativeUiEvents {
          q.postEvent(new KeyEvent(target, KeyEvent.KEY_RELEASED, w, mods, code, ch));
          Thread.sleep(40);
       }
+      Thread.sleep(300);
+      System.err.println("[TYPECHAT] tras Intro la linea dice \"" + ((java.awt.TextComponent) line).getText() + "\"");
    }
 }
