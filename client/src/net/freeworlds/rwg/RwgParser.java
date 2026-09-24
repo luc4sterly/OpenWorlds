@@ -169,7 +169,44 @@ public final class RwgParser {
 
    // ------------------------------------------------------------ gamma.dll
 
-   private RwgModel parseFile() {
+   /** Lo que gamma.dll saca de la cabecera antes de que RW lea nada (FUN_0041c970). */
+   public static final class Header {
+      /** Nombres de textura en el orden en que gamma los pide a Java. */
+      public final List<String> names;
+      /** La lista acabó en el nombre vacío: gamma marca la carga como buena (this+0xc = 1). */
+      public final boolean complete;
+
+      Header(List<String> names, boolean complete) {
+         this.names = names;
+         this.complete = complete;
+      }
+
+      /** Cada nombre con ".cmp" (DAT_00470a7c) si no lleva ningún '.'. */
+      public List<String> textureRequests() {
+         List<String> out = new ArrayList<>();
+         for (String n : this.names) {
+            out.add(n.indexOf('.') < 0 ? n + ".cmp" : n);
+         }
+         return out;
+      }
+   }
+
+   /**
+    * La cabecera tal como la lee gamma.dll: FUN_00419af0 (tag "ZZZ[",
+    * longitud L &gt; 8, palabras 0x13765342 y 1) y FUN_00419a20 + el bucle
+    * de FUN_0041c970 sobre los L - 8 bytes. Devuelve null donde gamma no
+    * llega a pedir nada (FUN_00419af0 da 0 o la lectura falla).
+    */
+   public static Header header(byte[] data) {
+      RwgParser p = new RwgParser(data);
+      try {
+         return p.readHeader();
+      } catch (RwgFormatException e) {
+         return null;
+      }
+   }
+
+   private Header readHeader() {
       // FUN_00419af0: tag "ZZZ[", longitud L, y si L - 8 > 0 las palabras
       // 0x13765342 y 1 (RwReadStreamInt de 8 bytes); si no, 0 y la carga falla.
       if (this.data.length < 4 || be(0) != ZZZ) {
@@ -208,10 +245,16 @@ public final class RwgParser {
          names.add(new String(this.data, p, z - p, StandardCharsets.ISO_8859_1));
          p = z + 1;
       }
-      if (!closed) {
+      return new Header(names, closed);
+   }
+
+   private RwgModel parseFile() {
+      Header hd = readHeader();
+      if (!hd.complete) {
          // ⚠️ el original seguiría leyendo más allá de su buffer; no se imita
          throw new RwgFormatException(0, "la lista de texturas de la cabecera no acaba en un nombre vacío");
       }
+      List<String> names = hd.names;
 
       // FUN_00419a60: RwReadStreamChunkType y, solo si es CLUM, RwReadStreamChunk(CLUM)
       int type = readInt("tipo de chunk");

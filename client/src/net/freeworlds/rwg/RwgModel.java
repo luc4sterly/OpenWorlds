@@ -34,17 +34,9 @@ public final class RwgModel {
       this.atom = atom;
    }
 
-   /**
-    * Lo que gamma.dll pide a Java por cada nombre de la cabecera antes de
-    * leer el CLUM (FUN_0041c970 -&gt; ShapeLoader.startTextureLoad): el
-    * nombre, con ".cmp" (DAT_00470a7c) si no lleva ningún '.'.
-    */
+   /** Lo que gamma.dll pide a Java antes de leer el CLUM: ver {@link RwgParser.Header#textureRequests}. */
    public List<String> textureRequests() {
-      List<String> out = new ArrayList<>();
-      for (String n : this.headerTextures) {
-         out.add(n.indexOf('.') < 0 ? n + ".cmp" : n);
-      }
-      return out;
+      return new RwgParser.Header(this.headerTextures, true).textureRequests();
    }
 
    /** Material de un polígono (MALT base 1; 0 o fuera de rango = ninguno, como 0x1003a7bc). */

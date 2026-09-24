@@ -1446,23 +1446,26 @@ diff a/NET/worlds/scape/Shape.java b/NET/worlds/scape/Shape.java
 diff a/NET/worlds/scape/ShapeLoader.java b/NET/worlds/scape/ShapeLoader.java
 --- a/NET/worlds/scape/ShapeLoader.java
 +++ b/NET/worlds/scape/ShapeLoader.java
-@@ -106,21 +106,44 @@
+@@ -102,25 +102,54 @@
+ 
+    private void loadTextFile(String var1, URL var2) {
+       NET.worlds.core.NativeMock.log("ShapeLoader", "loadTextFile", new Object[]{var1, var2});
++      // gamma.dll 0x0041cba0: before RW reads the script, every "texture" /
++      // "textureext" line asks Java for its texture (NativeShapes.scanTextures)
++      java.util.List<String> names = NET.worlds.core.NativeShapes.scanTextures(var1);
++      for (int i = 0; i < names.size(); i++) {
++         this.startTextureLoad(names.get(i), var2);
++      }
+    }
  
     private int finishLoadingTextFile(String var1) {
        NET.worlds.core.NativeMock.log("ShapeLoader", "finishLoadingTextFile", new Object[]{var1});
 -      return 0;
++      // gamma.dll 0x0041ce20: FUN_004199c0 (RwReadShape + 0x004187e0); the
++      // textures were already asked for by loadTextFile
 +      NET.worlds.core.NativeShapes.Shape s = NET.worlds.core.NativeShapes.readShape(var1);
 +      if (s.clump == 0) {
 +         return -1;
-+      }
-+      NET.worlds.network.URL base = this.shape.realFile != null ? this.shape.realFile : this.shape.getURL();
-+      if (base != null) {
-+         for (int i = 0; i < s.textures.size(); i++) {
-+            // gamma.dll 0x0041cba0 pre-scans the script and asks Java for each
-+            // texture, adding ".bmp" when the name carries no extension
-+            String name = (String)s.textures.get(i);
-+            this.startTextureLoad(name.indexOf(46) < 0 ? name + ".bmp" : name, base);
-+         }
 +      }
 +      this.shape.animatableClumpID = s.clump;
 +      return s.clump;
@@ -1481,7 +1484,14 @@ diff a/NET/worlds/scape/ShapeLoader.java b/NET/worlds/scape/ShapeLoader.java
     private int loadBinaryFile(String var1, URL var2) {
        NET.worlds.core.NativeMock.log("ShapeLoader", "loadBinaryFile", new Object[]{var1, var2});
 -      return 0;
-+      return NET.worlds.core.NativeShapes.openBinary(var1);
++      // gamma.dll 0x0041e5d0 -> FUN_0041c970: the header's texture list is
++      // asked for before RW reads the CLUM
++      int h = NET.worlds.core.NativeShapes.openBinary(var1);
++      java.util.List<String> names = NET.worlds.core.NativeShapes.binaryTextureRequests(h);
++      for (int i = 0; i < names.size(); i++) {
++         this.startTextureLoad(names.get(i), var2);
++      }
++      return h;
     }
  
     private int finishLoadingBinaryFile(int var1, boolean var2) {
