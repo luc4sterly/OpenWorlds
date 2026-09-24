@@ -66,3 +66,81 @@ diff a/NET/worlds/core/RegKey.java b/NET/worlds/core/RegKey.java
     }
  
     private RegKey(int var1) {
+diff a/NET/worlds/core/SystemInfo.java b/NET/worlds/core/SystemInfo.java
+--- a/NET/worlds/core/SystemInfo.java
++++ b/NET/worlds/core/SystemInfo.java
+@@ -88,7 +88,8 @@
+ 
+    public static int GetDiskFreeSpace(String var0) {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetDiskFreeSpace", new Object[]{var0});
+-      return 0;
++      // 0x00442020: KB libres (producto de 32 bits >> 10), 0 si falla
++      return NativeSysInfo.diskFreeKB(var0);
+    }
+ 
+    public static int GetDiskFreeSpace() {
+@@ -97,46 +98,55 @@
+ 
+    public static String GetSystemDirectory() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetSystemDirectory", new Object[0]);
+-      return null;
++      // 0x00442100: rama de fallo de GetSystemDirectoryA (null)
++      return NativeSysInfo.systemDirectory();
+    }
+ 
+    public static String GetCurrentDirectory() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetCurrentDirectory", new Object[0]);
+-      return null;
++      // 0x00442150: directorio de trabajo con la unidad sintética u:
++      return NativeSysInfo.currentDirectory();
+    }
+ 
+    public static int GetTotalPhysicalMemory() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetTotalPhysicalMemory", new Object[0]);
+-      return 0;
++      // 0x004421a0: dwTotalPhys topado a 0x7fffffff
++      return NativeSysInfo.memoryStatus()[0];
+    }
+ 
+    public static int GetAvailPhysicalMemory() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetAvailPhysicalMemory", new Object[0]);
+-      return 0;
++      // 0x00442200: dwAvailPhys topado a 0x7fffffff
++      return NativeSysInfo.memoryStatus()[1];
+    }
+ 
+    public static int GetTotalPagedMemory() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetTotalPagedMemory", new Object[0]);
+-      return 0;
++      // 0x00442260: dwTotalPageFile topado a 0x7fffffff
++      return NativeSysInfo.memoryStatus()[2];
+    }
+ 
+    public static int GetAvailPagedMemory() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetAvailPagedMemory", new Object[0]);
+-      return 0;
++      // 0x004422c0: dwAvailPageFile topado a 0x7fffffff
++      return NativeSysInfo.memoryStatus()[3];
+    }
+ 
+    public static String GetPlatformID() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetPlatformID", new Object[0]);
+-      return null;
++      // 0x00442340: sin GetVersionExA, "Unknown"
++      return NativeSysInfo.platformId();
+    }
+ 
+    public static int GetNumberOfProcessors() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetNumberOfProcessors", new Object[0]);
+-      return 0;
++      // 0x00442320: dwNumberOfProcessors
++      return NativeSysInfo.processors();
+    }
+ 
+    public static String GetProcessorType() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetProcessorType", new Object[0]);
+-      return null;
++      // 0x00442470: cadenas literales de gamma.dll según la arquitectura
++      return NativeSysInfo.processorType();
+    }
+ }
