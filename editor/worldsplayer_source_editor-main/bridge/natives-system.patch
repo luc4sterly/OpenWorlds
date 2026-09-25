@@ -134,6 +134,21 @@ diff a/NET/worlds/console/NSProtocolHandler.java b/NET/worlds/console/NSProtocol
 +      return NET.worlds.core.NativeSysCom.createLocalFactory();
     }
  }
+diff a/NET/worlds/console/VoiceChat.java b/NET/worlds/console/VoiceChat.java
+--- a/NET/worlds/console/VoiceChat.java
++++ b/NET/worlds/console/VoiceChat.java
+@@ -179,6 +179,11 @@
+ 
+    private static void terminateVC(int var0) {
+       NET.worlds.core.NativeMock.log("VoiceChat", "terminateVC", new Object[]{var0});
++      // gamma.dll 0x0043edb0: PostMessageA(var0, WM_CLOSE, 0, 0) a la ventana de
++      // sfmain.exe, sin mirar el resultado. Fuera de Windows ese programa no
++      // arranca (tryToRun falla) y no hay ventana a la que avisar: nada que
++      // hacer, como un PostMessage a un asa inexistente. Nadie la llama en el
++      // Java original (privada y sin usos).
+    }
+ 
+    private boolean initiateVoiceChat(String var1, String var2) {
 diff a/NET/worlds/core/RegKey.java b/NET/worlds/core/RegKey.java
 --- a/NET/worlds/core/RegKey.java
 +++ b/NET/worlds/core/RegKey.java
@@ -280,6 +295,78 @@ diff a/NET/worlds/core/SystemInfo.java b/NET/worlds/core/SystemInfo.java
 +      return NativeSysInfo.processorType();
     }
  }
+diff a/NET/worlds/network/NetUpdate.java b/NET/worlds/network/NetUpdate.java
+--- a/NET/worlds/network/NetUpdate.java
++++ b/NET/worlds/network/NetUpdate.java
+@@ -762,7 +762,8 @@
+ 
+    private static boolean CreateProcSpecial(String var0, String var1) {
+       NET.worlds.core.NativeMock.log("NetUpdate", "CreateProcSpecial", new Object[]{var0, var1});
+-      return true;
++      // gamma.dll 0x00404740: "%s %s %lu" con el PID y CreateProcessA
++      return NET.worlds.core.NativeSysProcess.createProcSpecial(var0, var1);
+    }
+ 
+    private static boolean runUpdates(String var0) {
+diff a/NET/worlds/scape/Pilot.java b/NET/worlds/scape/Pilot.java
+--- a/NET/worlds/scape/Pilot.java
++++ b/NET/worlds/scape/Pilot.java
+@@ -54,6 +54,15 @@
+ 
+    public static void nativeInit() {
+       NET.worlds.core.NativeMock.log("Pilot", "nativeInit", new Object[0]);
++      // gamma.dll 0x0041a900: cachea la clase y el ID del campo int
++      // "cameraMode"; si faltan, aserción "nPilot" 0x17 / 0x1a (exit 41)
++      try {
++         if (Pilot.class.getDeclaredField("cameraMode").getType() != int.class) {
++            NET.worlds.core.NativeAssert.fail("nPilot", 0x1a);
++         }
++      } catch (NoSuchFieldException var0) {
++         NET.worlds.core.NativeAssert.fail("nPilot", 0x1a);
++      }
+    }
+ 
+    public float animate(String var1) {
+diff a/NET/worlds/scape/RenderWare.java b/NET/worlds/scape/RenderWare.java
+--- a/NET/worlds/scape/RenderWare.java
++++ b/NET/worlds/scape/RenderWare.java
+@@ -3,11 +3,18 @@
+ public class RenderWare {
+    public static boolean get3DHardwareInUse() {
+       NET.worlds.core.NativeMock.log("RenderWare", "get3DHardwareInUse", new Object[0]);
+-      return true;
++      // gamma.dll 0x0043c4f0: DAT_00489578 == 1 (FUN_00417930). Esa global de
++      // .bss solo pasa a 1 en FUN_0041a150 (0x0041a501) al arrancar un driver
++      // "rwdld" (Direct3D) aceptado y habilitado por UserEnabled3DHardware; el
++      // puente emula el driver de software RWDL6D21: false
++      return false;
+    }
+ 
+    public static boolean get3DHardwareAvailable() {
+       NET.worlds.core.NativeMock.log("RenderWare", "get3DHardwareAvailable", new Object[0]);
+-      return true;
++      // gamma.dll 0x0043c510: DAT_0048957c == 1 (FUN_00417940); solo pasa a 1
++      // en FUN_0041a150 (0x0041a447) con un driver "rwdld" que arranca y
++      // FUN_00417430 acepta; con el driver de software RWDL6D21: false
++      return false;
+    }
+ }
+diff a/NET/worlds/scape/Restorer.java b/NET/worlds/scape/Restorer.java
+--- a/NET/worlds/scape/Restorer.java
++++ b/NET/worlds/scape/Restorer.java
+@@ -222,7 +222,11 @@
+ 
+    private Object makeArray(Class var1, int var2) {
+       NET.worlds.core.NativeMock.log("Restorer", "makeArray", new Object[]{var1, var2});
+-      return null;
++      // gamma.dll 0x0041a8d0: NewObjectArray(env, var2, var1, NULL) (tabla JNI
++      // +0x2b0 = función 172): array de var1 con var2 nulos, que es
++      // Array.newInstance para una clase no primitiva (la única que llega
++      // aquí: restoreArray la saca de un nombre "[L...;")
++      return java.lang.reflect.Array.newInstance(var1, var2);
+    }
+ 
+    public Persister[] restoreArray() throws IOException, TooNewException {
 diff a/NET/worlds/scape/VehicleShape.java b/NET/worlds/scape/VehicleShape.java
 --- a/NET/worlds/scape/VehicleShape.java
 +++ b/NET/worlds/scape/VehicleShape.java
