@@ -484,7 +484,7 @@ public class IniFile {
 
    public int getIniInt(String var1, int var2) {
       NET.worlds.core.NativeMock.log("IniFile", "getIniInt", new Object[]{var1, var2});
-      String var3 = this.loadSection().get(var1);
+      String var3 = this.loadSection().get(k(var1));
       if (var3 == null) {
          return var2;
       }
@@ -498,18 +498,18 @@ public class IniFile {
 
    public void setIniInt(String var1, int var2) {
       NET.worlds.core.NativeMock.log("IniFile", "setIniInt", new Object[]{var1, var2});
-      this.loadSection().put(var1, String.valueOf(var2));
+      this.loadSection().put(k(var1), String.valueOf(var2));
    }
 
    public String getIniString(String var1, String var2) {
       NET.worlds.core.NativeMock.log("IniFile", "getIniString", new Object[]{var1, var2});
-      String var3 = this.loadSection().get(var1);
+      String var3 = this.loadSection().get(k(var1));
       return var3 != null ? var3 : var2;
    }
 
    public void setIniString(String var1, String var2) {
       NET.worlds.core.NativeMock.log("IniFile", "setIniString", new Object[]{var1, var2});
-      this.loadSection().put(var1, var2);
+      this.loadSection().put(k(var1), var2);
    }
 
    public static void nativeInit() {
@@ -526,6 +526,14 @@ public class IniFile {
       return var1;
    }
 
+   // GetPrivateProfileString/WritePrivateProfileString (kernel32) no
+   // distinguen mayusculas en nombres de seccion ni de clave: worlds.ini
+   // trae "LogFile=Gamma.Log" y el cliente pide getIniString("logfile").
+   // Los valores se conservan tal cual.
+   private static String k(String var0) {
+      return var0.toLowerCase(java.util.Locale.ROOT);
+   }
+
    private Hashtable<String, String> loadSection() {
       String var1 = this.resolveFileName();
       Hashtable<String, Hashtable<String, String>> var2 = cache.get(var1);
@@ -534,10 +542,10 @@ public class IniFile {
          cache.put(var1, var2);
       }
 
-      Hashtable<String, String> var3 = var2.get(this.section);
+      Hashtable<String, String> var3 = var2.get(k(this.section));
       if (var3 == null) {
          var3 = new Hashtable<>();
-         var2.put(this.section, var3);
+         var2.put(k(this.section), var3);
       }
 
       return var3;
@@ -557,7 +565,7 @@ public class IniFile {
             var4 = var4.trim();
             if (!var4.isEmpty() && var4.charAt(0) != ';' && var4.charAt(0) != '#') {
                if (var4.startsWith("[") && var4.endsWith("]")) {
-                  var5 = var4.substring(1, var4.length() - 1);
+                  var5 = k(var4.substring(1, var4.length() - 1));
                   var6 = var1.get(var5);
                   if (var6 == null) {
                      var6 = new Hashtable<>();
@@ -566,7 +574,7 @@ public class IniFile {
                } else {
                   int var7 = var4.indexOf(61);
                   if (var7 > 0) {
-                     var6.put(var4.substring(0, var7).trim(), var4.substring(var7 + 1).trim());
+                     var6.put(k(var4.substring(0, var7).trim()), var4.substring(var7 + 1).trim());
                   }
                }
             }

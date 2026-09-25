@@ -1,0 +1,444 @@
+diff a/NET/worlds/console/IClassFactory.java b/NET/worlds/console/IClassFactory.java
+--- a/NET/worlds/console/IClassFactory.java
++++ b/NET/worlds/console/IClassFactory.java
+@@ -112,10 +112,21 @@
+ 
+    private long nActivate(String var1) throws IOException {
+       NET.worlds.core.NativeMock.log("IClassFactory", "nActivate", new Object[]{var1});
+-      return 0L;
++      // gamma.dll 0x0040ad80: getPtr, CLSIDFromString y CoRegisterClassObject
++      // (sin runtime de COM: "Failed to register class with ActiveX")
++      int var2;
++      try {
++         var2 = this.getPtr();
++      } catch (OLEInvalidObjectException var3) {
++         throw NET.worlds.core.NativeSysJni.throwNew(var3);
++      }
++
++      return NET.worlds.core.NativeSysCom.registerClassObject(var2, var1);
+    }
+ 
+    private void nDeactivate(long var1) throws IOException {
+       NET.worlds.core.NativeMock.log("IClassFactory", "nDeactivate", new Object[]{var1});
++      // gamma.dll 0x0040ae60: CoRevokeClassObject de un cookie que no existe
++      NET.worlds.core.NativeSysCom.revokeClassObject(var1);
+    }
+ }
+diff a/NET/worlds/console/IDispatch.java b/NET/worlds/console/IDispatch.java
+--- a/NET/worlds/console/IDispatch.java
++++ b/NET/worlds/console/IDispatch.java
+@@ -34,6 +34,16 @@
+ 
+    public void Invoke(String var1) {
+       NET.worlds.core.NativeMock.log("IDispatch", "Invoke", new Object[]{var1});
++      // gamma.dll 0x0040af10: getPtr y GetIDsOfNames/Invoke; sin objetos con
++      // IDispatch, IOException "IDispatch: bad function name" (sin declarar)
++      int var2;
++      try {
++         var2 = this.getPtr();
++      } catch (OLEInvalidObjectException var3) {
++         throw NET.worlds.core.NativeSysJni.throwNew(var3);
++      }
++
++      NET.worlds.core.NativeSysCom.invoke(var2, var1);
+    }
+ 
+    public String toString() {
+diff a/NET/worlds/console/INetscapeRegistry.java b/NET/worlds/console/INetscapeRegistry.java
+--- a/NET/worlds/console/INetscapeRegistry.java
++++ b/NET/worlds/console/INetscapeRegistry.java
+@@ -9,12 +9,28 @@
+ 
+    public boolean RegisterViewer(String var1, String var2) throws IOException {
+       NET.worlds.core.NativeMock.log("INetscapeRegistry", "RegisterViewer", new Object[]{var1, var2});
+-      return true;
++      // gamma.dll 0x0040b250 -> FUN_0040b0b0: getPtr y GetIDsOfNames(L"RegisterViewer")
++      int var3;
++      try {
++         var3 = this.getPtr();
++      } catch (OLEInvalidObjectException var4) {
++         throw NET.worlds.core.NativeSysJni.throwNew(var4);
++      }
++
++      return NET.worlds.core.NativeSysCom.netscapeRegister(var3, "RegisterViewer");
+    }
+ 
+    public boolean RegisterProtocol(String var1, String var2) throws IOException {
+       NET.worlds.core.NativeMock.log("INetscapeRegistry", "RegisterProtocol", new Object[]{var1, var2});
+-      return true;
++      // gamma.dll 0x0040b220 -> FUN_0040b0b0: getPtr y GetIDsOfNames(L"RegisterProtocol")
++      int var3;
++      try {
++         var3 = this.getPtr();
++      } catch (OLEInvalidObjectException var4) {
++         throw NET.worlds.core.NativeSysJni.throwNew(var4);
++      }
++
++      return NET.worlds.core.NativeSysCom.netscapeRegister(var3, "RegisterProtocol");
+    }
+ 
+    public String toString() {
+diff a/NET/worlds/console/IUnknown.java b/NET/worlds/console/IUnknown.java
+--- a/NET/worlds/console/IUnknown.java
++++ b/NET/worlds/console/IUnknown.java
+@@ -146,20 +146,38 @@
+ 
+    public void true_AddRef() {
+       NET.worlds.core.NativeMock.log("IUnknown", "true_AddRef", new Object[0]);
++      // gamma.dll 0x0040b330: el puntero como en getPtr (sus excepciones sin
++      // declarar, como JNI) y AddRef (vtable + 4) del objeto
++      int var1;
++      try {
++         var1 = this.getPtr();
++      } catch (OLEInvalidObjectException var2) {
++         throw NET.worlds.core.NativeSysJni.throwNew(var2);
++      }
++
++      NET.worlds.core.NativeSysCom.addRef(var1);
+    }
+ 
+    public int QueryInterface(String var1) throws IOException, OLEInvalidObjectException {
+       NET.worlds.core.NativeMock.log("IUnknown", "QueryInterface", new Object[]{var1});
+-      return 0;
++      // 0x0040b450: IIDFromString y QueryInterface (vtable + 0) del objeto
++      return NET.worlds.core.NativeSysCom.queryInterface(this.getPtr(), var1);
+    }
+ 
+    public void true_Release() throws OLEInvalidObjectException {
+       NET.worlds.core.NativeMock.log("IUnknown", "true_Release", new Object[0]);
++      // 0x0040b3c0: Release (vtable + 8) del objeto
++      NET.worlds.core.NativeSysCom.release(this.getPtr());
+    }
+ 
+    protected int getPtr() throws OLEInvalidObjectException {
+       NET.worlds.core.NativeMock.log("IUnknown", "getPtr", new Object[0]);
+-      return 0;
++      // 0x0040b2b0: GetIntField(_pInterface); 0 -> "No C++ mirror object"
++      if (this._pInterface == 0) {
++         throw new OLEInvalidObjectException("No C++ mirror object");
++      }
++
++      return this._pInterface;
+    }
+ 
+    public String internalData() {
+diff a/NET/worlds/console/NSProtocolHandler.java b/NET/worlds/console/NSProtocolHandler.java
+--- a/NET/worlds/console/NSProtocolHandler.java
++++ b/NET/worlds/console/NSProtocolHandler.java
+@@ -34,6 +34,7 @@
+ 
+    public static int createLocal() throws IOException {
+       NET.worlds.core.NativeMock.log("NSProtocolHandler", "createLocal", new Object[0]);
+-      return 0;
++      // gamma.dll 0x00441f30: la fábrica de clases local de gamma.dll, 1 referencia
++      return NET.worlds.core.NativeSysCom.createLocalFactory();
+    }
+ }
+diff a/NET/worlds/console/VoiceChat.java b/NET/worlds/console/VoiceChat.java
+--- a/NET/worlds/console/VoiceChat.java
++++ b/NET/worlds/console/VoiceChat.java
+@@ -179,6 +179,11 @@
+ 
+    private static void terminateVC(int var0) {
+       NET.worlds.core.NativeMock.log("VoiceChat", "terminateVC", new Object[]{var0});
++      // gamma.dll 0x0043edb0: PostMessageA(var0, WM_CLOSE, 0, 0) a la ventana de
++      // sfmain.exe, sin mirar el resultado. Fuera de Windows ese programa no
++      // arranca (tryToRun falla) y no hay ventana a la que avisar: nada que
++      // hacer, como un PostMessage a un asa inexistente. Nadie la llama en el
++      // Java original (privada y sin usos).
+    }
+ 
+    private boolean initiateVoiceChat(String var1, String var2) {
+diff a/NET/worlds/core/RegKey.java b/NET/worlds/core/RegKey.java
+--- a/NET/worlds/core/RegKey.java
++++ b/NET/worlds/core/RegKey.java
+@@ -24,45 +24,57 @@
+ 
+    public String getStringValue(String var1) {
+       NET.worlds.core.NativeMock.log("RegKey", "getStringValue", new Object[]{var1});
+-      return var1;
++      // gamma.dll 0x00402470 sobre el registro portable (NativeSysRegistry)
++      return NativeSysRegistry.getString(this.hKey, var1);
+    }
+ 
+    public boolean setStringValue(String var1, String var2, boolean var3) {
+       NET.worlds.core.NativeMock.log("RegKey", "setStringValue", new Object[]{var1, var2, var3});
+-      return true;
++      // 0x00402510: REG_EXPAND_SZ si var3, si no REG_SZ
++      return NativeSysRegistry.setString(this.hKey, var1, var2, var3);
+    }
+ 
+    public int getIntValue(String var1) {
+       NET.worlds.core.NativeMock.log("RegKey", "getIntValue", new Object[]{var1});
+-      return 0;
++      // 0x004025c0: solo REG_DWORD de 4 bytes, si no 0
++      return NativeSysRegistry.getInt(this.hKey, var1);
+    }
+ 
+    public boolean setIntValue(String var1, int var2) {
+       NET.worlds.core.NativeMock.log("RegKey", "setIntValue", new Object[]{var1, var2});
+-      return true;
++      // 0x00402640: REG_DWORD
++      return NativeSysRegistry.setInt(this.hKey, var1, var2);
+    }
+ 
+    public void close() {
+       NET.worlds.core.NativeMock.log("RegKey", "close", new Object[0]);
++      // 0x004026a0: RegCloseKey
++      NativeSysRegistry.close(this.hKey);
+    }
+ 
+    private static int getReservedKey(int var0) throws RegKeyNotFoundException {
+       NET.worlds.core.NativeMock.log("RegKey", "getReservedKey", new Object[]{var0});
+-      return 0;
++      // 0x004023f0: 0..3 -> 0x80000000..3, si no "Key not found: 0"
++      return NativeSysRegistry.reservedKey(var0);
+    }
+ 
+    private static int openKey(int var0, String var1, int var2) throws RegKeyNotFoundException {
+       NET.worlds.core.NativeMock.log("RegKey", "openKey", new Object[]{var0, var1, var2});
+-      return 0;
++      // 0x004026d0: KEY_READ, o lectura y escritura si var2 & 1
++      return NativeSysRegistry.openKey(var0, var1, var2);
+    }
+ 
+    private static int createKey(int var0, String var1) {
+       NET.worlds.core.NativeMock.log("RegKey", "createKey", new Object[]{var0, var1});
+-      return 0;
++      // 0x00402770: RegCreateKeyExA con KEY_ALL_ACCESS; lanza
++      // RegKeyNotFoundException aunque Java no la declare (como JNI)
++      return NativeSysRegistry.createKey(var0, var1);
+    }
+ 
+    public static void nativeInit() {
+       NET.worlds.core.NativeMock.log("RegKey", "nativeInit", new Object[0]);
++      // 0x00402360: solo cachea la clase y el ID del campo "hKey" (I), con
++      // aserción nRegKey 0x1d / 0x20 si faltaran; aquí se usa el campo directo
+    }
+ 
+    private RegKey(int var1) {
+diff a/NET/worlds/core/SystemInfo.java b/NET/worlds/core/SystemInfo.java
+--- a/NET/worlds/core/SystemInfo.java
++++ b/NET/worlds/core/SystemInfo.java
+@@ -88,7 +88,8 @@
+ 
+    public static int GetDiskFreeSpace(String var0) {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetDiskFreeSpace", new Object[]{var0});
+-      return 0;
++      // 0x00442020: KB libres (producto de 32 bits >> 10), 0 si falla
++      return NativeSysInfo.diskFreeKB(var0);
+    }
+ 
+    public static int GetDiskFreeSpace() {
+@@ -97,46 +98,55 @@
+ 
+    public static String GetSystemDirectory() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetSystemDirectory", new Object[0]);
+-      return null;
++      // 0x00442100: rama de fallo de GetSystemDirectoryA (null)
++      return NativeSysInfo.systemDirectory();
+    }
+ 
+    public static String GetCurrentDirectory() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetCurrentDirectory", new Object[0]);
+-      return null;
++      // 0x00442150: directorio de trabajo con la unidad sintética u:
++      return NativeSysInfo.currentDirectory();
+    }
+ 
+    public static int GetTotalPhysicalMemory() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetTotalPhysicalMemory", new Object[0]);
+-      return 0;
++      // 0x004421a0: dwTotalPhys topado a 0x7fffffff
++      return NativeSysInfo.memoryStatus()[0];
+    }
+ 
+    public static int GetAvailPhysicalMemory() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetAvailPhysicalMemory", new Object[0]);
+-      return 0;
++      // 0x00442200: dwAvailPhys topado a 0x7fffffff
++      return NativeSysInfo.memoryStatus()[1];
+    }
+ 
+    public static int GetTotalPagedMemory() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetTotalPagedMemory", new Object[0]);
+-      return 0;
++      // 0x00442260: dwTotalPageFile topado a 0x7fffffff
++      return NativeSysInfo.memoryStatus()[2];
+    }
+ 
+    public static int GetAvailPagedMemory() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetAvailPagedMemory", new Object[0]);
+-      return 0;
++      // 0x004422c0: dwAvailPageFile topado a 0x7fffffff
++      return NativeSysInfo.memoryStatus()[3];
+    }
+ 
+    public static String GetPlatformID() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetPlatformID", new Object[0]);
+-      return null;
++      // 0x00442340: sin GetVersionExA, "Unknown"
++      return NativeSysInfo.platformId();
+    }
+ 
+    public static int GetNumberOfProcessors() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetNumberOfProcessors", new Object[0]);
+-      return 0;
++      // 0x00442320: dwNumberOfProcessors
++      return NativeSysInfo.processors();
+    }
+ 
+    public static String GetProcessorType() {
+       NET.worlds.core.NativeMock.log("SystemInfo", "GetProcessorType", new Object[0]);
+-      return null;
++      // 0x00442470: cadenas literales de gamma.dll según la arquitectura
++      return NativeSysInfo.processorType();
+    }
+ }
+diff a/NET/worlds/network/NetUpdate.java b/NET/worlds/network/NetUpdate.java
+--- a/NET/worlds/network/NetUpdate.java
++++ b/NET/worlds/network/NetUpdate.java
+@@ -762,7 +762,8 @@
+ 
+    private static boolean CreateProcSpecial(String var0, String var1) {
+       NET.worlds.core.NativeMock.log("NetUpdate", "CreateProcSpecial", new Object[]{var0, var1});
+-      return true;
++      // gamma.dll 0x00404740: "%s %s %lu" con el PID y CreateProcessA
++      return NET.worlds.core.NativeSysProcess.createProcSpecial(var0, var1);
+    }
+ 
+    private static boolean runUpdates(String var0) {
+diff a/NET/worlds/scape/Pilot.java b/NET/worlds/scape/Pilot.java
+--- a/NET/worlds/scape/Pilot.java
++++ b/NET/worlds/scape/Pilot.java
+@@ -54,6 +54,15 @@
+ 
+    public static void nativeInit() {
+       NET.worlds.core.NativeMock.log("Pilot", "nativeInit", new Object[0]);
++      // gamma.dll 0x0041a900: cachea la clase y el ID del campo int
++      // "cameraMode"; si faltan, aserción "nPilot" 0x17 / 0x1a (exit 41)
++      try {
++         if (Pilot.class.getDeclaredField("cameraMode").getType() != int.class) {
++            NET.worlds.core.NativeAssert.fail("nPilot", 0x1a);
++         }
++      } catch (NoSuchFieldException var0) {
++         NET.worlds.core.NativeAssert.fail("nPilot", 0x1a);
++      }
+    }
+ 
+    public float animate(String var1) {
+diff a/NET/worlds/scape/RenderWare.java b/NET/worlds/scape/RenderWare.java
+--- a/NET/worlds/scape/RenderWare.java
++++ b/NET/worlds/scape/RenderWare.java
+@@ -3,11 +3,18 @@
+ public class RenderWare {
+    public static boolean get3DHardwareInUse() {
+       NET.worlds.core.NativeMock.log("RenderWare", "get3DHardwareInUse", new Object[0]);
+-      return true;
++      // gamma.dll 0x0043c4f0: DAT_00489578 == 1 (FUN_00417930). Esa global de
++      // .bss solo pasa a 1 en FUN_0041a150 (0x0041a501) al arrancar un driver
++      // "rwdld" (Direct3D) aceptado y habilitado por UserEnabled3DHardware; el
++      // puente emula el driver de software RWDL6D21: false
++      return false;
+    }
+ 
+    public static boolean get3DHardwareAvailable() {
+       NET.worlds.core.NativeMock.log("RenderWare", "get3DHardwareAvailable", new Object[0]);
+-      return true;
++      // gamma.dll 0x0043c510: DAT_0048957c == 1 (FUN_00417940); solo pasa a 1
++      // en FUN_0041a150 (0x0041a447) con un driver "rwdld" que arranca y
++      // FUN_00417430 acepta; con el driver de software RWDL6D21: false
++      return false;
+    }
+ }
+diff a/NET/worlds/scape/Restorer.java b/NET/worlds/scape/Restorer.java
+--- a/NET/worlds/scape/Restorer.java
++++ b/NET/worlds/scape/Restorer.java
+@@ -222,7 +222,11 @@
+ 
+    private Object makeArray(Class var1, int var2) {
+       NET.worlds.core.NativeMock.log("Restorer", "makeArray", new Object[]{var1, var2});
+-      return null;
++      // gamma.dll 0x0041a8d0: NewObjectArray(env, var2, var1, NULL) (tabla JNI
++      // +0x2b0 = función 172): array de var1 con var2 nulos, que es
++      // Array.newInstance para una clase no primitiva (la única que llega
++      // aquí: restoreArray la saca de un nombre "[L...;")
++      return java.lang.reflect.Array.newInstance(var1, var2);
+    }
+ 
+    public Persister[] restoreArray() throws IOException, TooNewException {
+diff a/NET/worlds/scape/VehicleShape.java b/NET/worlds/scape/VehicleShape.java
+--- a/NET/worlds/scape/VehicleShape.java
++++ b/NET/worlds/scape/VehicleShape.java
+@@ -97,51 +97,62 @@
+ 
+    protected void nativeAnalyzeShape(int var1, float var2) {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeAnalyzeShape", new Object[]{var1, var2});
++      // gamma.dll 0x0043f580: caja del árbol en pies, centro, inercia y ruedas
++      NET.worlds.core.NativeSysVehicle.analyzeShape(var1, var2);
+    }
+ 
+    protected float nativeGetTirePosX(int var1) {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetTirePosX", new Object[]{var1});
+-      return 0.0F;
++      // 0x0043f4c0: DAT_0049df10 + var1 * 0xc
++      return NET.worlds.core.NativeSysVehicle.tire(var1, 0);
+    }
+ 
+    protected float nativeGetTirePosY(int var1) {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetTirePosY", new Object[]{var1});
+-      return 0.0F;
++      // 0x0043f4e0: DAT_0049df14 + var1 * 0xc
++      return NET.worlds.core.NativeSysVehicle.tire(var1, 1);
+    }
+ 
+    protected float nativeGetTirePosZ(int var1) {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetTirePosZ", new Object[]{var1});
+-      return 0.0F;
++      // 0x0043f500: DAT_0049df18 + var1 * 0xc
++      return NET.worlds.core.NativeSysVehicle.tire(var1, 2);
+    }
+ 
+    protected float nativeGetCogX() {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetCogX", new Object[0]);
+-      return 0.0F;
++      // 0x0043f520: DAT_0049def8
++      return NET.worlds.core.NativeSysVehicle.cog(0);
+    }
+ 
+    protected float nativeGetCogY() {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetCogY", new Object[0]);
+-      return 0.0F;
++      // 0x0043f530: DAT_0049defc
++      return NET.worlds.core.NativeSysVehicle.cog(1);
+    }
+ 
+    protected float nativeGetCogZ() {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetCogZ", new Object[0]);
+-      return 0.0F;
++      // 0x0043f540: DAT_0049df00
++      return NET.worlds.core.NativeSysVehicle.cog(2);
+    }
+ 
+    protected float nativeGetMoiX() {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetMoiX", new Object[0]);
+-      return 0.0F;
++      // 0x0043f550: DAT_0049df04
++      return NET.worlds.core.NativeSysVehicle.moi(0);
+    }
+ 
+    protected float nativeGetMoiY() {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetMoiY", new Object[0]);
+-      return 0.0F;
++      // 0x0043f560: DAT_0049df08
++      return NET.worlds.core.NativeSysVehicle.moi(1);
+    }
+ 
+    protected float nativeGetMoiZ() {
+       NET.worlds.core.NativeMock.log("VehicleShape", "nativeGetMoiZ", new Object[0]);
+-      return 0.0F;
++      // 0x0043f570: DAT_0049df0c
++      return NET.worlds.core.NativeSysVehicle.moi(2);
+    }
+ 
+    public void prerender(Camera var1) {
