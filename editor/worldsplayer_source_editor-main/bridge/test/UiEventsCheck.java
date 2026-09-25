@@ -110,16 +110,42 @@ public class UiEventsCheck {
       Thread.sleep(500);
       tf.requestFocus();
       Thread.sleep(400);
-      System.out.println("  foco: " + (java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() == tf)
-         + ", adaptador puesto: " + (tf.getKeyListeners().length > 0));
+      boolean focused = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() == tf;
+      System.out.println("  foco: " + focused + ", adaptador puesto: " + (tf.getKeyListeners().length > 0));
       EventQueue q = Toolkit.getDefaultToolkit().getSystemEventQueue();
-      String text = "hola";
-      for (char ch : (text + "\u001b\n").toCharArray()) {
-         int code = ch == '\n' ? KeyEvent.VK_ENTER : ch == 27 ? KeyEvent.VK_ESCAPE : KeyEvent.getExtendedKeyCodeForChar(ch);
-         long w = System.currentTimeMillis();
-         q.postEvent(new KeyEvent(tf, KeyEvent.KEY_PRESSED, w, 0, code, ch));
-         q.postEvent(new KeyEvent(tf, KeyEvent.KEY_TYPED, w, 0, KeyEvent.VK_UNDEFINED, ch));
-         q.postEvent(new KeyEvent(tf, KeyEvent.KEY_RELEASED, w, 0, code, ch));
+      if (focused) {
+         String text = "hola";
+         for (char ch : (text + "\u001b\n").toCharArray()) {
+            int code = ch == '\n' ? KeyEvent.VK_ENTER : ch == 27 ? KeyEvent.VK_ESCAPE : KeyEvent.getExtendedKeyCodeForChar(ch);
+            long w = System.currentTimeMillis();
+            q.postEvent(new KeyEvent(tf, KeyEvent.KEY_PRESSED, w, 0, code, ch));
+            q.postEvent(new KeyEvent(tf, KeyEvent.KEY_TYPED, w, 0, KeyEvent.VK_UNDEFINED, ch));
+            q.postEvent(new KeyEvent(tf, KeyEvent.KEY_RELEASED, w, 0, code, ch));
+         }
+      } else {
+         // macOS no deja activar la JVM mientras la persona usa otra aplicacion:
+         // sin dueno del foco el KeyboardFocusManager tira las teclas. Se
+         // encolan los eventos que no dependen del foco: el ActionEvent que el
+         // peer publica al pulsar Intro, y la tecla Esc por processEvent.
+         System.out.println("  (la JVM no es la aplicacion activa: Intro como ActionEvent del peer, Esc por processEvent)");
+         tf.setText("hola");
+         q.postEvent(new ActionEvent(tf, ActionEvent.ACTION_PERFORMED, "hola", System.currentTimeMillis(), 0));
+         final KeyEvent esc = new KeyEvent(tf, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ESCAPE, (char) 27);
+         EventQueue.invokeAndWait(new Runnable() {
+            public void run() {
+               try {
+                  java.lang.reflect.Method m = java.awt.Component.class.getDeclaredMethod("processEvent", java.awt.AWTEvent.class);
+                  m.setAccessible(true);
+                  m.invoke(tf, esc);
+               } catch (Exception e) {
+                  // java.awt no abierto: se comprueba por el adaptador directamente
+                  for (java.awt.event.KeyListener l : tf.getKeyListeners()) {
+                     l.keyPressed(esc);
+                  }
+               }
+            }
+         });
+         check(esc.isConsumed(), "Esc consumido por handleEvent se consume tambien como KeyEvent");
       }
       Thread.sleep(1000);
       System.out.println("  eventos 1.0 vistos: " + seen + ", texto: [" + tf.getText() + "]");

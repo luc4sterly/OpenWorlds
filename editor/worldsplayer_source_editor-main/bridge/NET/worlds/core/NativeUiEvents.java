@@ -527,6 +527,11 @@ public final class NativeUiEvents {
          Thread.sleep(300);
          owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
       }
+      if (owner != line) {
+         KeyboardFocusManager k = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+         System.err.println("[TYPECHAT] sin foco: ventana activa " + (k.getActiveWindow() == null ? "ninguna (la JVM no es la aplicacion activa)"
+            : k.getActiveWindow().getClass().getName()) + ", dueno del foco " + (owner == null ? "ninguno" : owner.getClass().getName()));
+      }
       System.err.println("[TYPECHAT] foco en el campo: " + (owner == line) + "; tecleo " + (showText ? "\"" + text + "\"" : text.length() + " caracteres") + " + Intro");
       Component target = owner != null ? owner : line;
       for (int i = 0; i <= text.length(); i++) {
