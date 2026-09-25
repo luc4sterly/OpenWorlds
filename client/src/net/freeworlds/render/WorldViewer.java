@@ -1,10 +1,17 @@
 package net.freeworlds.render;
 
+import net.freeworlds.avatar.AnimAnimator;
+import net.freeworlds.avatar.AnimPose;
+import net.freeworlds.avatar.AnimRegistry;
+import net.freeworlds.avatar.AnimSequence;
+import net.freeworlds.avatar.AvatarFigure;
+import net.freeworlds.avatar.AvatarLooks;
+import net.freeworlds.avatar.AvatarNameDecoder;
+import net.freeworlds.avatar.AvatarRig;
+import net.freeworlds.avatar.ServerTables;
 import net.freeworlds.cmp.CmpTexture;
-import net.freeworlds.bod.BodClump;
 import net.freeworlds.bod.BodFile;
 import net.freeworlds.bod.BodParser;
-import net.freeworlds.bod.BodVertex;
 import net.freeworlds.rwx.RwxMaterial;
 import net.freeworlds.rwx.RwxModel;
 import net.freeworlds.rwx.RwxParser;
@@ -29,7 +36,6 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,21 +62,24 @@ import static org.lwjgl.opengl.GL11.*;
  * real client's scene graph would - no manual matrix math, no invented
  * layout.
  *
- * Avatares (2026-09-13): las referencias "avatar:Nombre.rwg"
- * (6 en GroundZero, todas en las galerias IconViewRoom1a/b/c/e/f/g)
- * SI se dibujan, en bind pose con el mismo pipeline fijo de 2 luces.
- * Resolucion real por nombre: "avatar:Roxanne.rwg" -> el .bod oficial
- * del mismo nombre en assets/gammatutorial-samples/base-avatars/
- * (jing/julie/paul/roxanne/simon existen ahi; Tre no existe y usa
- * aura.bod, el default real del cliente segun
- * PosableShape.defaultURL="avatar:aura.0PG.rwg"). Escala: los .bod
- * decodifican a ~0.17 unidades de alto y el cliente espera avatares de
- * ~189 (Drone.java avatarHeightChangedTo(189.0F)), asi que se aplica un
- * factor global x1000 documentado como heuristica (las proporciones,
- * colores por clump y colocacion por nodo son datos reales; solo la
- * escala absoluta es normalizada). Los pies quedan en el origen del
- * nodo y el eje +Y del .bod (up, verificado en BodViewer) se mapea a
- * +Z (el cliente es Z-up). Sin skinning/animacion: bind pose.
+ * Avatares: las referencias "avatar:Nombre.rwg" (6 en GroundZero, en las
+ * galerias IconViewRoom1a/b/c/e/f/g) y el avatar del jugador de --play se
+ * resuelven al .bod oficial del mismo nombre en
+ * assets/gammatutorial-samples/base-avatars/ (jing/julie/paul/roxanne/
+ * simon; Tre no existe y usa aura.bod, el default real del cliente,
+ * PosableShape.defaultURL). Desde 2026-09-25 se dibujan como el original
+ * (net.freeworlds.avatar, portado del puente, ver drawAvatar):
+ * - prepFigure (FUN_00434f00): escala 1000 y giro de 180 grados sobre
+ *   (0,1,1), que lleva el +Y del .bod a +Z y deja los pies en z = 0. (Antes
+ *   era una heuristica x1000 con (x,y,z) -&gt; (x,z,y), que es un espejo.)
+ * - aspecto por nombre de avatar (AvatarLooks, como BodViewer --avatar:
+ *   texturas .cmp/.mov con su subimagen y colores);
+ * - animacion con la regla de gamma.dll (DroneAnimator): quieto 10 s -&gt;
+ *   wait, 30 s -&gt; endwait, 10 s -&gt; wait; andar -&gt; walk sincronizado
+ *   con la distancia; pararse -&gt; wait; mezclas de 250 ms. Tipos y
+ *   secuencias del Avatars.dat de base-avatars.
+ * Los avatares de las galerias no se mueven en este visor (sus MoveAction
+ * no se ejecutan): pasan de reposo a wait a los 10 s.
  *
  * Infinite background (see drawInfiniteBackground): the room's exterior
  * shell is drawn in its own pass with its own camera: positioned at the
@@ -166,32 +175,55 @@ public final class WorldViewer {
     private static final Map<String, String> rectTexturesUnresolved = new TreeMap<>();
     private static int rectTextureRefs = 0;
 
-    // --- Avatares .bod (bind pose, ver javadoc de clase) ---
-    // Escala mundo real: Drone.java avatarHeightChangedTo(189.0F) = altura
-    // default de avatar en unidades mundo; los .bod decodifican a ~0.17
-    // (jing.bod: bbox y [-1.68,-1.51] medida con el propio BodViewer) asi
-    // que x1000 los deja en ~170-200, proporcion humana en salas de ~250
-    // de alto. HEURISTICA DOCUMENTADA (mismo nivel que el ambient 0.15
-    // de GlLighting): proporciones/colores/colocacion reales, escala
-    // absoluta normalizada.
-    private static final float BOD_WORLD_SCALE = 1000f;
-    /** Un triangulo ya ensamblado en coords locales .bod (Y-up). */
-    private static final class BodTri {
-       float ax, ay, az, bx, by, bz, cx, cy, cz;
-       float r, g, b;
-    }
-    /** Avatar ensamblado una vez por archivo .bod (bind pose). */
-    private static final class BodAvatar {
-       final List<BodTri> tris = new ArrayList<>();
-       // bbox local (Y-up, sin rebasear): para rebasear pies a origen.
-       float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, minZ = Float.MAX_VALUE;
-       float maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE, maxZ = -Float.MAX_VALUE;
+    // --- Avatares .bod animados (ver drawAvatar y net.freeworlds.avatar) ---
+    /** Un .bod ya leido por URL "avatar:..." (compartido entre figuras). */
+    private static final class AvatarModel {
+       BodFile bod;
+       File bodFile;
        boolean usedFallback; // este slot usa aura.bod por defecto
-       String sourceName; // archivo .bod realmente usado (para el reporte)
+       Map<Integer, AvatarLooks.Look> looks;
+       /** false si el nombre trae SZZZ (PosableShape.runPrepFigure). */
+       boolean runPrepFigure = true;
+       /** DroneAnimator.getnameindex del tipo, o -1 (sin animador ni prepFigure). */
+       int figureType = -1;
+       /** Caja en el sistema del PosableShape, pose de reposo (encuadre y bbox de sala). */
+       float[] bounds;
     }
-    private static final Map<String, BodAvatar> bodCache = new HashMap<>();
+    /** Una figura en escena (PosableShape): su arbol, su animador y su closestView. */
+    private static final class AvatarInstance {
+       final AvatarModel model;
+       final AvatarRig rig;
+       AnimAnimator animator;
+       float closestView = 10000.0F;
+       int farViewCount;
+       int lastImplicit = 1;
+       List<AvatarRig.Tri> tris;
+
+       AvatarInstance(AvatarModel model, AvatarRig rig) {
+          this.model = model;
+          this.rig = rig;
+       }
+    }
+    private static final Map<String, AvatarModel> avatarModels = new HashMap<>();
+    /** Por WNode (avatares del mundo) o PLAYER_AVATAR_KEY. */
+    private static final Map<Object, AvatarInstance> avatarInstances = new IdentityHashMap<>();
+    private static final Object PLAYER_AVATAR_KEY = new Object();
+    private static final Map<CmpTexture, Integer> avatarTextureIds = new IdentityHashMap<>();
     private static File avatarDir;
     private static boolean avatarDirChecked = false;
+    private static ServerTables avatarTablesCache;
+    private static boolean avatarTablesChecked = false;
+    private static AnimRegistry animRegistryCache;
+    private static AnimSequence.Library animLibrary;
+    private static boolean animRegistryChecked = false;
+    /** Std.getRealTime del frame (ms): reloj real, o 1000/30 ms por tick del autopiloto (determinista). */
+    private static int animClockMs = 1000;
+    /** -Dfreeworlds.animLog=true: cambios de implicito de todos los avatares, no solo del jugador. */
+    private static final boolean ANIM_LOG = Boolean.getBoolean("freeworlds.animLog");
+    /** Matriz objeto-a-mundo del nodo que drawNode esta dibujando (vector fila / GL por columnas). */
+    private static float[] drawWorld = new float[]{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    /** --shot-at TICK:PNG (solo con --walk-to): capturas en ticks concretos del autopiloto. */
+    private static final java.util.TreeMap<Integer, String> shotAt = new java.util.TreeMap<>();
 
     // --- Portales (--play): conectividad real y transformacion entre
     // salas, ver javadoc de crossPortal(). worldRoot + los dos mapas se
@@ -269,6 +301,12 @@ public final class WorldViewer {
              screenshotBeforePath = args[++i];
           } else if (args[i].equals("--screenshot-after") && i + 1 < args.length) {
              screenshotAfterPath = args[++i];
+          } else if (args[i].equals("--shot-at") && i + 1 < args.length) {
+             // --shot-at TICK:PNG (repetible, con --walk-to): captura en ese
+             // tick del autopiloto y termina tras la ultima.
+             String v = args[++i];
+             int c = v.indexOf(':');
+             shotAt.put(Integer.parseInt(v.substring(0, c)), v.substring(c + 1));
           }
        }
        if (inside && screenshotPath == null && walkToArg == null) {
@@ -541,6 +579,7 @@ public final class WorldViewer {
       }
       displayListCache.clear(); // IDs del contexto anterior (modo ALL) no valen aqui
       glTextureCache.clear(); // GL texture ids: mismo motivo, otro contexto
+      avatarTextureIds.clear();
 
       glEnable(GL_DEPTH_TEST);
       glClearColor(0.10f, 0.10f, 0.14f, 1f);
@@ -624,6 +663,7 @@ public final class WorldViewer {
       boolean autopilotDone = false;
       int autopilotTicks = 0;
       double lastTime = glfwGetTime();
+      double animStart = lastTime;
       // Frustum de la pasada de fondo (una vez por sala): cubre la
       // cascara vista desde el origen con margen x2.
       float bgNear = 1f, bgFar = 10000f;
@@ -644,6 +684,13 @@ public final class WorldViewer {
             startRoomActions(room, roomName, (long) (now * 1000.0));
          }
          textureActions.tick((long) (now * 1000.0));
+         // Std.getRealTime del frame para los avatares (ver animClockMs).
+         // El autopiloto es de paso fijo por tick: su reloj tambien.
+         if (play && walkToArg != null) {
+            animClockMs = 1000 + autopilotTicks * 1000 / 30;
+         } else {
+            animClockMs = 1000 + (int) ((now - animStart) * 1000.0);
+         }
          float dt = (float) Math.min(0.1, Math.max(1e-3, now - lastTime));
          lastTime = now;
          // Contadores POR FRAME (antes acumulaban toda la sesion y el
@@ -886,19 +933,22 @@ public final class WorldViewer {
            }
            if (play) {
               // Avatar del jugador (aura.bod = default real del cliente,
-              // PosableShape.defaultURL): pies en (px,py,pz), bind pose con
-              // las 2 luces como cualquier otro avatar. Forward VERIFICADO:
-              // cara y puntas de pies en +Z local del .bod (Y-up), coleta y
-              // talones en -Z — medido en SPIN.RWX (cabeza z -0.006/+0.043,
-              // pie -0.005/+0.059) y en bytes de aura.bod (coleta -Z, cara
-              // +Z); RWXTOBOD.PL pasa ejes sin tocar (swap solo con flag).
-              // El +Z bod mapea a +Y mundo (drawAvatar), y tras glRotate(t)
-              // sobre Z el forward (0,1,0) va a (-sin t,cos t): igualar al
-              // facing (cos yaw,sin yaw) da t = yaw-90 (algebra, no prueba).
+              // PosableShape.defaultURL), animado como cualquier PosableShape
+              // (drawAvatar). Forward VERIFICADO: cara y puntas de pies en
+              // +Z local del .bod (Y-up) — medido en SPIN.RWX y en bytes de
+              // aura.bod; prepFigure (AvatarRig) lleva ese +Z al +Y del
+              // objeto. Girar el objeto t sobre Z lleva (0,1,0) a (-sin t,
+              // cos t): igualar al facing (cos yaw, sin yaw) da t = yaw - 90.
+              float t = yaw - (float) (Math.PI / 2);
+              float ct = (float) Math.cos(t), st = (float) Math.sin(t);
+              float[] playerToWorld = {ct, st, 0, 0, -st, ct, 0, 0, 0, 0, 1, 0, px, py, pz, 1};
               glPushMatrix();
-              glTranslatef(px, py, pz);
-              glRotatef((float) Math.toDegrees(yaw) - 90f, 0, 0, 1);
-              if (drawAvatar(PLAY_AVATAR_URL)) {
+              try (MemoryStack stack = MemoryStack.stackPush()) {
+                 FloatBuffer pb = stack.mallocFloat(16);
+                 pb.put(playerToWorld).flip();
+                 glMultMatrixf(pb);
+              }
+              if (drawAvatar(PLAYER_AVATAR_KEY, PLAY_AVATAR_URL, playerToWorld, 1.0F)) {
                  drawnObjects++;
               }
               glPopMatrix();
@@ -921,6 +971,17 @@ public final class WorldViewer {
           // pre-cruce); "after" se guarda UNA vez, del mismo frame en que
           // crossPortal() ya cambio de sala/posicion mas arriba - por eso
           // ese mismo render ya muestra la sala destino real.
+          if (autopilot && shotAt.containsKey(autopilotTicks)) {
+             GlUtil.saveScreenshot(width, height, shotAt.get(autopilotTicks));
+             AvatarInstance pl = avatarInstances.get(PLAYER_AVATAR_KEY);
+             System.out.println("--shot-at: tick " + autopilotTicks + " (t=" + animClockMs + " ms) jugador en ("
+                + px + "," + py + "," + pz + ")" + (pl != null && pl.animator != null
+                   ? " implicito " + pl.animator.implicitIndex() + " (" + pl.animator.implicitName() + ")" : "")
+                + " -> " + shotAt.get(autopilotTicks));
+             if (autopilotTicks >= shotAt.lastKey()) {
+                autopilotDone = true;
+             }
+          }
           if (autopilot) {
              if (!crossedThisFrame && screenshotBeforePath != null) {
                 GlUtil.saveScreenshot(width, height, screenshotBeforePath);
@@ -950,6 +1011,7 @@ public final class WorldViewer {
       glfwTerminate();
       displayListCache.clear();
       glTextureCache.clear();
+      avatarTextureIds.clear();
     }
 
     /** Walk the room's real WObject tree once (no GL context needed) purely to resolve+load geometry and compute a real bounding box.
@@ -962,7 +1024,7 @@ public final class WorldViewer {
        if (n.geometryUrl != null) {
           objectCount[0]++;
           if (n.geometryUrl.startsWith("avatar:")) {
-             BodAvatar av = resolveAvatar(n.geometryUrl);
+             AvatarModel av = resolveAvatar(n.geometryUrl);
              if (av == null) {
                 avatarSkipCount++;
              } else if (n.isVisible()) {
@@ -1040,44 +1102,31 @@ public final class WorldViewer {
        }
     }
 
-    /** Extiende el bbox con las 8 esquinas del avatar ya colocado:
-     * caja local con pies en origen (ver drawAvatar) x escala, pasada
+    /** Extiende el bbox con las 8 esquinas de la caja del avatar en el
+     * sistema del PosableShape (tras prepFigure, pose de reposo), pasadas
      * por la matriz compuesta del nodo. */
-    private static void extendAvatarBbox(float[] bbox, float[] here, BodAvatar av) {
-       float w = (av.maxX - av.minX) * BOD_WORLD_SCALE;
-       float h = (av.maxY - av.minY) * BOD_WORLD_SCALE;
-       float d = (av.maxZ - av.minZ) * BOD_WORLD_SCALE;
-       if (!(w > 0) || !(h > 0) || !(d > 0)) {
+    private static void extendAvatarBbox(float[] bbox, float[] here, AvatarModel av) {
+       float[] b = av.bounds;
+       if (b == null || !(b[3] > b[0]) || !(b[5] > b[2])) {
           return; // .bod degenerado: no ensancha el encuadre con basura
        }
-       // Local (mundo-Z-up): x = bodX*s, y = bodZ*s, z = (bodY-minY)*s.
-       float lx0 = av.minX * BOD_WORLD_SCALE, lx1 = av.maxX * BOD_WORLD_SCALE;
-       float ly0 = av.minZ * BOD_WORLD_SCALE, ly1 = av.maxZ * BOD_WORLD_SCALE;
-       float lz1 = h;
-       float[] xs = {lx0, lx1};
-       float[] ys = {ly0, ly1};
-       float[] zs = {0f, lz1};
-       for (float x : xs) {
-          for (float y : ys) {
-             for (float z : zs) {
-                extendBbox(bbox, transformPoint(here, x, y, z));
-             }
-          }
+       for (int i = 0; i < 8; i++) {
+          extendBbox(bbox, transformPoint(here, b[(i & 1) == 0 ? 0 : 3], b[(i & 2) == 0 ? 1 : 4], b[(i & 4) == 0 ? 2 : 5]));
        }
     }
 
     /** Resuelve "avatar:Nombre.rwg" al .bod base oficial del mismo nombre
-     * (comparacion case-insensitive). Si no existe (Tre), usa aura.bod,
-     * el default real del cliente (PosableShape.defaultURL). null solo si
-     * ni siquiera hay fallback en disco. Conteo honesto via
-     * avatarFallbackCount. */
-    private static BodAvatar resolveAvatar(String url) {
-       BodAvatar cached = bodCache.get(url);
-       if (cached != null) {
-          return cached;
+     * (comparacion case-insensitive). Si no existe, usa aura.bod, el
+     * default real del cliente (PosableShape.defaultURL). null solo si ni
+     * siquiera hay fallback en disco. Ademas: el aspecto del nombre
+     * (AvatarLooks), el tipo de figura de Avatars.dat y la caja tras
+     * prepFigure. */
+    private static AvatarModel resolveAvatar(String url) {
+       if (avatarModels.containsKey(url)) {
+          return avatarModels.get(url);
        }
        File dir = resolveAvatarDir();
-       BodAvatar av = null;
+       AvatarModel av = null;
        if (dir != null) {
           String stem = url;
           int colon = stem.indexOf(':');
@@ -1090,22 +1139,83 @@ public final class WorldViewer {
           }
           File f = findIgnoreCase(dir, stem + ".bod");
           if (f != null) {
-             av = assembleAvatar(f, false);
+             av = loadAvatarModel(url, f, false);
           }
           if (av == null) {
              File aura = findIgnoreCase(dir, "aura.bod");
              if (aura != null) {
-                av = assembleAvatar(aura, true);
+                av = loadAvatarModel(url, aura, true);
                 if (av != null) {
                    System.out.println("Avatar \"" + url + "\": no hay .bod propio, usando aura.bod (default real del cliente)");
                 }
              }
           }
        }
-       if (av != null) {
-          bodCache.put(url, av);
-       }
+       avatarModels.put(url, av);
        return av;
+    }
+
+    private static AvatarModel loadAvatarModel(String url, File f, boolean fallback) {
+       AvatarModel av = new AvatarModel();
+       av.usedFallback = fallback;
+       av.bodFile = f;
+       try {
+          av.bod = BodParser.parse(Files.readAllBytes(f.toPath()));
+       } catch (Exception e) {
+          System.err.println("Avatar: no se pudo leer " + f + ": " + e);
+          return null;
+       }
+       // Aspecto por el nombre (PosableShape.createSubparts): igual que BodViewer --avatar.
+       ServerTables tables = avatarTables();
+       AvatarFigure fig = null;
+       if (tables != null) {
+          try {
+             fig = AvatarNameDecoder.decode(url, tables.permittedHash());
+             AvatarLooks.Result res = AvatarLooks.resolve(fig, f, f.getParentFile());
+             av.looks = res.byTag;
+             System.out.println(AvatarLooks.report(url, fig, res));
+          } catch (Exception e) {
+             System.out.println("Avatar \"" + url + "\": sin aspecto por nombre (" + e.getMessage() + ")");
+          }
+       }
+       av.runPrepFigure = fig == null || fig.prepFigure;
+       // PosableShape.getFigureType -> getBodyType (PosableShape.java:874)
+       // -> DroneAnimator.getnameindex (FUN_0042c8a0).
+       String body = bodyType(url, tables);
+       AnimRegistry reg = animRegistry();
+       av.figureType = body == null || reg == null ? -1 : reg.nameIndex(body);
+       AvatarRig probe = new AvatarRig(av.bod, av.looks);
+       if (av.figureType != -1 && av.runPrepFigure) {
+          probe.prepFigure();
+       }
+       av.bounds = probe.bounds();
+       System.out.println("Avatar \"" + url + "\": " + f.getName() + ", tipo de figura " + av.figureType
+          + (body != null ? " (\"" + body + "\")" : "") + (av.figureType == -1 ? " sin animador" : "")
+          + ", alto " + (av.bounds[5] - av.bounds[2]));
+       return av;
+    }
+
+    /**
+     * PosableShape.getBodyType(URL) (PosableShape.java:874): "avatar:X.rwg"
+     * -> X en minusculas hasta el primer punto; si tras el punto no viene
+     * '0' (nombre corto), getBodyType(String) (PosableShape.java:960) lo
+     * traduce por permittedHash y se queda con lo que hay antes del punto.
+     * (convertLODToParent no se porta: el visor no usa LOD.)
+     */
+    static String bodyType(String url, ServerTables tables) {
+       if (url == null || !url.startsWith("avatar:") || !(url.endsWith(".rwg") || url.endsWith(".RWG"))
+             || url.length() < 8 || url.charAt(7) == '.') {
+          return null;
+       }
+       int dot = url.indexOf('.', 7);
+       String body = url.substring(7, dot).toLowerCase();
+       if (url.charAt(dot + 1) != '0' && tables != null) {
+          String full = tables.permittedHash().get(body);
+          if (full != null) {
+             body = full.substring(0, full.indexOf('.'));
+          }
+       }
+       return body;
     }
 
     /** Localiza el directorio de avatares base oficiales una vez por
@@ -1135,191 +1245,237 @@ public final class WorldViewer {
        return avatarDir;
     }
 
-    /** Ensambla un .bod en bind pose (MISMA regla que BodViewer, ver su
-     * javadoc: placeholders del padre + translacion propia; RAIZ incluida
-     * — reproducir exacto lo verificado, sin "arreglos"). */
-    private static BodAvatar assembleAvatar(File f, boolean fallback) {
-       BodAvatar av = new BodAvatar();
-       av.usedFallback = fallback;
-       av.sourceName = f.getName();
-       byte[] data;
-       try {
-          data = Files.readAllBytes(f.toPath());
-       } catch (IOException e) {
-          System.err.println("Avatar: no se pudo leer " + f + ": " + e);
-          return null;
-       }
-       BodFile bod;
-       try {
-          bod = BodParser.parse(data);
-       } catch (Exception e) {
-          System.err.println("Avatar: no se pudo parsear " + f + ": " + e);
-          return null;
-       }
-       Map<Integer, BodClump> partByTag = new HashMap<>();
-       for (BodClump p : bod.parts) {
-          partByTag.put(p.tag, p);
-       }
-       Set<Integer> referenced = new HashSet<>();
-       for (BodClump p : bod.parts) {
-          collectAvatarPlaceholders(p, referenced);
-       }
-       BodClump root = null;
-       for (BodClump p : bod.parts) {
-          if (!referenced.contains(p.tag)) {
-             root = p;
-             break;
+    /** tables.dat de la instalacion (permittedList para los nombres cortos), o null. */
+    private static ServerTables avatarTables() {
+       if (!avatarTablesChecked) {
+          avatarTablesChecked = true;
+          File t = new File(baseDir, "../tables/tables.dat");
+          try {
+             if (t.isFile()) {
+                avatarTablesCache = ServerTables.load(t.toPath());
+             }
+          } catch (Exception e) {
+             System.err.println("Avatar: no se pudo leer " + t + ": " + e);
           }
        }
-       if (root == null) {
-          root = partByTag.get(1); // pelvis(1) en todo el corpus real
-       }
-       if (root == null && !bod.parts.isEmpty()) {
-          root = bod.parts.get(0);
-       }
-       if (root == null) {
-          return null;
-       }
-       Set<Integer> visited = new HashSet<>();
-       int[] bad = {0};
-       collectAvatarClump(root, 0f, 0f, 0f, partByTag, visited, av, bad);
-       if (av.tris.isEmpty()) {
-          System.err.println("Avatar: " + f + " sin triangulos colocados");
-          return null;
-       }
-       return av;
+       return avatarTablesCache;
     }
 
-    private static void collectAvatarPlaceholders(BodClump c, Set<Integer> out) {
-       if (c.placeholder) {
-          out.add(c.tag);
-          return;
-       }
-       if (c.children != null) {
-          for (BodClump child : c.children) {
-             collectAvatarPlaceholders(child, out);
-          }
-       }
-    }
-
-    private static void collectAvatarClump(BodClump c, float ox, float oy, float oz,
-          Map<Integer, BodClump> partByTag, Set<Integer> visited, BodAvatar av, int[] bad) {
-       if (c.placeholder) {
-          return;
-       }
-       visited.add(c.tag);
-       float nx = ox + c.tx;
-       float ny = oy + c.ty;
-       float nz = oz + c.tz;
-       if (c.vertices != null && !c.vertices.isEmpty() && c.triangles != null && !c.triangles.isEmpty()) {
-          float r = (c.r & 0xFF) / 255f;
-          float g = (c.g & 0xFF) / 255f;
-          float b = (c.b & 0xFF) / 255f;
-          List<BodVertex> v = c.vertices;
-          for (int[] t : c.triangles) {
-             if (t[0] < 0 || t[1] < 0 || t[2] < 0
-                || t[0] >= v.size() || t[1] >= v.size() || t[2] >= v.size()) {
-                bad[0]++;
-                continue;
-             }
-             BodVertex a = v.get(t[0]);
-             BodVertex bb = v.get(t[1]);
-             BodVertex cc = v.get(t[2]);
-             BodTri p = new BodTri();
-             p.ax = a.x + nx; p.ay = a.y + ny; p.az = a.z + nz;
-             p.bx = bb.x + nx; p.by = bb.y + ny; p.bz = bb.z + nz;
-             p.cx = cc.x + nx; p.cy = cc.y + ny; p.cz = cc.z + nz;
-             p.r = r; p.g = g; p.b = b;
-             av.tris.add(p);
-             float[] px = {p.ax, p.bx, p.cx};
-             float[] py = {p.ay, p.by, p.cy};
-             float[] pz = {p.az, p.bz, p.cz};
-             for (int i = 0; i < 3; i++) {
-                av.minX = Math.min(av.minX, px[i]);
-                av.minY = Math.min(av.minY, py[i]);
-                av.minZ = Math.min(av.minZ, pz[i]);
-                av.maxX = Math.max(av.maxX, px[i]);
-                av.maxY = Math.max(av.maxY, py[i]);
-                av.maxZ = Math.max(av.maxZ, pz[i]);
-             }
-          }
-       }
-       if (c.children != null) {
-          for (BodClump child : c.children) {
-             if (child.placeholder) {
-                BodClump target = partByTag.get(child.tag);
-                if (target == null) {
-                   bad[0]++;
-                   continue;
+    /**
+     * El registro de animacion: DroneAnimator.loadconfig (FUN_00434b70) de
+     * PendingCacheDrone.getAvatarDatPath. En este repo, el Avatars.dat de
+     * base-avatars (junto a sus .seq con nombre); para los 7 avatares de
+     * GroundZero (aura, jing, julie, paul, roxanne, simon, tre) sus
+     * implicitos son los mismos que en el 45.dat de cachedir (walk =
+     * common_walk, wait = common_a_wait, endwait = common_a_endwait).
+     * Archive.readTextFile quita los CR (FUN_00403eb0).
+     */
+    private static AnimRegistry animRegistry() {
+       if (!animRegistryChecked) {
+          animRegistryChecked = true;
+          File dir = resolveAvatarDir();
+          File dat = dir == null ? null : findIgnoreCase(dir, "Avatars.dat");
+          if (dat != null) {
+             try {
+                byte[] raw = Files.readAllBytes(dat.toPath());
+                java.io.ByteArrayOutputStream o = new java.io.ByteArrayOutputStream();
+                for (byte b : raw) {
+                   if (b != 13) {
+                      o.write(b);
+                   }
                 }
-                collectAvatarClump(target, nx + child.tx, ny + child.ty, nz + child.tz,
-                   partByTag, visited, av, bad);
-             } else {
-                collectAvatarClump(child, nx, ny, nz, partByTag, visited, av, bad);
+                AnimRegistry reg = AnimRegistry.get();
+                reg.clear();
+                reg.load(o.toByteArray(), dat.getPath());
+                animRegistryCache = reg;
+                animLibrary = new AnimSequence.Library(dir);
+                System.out.println("Animacion: " + reg.size() + " tipos de avatar en " + dat);
+             } catch (Exception e) {
+                System.err.println("Animacion: " + dat + ": " + e);
              }
           }
        }
+       return animRegistryCache;
     }
 
-    /** Dibuja un avatar .bod ya ensamblado bajo la matriz actual del nodo
-     * (la posicion/orientacion del PosableShape ya esta aplicada por
-     * drawNode): pies en el origen del nodo, +Y bod -> +Z mundo (el
-     * cliente es Z-up), escala global documentada. Colores planos por
-     * clump + 2 luces reales (el .bod no trae texturas ni normales:
-     * normal de cara + GL_FLAT como RWX, ambas caras visibles como RWG
-     * — winding sin verificar). Devuelve false si no habia nada que
-     * dibujar. */
-    private static boolean drawAvatar(String url) {
-       BodAvatar av = resolveAvatar(url);
-       if (av == null || av.tris.isEmpty()) {
-          return false;
-       }
-       float h = (av.maxY - av.minY) * BOD_WORLD_SCALE;
-       if (!(h > 0)) {
-          return false;
-       }
-       RwxMaterial lastMat = null;
-       boolean inBegin = false;
-       glDisable(GL_CULL_FACE);
-       for (BodTri t : av.tris) {
-          // Mapeo bod(Y-up) -> mundo(Z-up) + rebase de pies + escala.
-          float ax = t.ax * BOD_WORLD_SCALE;
-          float ay = t.az * BOD_WORLD_SCALE;
-          float az = (t.ay - av.minY) * BOD_WORLD_SCALE;
-          float bx = t.bx * BOD_WORLD_SCALE;
-          float by = t.bz * BOD_WORLD_SCALE;
-          float bz = (t.by - av.minY) * BOD_WORLD_SCALE;
-          float cx = t.cx * BOD_WORLD_SCALE;
-          float cy = t.cz * BOD_WORLD_SCALE;
-          float cz = (t.cy - av.minY) * BOD_WORLD_SCALE;
-          if (lastMat == null || lastMat.colorR != t.r || lastMat.colorG != t.g || lastMat.colorB != t.b) {
-             if (inBegin) {
-                glEnd();
-                inBegin = false;
+    /**
+     * La figura de un PosableShape (un nodo del mundo o el jugador): como
+     * PosableShape.recursiveAddRwChildren (PosableShape.java:125), si hay
+     * tipo de figura se hace prepFigure (si el nombre no lo prohibe) y se
+     * crea el animador (DroneAnimator.CreateRep); sin tipo, ni una cosa ni
+     * la otra (la figura queda a la escala del .bod, como en el original).
+     */
+    private static AvatarInstance avatarInstance(Object key, AvatarModel av) {
+       AvatarInstance ai = avatarInstances.get(key);
+       if (ai == null || ai.model != av) {
+          ai = new AvatarInstance(av, new AvatarRig(av.bod, av.looks));
+          AnimRegistry reg = animRegistry();
+          if (av.figureType != -1 && reg != null) {
+             if (av.runPrepFigure) {
+                ai.rig.prepFigure();
              }
-             lastMat = bodAvatarMaterial(t.r, t.g, t.b);
-             GlLighting.applyMaterial(lastMat);
+             ai.animator = new AnimAnimator(reg, animLibrary, animClockMs);
           }
-          if (!inBegin) {
-             glBegin(GL_TRIANGLES);
-             inBegin = true;
+          avatarInstances.put(key, ai);
+       }
+       return ai;
+    }
+
+    /**
+     * Dibuja un avatar bajo la matriz GL actual (la del nodo, o la del
+     * jugador), animado con la regla de gamma.dll. Por frame, lo que hace
+     * el PosableShape original:
+     * <ol>
+     * <li>handle(FrameEvent) (PosableShape.java:1219): si hay animador y
+     *     closestView (del frame anterior) no pasa de 900, moveto(tipo,
+     *     (short) x/y/z del objeto en el mundo, (short) -getYaw(), t - 1) y
+     *     update(null, figura, t, getScaleX()); luego closestView = 10000.
+     *     La pose resultante se aplica a la figura (FUN_00434470).</li>
+     * <li>prerender (PosableShape.java:1122): posicion del objeto en el
+     *     espacio de la camara; si z &gt; 1 y |x| &lt; z, closestView =
+     *     min(closestView, z), y si z &gt; 700 durante mas de 10 frames se
+     *     fuerza closestView &lt;= 400 (un update de vez en cuando aunque
+     *     este lejos).</li>
+     * </ol>
+     * ⚠️ No se porta setLOD (doLOD): el visor no tiene niveles de detalle.
+     *
+     * @param objToWorld matriz del objeto en el mundo (getObjectToWorldMatrix:
+     *                   modelado x LTM del padre, sin el joint de la figura)
+     * @param scaleX     getScaleX del Transform del objeto
+     */
+    private static boolean drawAvatar(Object key, String url, float[] objToWorld, float scaleX) {
+       AvatarModel av = resolveAvatar(url);
+       if (av == null) {
+          return false;
+       }
+       AvatarInstance ai = avatarInstance(key, av);
+       float view = ai.closestView;
+       ai.closestView = 10000.0F;
+       if (ai.animator != null && !(view > 900.0F)) {
+          int t = animClockMs;
+          short yaw = (short) (-AvatarRig.transformYaw(objToWorld));
+          ai.animator.moveto(av.figureType, (short) objToWorld[12], (short) objToWorld[13], (short) objToWorld[14], yaw, t - 1);
+          AnimPose pose = ai.animator.update(t, AnimAnimator.updateScale(scaleX, ai.rig.pelvisM00()));
+          ai.rig.applyPose(pose);
+          ai.tris = null;
+          if (ai.animator.implicitIndex() != ai.lastImplicit) {
+             if (key == PLAYER_AVATAR_KEY || ANIM_LOG) {
+                System.out.println("[anim] " + (key == PLAYER_AVATAR_KEY ? "jugador" : url) + " t=" + t + " ms: implicito "
+                   + ai.lastImplicit + " -> " + ai.animator.implicitIndex() + " (" + ai.animator.implicitName() + ")");
+             }
+             ai.lastImplicit = ai.animator.implicitIndex();
           }
-          float[] n = GlLighting.faceNormal(ax, ay, az, bx, by, bz, cx, cy, cz);
-          glNormal3f(n[0], n[1], n[2]);
-          glVertex3f(ax, ay, az);
-          glVertex3f(bx, by, bz);
-          glVertex3f(cx, cy, cz);
        }
-       if (inBegin) {
-          glEnd();
+       // prerender: origen del objeto en el espacio de la camara (GL mira
+       // hacia -z; RenderWare hacia +z).
+       try (MemoryStack stack = MemoryStack.stackPush()) {
+          FloatBuffer mv = stack.mallocFloat(16);
+          glGetFloatv(GL_MODELVIEW_MATRIX, mv);
+          float cx = mv.get(12);
+          float cz = -mv.get(14);
+          if (cz > 1.0F && cx < cz && -cx < cz) {
+             if (ai.closestView > cz) {
+                ai.closestView = cz;
+             }
+             if (cz > 700.0F && ++ai.farViewCount > 10) {
+                if (ai.closestView > 400.0F) {
+                   ai.closestView = 400.0F;
+                }
+                ai.farViewCount = 0;
+             }
+          }
        }
-       glEnable(GL_CULL_FACE);
-       drawnTriangles += av.tris.size();
+       if (ai.tris == null) {
+          ai.tris = ai.rig.triangles();
+       }
+       if (ai.tris.isEmpty()) {
+          return false;
+       }
+       drawAvatarTris(ai.tris);
+       drawnTriangles += ai.tris.size();
        avatarDrawnCount++;
        if (av.usedFallback) {
           avatarFallbackCount++;
        }
        return true;
+    }
+
+    /** Triangulos del avatar: color plano por clump o textura del nombre,
+     * 2 luces reales, normal de cara (el .bod no trae normales), ambas
+     * caras (bobinado sin verificar). Mismo criterio que BodViewer. */
+    private static void drawAvatarTris(List<AvatarRig.Tri> tris) {
+       boolean first = true;
+       boolean inBegin = false;
+       float lr = 0f, lg = 0f, lb = 0f;
+       CmpTexture lastTex = null;
+       boolean lastAvatarMat = false;
+       glDisable(GL_CULL_FACE);
+       for (AvatarRig.Tri t : tris) {
+          if (first || t.r != lr || t.g != lg || t.b != lb || t.texture != lastTex || t.avatarMaterial != lastAvatarMat) {
+             if (inBegin) {
+                glEnd();
+                inBegin = false;
+             }
+             if (t.texture != null) {
+                glEnable(GL_TEXTURE_2D);
+                glBindTexture(GL_TEXTURE_2D, avatarTextureId(t.texture));
+             } else {
+                glDisable(GL_TEXTURE_2D);
+             }
+             GlLighting.applyMaterial(t.avatarMaterial ? avatarNameMaterial(t.r, t.g, t.b) : bodAvatarMaterial(t.r, t.g, t.b));
+             lr = t.r;
+             lg = t.g;
+             lb = t.b;
+             lastTex = t.texture;
+             lastAvatarMat = t.avatarMaterial;
+             first = false;
+          }
+          if (!inBegin) {
+             glBegin(GL_TRIANGLES);
+             inBegin = true;
+          }
+          float[] p = t.p;
+          float[] n = GlLighting.faceNormal(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]);
+          glNormal3f(n[0], n[1], n[2]);
+          for (int j = 0; j < 3; j++) {
+             if (t.texture != null) {
+                glTexCoord2f(t.uv[j * 2], t.uv[j * 2 + 1]);
+             }
+             glVertex3f(p[j * 3], p[j * 3 + 1], p[j * 3 + 2]);
+          }
+       }
+       if (inBegin) {
+          glEnd();
+       }
+       glDisable(GL_TEXTURE_2D);
+       glEnable(GL_CULL_FACE);
+    }
+
+    /** Id GL de una textura de avatar (una subida por contexto; uploadTexture ya fija GL_UNPACK_ALIGNMENT 1). */
+    private static int avatarTextureId(CmpTexture tex) {
+       Integer id = avatarTextureIds.get(tex);
+       if (id == null) {
+          id = uploadTexture(tex);
+          avatarTextureIds.put(tex, id);
+       }
+       return id;
+    }
+
+    /** Material de una limb con textura o color del nombre de avatar:
+     * new Material(0.32f, 0.55f, 0.0f, ...) de PosableShape.scanTexture /
+     * readColor (PosableShape.java:255, 303), como BodViewer. ⚠️ VERIFICAR:
+     * con textura el color del cliente es colorTable[3]; si RenderWare 2
+     * tine la textura con el no esta verificado (se dibuja sin tintar). */
+    private static RwxMaterial avatarNameMaterial(float r, float g, float b) {
+       RwxMaterial mat = new RwxMaterial();
+       mat.colorR = r;
+       mat.colorG = g;
+       mat.colorB = b;
+       mat.ambient = 0.32f;
+       mat.diffuse = 0.55f;
+       mat.specular = 0.0f;
+       mat.opacity = 1f;
+       return mat;
     }
 
     /** Material plano por clump .bod (el formato no trae scalars: misma
@@ -1367,7 +1523,9 @@ public final class WorldViewer {
 
     private static void drawNode(WNode n) {
        glPushMatrix();
+       float[] parentWorld = drawWorld;
        if (n.matrix != null) {
+          drawWorld = multiply(drawWorld, n.matrix);
           try (MemoryStack stack = MemoryStack.stackPush()) {
              FloatBuffer buf = stack.mallocFloat(16);
              buf.put(n.matrix).flip();
@@ -1383,7 +1541,7 @@ public final class WorldViewer {
        if (n.geometryUrl != null) {
           if (n.geometryUrl.startsWith("avatar:")) {
              if (visibleLeaf) {
-                if (drawAvatar(n.geometryUrl)) {
+                if (drawAvatar(n, n.geometryUrl, drawWorld, n.xScale)) {
                    drawnObjects++;
                 }
              }
@@ -1409,6 +1567,7 @@ public final class WorldViewer {
        for (WNode c : n.children) {
           drawNode(c);
        }
+       drawWorld = parentWorld;
        glPopMatrix();
     }
 
