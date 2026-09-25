@@ -324,20 +324,32 @@ public final class NativeUiEvents {
     * FocusPreservingTextField.chatLine (reflexion: solo el arnes lo lee).
     */
    private static void typeChatScript() {
-      final String spec = System.getProperty("freeworlds.typeChat");
+      typeScript("freeworlds.typeChat", "linea de chat", false);
+      typeScript("freeworlds.typePassword", "campo de contrasena", true);
+   }
+
+   /**
+    * El mismo arnes para el LoginWizard:
+    * {@code -Dfreeworlds.typePassword=MS:texto} teclea en el primer
+    * TextField visible con eco ({@code setEchoChar}) y pulsa Intro; con
+    * texto vacio solo pulsa Intro (contrasena ya rellena por "Remember
+    * password").
+    */
+   private static void typeScript(final String prop, final String what, final boolean password) {
+      final String spec = System.getProperty(prop);
       if (spec == null || spec.length() == 0) {
          return;
       }
-      Thread t = new Thread("freeworlds-typeChat") {
+      Thread t = new Thread("freeworlds-" + prop) {
          public void run() {
             try {
                Component line = null;
                while (line == null || !line.isShowing()) {
                   Thread.sleep(250);
-                  line = chatLine();
+                  line = password ? passwordField() : chatLine();
                }
                long t0 = System.currentTimeMillis();
-               System.err.println("[TYPECHAT] linea de chat visible");
+               System.err.println("[TYPECHAT] " + what + " visible");
                for (String item : spec.split(";")) {
                   int colon = item.indexOf(':');
                   long at = Long.parseLong(item.substring(0, colon).trim());
@@ -346,7 +358,13 @@ public final class NativeUiEvents {
                   if (wait > 0) {
                      Thread.sleep(wait);
                   }
-                  typeInto(line, text);
+                  if (password && text.startsWith("[x]")) {
+                     typeInto(line, text.substring(3), false, false);
+                     clickCheckbox(line);
+                     clickForward(line);
+                  } else {
+                     typeInto(line, text, !password, true);
+                  }
                }
             } catch (InterruptedException e) {
                return;
@@ -357,6 +375,106 @@ public final class NativeUiEvents {
       };
       t.setDaemon(true);
       t.start();
+   }
+
+   /**
+    * "[x]" delante del texto de typePassword: antes, un clic de raton (por la
+    * cola de sistema) en la casilla "Remember password" de la misma ventana,
+    * como haria una persona (el LoginWizard la deja desmarcada si no habia
+    * contrasena guardada: LoginWizard.java:384).
+    */
+   private static void clickCheckbox(Component field) throws InterruptedException {
+      Window w = javax.swing.SwingUtilities.getWindowAncestor(field);
+      java.awt.Checkbox box = w == null ? null : findCheckbox(w);
+      if (box == null) {
+         System.err.println("[TYPECHAT] no hay casilla en la ventana");
+         return;
+      }
+      requestForeground(box);
+      EventQueue q = Toolkit.getDefaultToolkit().getSystemEventQueue();
+      int cx = 6;
+      int cy = box.getHeight() / 2;
+      Point s = box.getLocationOnScreen();
+      long now = System.currentTimeMillis();
+      q.postEvent(new MouseEvent(box, MouseEvent.MOUSE_PRESSED, now, InputEvent.BUTTON1_DOWN_MASK, cx, cy, s.x + cx, s.y + cy, 1, false, MouseEvent.BUTTON1));
+      q.postEvent(new MouseEvent(box, MouseEvent.MOUSE_RELEASED, now, 0, cx, cy, s.x + cx, s.y + cy, 1, false, MouseEvent.BUTTON1));
+      q.postEvent(new MouseEvent(box, MouseEvent.MOUSE_CLICKED, now, 0, cx, cy, s.x + cx, s.y + cy, 1, false, MouseEvent.BUTTON1));
+      Thread.sleep(400);
+      System.err.println("[TYPECHAT] clic en la casilla \"" + box.getLabel() + "\": marcada=" + box.getState());
+   }
+
+   /** Clic en el ForwardButton ("Sign In") de la ventana del campo. */
+   private static void clickForward(Component field) throws InterruptedException {
+      Window w = javax.swing.SwingUtilities.getWindowAncestor(field);
+      Component b = w == null ? null : findClass(w, "NET.worlds.console.ForwardButton");
+      if (b == null) {
+         System.err.println("[TYPECHAT] no hay ForwardButton");
+         return;
+      }
+      EventQueue q = Toolkit.getDefaultToolkit().getSystemEventQueue();
+      int cx = b.getWidth() / 2;
+      int cy = b.getHeight() / 2;
+      Point s = b.getLocationOnScreen();
+      long now = System.currentTimeMillis();
+      q.postEvent(new MouseEvent(b, MouseEvent.MOUSE_PRESSED, now, InputEvent.BUTTON1_DOWN_MASK, cx, cy, s.x + cx, s.y + cy, 1, false, MouseEvent.BUTTON1));
+      q.postEvent(new MouseEvent(b, MouseEvent.MOUSE_RELEASED, now, 0, cx, cy, s.x + cx, s.y + cy, 1, false, MouseEvent.BUTTON1));
+      q.postEvent(new MouseEvent(b, MouseEvent.MOUSE_CLICKED, now, 0, cx, cy, s.x + cx, s.y + cy, 1, false, MouseEvent.BUTTON1));
+      System.err.println("[TYPECHAT] clic en \"" + ((java.awt.Button) b).getLabel() + "\"");
+   }
+
+   private static Component findClass(Component c, String name) {
+      if (c.getClass().getName().equals(name) && c.isShowing()) {
+         return c;
+      }
+      if (c instanceof Container) {
+         for (Component k : ((Container) c).getComponents()) {
+            Component f = findClass(k, name);
+            if (f != null) {
+               return f;
+            }
+         }
+      }
+      return null;
+   }
+
+   private static java.awt.Checkbox findCheckbox(Component c) {
+      if (c instanceof java.awt.Checkbox && c.isShowing()) {
+         return (java.awt.Checkbox) c;
+      }
+      if (c instanceof Container) {
+         for (Component k : ((Container) c).getComponents()) {
+            java.awt.Checkbox f = findCheckbox(k);
+            if (f != null) {
+               return f;
+            }
+         }
+      }
+      return null;
+   }
+
+   private static Component passwordField() {
+      for (Window w : Window.getWindows()) {
+         Component f = findEcho(w);
+         if (f != null) {
+            return f;
+         }
+      }
+      return null;
+   }
+
+   private static Component findEcho(Component c) {
+      if (c instanceof TextField && ((TextField) c).echoCharIsSet() && c.isShowing()) {
+         return c;
+      }
+      if (c instanceof Container) {
+         for (Component k : ((Container) c).getComponents()) {
+            Component f = findEcho(k);
+            if (f != null) {
+               return f;
+            }
+         }
+      }
+      return null;
    }
 
    private static Component chatLine() {
@@ -390,7 +508,7 @@ public final class NativeUiEvents {
       }
    }
 
-   static void typeInto(Component line, String text) throws InterruptedException {
+   static void typeInto(Component line, String text, boolean showText, boolean enter) throws InterruptedException {
       EventQueue q = Toolkit.getDefaultToolkit().getSystemEventQueue();
       int cx = line.getWidth() / 2;
       int cy = line.getHeight() / 2;
@@ -409,12 +527,16 @@ public final class NativeUiEvents {
          Thread.sleep(300);
          owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
       }
-      System.err.println("[TYPECHAT] foco en la linea de chat: " + (owner == line) + "; tecleo \"" + text + "\" + Intro");
+      System.err.println("[TYPECHAT] foco en el campo: " + (owner == line) + "; tecleo " + (showText ? "\"" + text + "\"" : text.length() + " caracteres") + " + Intro");
       Component target = owner != null ? owner : line;
       for (int i = 0; i <= text.length(); i++) {
+         if (i == text.length() && !enter) {
+            break;
+         }
          if (i == text.length()) {
             Thread.sleep(200);
-            System.err.println("[TYPECHAT] antes de Intro la linea dice \"" + ((java.awt.TextComponent) line).getText() + "\"");
+            String typed = ((java.awt.TextComponent) line).getText();
+            System.err.println("[TYPECHAT] antes de Intro el campo tiene " + (showText ? "\"" + typed + "\"" : typed.length() + " caracteres"));
          }
          char ch = i < text.length() ? text.charAt(i) : '\n';
          int code = ch == '\n' ? KeyEvent.VK_ENTER : KeyEvent.getExtendedKeyCodeForChar(ch);
@@ -426,6 +548,6 @@ public final class NativeUiEvents {
          Thread.sleep(40);
       }
       Thread.sleep(300);
-      System.err.println("[TYPECHAT] tras Intro la linea dice \"" + ((java.awt.TextComponent) line).getText() + "\"");
+      System.err.println("[TYPECHAT] tras Intro el campo tiene " + ((java.awt.TextComponent) line).getText().length() + " caracteres");
    }
 }
