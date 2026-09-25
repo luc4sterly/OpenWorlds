@@ -42,6 +42,48 @@ diff a/NET/worlds/console/Console.java b/NET/worlds/console/Console.java
        WhisperManager.whisperManager().setParent(frame);
     }
  }
+diff a/NET/worlds/console/ScapePicCanvas.java b/NET/worlds/console/ScapePicCanvas.java
+--- a/NET/worlds/console/ScapePicCanvas.java
++++ b/NET/worlds/console/ScapePicCanvas.java
+@@ -48,5 +48,6 @@
+ 
+    public static void bitBlt(int var0, int var1, int var2, int var3, int var4, int var5, int var6, int var7) {
+       NET.worlds.core.NativeMock.log("ScapePicCanvas", "bitBlt", new Object[]{var0, var1, var2, var3, var4, var5, var6, var7});
++      NET.worlds.core.NativeUiImage.bitBlt(var0, var1, var2, var3, var4, var5, var6, var7);
+    }
+ }
+diff a/NET/worlds/console/ScapePicImage.java b/NET/worlds/console/ScapePicImage.java
+--- a/NET/worlds/console/ScapePicImage.java
++++ b/NET/worlds/console/ScapePicImage.java
+@@ -22,6 +22,11 @@
+ 
+    public void flush() {
+       NET.worlds.core.NativeMock.log("ScapePicImage", "flush", new Object[0]);
++      // 0x00410830: DeleteObject(hDIB) y hDIB = 0
++      if (this.hDIB != 0) {
++         NET.worlds.core.NativeUiImage.delete(this.hDIB);
++         this.hDIB = 0;
++      }
+    }
+ 
+    public void finalize() {
+@@ -34,9 +39,16 @@
+ 
+    private void loadImage(String var1) {
+       NET.worlds.core.NativeMock.log("ScapePicImage", "loadImage", new Object[]{var1});
++      int[] r = NET.worlds.core.NativeUiImage.loadScapePicImage(NET.worlds.core.NativeMock.localFile(var1).getPath());
++      if (r != null) {
++         this.hDIB = r[0];
++         this.width = r[1];
++         this.height = r[2];
++      }
+    }
+ 
+    public static void nativeInit() {
+       NET.worlds.core.NativeMock.log("ScapePicImage", "nativeInit", new Object[0]);
++      // 0x004102f0: solo cachea la clase y los fieldID (asercion si faltan)
+    }
+ }
 diff a/NET/worlds/console/Startup.java b/NET/worlds/console/Startup.java
 --- a/NET/worlds/console/Startup.java
 +++ b/NET/worlds/console/Startup.java
@@ -64,3 +106,46 @@ diff a/NET/worlds/console/Startup.java b/NET/worlds/console/Startup.java
 +      NET.worlds.core.NativeUiStartup.computeVolumeInfo(var0);
     }
  }
+diff a/NET/worlds/scape/ImageConverter.java b/NET/worlds/scape/ImageConverter.java
+--- a/NET/worlds/scape/ImageConverter.java
++++ b/NET/worlds/scape/ImageConverter.java
+@@ -30,6 +30,7 @@
+ 
+    public static void nativeInit() {
+       NET.worlds.core.NativeMock.log("ImageConverter", "nativeInit", new Object[0]);
++      // 0x00421ce0: solo cachea la clase y los fieldID (asercion si faltan)
+    }
+ 
+    public synchronized int convert() {
+@@ -157,23 +158,30 @@
+ 
+    private void prepareDIB(int var1, int var2, int var3, int[] var4) {
+       NET.worlds.core.NativeMock.log("ImageConverter", "prepareDIB", new Object[]{var1, var2, var3, var4});
++      this.hDIB = this.pixelPtr = NET.worlds.core.NativeUiImage.prepareDIB(var1, var2, var3, var4);
+    }
+ 
+    private void setDIBPixelBytes(int var1, int var2, int var3, int var4, byte[] var5, int var6, int var7) {
+       NET.worlds.core.NativeMock.log("ImageConverter", "setDIBPixelBytes", new Object[]{var1, var2, var3, var4, var5, var6, var7});
++      NET.worlds.core.NativeUiImage.setDIBPixelBytes(this.pixelPtr, this.width, var1, var2, var3, var4, var5, var6, var7);
+    }
+ 
+    private void setDIBPixelInts(int var1, int var2, int var3, int var4, int[] var5, int var6, int var7) {
+       NET.worlds.core.NativeMock.log("ImageConverter", "setDIBPixelInts", new Object[]{var1, var2, var3, var4, var5, var6, var7});
++      NET.worlds.core.NativeUiImage.setDIBPixelInts(this.pixelPtr, this.width, var1, var2, var3, var4, var5, var6, var7);
+    }
+ 
+    private int convertDIBToTexture() {
+       NET.worlds.core.NativeMock.log("ImageConverter", "convertDIBToTexture", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeUiImage.convertDIBToTexture(this.hDIB, this.width, this.height, this.transparentColor, this.urlName);
+    }
+ 
+    private void cleanup() {
+       NET.worlds.core.NativeMock.log("ImageConverter", "cleanup", new Object[0]);
++      // 0x00423b40: DeleteObject(hDIB) si no es 0; el campo no se pone a 0
++      if (this.hDIB != 0) {
++         NET.worlds.core.NativeUiImage.delete(this.hDIB);
++      }
+    }
+ 
+    static {
