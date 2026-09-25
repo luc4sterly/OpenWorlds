@@ -407,3 +407,32 @@ suelo).
   empates exactos.
 - ⚠️ El `catch` de los errores de sintaxis de `avatars.dat` (throw de C++)
   no está localizado: el puente avisa y conserva los tipos leídos.
+
+### 7.9 Cliente propio (`client/`, 2026-09-25)
+
+La misma regla, portada del puente a `client/src/net/freeworlds/avatar/`:
+
+- `AnimTime`, `AnimPose`, `AnimRegistry`, `AnimMotion` y `AnimGraph` son
+  copias.
+- `AnimSequence`: FUN_00438300, los ids de joint y una biblioteca de
+  `.seq` por directorio.
+- `AnimAnimator`: CreateRep, moveto, update, animate y getAnimationTime,
+  sin RenderWare.
+- `AvatarRig`: el árbol del `.bod`, FUN_00434470, `prepFigure` con
+  COG = false y `Transform.getYaw` (0x00425440).
+
+`WorldViewer` aplica la regla al avatar del jugador (`--play`) y a los
+avatares del mundo. También porta la parte Java de `PosableShape`:
+`closestView` ≤ 900 y `moveto(t-1)`/`update(t)`.
+
+`AvatarAnimCheck` reproduce la serie de `AnimatorMotionCheck` y da los
+mismos estados y keys. `SeqSampler.keyTime` ahora trunca, como los drivers
+(fistp en chop, 0x43b9c0).
+
+- ⚠️ COG = true no se porta: `WorldRestorer` descarta el COG de
+  `PosableShape`.
+- ⚠️ Los tipos y secuencias salen del `Avatars.dat` de `base-avatars`, no
+  del `45.dat` del servidor. Para los 7 avatares de GroundZero, los
+  implícitos son los mismos en los dos.
+- No se porta el LOD (`setLOD`) ni `MoveAction`: las estatuas de las
+  galerías se quedan quietas y a los 10 s pasan a `wait`.
