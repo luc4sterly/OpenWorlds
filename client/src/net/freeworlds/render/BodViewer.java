@@ -1,9 +1,9 @@
 package net.freeworlds.render;
 
 import net.freeworlds.avatar.AvatarFigure;
-import net.freeworlds.avatar.AvatarMaterial;
+import net.freeworlds.avatar.AvatarLooks;
+import net.freeworlds.avatar.AvatarLooks.Look;
 import net.freeworlds.avatar.AvatarNameDecoder;
-import net.freeworlds.avatar.AvatarPart;
 import net.freeworlds.avatar.ServerTables;
 import net.freeworlds.bod.BodClump;
 import net.freeworlds.cmp.CmpTexture;
@@ -83,19 +83,6 @@ public final class BodViewer {
       CmpTexture texture;
       /** true si el material viene del nombre de avatar (constantes de scanTexture/readColor). */
       boolean avatarMaterial;
-   }
-
-   /** Aspecto que el nombre de avatar asigna a la raiz de una parte. */
-   private static final class Look {
-      final float r, g, b;
-      final CmpTexture texture;
-
-      Look(float r, float g, float b, CmpTexture texture) {
-         this.r = r;
-         this.g = g;
-         this.b = b;
-         this.texture = texture;
-      }
    }
 
    public static void main(String[] args) throws IOException {
@@ -379,84 +366,15 @@ public final class BodViewer {
       }
    }
 
-   /**
-    * Aspecto por tag desde el nombre de avatar (net.freeworlds.avatar, port de
-    * PosableShape.createSubparts). Solo la limb: textura o color; origMat =
-    * sin cambio. Una textura "avatar:NOMBREns*.mov" usa la subimagen n-1
-    * del .mov como el original: Material.calcRes pone hRes = vRes = 1 y
-    * sPos = n-1, y Material.syncBackgroundLoad toma de ScapePicMovie la
-    * textura hRes*vRes*sPos = sPos si el .mov tiene al menos
-    * hRes*vRes*(sPos+1) = sPos+1 frames; si no, deja el material sin
-    * textura (var16 = null). Lo que no se puede aplicar se informa, no se
-    * inventa.
-    */
+   /** Aspecto por tag desde el nombre de avatar: {@link AvatarLooks} (subimagen N incluida). */
    private static Map<Integer, Look> resolveLooks(String avatarName, String tablesPath, File bodFile)
          throws IOException {
-      Map<Integer, Look> looks = new HashMap<>();
       ServerTables tables = ServerTables.load(Paths.get(tablesPath));
       AvatarFigure fig = AvatarNameDecoder.decode("avatar:" + avatarName + ".rwg", tables.permittedHash());
       File dir = bodFile.getAbsoluteFile().getParentFile();
-      Map<String, CmpTexture[]> movCache = new HashMap<>();
-      Map<String, CmpTexture> cmpCache = new HashMap<>();
-      int textured = 0, colored = 0, unchanged = 0;
-      List<String> skipped = new ArrayList<>();
-      for (AvatarPart part : fig.partes) {
-         if (!part.adjunta || part.limb().material < 0) {
-            unchanged++;
-            continue;
-         }
-         String partBod = part.bodFile();
-         if (partBod != null && !partBod.equalsIgnoreCase(bodFile.getName())) {
-            skipped.add(part.letra + " (usa otro .bod: " + partBod + ")");
-            continue;
-         }
-         AvatarMaterial m = fig.paleta.get(part.limb().material);
-         if (m.origMat) {
-            unchanged++;
-         } else if (m.kind == AvatarMaterial.Kind.COLOR) {
-            looks.put(part.tag, new Look(m.r / 255f, m.g / 255f, m.b / 255f, null));
-            colored++;
-         } else {
-            File tf = new File(dir, m.textureFile);
-            if (!tf.isFile()) {
-               skipped.add(part.letra + " (" + m.textureFile + " no esta en el corpus)");
-               continue;
-            }
-            CmpTexture tex;
-            if (m.textureSubIndex >= 0) {
-               CmpTexture[] frames = movCache.get(tf.getName());
-               if (frames == null) {
-                  frames = CmpTexture.loadMovFrames(tf);
-                  movCache.put(tf.getName(), frames);
-               }
-               if (m.textureSubIndex + 1 > frames.length) {
-                  skipped.add(part.letra + " (" + m.textureFile + " subimagen " + m.textureSubIndex
-                     + ": el .mov solo tiene " + frames.length + " frames; el original deja el material sin textura)");
-                  continue;
-               }
-               tex = frames[m.textureSubIndex];
-            } else {
-               tex = cmpCache.get(tf.getName());
-               if (tex == null) {
-                  tex = CmpTexture.loadRaw(tf);
-                  cmpCache.put(tf.getName(), tex);
-               }
-            }
-            looks.put(part.tag, new Look(1f, 1f, 1f, tex));
-            textured++;
-         }
-      }
-      System.out.println("Avatar \"" + avatarName + "\" (" + fig.cadena + "): partes con textura=" + textured
-         + " con color=" + colored + " sin cambio=" + unchanged + " no aplicables=" + skipped.size());
-      for (Map.Entry<String, CmpTexture[]> e : movCache.entrySet()) {
-         CmpTexture f0 = e.getValue().length > 0 ? e.getValue()[0] : null;
-         System.out.println("   " + e.getKey() + ": " + e.getValue().length + " frames"
-            + (f0 != null ? " de " + f0.width + "x" + f0.height : ""));
-      }
-      for (String s : skipped) {
-         System.out.println("   no aplicado: " + s);
-      }
-      return looks;
+      AvatarLooks.Result res = AvatarLooks.resolve(fig, bodFile, dir);
+      System.out.println(AvatarLooks.report(avatarName, fig, res));
+      return res.byTag;
    }
 
    private static float[] jointMatrix(SeqSampler.Pose pose, int tag) {
