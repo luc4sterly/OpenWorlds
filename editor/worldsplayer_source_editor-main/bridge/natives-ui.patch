@@ -1,0 +1,267 @@
+diff a/NET/worlds/console/Console.java b/NET/worlds/console/Console.java
+--- a/NET/worlds/console/Console.java
++++ b/NET/worlds/console/Console.java
+@@ -571,13 +571,13 @@
+    }
+ 
+    public static final String encrypt(String var0) {
+-      NET.worlds.core.NativeMock.log("Console", "encrypt", new Object[]{var0});
+-      return var0;
++      NET.worlds.core.NativeMock.log("Console", "encrypt", new Object[]{var0 == null ? null : "(" + var0.length() + " car.)"});
++      return NET.worlds.core.NativeUiConsole.encrypt(var0);
+    }
+ 
+    public static final String decrypt(String var0) {
+-      NET.worlds.core.NativeMock.log("Console", "decrypt", new Object[]{var0});
+-      return var0;
++      NET.worlds.core.NativeMock.log("Console", "decrypt", new Object[]{var0 == null ? null : "(" + var0.length() + " car.)"});
++      return NET.worlds.core.NativeUiConsole.decrypt(var0);
+    }
+ 
+    public static String encode(String var0) {
+@@ -623,7 +623,10 @@
+ 
+    public static final int getVolumeInfo() {
+       NET.worlds.core.NativeMock.log("Console", "getVolumeInfo", new Object[0]);
+-      return 0;
++      // gamma.dll no exporta Java_NET_worlds_console_Console_getVolumeInfo
++      // (docs/gamma-dll-exports.txt: solo Startup_getVolumeInfo): la JVM
++      // original lanzaba esto al llamarlo. Ninguna de las 722 clases lo llama.
++      throw new UnsatisfiedLinkError("NET.worlds.console.Console.getVolumeInfo()I");
+    }
+ 
+    public boolean getVIPAvatars() {
+@@ -1502,6 +1505,10 @@
+    }
+ 
+    static {
++      // adaptacion de plataforma del puente (no es de gamma.dll): devuelve
++      // a los TextField/TextArea los eventos 1.0 que el JDK moderno deja de
++      // generarles; ver NET.worlds.core.NativeUiEvents
++      NET.worlds.core.NativeUiEvents.install();
+       WhisperManager.whisperManager().setParent(frame);
+    }
+ }
+diff a/NET/worlds/console/Cursor.java b/NET/worlds/console/Cursor.java
+--- a/NET/worlds/console/Cursor.java
++++ b/NET/worlds/console/Cursor.java
+@@ -83,31 +83,32 @@
+ 
+    public static int getSystemCursorWidth() {
+       NET.worlds.core.NativeMock.log("Cursor", "getSystemCursorWidth", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeUiCursor.systemCursorSize(false);
+    }
+ 
+    public static int getSystemCursorHeight() {
+       NET.worlds.core.NativeMock.log("Cursor", "getSystemCursorHeight", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeUiCursor.systemCursorSize(true);
+    }
+ 
+    public static int getSystemCursorDepth() {
+       NET.worlds.core.NativeMock.log("Cursor", "getSystemCursorDepth", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeUiCursor.systemCursorDepth();
+    }
+ 
+    private static int loadCursor(String var0) {
+       NET.worlds.core.NativeMock.log("Cursor", "loadCursor", new Object[]{var0});
+-      return 1;
++      return NET.worlds.core.NativeUiCursor.loadCursor(var0);
+    }
+ 
+    private static int loadSystemCursor(String var0) {
+       NET.worlds.core.NativeMock.log("Cursor", "loadSystemCursor", new Object[]{var0});
+-      return 1;
++      return NET.worlds.core.NativeUiCursor.loadSystemCursor(var0);
+    }
+ 
+    private static void destroyCursor(int var0) {
+       NET.worlds.core.NativeMock.log("Cursor", "destroyCursor", new Object[]{var0});
++      NET.worlds.core.NativeUiCursor.destroyCursor(var0);
+    }
+ 
+    private static int retrieveSystemCursor(URL var0) {
+diff a/NET/worlds/console/FileSysDialog.java b/NET/worlds/console/FileSysDialog.java
+--- a/NET/worlds/console/FileSysDialog.java
++++ b/NET/worlds/console/FileSysDialog.java
+@@ -57,7 +57,7 @@
+ 
+    public String nativeRun() {
+       NET.worlds.core.NativeMock.log("FileSysDialog", "nativeRun", new Object[0]);
+-      return null;
++      return NET.worlds.core.NativeUiFileDialog.run(this.parent, this.title, this.typesAndExts, this.fileName, this.mode);
+    }
+ 
+    public void run() {
+diff a/NET/worlds/console/RenderCanvasOverlay.java b/NET/worlds/console/RenderCanvasOverlay.java
+--- a/NET/worlds/console/RenderCanvasOverlay.java
++++ b/NET/worlds/console/RenderCanvasOverlay.java
+@@ -122,14 +122,20 @@
+ 
+    private int nativeMakeChild(long var1, int var3, int var4, boolean var5) {
+       NET.worlds.core.NativeMock.log("RenderCanvasOverlay", "nativeMakeChild", new Object[]{var1, var3, var4, var5});
+-      return 0;
++      return NET.worlds.core.NativeUiOverlay.makeChild((int)var1, var3, var4, var5, new NET.worlds.core.NativeUiOverlay.Command() {
++         public void handle(int id) {
++            RenderCanvasOverlay.this.handleCommand(id);
++         }
++      });
+    }
+ 
+    private void nativeKillChild(long var1) {
+       NET.worlds.core.NativeMock.log("RenderCanvasOverlay", "nativeKillChild", new Object[]{var1});
++      NET.worlds.core.NativeUiOverlay.killChild((int)var1);
+    }
+ 
+    private void nativeResizeChild(int var1, int var2, int var3) {
+       NET.worlds.core.NativeMock.log("RenderCanvasOverlay", "nativeResizeChild", new Object[]{var1, var2, var3});
++      NET.worlds.core.NativeUiOverlay.resizeChild(var1, var2, var3);
+    }
+ }
+diff a/NET/worlds/console/RightMenu.java b/NET/worlds/console/RightMenu.java
+--- a/NET/worlds/console/RightMenu.java
++++ b/NET/worlds/console/RightMenu.java
+@@ -35,28 +35,32 @@
+ 
+    private static int create() {
+       NET.worlds.core.NativeMock.log("RightMenu", "create", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeUiMenu.create();
+    }
+ 
+    private static void nativeAdd(String var0, int var1, int var2) {
+       NET.worlds.core.NativeMock.log("RightMenu", "nativeAdd", new Object[]{var0, var1, var2});
++      NET.worlds.core.NativeUiMenu.add(var0, var1, var2);
+    }
+ 
+    private static void addSeparator(int var0) {
+       NET.worlds.core.NativeMock.log("RightMenu", "addSeparator", new Object[]{var0});
++      NET.worlds.core.NativeUiMenu.addSeparator(var0);
+    }
+ 
+    private static void show(int var0, int var1) {
+       NET.worlds.core.NativeMock.log("RightMenu", "show", new Object[]{var0, var1});
++      NET.worlds.core.NativeUiMenu.show(var0, var1);
+    }
+ 
+    private static void discard(int var0) {
+       NET.worlds.core.NativeMock.log("RightMenu", "discard", new Object[]{var0});
++      NET.worlds.core.NativeUiMenu.discard(var0);
+    }
+ 
+    private static int checkPressed() {
+       NET.worlds.core.NativeMock.log("RightMenu", "checkPressed", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeUiMenu.checkPressed();
+    }
+ 
+    private void build(Enumeration var1) {
+diff a/NET/worlds/console/ScapePicCanvas.java b/NET/worlds/console/ScapePicCanvas.java
+--- a/NET/worlds/console/ScapePicCanvas.java
++++ b/NET/worlds/console/ScapePicCanvas.java
+@@ -48,5 +48,6 @@
+ 
+    public static void bitBlt(int var0, int var1, int var2, int var3, int var4, int var5, int var6, int var7) {
+       NET.worlds.core.NativeMock.log("ScapePicCanvas", "bitBlt", new Object[]{var0, var1, var2, var3, var4, var5, var6, var7});
++      NET.worlds.core.NativeUiImage.bitBlt(var0, var1, var2, var3, var4, var5, var6, var7);
+    }
+ }
+diff a/NET/worlds/console/ScapePicImage.java b/NET/worlds/console/ScapePicImage.java
+--- a/NET/worlds/console/ScapePicImage.java
++++ b/NET/worlds/console/ScapePicImage.java
+@@ -22,6 +22,11 @@
+ 
+    public void flush() {
+       NET.worlds.core.NativeMock.log("ScapePicImage", "flush", new Object[0]);
++      // 0x00410830: DeleteObject(hDIB) y hDIB = 0
++      if (this.hDIB != 0) {
++         NET.worlds.core.NativeUiImage.delete(this.hDIB);
++         this.hDIB = 0;
++      }
+    }
+ 
+    public void finalize() {
+@@ -34,9 +39,16 @@
+ 
+    private void loadImage(String var1) {
+       NET.worlds.core.NativeMock.log("ScapePicImage", "loadImage", new Object[]{var1});
++      int[] r = NET.worlds.core.NativeUiImage.loadScapePicImage(NET.worlds.core.NativeMock.localFile(var1).getPath());
++      if (r != null) {
++         this.hDIB = r[0];
++         this.width = r[1];
++         this.height = r[2];
++      }
+    }
+ 
+    public static void nativeInit() {
+       NET.worlds.core.NativeMock.log("ScapePicImage", "nativeInit", new Object[0]);
++      // 0x004102f0: solo cachea la clase y los fieldID (asercion si faltan)
+    }
+ }
+diff a/NET/worlds/console/Startup.java b/NET/worlds/console/Startup.java
+--- a/NET/worlds/console/Startup.java
++++ b/NET/worlds/console/Startup.java
+@@ -6,15 +6,16 @@
+ 
+    public static boolean synchronizeStartup(String var0, boolean var1) {
+       NET.worlds.core.NativeMock.log("Startup", "synchronizeStartup", new Object[]{var0, var1});
+-      return true;
++      return NET.worlds.core.NativeUiStartup.synchronizeStartup(var0, var1);
+    }
+ 
+    public static int getVolumeInfo() {
+       NET.worlds.core.NativeMock.log("Startup", "getVolumeInfo", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeUiStartup.volumeInfo();
+    }
+ 
+    public static void computeVolumeInfo(String var0) {
+       NET.worlds.core.NativeMock.log("Startup", "computeVolumeInfo", new Object[]{var0});
++      NET.worlds.core.NativeUiStartup.computeVolumeInfo(var0);
+    }
+ }
+diff a/NET/worlds/scape/ImageConverter.java b/NET/worlds/scape/ImageConverter.java
+--- a/NET/worlds/scape/ImageConverter.java
++++ b/NET/worlds/scape/ImageConverter.java
+@@ -30,6 +30,7 @@
+ 
+    public static void nativeInit() {
+       NET.worlds.core.NativeMock.log("ImageConverter", "nativeInit", new Object[0]);
++      // 0x00421ce0: solo cachea la clase y los fieldID (asercion si faltan)
+    }
+ 
+    public synchronized int convert() {
+@@ -157,23 +158,30 @@
+ 
+    private void prepareDIB(int var1, int var2, int var3, int[] var4) {
+       NET.worlds.core.NativeMock.log("ImageConverter", "prepareDIB", new Object[]{var1, var2, var3, var4});
++      this.hDIB = this.pixelPtr = NET.worlds.core.NativeUiImage.prepareDIB(var1, var2, var3, var4);
+    }
+ 
+    private void setDIBPixelBytes(int var1, int var2, int var3, int var4, byte[] var5, int var6, int var7) {
+       NET.worlds.core.NativeMock.log("ImageConverter", "setDIBPixelBytes", new Object[]{var1, var2, var3, var4, var5, var6, var7});
++      NET.worlds.core.NativeUiImage.setDIBPixelBytes(this.pixelPtr, this.width, var1, var2, var3, var4, var5, var6, var7);
+    }
+ 
+    private void setDIBPixelInts(int var1, int var2, int var3, int var4, int[] var5, int var6, int var7) {
+       NET.worlds.core.NativeMock.log("ImageConverter", "setDIBPixelInts", new Object[]{var1, var2, var3, var4, var5, var6, var7});
++      NET.worlds.core.NativeUiImage.setDIBPixelInts(this.pixelPtr, this.width, var1, var2, var3, var4, var5, var6, var7);
+    }
+ 
+    private int convertDIBToTexture() {
+       NET.worlds.core.NativeMock.log("ImageConverter", "convertDIBToTexture", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeUiImage.convertDIBToTexture(this.hDIB, this.width, this.height, this.transparentColor, this.urlName);
+    }
+ 
+    private void cleanup() {
+       NET.worlds.core.NativeMock.log("ImageConverter", "cleanup", new Object[0]);
++      // 0x00423b40: DeleteObject(hDIB) si no es 0; el campo no se pone a 0
++      if (this.hDIB != 0) {
++         NET.worlds.core.NativeUiImage.delete(this.hDIB);
++      }
+    }
+ 
+    static {
