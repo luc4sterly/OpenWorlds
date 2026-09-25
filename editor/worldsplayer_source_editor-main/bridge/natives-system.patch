@@ -1,3 +1,139 @@
+diff a/NET/worlds/console/IClassFactory.java b/NET/worlds/console/IClassFactory.java
+--- a/NET/worlds/console/IClassFactory.java
++++ b/NET/worlds/console/IClassFactory.java
+@@ -112,10 +112,21 @@
+ 
+    private long nActivate(String var1) throws IOException {
+       NET.worlds.core.NativeMock.log("IClassFactory", "nActivate", new Object[]{var1});
+-      return 0L;
++      // gamma.dll 0x0040ad80: getPtr, CLSIDFromString y CoRegisterClassObject
++      // (sin runtime de COM: "Failed to register class with ActiveX")
++      int var2;
++      try {
++         var2 = this.getPtr();
++      } catch (OLEInvalidObjectException var3) {
++         throw NET.worlds.core.NativeSysJni.throwNew(var3);
++      }
++
++      return NET.worlds.core.NativeSysCom.registerClassObject(var2, var1);
+    }
+ 
+    private void nDeactivate(long var1) throws IOException {
+       NET.worlds.core.NativeMock.log("IClassFactory", "nDeactivate", new Object[]{var1});
++      // gamma.dll 0x0040ae60: CoRevokeClassObject de un cookie que no existe
++      NET.worlds.core.NativeSysCom.revokeClassObject(var1);
+    }
+ }
+diff a/NET/worlds/console/IDispatch.java b/NET/worlds/console/IDispatch.java
+--- a/NET/worlds/console/IDispatch.java
++++ b/NET/worlds/console/IDispatch.java
+@@ -34,6 +34,16 @@
+ 
+    public void Invoke(String var1) {
+       NET.worlds.core.NativeMock.log("IDispatch", "Invoke", new Object[]{var1});
++      // gamma.dll 0x0040af10: getPtr y GetIDsOfNames/Invoke; sin objetos con
++      // IDispatch, IOException "IDispatch: bad function name" (sin declarar)
++      int var2;
++      try {
++         var2 = this.getPtr();
++      } catch (OLEInvalidObjectException var3) {
++         throw NET.worlds.core.NativeSysJni.throwNew(var3);
++      }
++
++      NET.worlds.core.NativeSysCom.invoke(var2, var1);
+    }
+ 
+    public String toString() {
+diff a/NET/worlds/console/INetscapeRegistry.java b/NET/worlds/console/INetscapeRegistry.java
+--- a/NET/worlds/console/INetscapeRegistry.java
++++ b/NET/worlds/console/INetscapeRegistry.java
+@@ -9,12 +9,28 @@
+ 
+    public boolean RegisterViewer(String var1, String var2) throws IOException {
+       NET.worlds.core.NativeMock.log("INetscapeRegistry", "RegisterViewer", new Object[]{var1, var2});
+-      return true;
++      // gamma.dll 0x0040b250 -> FUN_0040b0b0: getPtr y GetIDsOfNames(L"RegisterViewer")
++      int var3;
++      try {
++         var3 = this.getPtr();
++      } catch (OLEInvalidObjectException var4) {
++         throw NET.worlds.core.NativeSysJni.throwNew(var4);
++      }
++
++      return NET.worlds.core.NativeSysCom.netscapeRegister(var3, "RegisterViewer");
+    }
+ 
+    public boolean RegisterProtocol(String var1, String var2) throws IOException {
+       NET.worlds.core.NativeMock.log("INetscapeRegistry", "RegisterProtocol", new Object[]{var1, var2});
+-      return true;
++      // gamma.dll 0x0040b220 -> FUN_0040b0b0: getPtr y GetIDsOfNames(L"RegisterProtocol")
++      int var3;
++      try {
++         var3 = this.getPtr();
++      } catch (OLEInvalidObjectException var4) {
++         throw NET.worlds.core.NativeSysJni.throwNew(var4);
++      }
++
++      return NET.worlds.core.NativeSysCom.netscapeRegister(var3, "RegisterProtocol");
+    }
+ 
+    public String toString() {
+diff a/NET/worlds/console/IUnknown.java b/NET/worlds/console/IUnknown.java
+--- a/NET/worlds/console/IUnknown.java
++++ b/NET/worlds/console/IUnknown.java
+@@ -146,20 +146,38 @@
+ 
+    public void true_AddRef() {
+       NET.worlds.core.NativeMock.log("IUnknown", "true_AddRef", new Object[0]);
++      // gamma.dll 0x0040b330: el puntero como en getPtr (sus excepciones sin
++      // declarar, como JNI) y AddRef (vtable + 4) del objeto
++      int var1;
++      try {
++         var1 = this.getPtr();
++      } catch (OLEInvalidObjectException var2) {
++         throw NET.worlds.core.NativeSysJni.throwNew(var2);
++      }
++
++      NET.worlds.core.NativeSysCom.addRef(var1);
+    }
+ 
+    public int QueryInterface(String var1) throws IOException, OLEInvalidObjectException {
+       NET.worlds.core.NativeMock.log("IUnknown", "QueryInterface", new Object[]{var1});
+-      return 0;
++      // 0x0040b450: IIDFromString y QueryInterface (vtable + 0) del objeto
++      return NET.worlds.core.NativeSysCom.queryInterface(this.getPtr(), var1);
+    }
+ 
+    public void true_Release() throws OLEInvalidObjectException {
+       NET.worlds.core.NativeMock.log("IUnknown", "true_Release", new Object[0]);
++      // 0x0040b3c0: Release (vtable + 8) del objeto
++      NET.worlds.core.NativeSysCom.release(this.getPtr());
+    }
+ 
+    protected int getPtr() throws OLEInvalidObjectException {
+       NET.worlds.core.NativeMock.log("IUnknown", "getPtr", new Object[0]);
+-      return 0;
++      // 0x0040b2b0: GetIntField(_pInterface); 0 -> "No C++ mirror object"
++      if (this._pInterface == 0) {
++         throw new OLEInvalidObjectException("No C++ mirror object");
++      }
++
++      return this._pInterface;
+    }
+ 
+    public String internalData() {
+diff a/NET/worlds/console/NSProtocolHandler.java b/NET/worlds/console/NSProtocolHandler.java
+--- a/NET/worlds/console/NSProtocolHandler.java
++++ b/NET/worlds/console/NSProtocolHandler.java
+@@ -34,6 +34,7 @@
+ 
+    public static int createLocal() throws IOException {
+       NET.worlds.core.NativeMock.log("NSProtocolHandler", "createLocal", new Object[0]);
+-      return 0;
++      // gamma.dll 0x00441f30: la fábrica de clases local de gamma.dll, 1 referencia
++      return NET.worlds.core.NativeSysCom.createLocalFactory();
+    }
+ }
 diff a/NET/worlds/core/RegKey.java b/NET/worlds/core/RegKey.java
 --- a/NET/worlds/core/RegKey.java
 +++ b/NET/worlds/core/RegKey.java
