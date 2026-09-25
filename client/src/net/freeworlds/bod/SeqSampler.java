@@ -47,21 +47,31 @@ public final class SeqSampler {
 
    /**
     * Tiempo de key a partir del tiempo transcurrido, traducido de
-    * FUN_0043b950 (variante con tiempo {seg,ms}) y FUN_0043b5f0 (variante
-    * con segundos en float), que coinciden en la regla:
+    * FUN_0043b950 (driver por tiempo, {seg,ms}) y FUN_0043b5f0 (driver por
+    * distancia, segundos en float), que coinciden en la regla:
     *
     * <pre>
-    * t = round(segundos * 30)
+    * t = (short) trunc(segundos * 30)
     * si t &gt; duracion:  modo 2 -&gt; t % (duracion + 1)   (bucle)
     *                   modo 1 -&gt; duracion              (ultimo key)
     *                   otro   -&gt; la reproduccion termina
     * </pre>
     *
-    * Devuelve -1 cuando la reproduccion termina. El tiempo se guarda como
-    * short en el original (+0x14), asi que se trunca igual.
+    * El producto por 30.0f (DAT_00476ec8) se pasa a entero con fistp y la
+    * palabra de control en truncar: 0x43b9ba fnstcw, 0x43b9c0 "or byte
+    * [ebp-0x27],0xc" (RC = 11, chop), 0x43b9c4 fldcw, 0x43b9ca fistp (y lo
+    * mismo en 0x43b709..0x43b719 del driver por distancia). Hasta
+    * 2026-09-25 aqui habia Math.round: 1.5 keys daba 2 y el binario da 1.
+    * Fuera del rango de int (o NaN) el fistp da 0x80000000, cuyo short es
+    * 0. El key se guarda como short (+0x14) y se compara con la duracion
+    * con signo de 16 bits (0x43b9e7 cmp dx,ax; jle).
+    *
+    * Devuelve -1 cuando la reproduccion termina. Pensado para segundos
+    * &gt;= 0 (el tiempo del original es sin signo; con distancia negativa
+    * el acumulado se envuelve antes a [0, duracion], FUN_0043b5f0).
     */
    public static int keyTime(float seconds, int duration, int mode) {
-      int t = (short) Math.round(seconds * KEYS_PER_SECOND);
+      int t = (short) fistpChop((double) seconds * (double) KEYS_PER_SECOND);
       if (t > duration) {
          if (mode == MODE_LOOP) {
             t = duration + 1 > 0 ? t % (duration + 1) : 0;
@@ -72,6 +82,17 @@ public final class SeqSampler {
          }
       }
       return (short) t;
+   }
+
+   /**
+    * fistp de 32 bits con RC = chop: trunca hacia cero; NaN o fuera de
+    * rango da el entero indefinido 0x80000000 como el x87.
+    */
+   static int fistpChop(double v) {
+      if (Double.isNaN(v) || v >= 2147483648.0 || v < -2147483648.0) {
+         return Integer.MIN_VALUE;
+      }
+      return (int) v;
    }
 
    /** Pose de una figura en un instante: rotacion por tag + traslacion de raiz. */
