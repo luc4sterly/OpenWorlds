@@ -1,6 +1,7 @@
 package net.freeworlds.render;
 
 import net.freeworlds.rwg.RwgAtom;
+import net.freeworlds.rwg.RwgMaterial;
 import net.freeworlds.rwg.RwgModel;
 import net.freeworlds.rwg.RwgParser;
 import net.freeworlds.rwg.RwgPolygon;
@@ -28,6 +29,24 @@ import static org.lwjgl.opengl.GL11.*;
  * verify, per-pixel, that the parsed VLST/PLST data is geometrically
  * sane - the same verification discipline used for RWX.
  *
+ * Color por poligono (2026-09-25): el material de MALT que el poligono
+ * referencia (RwgModel.materialOf, base 1 como RWL21 0x1003a7bc) da color,
+ * opacidad y ambiente/difusa/especular (RwSetMaterialColor/Opacity/Surface
+ * en 0x1003c10a..0x1003c180, ver RwgMaterial); sin material, el
+ * placeholder de siempre. Texturas y modos de material siguen sin
+ * aplicarse aqui (doble cara siempre).
+ *
+ * ⚠️ cube.rwg (y las capturas docs/renders/cube_rwg_*.png) NO es un .rwg
+ * que cargue el RenderWare 2.1 de WorldsPlayer: su TELT tiene registros de
+ * 16 bytes y RWL21 lee siempre 0x14 (0x1003cc20 push 0x14; RwReadStream),
+ * y si el registro es menor salta 0x14 - tamano mas (0x1003cc6c cmp
+ * eax,0x14; RwSeekStream), asi que se come el tag STNG y la busqueda
+ * acaba fuera del stream (docs/rwg-bod-format-reference.md, "Consecuencias
+ * medidas"). RwgParser reproduce ahora ese error (RwgFormatException
+ * "error RW 0x5a") y este visor lo rechaza; esas capturas son del parser
+ * antiguo, anterior a la lectura de TELT de RWL21, y no muestran nada que
+ * el original dibujara.
+ *
  * Usage: java -cp ... net.freeworlds.render.RwgViewer <file.rwg> [--screenshot out.png] [--wireframe]
  */
 public final class RwgViewer {
@@ -52,7 +71,15 @@ public final class RwgViewer {
       }
 
       byte[] data = Files.readAllBytes(new File(rwgPath).toPath());
-      RwgModel model = RwgParser.parse(data);
+      RwgModel model;
+      try {
+         model = RwgParser.parse(data);
+      } catch (RwgParser.RwgFormatException e) {
+         // Lo que RWL21 tampoco lee (p.ej. cube.rwg, ver javadoc de clase).
+         System.err.println(rwgPath + ": RenderWare 2.1 no lo carga: " + e.getMessage());
+         System.exit(1);
+         return;
+      }
       if (model.atom == null) {
          System.err.println("No ATOM/geometry in " + rwgPath);
          System.exit(1);
@@ -63,6 +90,15 @@ public final class RwgViewer {
 
       // Fan-triangulate each polygon (verified structure only covers convex n-gons via a shared first vertex - fine for the one real quad we have).
       int[][] triangles = triangulate(atom);
+      RwgMaterial[] triMaterial = triangleMaterials(model);
+      int withMalt = 0;
+      for (RwgMaterial m : triMaterial) {
+         if (m != null) {
+            withMalt++;
+         }
+      }
+      System.out.println("MALT: " + model.materials.size() + " materiales, " + withMalt + "/" + triMaterial.length
+         + " triangulos con material");
 
       float[] bbox = boundingBox(atom.vertices);
       float cx = (bbox[0] + bbox[3]) / 2f;
@@ -98,11 +134,8 @@ public final class RwgViewer {
       boolean lit = !wireframe;
       if (lit) {
          GlLighting.init();
-         // RWG doesn't carry RWX-style ambient/diffuse/specular material
-         // scalars (not part of what's been decoded from the format yet -
-         // see docs/rwg-bod-format-reference.md) - this is a placeholder
-         // material, not a real parsed value. ⚠️ VERIFICAR.
-         GlLighting.applyMaterial(placeholderMaterial());
+         // Material por poligono desde MALT (ver drawTriangles); el
+         // placeholder solo para poligonos sin material.
          // Double-sided kept: the per-material cull mode of RWG (RWX
          // MaterialModes equivalent) is not decoded yet - ⚠️ VERIFICAR.
          // Winding itself IS consistent in the real data (fan-order normal
@@ -130,7 +163,7 @@ public final class RwgViewer {
          glRotatef(angle, 0, 1, 0);
          glTranslatef(-cx, -cy, -cz);
 
-         drawTriangles(atom.vertices, triangles, lit);
+         drawTriangles(model, triangles, triMaterial, lit);
 
          angle += 0.6f;
          // Leer ANTES del swap (mismo arreglo que WorldViewer): tras
@@ -168,12 +201,44 @@ public final class RwgViewer {
       return tris.toArray(new int[0][]);
    }
 
-   private static void drawTriangles(java.util.List<RwgVertex> vertices, int[][] triangles, boolean lit) {
-      if (!lit) {
-         glColor3f(0.7f, 0.75f, 0.85f); // arbitrary flat gray-blue - no material/texture info decoded yet for this format
+   /** Material de cada triangulo del abanico, en el mismo orden que {@link #triangulate}. */
+   private static RwgMaterial[] triangleMaterials(RwgModel model) {
+      java.util.List<RwgMaterial> out = new java.util.ArrayList<>();
+      for (RwgPolygon p : model.atom.polygons) {
+         RwgMaterial m = model.materialOf(p);
+         for (int i = 1; i + 1 < p.vertexIndices.length; i++) {
+            out.add(m);
+         }
       }
-      glBegin(GL_TRIANGLES);
-      for (int[] t : triangles) {
+      return out.toArray(new RwgMaterial[0]);
+   }
+
+   private static void drawTriangles(RwgModel model, int[][] triangles, RwgMaterial[] triMaterial, boolean lit) {
+      java.util.List<RwgVertex> vertices = model.atom.vertices;
+      boolean first = true;
+      RwgMaterial last = null;
+      boolean inBegin = false;
+      for (int k = 0; k < triangles.length; k++) {
+         int[] t = triangles[k];
+         RwgMaterial m = triMaterial[k];
+         if (first || m != last) {
+            if (inBegin) {
+               glEnd();
+               inBegin = false;
+            }
+            net.freeworlds.rwx.RwxMaterial mat = m != null ? maltMaterial(m) : placeholderMaterial();
+            if (lit) {
+               GlLighting.applyMaterial(mat);
+            } else {
+               glColor3f(mat.colorR, mat.colorG, mat.colorB);
+            }
+            last = m;
+            first = false;
+         }
+         if (!inBegin) {
+            glBegin(GL_TRIANGLES);
+            inBegin = true;
+         }
          RwgVertex a = vertices.get(t[0]);
          RwgVertex b = vertices.get(t[1]);
          RwgVertex c = vertices.get(t[2]);
@@ -188,7 +253,22 @@ public final class RwgViewer {
          emit(b, lit, faceN);
          emit(c, lit, faceN);
       }
-      glEnd();
+      if (inBegin) {
+         glEnd();
+      }
+   }
+
+   /** El material de MALT como material fijo: color, opacidad y ambiente/difusa/especular leidos del fichero. */
+   private static net.freeworlds.rwx.RwxMaterial maltMaterial(RwgMaterial m) {
+      net.freeworlds.rwx.RwxMaterial mat = new net.freeworlds.rwx.RwxMaterial();
+      mat.colorR = m.r;
+      mat.colorG = m.g;
+      mat.colorB = m.b;
+      mat.opacity = m.opacity;
+      mat.ambient = m.ambient;
+      mat.diffuse = m.diffuse;
+      mat.specular = m.specular;
+      return mat;
    }
 
    private static void emit(RwgVertex v, boolean lit, float[] fallbackNormal) {
@@ -205,6 +285,12 @@ public final class RwgViewer {
       glVertex3f(v.x, v.y, v.z);
    }
 
+   /**
+    * Poligono sin material (MALT 0 o fuera de rango): RWL21 lo deja sin
+    * material y su color lo pone el material por defecto del motor, que no
+    * esta traducido. ⚠️ VERIFICAR: este gris-azul es un placeholder, no un
+    * valor de RW.
+    */
    private static net.freeworlds.rwx.RwxMaterial placeholderMaterial() {
       net.freeworlds.rwx.RwxMaterial mat = new net.freeworlds.rwx.RwxMaterial();
       mat.colorR = 0.7f;
