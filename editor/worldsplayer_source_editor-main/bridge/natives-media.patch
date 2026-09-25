@@ -1,0 +1,87 @@
+diff a/NET/worlds/scape/ASFSoundPlayer.java b/NET/worlds/scape/ASFSoundPlayer.java
+--- a/NET/worlds/scape/ASFSoundPlayer.java
++++ b/NET/worlds/scape/ASFSoundPlayer.java
+@@ -94,8 +94,10 @@
+       ASFThread.stopASF();
+    }
+ 
++   // 0x0041f670: disableASF -> true; si no, CreateProcess(bin\playfile.exe),
++   // que aqui no existe -> false (ASFThread marca running = 3).
+    static boolean nativePlay(String var0) {
+       NET.worlds.core.NativeMock.log("ASFSoundPlayer", "nativePlay", new Object[]{var0});
+-      return true;
++      return NET.worlds.core.NativeMediaSound.asfNativePlay(var0);
+    }
+ }
+diff a/NET/worlds/scape/MCISoundPlayer.java b/NET/worlds/scape/MCISoundPlayer.java
+--- a/NET/worlds/scape/MCISoundPlayer.java
++++ b/NET/worlds/scape/MCISoundPlayer.java
+@@ -135,30 +135,38 @@
+       var0.nativeVolume(var1, var2);
+    }
+ 
++   // 0x0041f780: cuerpo vacio en gamma.dll (el volumen MCI no se aplica).
+    private void nativeVolume(float var1, float var2) {
+       NET.worlds.core.NativeMock.log("MCISoundPlayer", "nativeVolume", new Object[]{var1, var2});
+    }
+ 
++   // 0x0041f890: MCI_OPEN "sequencer" (.mid) o "waveaudio" + MCI_PLAY.
+    private boolean nativeStart(String var1) {
+       NET.worlds.core.NativeMock.log("MCISoundPlayer", "nativeStart", new Object[]{var1});
+-      return true;
++      return NET.worlds.core.NativeMediaSound.mciStart(this, var1);
+    }
+ 
++   // 0x0041fe40: MCI_STATUS_MODE; STOP/OPEN -> cierra y true.
+    private boolean nativeIsFinished() {
+       NET.worlds.core.NativeMock.log("MCISoundPlayer", "nativeIsFinished", new Object[0]);
+-      return true;
++      return NET.worlds.core.NativeMediaSound.mciIsFinished(this);
+    }
+ 
++   // 0x0041fd20: MCI_CLOSE si este objeto es el dueno.
+    private void nativeStop() {
+       NET.worlds.core.NativeMock.log("MCISoundPlayer", "nativeStop", new Object[0]);
++      NET.worlds.core.NativeMediaSound.mciStop(this);
+    }
+ 
++   // 0x0041fe30: hay dueno del dispositivo MCI.
+    public static boolean isActive() {
+       NET.worlds.core.NativeMock.log("MCISoundPlayer", "isActive", new Object[0]);
+-      return true;
++      return NET.worlds.core.NativeMediaSound.mciIsActive();
+    }
+ 
++   // 0x0041f790
+    static void shutdown() {
+       NET.worlds.core.NativeMock.log("MCISoundPlayer", "shutdown", new Object[0]);
++      NET.worlds.core.NativeMediaSound.mciShutdown();
+    }
+ }
+diff a/NET/worlds/scape/WavSoundPlayer.java b/NET/worlds/scape/WavSoundPlayer.java
+--- a/NET/worlds/scape/WavSoundPlayer.java
++++ b/NET/worlds/scape/WavSoundPlayer.java
+@@ -253,16 +253,23 @@
+       }
+    }
+ 
++   // 0x00420190: PlaySoundA(playingSoundFile, NULL, (var1 ? SND_ASYNC|SND_LOOP : 0)
++   // | SND_FILENAME|SND_NODEFAULT) salvo disableWav (NativeMediaSound).
+    private void nativePlay(boolean var1) {
+       NET.worlds.core.NativeMock.log("WavSoundPlayer", "nativePlay", new Object[]{var1});
++      NET.worlds.core.NativeMediaSound.wavNativePlay(this.playingSoundFile, var1);
+    }
+ 
++   // 0x00420120: waveOutSetVolume(0, ROUND(65535*der)<<16 + ROUND(65535*izq)).
+    private void nativeVolume(float var1, float var2) {
+       NET.worlds.core.NativeMock.log("WavSoundPlayer", "nativeVolume", new Object[]{var1, var2});
++      NET.worlds.core.NativeMediaSound.wavNativeVolume(var1, var2);
+    }
+ 
++   // 0x00420200: PlaySoundA(playingSoundFile, NULL, SND_PURGE).
+    private void nativeStop() {
+       NET.worlds.core.NativeMock.log("WavSoundPlayer", "nativeStop", new Object[0]);
++      NET.worlds.core.NativeMediaSound.wavNativeStop(this.playingSoundFile);
+    }
+ 
+    static {
