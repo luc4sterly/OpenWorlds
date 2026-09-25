@@ -381,9 +381,14 @@ public final class BodViewer {
 
    /**
     * Aspecto por tag desde el nombre de avatar (net.freeworlds.avatar, port de
-    * PosableShape.createSubparts). Solo la limb: textura con subimagen 0
-    * (lo unico que CmpTexture.loadMov decodifica) o color; origMat = sin
-    * cambio. Lo que no se puede aplicar se informa, no se inventa.
+    * PosableShape.createSubparts). Solo la limb: textura o color; origMat =
+    * sin cambio. Una textura "avatar:NOMBREns*.mov" usa la subimagen n-1
+    * del .mov como el original: Material.calcRes pone hRes = vRes = 1 y
+    * sPos = n-1, y Material.syncBackgroundLoad toma de ScapePicMovie la
+    * textura hRes*vRes*sPos = sPos si el .mov tiene al menos
+    * hRes*vRes*(sPos+1) = sPos+1 frames; si no, deja el material sin
+    * textura (var16 = null). Lo que no se puede aplicar se informa, no se
+    * inventa.
     */
    private static Map<Integer, Look> resolveLooks(String avatarName, String tablesPath, File bodFile)
          throws IOException {
@@ -391,7 +396,8 @@ public final class BodViewer {
       ServerTables tables = ServerTables.load(Paths.get(tablesPath));
       AvatarFigure fig = AvatarNameDecoder.decode("avatar:" + avatarName + ".rwg", tables.permittedHash());
       File dir = bodFile.getAbsoluteFile().getParentFile();
-      Map<String, CmpTexture> textureCache = new HashMap<>();
+      Map<String, CmpTexture[]> movCache = new HashMap<>();
+      Map<String, CmpTexture> cmpCache = new HashMap<>();
       int textured = 0, colored = 0, unchanged = 0;
       List<String> skipped = new ArrayList<>();
       for (AvatarPart part : fig.partes) {
@@ -410,18 +416,31 @@ public final class BodViewer {
          } else if (m.kind == AvatarMaterial.Kind.COLOR) {
             looks.put(part.tag, new Look(m.r / 255f, m.g / 255f, m.b / 255f, null));
             colored++;
-         } else if (m.textureSubIndex != 0) {
-            skipped.add(part.letra + " (" + m.textureFile + " subimagen " + m.textureSubIndex + ": solo se decodifica la 0)");
          } else {
             File tf = new File(dir, m.textureFile);
             if (!tf.isFile()) {
                skipped.add(part.letra + " (" + m.textureFile + " no esta en el corpus)");
                continue;
             }
-            CmpTexture tex = textureCache.get(tf.getName());
-            if (tex == null) {
-               tex = tf.getName().toLowerCase().endsWith(".mov") ? CmpTexture.loadMov(tf) : CmpTexture.loadRaw(tf);
-               textureCache.put(tf.getName(), tex);
+            CmpTexture tex;
+            if (m.textureSubIndex >= 0) {
+               CmpTexture[] frames = movCache.get(tf.getName());
+               if (frames == null) {
+                  frames = CmpTexture.loadMovFrames(tf);
+                  movCache.put(tf.getName(), frames);
+               }
+               if (m.textureSubIndex + 1 > frames.length) {
+                  skipped.add(part.letra + " (" + m.textureFile + " subimagen " + m.textureSubIndex
+                     + ": el .mov solo tiene " + frames.length + " frames; el original deja el material sin textura)");
+                  continue;
+               }
+               tex = frames[m.textureSubIndex];
+            } else {
+               tex = cmpCache.get(tf.getName());
+               if (tex == null) {
+                  tex = CmpTexture.loadRaw(tf);
+                  cmpCache.put(tf.getName(), tex);
+               }
             }
             looks.put(part.tag, new Look(1f, 1f, 1f, tex));
             textured++;
@@ -429,6 +448,11 @@ public final class BodViewer {
       }
       System.out.println("Avatar \"" + avatarName + "\" (" + fig.cadena + "): partes con textura=" + textured
          + " con color=" + colored + " sin cambio=" + unchanged + " no aplicables=" + skipped.size());
+      for (Map.Entry<String, CmpTexture[]> e : movCache.entrySet()) {
+         CmpTexture f0 = e.getValue().length > 0 ? e.getValue()[0] : null;
+         System.out.println("   " + e.getKey() + ": " + e.getValue().length + " frames"
+            + (f0 != null ? " de " + f0.width + "x" + f0.height : ""));
+      }
       for (String s : skipped) {
          System.out.println("   no aplicado: " + s);
       }
@@ -550,6 +574,10 @@ public final class BodViewer {
          buf.put(texture.rgb, y * rowBytes, rowBytes);
       }
       buf.flip();
+      // Filas de width*3 bytes sin relleno: con el alineado por defecto de
+      // 4 bytes, los .mov de avatar de ancho impar (119, 109, 118 px) salian
+      // cizallados. Mismo arreglo que WorldViewer.uploadTexture.
+      glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texture.width, texture.height,
          0, GL_RGB, GL_UNSIGNED_BYTE, buf);
       textureIds.put(texture, id);
