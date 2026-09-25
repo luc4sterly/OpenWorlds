@@ -22,8 +22,11 @@ import java.util.Map;
  * (0x1001b790) and whose mutations are copy-on-write (0x1001ba80), so each
  * polygon keeps the material as it stood when the polygon was created.
  *
- * Texture names resolve as RwGetNamedTexture does (0x10018900): base name
- * without directory or extension, matched case-insensitively.
+ * The Texture / TextureExt command (0x10014b00) resolves its texture while
+ * the script is read, with RwGetNamedTexture (0x10018900): the dictionary
+ * by base name and then the shape path ".;..". A texture that cannot be
+ * found fails the command, and a failed command makes the whole
+ * RwReadShape return NULL (0x100163e0).
  */
 public final class RwxReader {
    private RwxReader() {
@@ -43,6 +46,8 @@ public final class RwxReader {
       int lightSampling = 1;
       int geometrySampling = 4;
       String texture;
+      /** RwSetMaterialTexture of the Texture command: the RW texture handle. */
+      int textureHandle;
 
       Mat copy() {
          Mat m = new Mat();
@@ -58,13 +63,14 @@ public final class RwxReader {
          m.lightSampling = this.lightSampling;
          m.geometrySampling = this.geometrySampling;
          m.texture = this.texture;
+         m.textureHandle = this.textureHandle;
          return m;
       }
 
       String key() {
          return this.r + "," + this.g + "," + this.b + "," + this.ambient + "," + this.diffuse + ","
             + this.specular + "," + this.opacity + "," + this.textureModes + "," + this.materialModes
-            + "," + this.lightSampling + "," + this.geometrySampling + "," + this.texture;
+            + "," + this.lightSampling + "," + this.geometrySampling + "," + this.texture + "," + this.textureHandle;
       }
    }
 
@@ -87,8 +93,9 @@ public final class RwxReader {
       final List<Frame> frames = new ArrayList<Frame>();
       final Map<String, Integer> protos = new HashMap<String, Integer>();
       final Map<String, Integer> matHandles = new HashMap<String, Integer>();
-      final List<String> textures = new ArrayList<String>();
       boolean inModel;
+      /** A command returned FALSE: RwReadShape gives NULL (0x100163e0). */
+      boolean failed;
       String protoName;
       int result;
       java.io.File dir;
@@ -116,10 +123,9 @@ public final class RwxReader {
       }
    }
 
-   /** What RwReadShape gives back: the root clump and the textures the script named. */
+   /** What RwReadShape gives back: the root clump, or 0. */
    public static final class Result {
       public int clump;
-      public final List<String> textures = new ArrayList<String>();
    }
 
    public static Result read(java.io.File file) {
@@ -142,8 +148,19 @@ public final class RwxReader {
             break;
          }
       }
+      if (c.failed) {
+         // 0x100163e0: FUN_1000f2b0 drops the open frames and the result is destroyed
+         for (Frame fr : c.frames) {
+            for (Integer k : fr.clumps) {
+               NativeScene.destroyClump(k.intValue());
+            }
+         }
+         if (c.result != 0) {
+            NativeScene.destroyClump(c.result);
+         }
+         return out;
+      }
       out.clump = c.result;
-      out.textures.addAll(c.textures);
       return out;
    }
 
@@ -261,7 +278,6 @@ public final class RwxReader {
             if (r.clump != 0) {
                preConcatModeling(r.clump, c.ctmTop());
                fr.clumps.add(Integer.valueOf(r.clump));
-               c.textures.addAll(r.textures);
             }
          }
          return true;
@@ -383,8 +399,76 @@ public final class RwxReader {
          }
          return true;
       }
+      if (cmd.equals("texture") || cmd.equals("textureext")) {
+         if (!texture(c, t)) {
+            c.failed = true;
+            return false;
+         }
+         return true;
+      }
       material(c, cmd, t);
       return true;
+   }
+
+   /**
+    * Texture / TextureExt (RWL21 0x10014b00, both entries of the command
+    * table at 0x1005a6c0/0x1005a6e0 point here):
+    * <ul>
+    * <li>no name token: error 5, FALSE;</li>
+    * <li>the first 4 characters of the name, A-Z lower-cased, equal to
+    * "null" (DAT_1005ab40): no texture, TRUE;</li>
+    * <li>then only "mask" (DAT_1005ab38) followed by a raster name may
+    * follow; a missing mask name is error 5 and any other word error 4,
+    * both FALSE;</li>
+    * <li>RwGetNamedTexture(name) ({@link NativeTextures#rwGetNamed}); 0 is
+    * FALSE, otherwise it goes on the current material.</li>
+    * </ul>
+    * ⚠️ VERIFICAR, not translated: the mask (RwReadMaskRaster 0x10026f80 +
+    * RwMaskTexture 0x10019510). No corpus script uses it; the mask is
+    * ignored with a warning and the texture set unmasked.
+    */
+   private static boolean texture(Ctx c, String[] t) {
+      if (t.length < 2) {
+         return false;
+      }
+      String name = t[1];
+      String head = lowerAZ(name.length() > 4 ? name.substring(0, 4) : name);
+      Mat m = c.mat();
+      if (head.equals("null")) {
+         m.texture = null;
+         m.textureHandle = 0;
+         return true;
+      }
+      String mask = null;
+      for (int i = 2; i < t.length; i += 2) {
+         if (!lowerAZ(t[i]).equals("mask")) {
+            return false;
+         }
+         if (i + 1 >= t.length) {
+            return false;
+         }
+         mask = t[i + 1];
+      }
+      if (mask != null) {
+         System.err.println("[RW] Texture " + name + " mask " + mask + ": máscara sin traducir (⚠️), textura sin máscara");
+      }
+      int tex = NativeTextures.rwGetNamed(name);
+      if (tex == 0) {
+         System.err.println("[RW] RwReadShape: Texture " + name + " no se encuentra: la forma no se lee");
+         return false;
+      }
+      m.texture = name;
+      m.textureHandle = tex;
+      return true;
+   }
+
+   private static String lowerAZ(String s) {
+      StringBuilder b = new StringBuilder(s.length());
+      for (int i = 0; i < s.length(); i++) {
+         char ch = s.charAt(i);
+         b.append(ch >= 'A' && ch <= 'Z' ? (char) (ch + 0x20) : ch);
+      }
+      return b.toString();
    }
 
    private static void preConcatModeling(int clump, float[] ctm) {
@@ -457,15 +541,6 @@ public final class RwxReader {
             m.materialModes &= ~mask;
          } else {
             m.materialModes = mask;
-         }
-      } else if (cmd.equals("texture") || cmd.equals("textureext")) {
-         if (t.length > 1 && !t[1].toLowerCase().startsWith("null")) {
-            m.texture = t[1];
-            if (!c.textures.contains(t[1])) {
-               c.textures.add(t[1]);
-            }
-         } else {
-            m.texture = null;
          }
       }
    }
@@ -595,7 +670,8 @@ public final class RwxReader {
       NativeScene.setMaterialModes(mat, m.materialModes);
       NativeScene.setMaterialLightSampling(mat, m.lightSampling);
       NativeScene.setMaterialGeometrySampling(mat, m.geometrySampling);
-      if (m.texture != null) {
+      if (m.textureHandle != 0) {
+         NativeScene.setMaterialTexture(mat, m.textureHandle);
          NativeScene.setMaterialTextureName(mat, m.texture);
       }
       c.matHandles.put(key, Integer.valueOf(mat));

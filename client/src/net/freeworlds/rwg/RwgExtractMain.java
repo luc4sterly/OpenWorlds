@@ -32,13 +32,22 @@ public final class RwgExtractMain {
          return;
       }
 
-      System.out.println("name: \"" + model.name + "\"");
+      System.out.println("texturas de la cabecera: " + model.headerTextures + " -> pide " + model.textureRequests());
       for (String w : model.warnings) {
          System.out.println("warning: " + w);
       }
-      System.out.println("RALT raw bytes: " + (model.raltRaw == null ? 0 : model.raltRaw.length));
-      System.out.println("TELT raw bytes: " + (model.teltRaw == null ? 0 : model.teltRaw.length));
-      System.out.println("MALT raw bytes: " + (model.maltRaw == null ? 0 : model.maltRaw.length));
+      System.out.println("RALT: " + model.rasters.size() + " rasters");
+      for (int i = 0; i < model.textures.size(); i++) {
+         RwgTexture t = model.textures.get(i);
+         System.out.println("TELT[" + (i + 1) + "] raster=" + t.rasterIndex + " mipmap=" + t.mipmapRasterIndex
+            + " nombre=" + (t.name == null ? "null" : "\"" + t.name + "\""));
+      }
+      for (int i = 0; i < model.materials.size(); i++) {
+         RwgMaterial m = model.materials.get(i);
+         System.out.printf("MALT[%d] textura=%d geom=%d luz=%d modos=0x%02x/0x%02x color=(%.4f, %.4f, %.4f) opacidad=%.4f"
+               + " superficie=(%.4f, %.4f, %.4f)%n", i + 1, m.textureIndex, m.geometrySampling(), m.lightSampling(),
+            m.textureModes(), m.materialModes(), m.r, m.g, m.b, m.opacity, m.ambient, m.diffuse, m.specular);
+      }
 
       if (model.atom == null) {
          System.out.println("no ATOM");
@@ -50,6 +59,8 @@ public final class RwgExtractMain {
          System.out.print(" " + v);
       }
       System.out.println();
+      System.out.println("tag=" + a.tag() + " hints=" + a.hints() + " ejes=" + a.axisAlignment() + " estado=" + a.state()
+         + " hijos=" + a.childCount() + " muestreo de luz=" + a.lightSampleRate());
       System.out.println("matrix1 identity? " + isIdentity(a.matrix1));
       System.out.println("matrix2 identity? " + isIdentity(a.matrix2));
 
@@ -62,7 +73,7 @@ public final class RwgExtractMain {
       for (int i = 0; i < a.vertices.size(); i++) {
          RwgVertex v = a.vertices.get(i);
          System.out.printf(
-            "  [%2d] pos=(%.4f, %.4f, %.4f)  normal=(%.4f, %.4f, %.4f)  uv?=(%.4f, %.4f)  raw8-10=(%.4f, %.4f, %.4f)%n",
+            "  [%2d] pos=(%.4f, %.4f, %.4f)  normal=(%.4f, %.4f, %.4f)  uv?=(%.4f, %.4f)  bandera4=(%.4f, %.4f, %.4f)%n",
             i, v.x, v.y, v.z, v.normalX, v.normalY, v.normalZ, v.u, v.v, v.unknown8, v.unknown9, v.unknown10);
       }
 
@@ -73,11 +84,11 @@ public final class RwgExtractMain {
          for (int idx : p.vertexIndices) {
             sb.append(idx).append(' ');
          }
-         sb.append("] trailingRaw=[");
-         for (int t : p.trailingRaw) {
-            sb.append(t).append(' ');
+         sb.append("] material=").append(p.materialIndex).append(" tag=").append(p.tag);
+         float[] n = p.normal();
+         if (n != null) {
+            sb.append(String.format(" normal=(%.4f, %.4f, %.4f)", n[0], n[1], n[2]));
          }
-         sb.append(']');
          System.out.println(sb);
       }
    }

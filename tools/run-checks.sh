@@ -164,6 +164,14 @@ else
    if [ ! -d "$BRIDGE_OUT" ]; then
       echo "editor/.build-gamma/out no existe: construyendo con build_gamma.sh (puede tardar) ..."
       "$BRIDGE_DIR/build_gamma.sh"
+   elif [ -n "$(find "$BRIDGE_DIR/bridge/NET" "$BRIDGE_DIR/bridge" "$BRIDGE_DIR/apply_mock.sh" "$BRIDGE_DIR/build_gamma.sh" \
+                  "$ROOT/client/src/net/freeworlds/cmp" "$ROOT/client/src/net/freeworlds/rwg" "$ROOT/client/src/net/freeworlds/bod" \
+                  -maxdepth 4 \( -name '*.java' -o -name '*.patch' -o -name '*.sh' \) -not -path '*/bridge/test/*' \
+                  -newer "$BRIDGE_OUT" 2>/dev/null | head -1)" ]; then
+      # Una build vieja compila los checks contra clases que ya no existen
+      # (o peor, los pasa contra codigo que ya cambio): se rehace.
+      echo "editor/.build-gamma/out es anterior a cambios del puente: reconstruyendo con build_gamma.sh ..."
+      "$BRIDGE_DIR/build_gamma.sh"
    fi
    if [ ! -d "$BRIDGE_OUT" ]; then
       echo "build_gamma.sh no dejo $BRIDGE_OUT - no se pueden ejecutar los checks de bridge/test" >&2

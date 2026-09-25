@@ -1,0 +1,117 @@
+diff a/NET/worlds/scape/DroneAnimator.java b/NET/worlds/scape/DroneAnimator.java
+--- a/NET/worlds/scape/DroneAnimator.java
++++ b/NET/worlds/scape/DroneAnimator.java
+@@ -13,32 +13,37 @@
+ 
+    public static void init(String var0) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "init", new Object[]{var0});
++      NET.worlds.core.NativeAnimator.init(var0); // 0x00416280 -> FUN_004349d0
+    }
+ 
+    public static void loadconfig(String var0) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "loadconfig", new Object[]{var0});
++      NET.worlds.core.NativeAnimator.loadconfig(var0); // 0x00416360 -> FUN_00434b70
+    }
+ 
+    public static int getnameindex(String var0) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "getnameindex", new Object[]{var0});
+-      return 0;
++      return NET.worlds.core.NativeAnimator.getnameindex(var0); // 0x004163b0 -> FUN_0042c8a0
+    }
+ 
+    public static String getindexgeom(int var0) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "getindexgeom", new Object[]{var0});
+-      return null;
++      return NET.worlds.core.NativeAnimator.getindexgeom(var0); // 0x004163f0 -> FUN_00434d10
+    }
+ 
+    public static void prepFigure(WObject var0, boolean var1) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "prepFigure", new Object[]{var0, var1});
++      NET.worlds.core.NativeAnimator.prepFigure(var0 == null ? 0 : var0.getID(), var1); // 0x00416470 -> FUN_00434f00
+    }
+ 
+    public static void addtype(int var0) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "addtype", new Object[]{var0});
++      NET.worlds.core.NativeAnimator.addtype(var0); // 0x00416430 -> FUN_0042b160
+    }
+ 
+    public static void deltype(int var0) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "deltype", new Object[]{var0});
++      NET.worlds.core.NativeAnimator.deltype(var0); // 0x00416450 -> FUN_0042b280
+    }
+ 
+    public void delayedDeltype(int var1) {
+@@ -78,42 +83,48 @@
+ 
+    public void endanimations() {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "endanimations", new Object[0]);
++      NET.worlds.core.NativeAnimator.endanimations(this._rep); // 0x00416500 -> FUN_00433420
+    }
+ 
+    public void moveto(int var1, short var2, short var3, short var4, short var5, int var6) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "moveto", new Object[]{var1, var2, var3, var4, var5, var6});
++      NET.worlds.core.NativeAnimator.moveto(this._rep, var1, var2, var3, var4, var5, var6); // 0x00416530 -> FUN_004351b0
+    }
+ 
+    public void moveby(int var1, short var2, short var3, short var4, int var5) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "moveby", new Object[]{var1, var2, var3, var4, var5});
++      NET.worlds.core.NativeAnimator.moveby(this._rep, var1, var2, var3, var4, var5); // 0x00416580 -> FUN_004352f0
+    }
+ 
+    public void update(WObject var1, WObject var2, int var3, float var4, boolean var5) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "update", new Object[]{var1, var2, var3, var4, var5});
++      // 0x00416740 -> FUN_00435520: FUN_00412cf0 lee clumpID de cada WObject (0 si null)
++      NET.worlds.core.NativeAnimator.update(this._rep, var1 == null ? 0 : var1.getID(), var2 == null ? 0 : var2.getID(), var3, var4, var5);
+    }
+ 
+    public float animate(int var1, String var2, int var3) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "animate", new Object[]{var1, var2, var3});
+-      return 0.0F;
++      return NET.worlds.core.NativeAnimator.animate(this._rep, var1, var2); // 0x004165c0 -> FUN_004355a0
+    }
+ 
+    public float getAnimationTime(int var1, String var2) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "getAnimationTime", new Object[]{var1, var2});
+-      return 0.0F;
++      return NET.worlds.core.NativeAnimator.getAnimationTime(this._rep, var1, var2); // 0x00416620 -> FUN_00435630
+    }
+ 
+    public static synchronized Vector getActionList(int var0) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "getActionList", new Object[]{var0});
+-      return null;
++      return NET.worlds.core.NativeAnimator.getActionList(var0); // 0x004166c0 -> FUN_00434e50
+    }
+ 
+    protected static int CreateRep() {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "CreateRep", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeAnimator.CreateRep(); // 0x004164a0 -> FUN_004350c0
+    }
+ 
+    protected static void DestroyRep(int var0) {
+       NET.worlds.core.NativeMock.log("DroneAnimator", "DestroyRep", new Object[]{var0});
++      NET.worlds.core.NativeAnimator.DestroyRep(var0); // 0x004164d0
+    }
+ 
+    static {
+diff a/NET/worlds/scape/PendingCacheDrone.java b/NET/worlds/scape/PendingCacheDrone.java
+--- a/NET/worlds/scape/PendingCacheDrone.java
++++ b/NET/worlds/scape/PendingCacheDrone.java
+@@ -18,14 +18,17 @@
+ 
+    public static void nativeInit() {
+       NET.worlds.core.NativeMock.log("PendingCacheDrone", "nativeInit", new Object[0]);
++      NET.worlds.core.NativeAnimator.nativeInit(); // 0x0044bd00
+    }
+ 
+    public static void nativeDestroy() {
+       NET.worlds.core.NativeMock.log("PendingCacheDrone", "nativeDestroy", new Object[0]);
++      // sin export en gamma.dll (docs/gamma-dll-exports.txt) y sin llamadas en el Java
+    }
+ 
+    public static synchronized void notifySeqLoaded(int var0, String var1) {
+       NET.worlds.core.NativeMock.log("PendingCacheDrone", "notifySeqLoaded", new Object[]{var0, var1});
++      NET.worlds.core.NativeAnimator.notifySeqLoaded(var0, var1); // 0x0044bda0
+    }
+ 
+    public static void downloadSeqFile(String var0, boolean var1, int var2) {

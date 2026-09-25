@@ -1,0 +1,14 @@
+diff a/NET/worlds/scape/StringTexture.java b/NET/worlds/scape/StringTexture.java
+--- a/NET/worlds/scape/StringTexture.java
++++ b/NET/worlds/scape/StringTexture.java
+@@ -33,6 +33,10 @@
+ 
+    private void makeStringTexture() {
+       NET.worlds.core.NativeMock.log("StringTexture", "makeStringTexture", new Object[0]);
++      // gamma.dll 0x00424af0: _array/_length/_font/_size y getRGB() de _fore/_back;
++      // el texto estirado a una textura de 128x128 fuera del diccionario
++      this.textureID = NET.worlds.core.NativeTextures.makeStringTexture(
++         this._array, this._length, this._font, this._size, this._fore.getRGB(), this._back.getRGB());
+    }
+ 
+    public void saveState(Saver var1) throws IOException {

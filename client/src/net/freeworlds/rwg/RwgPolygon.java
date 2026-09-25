@@ -1,37 +1,49 @@
 package net.freeworlds.rwg;
 
 /**
- * One PLST polygon record: [id/flag][vertexCount][vertexCount x 1-based
- * index][trailing ints, first 3 = face normal (x,y,z)]. Verified against
- * a real 6-face cube (assets/gammatutorial-samples/cube.rwg, one real
- * normal per axis direction) and IDLE.RWG's single quad - see
- * docs/rwg-bod-format-reference.md. The leading id/flag field is NOT the
- * constant 1 it first appeared to be: assets/gammatutorial-samples/
- * ball.rwg's real bytes show it counting 1..512, one per polygon -
- * discarded here (RwgParser reads and ignores it). Trailing ints beyond
- * the first 3 (normal) remain ⚠️ VERIFICAR - always seen as 0 so far,
- * meaning unknown (reserved? material index? unused).
+ * Un registro de PLST tal como lo lee RwReadStreamChunk(PLST) de
+ * RWL21.DLL (0x1003a6d9):
+ *
+ * <pre>
+ *  siempre      material (índice base 1 en la lista de MALT; 0 o fuera de
+ *               rango = sin material), número de vértices n
+ *  siempre      n índices base 1 (contando desde el vértice 1 de RW, o sea
+ *               el registro 8 de VLST)
+ *  bandera 1    normal de cara (3 reales)            -> polígono +0x10..
+ *  bandera 4    3 reales a 16.16 (x 65536)           -> polígono +0x04..+0x0c
+ *  bandera 0x10 tag (entero; se guarda en 16 bits)   -> polígono +0x38
+ * </pre>
+ *
+ * El primer campo, que antes se leía como "id/flag", es el índice de
+ * material: en ball.rwg cuenta 1..512 porque ese fichero trae 512
+ * materiales en MALT, uno por triángulo.
  */
 public final class RwgPolygon {
-   /** 0-based vertex indices into the owning ATOM's vertex list (converted from the file's 1-based indices). */
+   /** Índice base 1 en {@link RwgModel#materials}; 0 = sin material. */
+   public final int materialIndex;
+   /** Índices 0-based en {@link RwgAtom#vertices} (el fichero los trae base 1). */
    public final int[] vertexIndices;
-   /** ⚠️ VERIFICAR (medium-high confidence) - face normal, first 3 trailing floats: (trailingRaw[0], trailingRaw[1], trailingRaw[2]) reinterpreted as floats. */
-   public final int[] trailingRaw;
+   /** Normal de cara (bandera 1), o null. */
+   private final float[] normal;
+   /**
+    * ⚠️ VERIFICAR: los 3 reales de la bandera 4 (polígono +0x04..+0x0c a
+    * 16.16); ninguna función de RWL21 revisada los nombra. En el corpus
+    * son siempre 0.
+    */
+   public final float[] extra;
+   /** Tag del polígono (bandera 0x10), truncado a 16 bits como en +0x38; 0 sin bandera. */
+   public final short tag;
 
-   public RwgPolygon(int[] vertexIndices, int[] trailingRaw) {
+   public RwgPolygon(int materialIndex, int[] vertexIndices, float[] normal, float[] extra, short tag) {
+      this.materialIndex = materialIndex;
       this.vertexIndices = vertexIndices;
-      this.trailingRaw = trailingRaw;
+      this.normal = normal;
+      this.extra = extra;
+      this.tag = tag;
    }
 
-   /** Face normal decoded from the first 3 trailing ints, or null if this record has fewer than 3 trailing fields. */
+   /** Normal de cara guardada (bandera 1 del STRT de PLST), o null si el fichero no la trae. */
    public float[] normal() {
-      if (trailingRaw.length < 3) {
-         return null;
-      }
-      return new float[]{
-         Float.intBitsToFloat(trailingRaw[0]),
-         Float.intBitsToFloat(trailingRaw[1]),
-         Float.intBitsToFloat(trailingRaw[2])
-      };
+      return this.normal == null ? null : this.normal.clone();
    }
 }

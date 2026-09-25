@@ -45,6 +45,14 @@ public final class NativeScene {
        */
       float[] faceNormals;
       float[] vertNormals;
+      /**
+       * Hidden-surface state of RWL21: the lock counter clump+0xa0 (the tree
+       * is not built while a bulk edit holds it) and the polygon sort tree
+       * of hint mode 1, clump+0xa4/0xa8/0xac (NativeCamera.SortTree,
+       * built by 0x10033750, freed when the mode leaves 1).
+       */
+      int lock;
+      NativeCamera.SortTree sortTree;
 
       /** Any change to the vertices or polygons drops the cached normals. */
       void geomChanged() {
@@ -149,13 +157,31 @@ public final class NativeScene {
          c.bbox[i] = Math.min(c.bbox[i], v[i]);
          c.bbox[3 + i] = Math.max(c.bbox[3 + i], v[i]);
       }
-      c.hints |= 4;
+      addHint(c, 4);
       return c.verts.size();
    }
 
-   /** RwSetClumpVertexUV(clump, index, u, v). */
+   /**
+    * Largest UV the 16-bit driver takes: RwSetClumpVertexUV (RWL21
+    * 0x10017de0) compares against the device limit at globals+0x2c4 -> +0x74,
+    * which RWDL6D21 points at its table 0x10079088 (+0x74 = 0x100790fc =
+    * 256).
+    */
+   static final float MAX_UV = 256.0F;
+
+   /**
+    * RwSetClumpVertexUV(clump, index, u, v) (RWL21 0x10017de0): a
+    * coordinate is rejected (error 0xB, the vertex keeps its old UV) when its
+    * bits as unsigned exceed 0x80000000 (negative, -0.0 passes) or it is
+    * above MAX_UV (u: fcom with C0; v: must be below or equal). RW keeps it
+    * as uvFixed(); the float is kept here and converted where it is used.
+    */
    public static void setVertexUV(int h, int index, float u, float v) {
       Clump c = clump(h);
+      if (Integer.toUnsignedLong(Float.floatToRawIntBits(u)) > 0x80000000L || MAX_UV < u
+            || Integer.toUnsignedLong(Float.floatToRawIntBits(v)) > 0x80000000L || !(v <= MAX_UV)) {
+         return;
+      }
       if (c != null && index >= 1 && index <= c.verts.size()) {
          float[] vx = c.verts.get(index - 1);
          vx[3] = u;
@@ -173,12 +199,35 @@ public final class NativeScene {
       return new float[3];
    }
 
+   /**
+    * The vertex UV as RWL21 stores it (vert+0x64 / +0x68, written at
+    * 0x10017ed4 / 0x10017ef6): ftol(t * 65536.0) (0x10044788, truncation),
+    * plus 0x100 (half a texel of 128) when the result is below 0x10000,
+    * minus 0x100 otherwise.
+    */
+   public static int uvFixed(float t) {
+      int f = (int) (long) ((double) t * 65536.0);
+      return (f & 0xFFFF0000) == 0 ? f + 0x100 : f - 0x100;
+   }
+
+   /**
+    * RwGetClumpVertexUV (RWL21 0x10017f50) undoing uvFixed: s + 0x100, or
+    * s - 0x100 when that sum has no bits above 0xFFFF, times 1/65536.
+    */
+   static float uvFromFixed(int f) {
+      int t = f + 0x100;
+      if ((t & 0xFFFF0000) == 0) {
+         t = f - 0x100;
+      }
+      return (float) ((double) t * (1.0 / 65536.0));
+   }
+
    /** RwGetClumpVertexUV(clump, index, out uv). */
    public static float[] getVertexUV(int h, int index) {
       Clump c = clump(h);
       if (c != null && index >= 1 && index <= c.verts.size()) {
          float[] vx = c.verts.get(index - 1);
-         return new float[]{vx[3], vx[4]};
+         return new float[]{uvFromFixed(uvFixed(vx[3])), uvFromFixed(uvFixed(vx[4]))};
       }
       return new float[2];
    }
@@ -214,7 +263,7 @@ public final class NativeScene {
       Polygon p = new Polygon(c, idx);
       c.polys.add(p);
       c.geomChanged();
-      c.hints |= 4;
+      addHint(c, 4);
       p.handle = NativeRw.alloc(p);
       return p.handle;
    }
@@ -245,11 +294,64 @@ public final class NativeScene {
       return c == null ? null : c.data;
    }
 
+   /**
+    * RwSetClumpHints (RWL21 0x10002700): hints above 7 are rejected (error
+    * 0x30); the value stored is what FUN_10033600 returns.
+    */
    public static void setClumpHints(int h, int hints) {
       Clump c = clump(h);
-      if (c != null) {
-         c.hints = hints;
+      if (c != null && (hints & ~7) == 0) {
+         c.hints = hintsChanged(c, hints);
       }
+   }
+
+   /**
+    * Hidden-surface mode of a clump (RWL21 0x10032980 / 0x100329b0): hint 4
+    * (editable) = 2, else hint 2 (HS) = 1, else 0.
+    */
+   static int hsMode(int hints) {
+      return (hints & 4) != 0 ? 2 : (hints & 2) >> 1;
+   }
+
+   /**
+    * RWL21 FUN_10033600, run by every hint change: mode 1 with more than
+    * 1000 polygons becomes editable (hint 4 added); leaving mode 1 frees
+    * the sort tree; entering it builds the tree (FUN_10033750) unless the
+    * clump is locked (clump+0xa0). Returns the hints to store.
+    */
+   static int hintsChanged(Clump c, int hints) {
+      if (hsMode(hints) == 1 && c.polys.size() > 1000) {
+         hints |= 4;
+      }
+      int oldMode = hsMode(c.hints);
+      int newMode = hsMode(hints);
+      if (oldMode == newMode) {
+         return hints;
+      }
+      if (oldMode == 1) {
+         c.sortTree = null;
+      }
+      c.hints = (hints ^ c.hints) & 6 ^ c.hints;
+      if (newMode == 1) {
+         c.sortTree = null;
+         if (c.lock == 0) {
+            c.sortTree = NativeCamera.buildSortTree(c);
+         }
+      }
+      return hints;
+   }
+
+   /** RwAddHintToClump as RwAddVertexToClump / RwAddPolygonToClump / RwSetClumpVertex use it (0x10004ad0, 0x10003830, 0x10032310). */
+   static void addHint(Clump c, int hint) {
+      if ((c.hints & hint) != hint) {
+         c.hints = hintsChanged(c, c.hints | hint);
+      }
+   }
+
+   /** Hint mode of a clump handle, for the checks. */
+   public static int getClumpHSMode(int h) {
+      Clump c = clump(h);
+      return c == null ? 0 : hsMode(c.hints);
    }
 
    public static void setClumpState(int h, int state) {
@@ -426,15 +528,23 @@ public final class NativeScene {
       return s.handle;
    }
 
-   /** RwDestroyScene. ⚠️ VERIFICAR: assumed to destroy its clumps and lights (not extracted from RWL21). */
+   /**
+    * RwDestroyScene (RWL21 0x100306b0): the default scene is refused
+    * (error 0x1a; here it has no Scene object). Otherwise every light goes
+    * through RwDestroyLight, the scene tree is torn down and EVERY clump
+    * node of the scene (each clump of each hierarchy has its own) is freed
+    * with its clump by FUN_10004010, which destroys that clump's own
+    * polygons and geometry, not its children (they are nodes of the same
+    * scene and get destroyed on their own turn).
+    */
    public static void destroyScene(int h) {
       Scene s = scene(h);
       if (s == null) {
          return;
       }
       for (Clump c : new ArrayList<Clump>(s.clumps)) {
-         if (c.parent == null && NativeRw.get(c.handle) == c) {
-            destroyClump(c.handle);
+         if (NativeRw.get(c.handle) == c) {
+            destroyClumpOnly(c.handle);
          }
       }
       for (Light l : s.lights) {
@@ -698,35 +808,64 @@ public final class NativeScene {
       return c == null || c.verts.isEmpty() ? new float[6] : c.bbox.clone();
    }
 
-   private static int round(float f) {
-      return (int) Math.rint(f);
+   /**
+    * frndint under the two FPU control words addSubPolys loads: 0x077f at
+    * gamma.dll 0x00480a7c (RC = toward -inf) for the first cell and 0x0b7f
+    * at 0x00480a78 (RC = toward +inf) for the end.
+    */
+   static int floorCell(float f) {
+      return (int) Math.floor(f);
+   }
+
+   static int ceilCell(float f) {
+      return (int) Math.ceil(f);
    }
 
    /**
     * Surface.addSubPolys (gamma.dll 0x004206d0): split a 4-vertex surface
     * into hRes x vRes texture tiles per unit of UV, adding 4 new vertices
-    * and one quad per tile (vertices from index 5). The corner vertices 1
-    * and 4 give x/z and u/v; y is 0 (DAT_004712ac). Flags 0x100000 /
-    * 0x80000 are the V / U flip (Surface.setVFlip / setUFlip), which
-    * mirror every other tile. Returns the polygon handles (the Java
-    * polygonIDs array).
+    * and one quad per tile (vertices from index 5); y is 0 (DAT_004712ac).
+    * Read from the ASM (the Ghidra C of this function mixes up two vertex
+    * reads): vertex 1 gives x, z, u, v (0x00420718-0x00420745 -> [ebp-0x9c],
+    * [ebp-0x98], [ebp-0x94], [ebp-0x90]); x and u span to VERTEX 2
+    * (0x00420768-0x0042078f store x2-x1 and u2-u1 before vertex 4 is read
+    * at 0x00420795), z and v to vertex 4 (0x004207bc-0x004207f2); the
+    * steps are (z4-z1)/(vRes*(v4-v1)) and (x2-x1)/(hRes*(u2-u1))
+    * (0x00420b00-0x00420b18). The first cell is rounded down and the last
+    * up (floorCell / ceilCell). Flags 0x100000 / 0x80000 are the V / U
+    * flip (Surface.setVFlip / setUFlip), which mirror every other tile.
+    * Returns the polygon handles (the Java polygonIDs array). Same
+    * translation as client/src/net/freeworlds/world/MaterialTiles.rectCells.
     */
    public static int[] addSubPolys(int clump, int flags, int hRes, int vRes) {
       float[] p1 = getVertex(clump, 1);
       float[] t1 = getVertexUV(clump, 1);
       float x1 = p1[0], z1 = p1[2], u1 = t1[0], v1 = t1[1];
+      float[] p2 = getVertex(clump, 2);
+      float[] t2 = getVertexUV(clump, 2);
+      float du = t2[0] - u1;
+      float dxTotal = p2[0] - x1;
       float[] p4 = getVertex(clump, 4);
       float[] t4 = getVertexUV(clump, 4);
-      float x4 = p4[0], z4 = p4[2], u4 = t4[0], v4 = t4[1];
-      float u4s = u1 + (u4 - u1);
-      float uMin = u4s < u1 ? u4s : u1;
-      float v4s = v1 + (v4 - v1);
-      float vMin = v4s < v1 ? v4s : v1;
-      float uMax = u1 < u4s ? u4s : u1;
-      float vMax = v1 < v4s ? v4s : v1;
-      int col0 = round(uMin) * hRes;
-      int row = round(vMin) * vRes;
-      int count = (round(uMax) * hRes - col0) * (round(vMax) * vRes - row);
+      float dzTotal = p4[2] - z1;
+      float dv = t4[1] - v1;
+      float uEnd = u1 + du;
+      float uMin = uEnd < u1 ? uEnd : u1;
+      float vEnd = v1 + dv;
+      float vMin = vEnd < v1 ? vEnd : v1;
+      float uMax = u1 < uEnd ? uEnd : u1;
+      float vMax = v1 < vEnd ? vEnd : v1;
+      int col0 = floorCell(uMin) * hRes;
+      int row = floorCell(vMin) * vRes;
+      int colEnd = ceilCell(uMax) * hRes;
+      int rowEnd = ceilCell(vMax) * vRes;
+      int count = (colEnd - col0) * (rowEnd - row);
+      if (System.getProperty("freeworlds.traceSubPolys") != null) {
+         Clump k = clump(clump);
+         System.err.println("[RW] addSubPolys " + (k == null ? "-" : String.valueOf(k.data)) + " " + hRes + "x" + vRes
+            + " flags=0x" + Integer.toHexString(flags) + " x " + x1 + "+" + dxTotal + " z " + z1 + "+" + dzTotal
+            + " u " + u1 + "+" + du + " v " + v1 + "+" + dv + " -> " + count + " celdas");
+      }
       int[] polys = new int[count];
       if (count == 0) {
          return polys;
@@ -735,8 +874,8 @@ public final class NativeScene {
       float vHi = vRes * vMax;
       float uLo = hRes * uMin;
       float uHi = hRes * uMax;
-      float dz = (z4 - z1) / (vRes * (v4 - v1));
-      float dx = (x4 - x1) / (hRes * (u4 - u1));
+      float dz = dzTotal / ((float) vRes * dv);
+      float dx = dxTotal / ((float) hRes * du);
       boolean vFlipOn = (flags & 0x100000) != 0;
       boolean uFlipOn = (flags & 0x80000) != 0;
       boolean vFlip = vFlipOn && ((row / vRes) & 1) != 0;
@@ -744,9 +883,9 @@ public final class NativeScene {
       int vert = 5;
       int n = 0;
       int[] quad = new int[4];
-      for (; row < round(vMax) * vRes; row += vRes) {
+      for (; row < rowEnd; row += vRes) {
          boolean uFlip = uFlipStart;
-         for (int col = col0; col < round(uMax) * hRes; col += hRes) {
+         for (int col = col0; col < colEnd; col += hRes) {
             int sv = vFlip ? 0 : vRes - 1;
             while (sv > -1 && sv < vRes) {
                int iv = row + sv;
@@ -862,6 +1001,7 @@ public final class NativeScene {
             c.bbox[3 + i] = Math.max(c.bbox[3 + i], vv[i]);
          }
          c.geomChanged();
+         addHint(c, 4);
       }
    }
 
@@ -985,6 +1125,11 @@ public final class NativeScene {
          q.handle = NativeRw.alloc(q);
          d.polys.add(q);
       }
+      // FUN_10032a30: the copy takes the hint mode and, in mode 1, builds
+      // its own sort tree.
+      if (hsMode(d.hints) == 1 && d.lock == 0) {
+         d.sortTree = NativeCamera.buildSortTree(d);
+      }
       for (Clump k : c.children) {
          addChildToClump(copy, duplicateClump(k.handle));
       }
@@ -1035,7 +1180,8 @@ public final class NativeScene {
          q.handle = NativeRw.alloc(q);
          dst.polys.add(q);
       }
-      dst.hints |= 4;
+      dst.geomChanged();
+      addHint(dst, 4);
    }
 
    /** Handles of the direct children, in order. */

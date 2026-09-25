@@ -2,10 +2,11 @@
 
 > Estado (2026-09-15): **formato `.seq` completo, traducido del C
 > decompilado de `gamma.dll` y verificado sobre el corpus real**:
-> `SeqParser` consume 231/231 archivos enteros (`SeqExtractMain`). La
-> REPRODUCCIÓN (blending/interpolación/aplicación a joints) sigue en
-> `DroneAnimator` nativo y NO está implementada: sin ella no se anima
-> nada en el motor (regla del proyecto: no inventar poses).
+> `SeqParser` consume 231/231 archivos enteros (`SeqExtractMain`).
+> Actualización 2026-09-23: la reproducción de `DroneAnimator` (elección
+> de secuencia, mezclas, aplicación a joints) está traducida en el puente
+> del cliente original; ver sección 7. El cliente propio (`client/`)
+> sigue sin controlador.
 >
 > Corrección de auditoría: el commit `bcd60fd5` afirmaba "leftover=0",
 > pero su `SeqParser` fallaba en 231/231 archivos (leía un `u16`
@@ -186,7 +187,7 @@ confirmado en `docs/native-methods-map.md:231-246`) hace el resto.
   (segundos en float) — coinciden en la regla:
 
   ```
-  t = round(segundos * 30)                      // DAT_00476ec8 = 30.0
+  t = trunc(segundos * 30)                      // DAT_00476ec8 = 30.0
   si t > duracion:  modo 2 -> t % (duracion + 1)   // bucle
                     modo 1 -> duracion              // se queda en el ultimo key
                     otro   -> la reproduccion termina
@@ -194,19 +195,20 @@ confirmado en `docs/native-methods-map.md:231-246`) hace el resto.
 
   Es decir, **los keys van a 30 por segundo exactos** (coherente con
   `common_walk` = 42 keys = ciclo de 1,4 s). Traducido en
-  `SeqSampler.keyTime`. Las dos funciones que sacan la pose
+  `SeqSampler.keyTime`. ⚠️ Corrección 2026-09-23: el paso a entero
+  **trunca**, no redondea: antes del `fistpl` las dos funciones ponen la
+  palabra de control en "chop" (`orb $0xc` en 0x43b9c0 y 0x43b70f);
+  `SeqSampler.keyTime` usa `Math.round` y da un key de más en la mitad
+  superior de cada 1/30 s. El puente usa el truncado
+  (`AnimGraph.TimeDriver`/`DistanceDriver`). Las dos funciones que sacan la pose
   (`FUN_0043b770`, `FUN_0043baa0`) se diferencian solo en el flag que
   anula o conserva la z de la traslación de raíz — el `param_3` que antes
   quedaba ⚠️.
-- ⚠️ **Del controlador sigue sin reconstruir**: quién elige el modo y la
-  secuencia (`walk`/`wait` implícitos según el movimiento), la sincronía
-  con la velocidad (`update` usa `10 / (scaleX · m00 · 1000)`) y la mezcla
-  de transición de 250.
-- **Transiciones**: `FUN_00432d10` crea una mezcla con constante 0xfa
-  (250; unidad sin verificar) y `FUN_00439450` interpola entre poses (nlerp
-  con inversión de hemisferio `FUN_004292a0`); la curva de cambio
-  implícito `FUN_0043ab30` = `clamp(8·r·(1−r), 0, 1)`, desactivable con
-  `override.ini [Runtime] NoImpChange=1`.
+- **Controlador**: reconstruido el 2026-09-23, ver la sección 7
+  ("Selección de secuencia en el cliente"). La mezcla de 0xfa son 250
+  **ms** (`{0 s, 250 ms}`) y la curva `clamp(8·r·(1−r), 0, 1)`
+  (`FUN_0043ab30`) es la de los **explícitos**, no la del cambio de
+  implícito (que es lineal, `FUN_0043a540`).
 
 ## 6. Qué falta para animación real (siguiente paso)
 
@@ -214,15 +216,11 @@ confirmado en `docs/native-methods-map.md:231-246`) hace el resto.
    cuaternión, nombre→tag, retarget~~ ✅ (sección 5). ~~Fórmula de la LTM
    y pre/post de RenderWare 2.1~~ ✅ (sección 5). ~~Aplicar la pose a un
    `.bod`~~ ✅ `BodViewer --seq <f.seq> --frame T` (ver abajo).
-2. **Controlador**: ~~tiempo real → t de key y bucle~~ ✅ resuelto
-   (sección 5: 30 keys/s, modo 2 = bucle, modo 1 = último key).
-   **Falta** la elección implícita `walk`/`wait` según el movimiento, la
-   sincronía con la velocidad (`update` usa `10 / (scaleX · m00 · 1000)`)
-   y la mezcla de transición de 250. Con lo resuelto ya se puede
-   reproducir en bucle una secuencia concreta sin inventar nada; lo que
-   no se puede es decidir *cuál* toca en cada momento como el original.
-3. Flag de la z de la traslación de raíz (`FUN_00438300` param_3) —
-   irrelevante en `wait` (extras a 0), afecta a `walk`.
+2. ~~**Controlador**~~ ✅ (sección 7): elección `walk`/`wait`/`endwait`,
+   sincronía con la distancia recorrida, mezclas y bucle, traducidos en el
+   puente (`bridge/NET/worlds/core/Anim*.java`, `NativeAnimator.java`).
+3. ~~Flag de la z de la traslación de raíz~~ ✅: los drivers por tiempo
+   (wait, gestos) la conservan negada; los de distancia (walk) la anulan.
 4. `.mov` como vídeo de texturas (hoy solo frame 0). Menor: `csq` (citado
    en GDK, sin ejemplar).
 
@@ -258,3 +256,154 @@ Cara y puntas de pies en **+Z local** (Y-up), coleta/talones en −Z:
 `aura.bod` (coleta −Z, cara +Z); `RWXTOBOD.PL:7,21-25,799-806` pasa ejes
 sin tocar. El +Z bod mapea a +Y mundo → rotación `yaw−90°` (álgebra).
 GammaDocs confirma Y-up/X-ancho (`Avatar building text.txt:240,402-405`).
+
+## 7. Selección de secuencia en el cliente (DroneAnimator)
+
+Traducido el 2026-09-23 del motor de animación de `gamma.dll`
+(0x0042b000–0x0043c500) en el puente (`bridge/NET/worlds/core/`:
+`AnimRegistry`, `AnimSeqCache`, `AnimGraph`, `AnimPose`, `AnimAnimator`,
+`AnimMotion`, `NativeAnimator`; nativos enganchados por
+`bridge/natives-animator.patch`). Comprobaciones: `bridge/test/Animator*Check.java`.
+
+### 7.1 Qué decide Java y qué decide el nativo
+
+Java (`PosableShape.handle(FrameEvent)`, `PosableShape.java:1219`) solo
+informa: cada frame, si el avatar está a menos de 900 de la cámara
+(`closestView`, que calcula `prerender` con `inCamSpace`), llama a
+`moveto(tipo, (short)x, (short)y, (short)z, (short)-yaw, t-1)` y a
+`update(null, this, t, scaleX, lejos>700)`. Los gestos llegan por
+`animate(tipo, nombre, t)` (chat `*gesto*`, `Pilot`, `PosableAction`...),
+cuya duración (`getAnimationTime`) usa `PosableShape` para encadenar
+secuencias con `&`. **Todo lo demás lo decide el nativo**: qué implícito
+toca, a qué ritmo avanza y cómo se mezcla. `lejos` no se usa (llega a
+`FUN_00433710`, que hace `ret 0x14` sin leer `0x18(%ebp)`).
+
+### 7.2 Registro (`avatars.dat`)
+
+`loadconfig` (FUN_00434b70) vacía el registro y analiza el texto
+(`Archive.readTextFile`, sin CR). Cabecera de 32 caracteres → gramática
+0.3 (FUN_0042cda0) o 0.2 (FUN_0042d840, con un tipo fijo `cy`). El
+escáner es un flex (FUN_0042a4c0) con tablas en el binario; de ellas
+salen estas reglas: `#…\n` y blancos se saltan; el número es **un solo
+dígito** (`version 3`); identificador `[A-Za-z0-9_][A-Za-z0-9_.-]*`
+(`123`, `2v` y `Skating-1` son identificadores). Las claves de acción se
+pasan a minúsculas (FUN_004280b0); secuencias y atributos no.
+`getnameindex` compara el atributo `name` sin mayúsculas
+(FUN_004508c0); el índice es el orden del fichero.
+
+### 7.3 Los cinco implícitos y la máquina de estados
+
+Tabla de implícitos (0x475288, 12 bytes: nombre, arg1, arg2):
+
+| idx | nombre | avanza por | al terminar |
+|---|---|---|---|
+| 1 | (ninguno) | — | pipe vacío = pose de reposo |
+| 2 | (ninguno) | — | pipe vacío |
+| 3 | `walk` | distancia (arg1 0) | bucle (arg2 2) |
+| 4 | `wait` | tiempo (arg1 1) | se queda en el último key (1) |
+| 5 | `endwait` | tiempo | último key |
+| 6–9 | `run`, `fly`, `hover`, `sit` | 0/0/1/1 | bucle — ningún estado los elige |
+
+`moveto`/`moveby` (FUN_004351b0/FUN_004352f0) pasan posición y
+orientación (eje Z, `yaw·π/180`) a FUN_00434670, que clasifica el
+movimiento con la tabla `{3,3,2,1}` (DAT_004754e0): **3** si cambió la
+posición (igualdad exacta de los `short`), **2** si solo cambió la
+orientación (`|dot(q,q') − 1| ≥ 0.0005`, unos 3,6°), **1** si nada:
+
+```
+estado 1 (recién llegado): gira -> 2, anda -> 3, 10 s quieto -> 4
+estado 2 (girando):        quieto -> 1, anda -> 3
+estado 3 (walk):           quieto -> 4 (directo a wait), gira -> 2
+estado 4 (wait):           gira -> 2, anda -> 3, 30 s -> 5
+estado 5 (endwait):        gira -> 2, anda -> 3, 10 s -> 4
+```
+
+Los plazos son `{10,0}`, `{30,0}`, `{10,0}` desde el último cambio (hora
+de `moveto`, comparación `<=` sin signo). El primer `moveto` fija el
+estado 1. El índice elegido se busca por nombre entre los implícitos del
+tipo; si el avatar no tiene esa clave, pipe vacío.
+
+### 7.4 Sincronía con la velocidad
+
+El walk (driver por distancia, 0x476ff4) no avanza con el reloj sino con
+la distancia recorrida: `FUN_00431440` guarda la parte horizontal del
+desplazamiento entre dos posiciones (se quita la componente Z) con signo
+(negativa si en el sistema del avatar la `y` es `<= 0`: andar hacia atrás
+recorre el walk al revés). `update` (FUN_00435520) calcula
+`escala = 10 / (scaleX · m00 · 1000)` con `m00` de la matriz de modelado
+de la pelvis (primer hijo de la figura) y avanza el driver
+`cantidad = distancia · |escala|` "segundos" de secuencia; key =
+`trunc(acumulado · 30)`, en bucle con `fmod` (negativos se envuelven).
+Con la escala del `.bod` (1000 de `prepFigure`, pelvis 1): 100 unidades
+de mundo = 1 s de walk = 30 keys. Los demás implícitos y los gestos
+avanzan con el dt real (`update` − `update` anterior).
+
+### 7.5 Mezclas
+
+- Cambio de implícito (FUN_00432d10 → `shiftto`, 0x476e14): de lo que
+  hubiera a la secuencia nueva en **{0 s, 250 ms}** (0xfa), peso lineal
+  `clamp(t/250 ms, 0, 1)` (FUN_0043a540); joints que solo están en una de
+  las dos se mezclan con la identidad.
+- Gesto (`animate` → `overlay`, 0x476df8): encima del implícito durante
+  la duración del `.seq` (`floor(keys·(1/30f))` s + ms, FUN_00427a50); peso
+  `clamp(8x(1−x), 0, 1)` con `x = t/duración` (FUN_0043ab30: sube en el
+  primer 14,6 % y baja en el último); **solo los joints del gesto**: el
+  resto sigue con el implícito (tabla 0x4771fc copia A). Con
+  `override.ini [Runtime] NoImpChange=1` el peso es 1 y no hay changeimp.
+- Interpolación (FUN_00439450): nlerp con cambio de hemisferio.
+- `beginchangeimp` (FUN_004330a0): al lanzar un gesto con bloque, sus
+  pares sustituyen las secuencias de los implícitos del animador (p. ej.
+  `chairsit` → `wait=lgSeated`), efectivas en el siguiente cambio de
+  implícito. Las secuencias que solo aparecen en esos bloques
+  (`willendwait`, `willwalk` en 45.dat) no las registra `addtype`
+  (FUN_0042b160 solo recorre implícitos y explícitos) y por tanto nunca se
+  cargan: pose de reposo. Error del original: una clave de changeimp que
+  no esté entre los implícitos escribe una posición más allá del vector
+  (compara con el final de la lista de explícitos, 0x433378).
+
+### 7.6 Tiempo, bucle y lo que devuelven `animate`/`getAnimationTime`
+
+- Driver por tiempo (0x476fdc): `key = trunc((s + ms/1000)·30)`; si
+  `key > duración`: bucle `key % (duración+1)` (modo 2), último key (1) o
+  termina (0, los gestos). Driver vacío (sin `.seq`): dura {10000 s}.
+- `animate` y `getAnimationTime` devuelven `s + ms/1000` de la duración
+  del gesto (p. ej. `axelwave`, 142 keys → 4.733); 0.0 si el nombre no
+  está (DAT_00475524). Un gesto sin `.seq` cargable dura **10000 s**.
+  El tiempo que recibe `animate` no se usa.
+- Carga: `addtype` registra las secuencias del tipo en la caché
+  (`./avatars\NOMBRE.seq`); se piden a Java (`PendingCacheDrone.
+  downloadSeqFile`) de forma **síncrona la primera vez que hacen falta**
+  (FUN_0042fc90) o asíncrona si otro tipo ya las compartía.
+
+### 7.7 Aplicación de la pose y `prepFigure`
+
+FUN_00434470: tags 1..30 (ids 3..32 por FUN_004298b0) en orden;
+`RwFindTaggedClump` + `RwTransformClumpJoint(sustituir)`; tag sin entrada
+→ identidad; la traslación de raíz (extras 0–2) ×0.1 va a la fila 3 del
+modelado de la pelvis multiplicada por su diagonal; la rotación de raíz
+(extra 3) no se aplica. `prepFigure` (FUN_00434f00) = sección 5, más: el
+punto que se recoloca es (centro x, centro y, z mínima) de la caja del
+árbol en el mundo (FUN_00418900); con COG = false solo la z (pies en el
+suelo).
+
+### 7.8 Verificado y pendiente
+
+- `AnimatorRegistryCheck` (45.dat, 221 tipos), `AnimatorPlaybackCheck`
+  (duraciones, keys, mezclas, bucle, hold) y `AnimatorMotionCheck`
+  (estados a 1000/10999/11000/40999/41000/51000 ms, walk 100 u → key 30,
+  atrás → 15, escala de la pelvis, pose en el joint, `prepFigure`).
+- En juego (GroundZero, `IconViewRoom1a`): `addtype`, `prepFigure`,
+  `moveto`/`update` corren y las figuras quedan de pie a escala. Las
+  estatuas de las galerías **giran** (~70°/s), así que el C las mantiene
+  en los estados 1/2 (sin secuencia): no llegan a `wait`. ⚠️ Para verlas
+  animarse en el puente hace falta además (fuera de estos ficheros)
+  `WObject.nativeInCamSpace` (0x00413910; hoy stub que devuelve `z = 0`,
+  así que `closestView` nunca baja de 900) y que `RwReadStreamChunk` de
+  un `.rwg` sin vértices (`avatar.rwg`) devuelva un clump vacío en vez de
+  0 (si no, el `PosableShape` nunca está `isFullyLoaded` y no crea el
+  animador).
+- ⚠️ Precisión: las operaciones se hacen en `double` suponiendo la palabra
+  de control x87 0x027F del JVM (53 bits, redondeo al par); solo afecta a
+  empates exactos.
+- ⚠️ El `catch` de los errores de sintaxis de `avatars.dat` (throw de C++)
+  no está localizado: el puente avisa y conserva los tipos leídos.
