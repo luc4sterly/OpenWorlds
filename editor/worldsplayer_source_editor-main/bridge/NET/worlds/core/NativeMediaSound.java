@@ -80,6 +80,18 @@ public final class NativeMediaSound {
       return w / 65535.0;
    }
 
+   /**
+    * Abre un WAV como lo haria Windows: PCM/u-law/a-law por javax.sound; IMA
+    * ADPCM (0x11), que Windows decodificaba por ACM, con {@link ImaAdpcmWav}.
+    */
+   static AudioInputStream openAudio(File f) throws Exception {
+      if (ImaAdpcmWav.isImaAdpcm(f)) {
+         return ImaAdpcmWav.open(f);
+      }
+
+      return AudioSystem.getAudioInputStream(f);
+   }
+
    /** Volumen actual del dispositivo waveOut 0 (arranca al maximo, como Windows). */
    private static volatile int waveOutVolume = 0xFFFFFFFF;
 
@@ -129,7 +141,7 @@ public final class NativeMediaSound {
       /** Comprueba que el fichero se puede decodificar y lee su duracion. */
       boolean probe() {
          try {
-            AudioInputStream in = AudioSystem.getAudioInputStream(this.file);
+            AudioInputStream in = openAudio(this.file);
             try {
                this.frames = in.getFrameLength();
                this.rate = in.getFormat().getFrameRate();
@@ -153,7 +165,7 @@ public final class NativeMediaSound {
 
          try {
             do {
-               AudioInputStream src = AudioSystem.getAudioInputStream(this.file);
+               AudioInputStream src = openAudio(this.file);
                AudioFormat f = src.getFormat();
                AudioFormat pcm = new AudioFormat(f.getSampleRate(), 16, 2, true, false);
                AudioInputStream in;

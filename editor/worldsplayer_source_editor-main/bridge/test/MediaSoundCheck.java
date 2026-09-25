@@ -138,6 +138,43 @@ public class MediaSoundCheck {
       NativeMediaSound.mciStop(a);
       check(!NativeMediaSound.mciIsActive(), "nativeStop del dueno cierra");
 
+      // --- IMA ADPCM (codec ACM de Windows), a mano ---
+      NET.worlds.core.ImaAdpcmWav.Channel c = new NET.worlds.core.ImaAdpcmWav.Channel(0, 0);
+      // paso 7: nibble 7 -> 0 + 1 + 3 + 7 = 11 ; indice 0+8 = 8
+      check(c.decode(7) == 11 && c.index == 8, "IMA: (0,0) nibble 7 -> 11, indice 8");
+      // paso 16: nibble 8 -> -(16>>3) = -2 -> 9 ; indice 7
+      check(c.decode(8) == 9 && c.index == 7, "IMA: nibble 8 -> 9, indice 7");
+      // paso 14: nibble 15 -> -(1+3+7+14) = -25 -> -16 ; indice 15
+      check(c.decode(15) == -16 && c.index == 15, "IMA: nibble 15 -> -16, indice 15");
+      NET.worlds.core.ImaAdpcmWav.Channel sat = new NET.worlds.core.ImaAdpcmWav.Channel(32760, 88);
+      check(sat.decode(7) == 32767 && sat.index == 88, "IMA: satura a 32767 e indice 88");
+
+      // --- los WAV/MIDI reales de GroundZero/wav ---
+      File gz = new File("assets/WorldsPlayer/GroundZero/wav");
+      File s = new File(gz, "S.wav");
+      check(s.isFile() && NET.worlds.core.ImaAdpcmWav.isImaAdpcm(s), "S.wav es IMA ADPCM (formato 0x11)");
+      javax.sound.sampled.AudioInputStream sin = NET.worlds.core.ImaAdpcmWav.open(s);
+      // data = 121856 bytes / nBlockAlign 256 = 476 bloques x wSamplesPerBlock 505
+      // = 240380 muestras; fact dice 0x3ab67 = 240487 (mas de las que hay: manda
+      // el minimo). A 0x2bf2 = 11250 Hz: 21.367 s.
+      check(sin.getFrameLength() == 240380 && sin.getFormat().getSampleRate() == 11250.0F, "S.wav: 476 bloques x 505 = 240380 muestras a 11250 Hz");
+      sin.close();
+      check(NativeMediaSound.playSound(s.getPath(), true), "PlaySound en bucle de S.wav abre");
+      Thread.sleep(300L);
+      check(NativeMediaSound.playSoundActive(), "S.wav sonando");
+      NativeMediaSound.purgeSound(s.getPath());
+      File lion = new File(gz, "Liondoor.wav");
+      // PCM 8 bits mono 22050 Hz, data 0xa8e0 = 43232 bytes -> 1.96 s
+      t0 = System.nanoTime();
+      check(NativeMediaSound.playSound(lion.getPath(), false), "PlaySound sincrono de Liondoor.wav");
+      el = (System.nanoTime() - t0) / 1.0E9;
+      check(el >= 1.9 && el < 3.5, "Liondoor.wav dura ~1.96 s (medido " + el + ")");
+      File glee = new File(gz, "Glee3.mid");
+      check(NativeMediaSound.mciStart(a, glee.getPath()), "MCI sequencer abre Glee3.mid");
+      check(!NativeMediaSound.mciIsFinished(a), "Glee3.mid sonando");
+      NativeMediaSound.mciStop(a);
+      check(!NativeMediaSound.mciIsActive(), "Glee3.mid parado");
+
       for (File f : dir.listFiles()) {
          f.delete();
       }
