@@ -13,6 +13,146 @@ diff a/NET/worlds/scape/ASFSoundPlayer.java b/NET/worlds/scape/ASFSoundPlayer.ja
 +      return NET.worlds.core.NativeMediaSound.asfNativePlay(var0);
     }
  }
+diff a/NET/worlds/scape/CDPlayerAction.java b/NET/worlds/scape/CDPlayerAction.java
+--- a/NET/worlds/scape/CDPlayerAction.java
++++ b/NET/worlds/scape/CDPlayerAction.java
+@@ -114,65 +114,72 @@
+ 
+    public static int getNumDrives() {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "getNumDrives", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeMediaCd.getNumDrives();
+    }
+ 
+    public static int getDriveLetterOffset(int var0) {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "getDriveLetterOffset", new Object[]{var0});
+-      return 0;
++      return NET.worlds.core.NativeMediaCd.getDriveLetterOffset(var0);
+    }
+ 
+    public static int openDrive(int var0) throws IOException {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "openDrive", new Object[]{var0});
+-      return 0;
++      return NET.worlds.core.NativeMediaCd.openDrive(var0);
+    }
+ 
+    public static void closeDrive(int var0) throws IOException {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "closeDrive", new Object[]{var0});
++      NET.worlds.core.NativeMediaCd.closeDrive(var0);
+    }
+ 
+    public static void checkDrive(int var0) throws IOException {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "checkDrive", new Object[]{var0});
++      NET.worlds.core.NativeMediaCd.checkDrive(var0);
+    }
+ 
+    public static CDTrackInfo getDriveTrackList(int var0) throws IOException {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "getDriveTrackList", new Object[]{var0});
+-      return null;
++      return (CDTrackInfo)NET.worlds.core.NativeMediaCd.getDriveTrackList(var0);
+    }
+ 
+    public static void playAudio(int var0, int var1, int var2) throws IOException {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "playAudio", new Object[]{var0, var1, var2});
++      NET.worlds.core.NativeMediaCd.playAudio(var0, var1, var2);
+    }
+ 
+    public static void stopAudio(int var0) throws IOException {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "stopAudio", new Object[]{var0});
++      NET.worlds.core.NativeMediaCd.stopAudio(var0);
+    }
+ 
+    public static void pauseAudio(int var0) throws IOException {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "pauseAudio", new Object[]{var0});
++      NET.worlds.core.NativeMediaCd.pauseAudio(var0);
+    }
+ 
+    public static void resumeAudio(int var0) throws IOException {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "resumeAudio", new Object[]{var0});
++      NET.worlds.core.NativeMediaCd.resumeAudio(var0);
+    }
+ 
+    public static boolean isPlaying(int var0) throws IOException {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "isPlaying", new Object[]{var0});
+-      return true;
++      return NET.worlds.core.NativeMediaCd.isPlaying(var0);
+    }
+ 
+    public static int getPosition(int var0) throws IOException {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "getPosition", new Object[]{var0});
+-      return 0;
++      return NET.worlds.core.NativeMediaCd.getPosition(var0);
+    }
+ 
+    public static void setNTAutoPlayCode(int var0) {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "setNTAutoPlayCode", new Object[]{var0});
++      NET.worlds.core.NativeMediaCd.setNTAutoPlayCode(var0);
+    }
+ 
+    public static boolean launchVolumeControlApp() {
+       NET.worlds.core.NativeMock.log("CDPlayerAction", "launchVolumeControlApp", new Object[0]);
+-      return true;
++      return NET.worlds.core.NativeMediaCd.launchVolumeControlApp();
+    }
+ 
+    public Object properties(int var1, int var2, int var3, Object var4) throws NoSuchPropertyException {
+diff a/NET/worlds/scape/DirectShow.java b/NET/worlds/scape/DirectShow.java
+--- a/NET/worlds/scape/DirectShow.java
++++ b/NET/worlds/scape/DirectShow.java
+@@ -33,36 +33,52 @@
+       NET.worlds.core.NativeMock.log("DirectShow", "nativeInit", new Object[0]);
+    }
+ 
++   // 0x0043f210: renderer de audio (hwnd 0) o DX8 -> DX7; sin DirectShow
++   // se queda en estado 0 (NativeMediaVideo).
+    protected void nInit(int var1) {
+       NET.worlds.core.NativeMock.log("DirectShow", "nInit", new Object[]{var1});
++      this.mediaRendererInstancePtr = NET.worlds.core.NativeMediaVideo.nInit(var1);
+    }
+ 
++   // 0x0043f310
+    protected void nShutdown() {
+       NET.worlds.core.NativeMock.log("DirectShow", "nShutdown", new Object[0]);
++      NET.worlds.core.NativeMediaVideo.nShutdown(this.mediaRendererInstancePtr);
+    }
+ 
++   // 0x0043f450
+    public void nOpen(String var1) {
+       NET.worlds.core.NativeMock.log("DirectShow", "nOpen", new Object[]{var1});
++      NET.worlds.core.NativeMediaVideo.nOpen(this.mediaRendererInstancePtr, var1);
+    }
+ 
++   // 0x0043f390
+    public void nPlay(int var1) {
+       NET.worlds.core.NativeMock.log("DirectShow", "nPlay", new Object[]{var1});
++      NET.worlds.core.NativeMediaVideo.nPlay(this.mediaRendererInstancePtr, var1);
+    }
+ 
++   // 0x0043f3c0
+    public void nStop() {
+       NET.worlds.core.NativeMock.log("DirectShow", "nStop", new Object[0]);
++      NET.worlds.core.NativeMediaVideo.nStop(this.mediaRendererInstancePtr);
+    }
+ 
++   // 0x0043f420
+    public void nPause() {
+       NET.worlds.core.NativeMock.log("DirectShow", "nPause", new Object[0]);
++      NET.worlds.core.NativeMediaVideo.nPause(this.mediaRendererInstancePtr);
+    }
+ 
++   // 0x0043f350
+    public void nRenderTo(int var1, int var2) {
+       NET.worlds.core.NativeMock.log("DirectShow", "nRenderTo", new Object[]{var1, var2});
++      NET.worlds.core.NativeMediaVideo.nRenderTo(this.mediaRendererInstancePtr, var1, var2);
+    }
+ 
++   // 0x0043f3f0: estado del renderer (0 sin DirectShow)
+    public int nTick() {
+       NET.worlds.core.NativeMock.log("DirectShow", "nTick", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeMediaVideo.nTick(this.mediaRendererInstancePtr);
+    }
+ }
 diff a/NET/worlds/scape/MCISoundPlayer.java b/NET/worlds/scape/MCISoundPlayer.java
 --- a/NET/worlds/scape/MCISoundPlayer.java
 +++ b/NET/worlds/scape/MCISoundPlayer.java
