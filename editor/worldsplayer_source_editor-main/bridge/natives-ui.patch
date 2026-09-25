@@ -42,6 +42,122 @@ diff a/NET/worlds/console/Console.java b/NET/worlds/console/Console.java
        WhisperManager.whisperManager().setParent(frame);
     }
  }
+diff a/NET/worlds/console/Cursor.java b/NET/worlds/console/Cursor.java
+--- a/NET/worlds/console/Cursor.java
++++ b/NET/worlds/console/Cursor.java
+@@ -83,31 +83,32 @@
+ 
+    public static int getSystemCursorWidth() {
+       NET.worlds.core.NativeMock.log("Cursor", "getSystemCursorWidth", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeUiCursor.systemCursorSize(false);
+    }
+ 
+    public static int getSystemCursorHeight() {
+       NET.worlds.core.NativeMock.log("Cursor", "getSystemCursorHeight", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeUiCursor.systemCursorSize(true);
+    }
+ 
+    public static int getSystemCursorDepth() {
+       NET.worlds.core.NativeMock.log("Cursor", "getSystemCursorDepth", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeUiCursor.systemCursorDepth();
+    }
+ 
+    private static int loadCursor(String var0) {
+       NET.worlds.core.NativeMock.log("Cursor", "loadCursor", new Object[]{var0});
+-      return 1;
++      return NET.worlds.core.NativeUiCursor.loadCursor(var0);
+    }
+ 
+    private static int loadSystemCursor(String var0) {
+       NET.worlds.core.NativeMock.log("Cursor", "loadSystemCursor", new Object[]{var0});
+-      return 1;
++      return NET.worlds.core.NativeUiCursor.loadSystemCursor(var0);
+    }
+ 
+    private static void destroyCursor(int var0) {
+       NET.worlds.core.NativeMock.log("Cursor", "destroyCursor", new Object[]{var0});
++      NET.worlds.core.NativeUiCursor.destroyCursor(var0);
+    }
+ 
+    private static int retrieveSystemCursor(URL var0) {
+diff a/NET/worlds/console/FileSysDialog.java b/NET/worlds/console/FileSysDialog.java
+--- a/NET/worlds/console/FileSysDialog.java
++++ b/NET/worlds/console/FileSysDialog.java
+@@ -57,7 +57,7 @@
+ 
+    public String nativeRun() {
+       NET.worlds.core.NativeMock.log("FileSysDialog", "nativeRun", new Object[0]);
+-      return null;
++      return NET.worlds.core.NativeUiFileDialog.run(this.parent, this.title, this.typesAndExts, this.fileName, this.mode);
+    }
+ 
+    public void run() {
+diff a/NET/worlds/console/RenderCanvasOverlay.java b/NET/worlds/console/RenderCanvasOverlay.java
+--- a/NET/worlds/console/RenderCanvasOverlay.java
++++ b/NET/worlds/console/RenderCanvasOverlay.java
+@@ -122,14 +122,20 @@
+ 
+    private int nativeMakeChild(long var1, int var3, int var4, boolean var5) {
+       NET.worlds.core.NativeMock.log("RenderCanvasOverlay", "nativeMakeChild", new Object[]{var1, var3, var4, var5});
+-      return 0;
++      return NET.worlds.core.NativeUiOverlay.makeChild((int)var1, var3, var4, var5, new NET.worlds.core.NativeUiOverlay.Command() {
++         public void handle(int id) {
++            RenderCanvasOverlay.this.handleCommand(id);
++         }
++      });
+    }
+ 
+    private void nativeKillChild(long var1) {
+       NET.worlds.core.NativeMock.log("RenderCanvasOverlay", "nativeKillChild", new Object[]{var1});
++      NET.worlds.core.NativeUiOverlay.killChild((int)var1);
+    }
+ 
+    private void nativeResizeChild(int var1, int var2, int var3) {
+       NET.worlds.core.NativeMock.log("RenderCanvasOverlay", "nativeResizeChild", new Object[]{var1, var2, var3});
++      NET.worlds.core.NativeUiOverlay.resizeChild(var1, var2, var3);
+    }
+ }
+diff a/NET/worlds/console/RightMenu.java b/NET/worlds/console/RightMenu.java
+--- a/NET/worlds/console/RightMenu.java
++++ b/NET/worlds/console/RightMenu.java
+@@ -35,28 +35,32 @@
+ 
+    private static int create() {
+       NET.worlds.core.NativeMock.log("RightMenu", "create", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeUiMenu.create();
+    }
+ 
+    private static void nativeAdd(String var0, int var1, int var2) {
+       NET.worlds.core.NativeMock.log("RightMenu", "nativeAdd", new Object[]{var0, var1, var2});
++      NET.worlds.core.NativeUiMenu.add(var0, var1, var2);
+    }
+ 
+    private static void addSeparator(int var0) {
+       NET.worlds.core.NativeMock.log("RightMenu", "addSeparator", new Object[]{var0});
++      NET.worlds.core.NativeUiMenu.addSeparator(var0);
+    }
+ 
+    private static void show(int var0, int var1) {
+       NET.worlds.core.NativeMock.log("RightMenu", "show", new Object[]{var0, var1});
++      NET.worlds.core.NativeUiMenu.show(var0, var1);
+    }
+ 
+    private static void discard(int var0) {
+       NET.worlds.core.NativeMock.log("RightMenu", "discard", new Object[]{var0});
++      NET.worlds.core.NativeUiMenu.discard(var0);
+    }
+ 
+    private static int checkPressed() {
+       NET.worlds.core.NativeMock.log("RightMenu", "checkPressed", new Object[0]);
+-      return 0;
++      return NET.worlds.core.NativeUiMenu.checkPressed();
+    }
+ 
+    private void build(Enumeration var1) {
 diff a/NET/worlds/console/ScapePicCanvas.java b/NET/worlds/console/ScapePicCanvas.java
 --- a/NET/worlds/console/ScapePicCanvas.java
 +++ b/NET/worlds/console/ScapePicCanvas.java
