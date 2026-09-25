@@ -221,6 +221,16 @@ public final class NativeUiCursor {
       apply();
    }
 
+   /**
+    * El cursor elegido (DAT_004891c8), o el de por defecto si no hay: lo que
+    * el WndProc vuelve a poner con WM_SETCURSOR al salir del modo de cursor
+    * oculto.
+    */
+   public static synchronized java.awt.Cursor current() {
+      java.awt.Cursor c = get(current);
+      return c != null ? c : java.awt.Cursor.getDefaultCursor();
+   }
+
    /** Window.install (0x0040db60): SendMessage(hWnd, 0x8067, DAT_004891c8). */
    public static synchronized void installed() {
       apply();

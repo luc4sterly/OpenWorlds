@@ -71,7 +71,18 @@ for d in cmp rwg bod; do
   find "$REPO/client/src/net/freeworlds/$d" -name '*.java' >> "$B/sources.txt"
 done
 mkdir -p "$B/out"
-"$JDK/javac" --release 8 -nowarn -encoding UTF-8 -d "$B/out" @"$B/sources.txt" 2>&1 | grep -v '^Note:' || true
+# El codigo de salida de javac cuenta: antes se perdia en la tuberia y una
+# compilacion con errores seguia como buena con las clases que salieran.
+if "$JDK/javac" --release 8 -nowarn -encoding UTF-8 -d "$B/out" @"$B/sources.txt" > "$B/javac.log" 2>&1; then
+  JAVAC_OK=1
+else
+  JAVAC_OK=0
+fi
+grep -v '^Note:' "$B/javac.log" || true
 n=$(find "$B/out" -name '*.class' | wc -l | tr -d ' ')
 echo "clases compiladas: $n"
+if [ "$JAVAC_OK" -ne 1 ]; then
+  echo "build_gamma: javac fallo (ver $B/javac.log)" >&2
+  exit 1
+fi
 [ "$n" -gt 0 ]

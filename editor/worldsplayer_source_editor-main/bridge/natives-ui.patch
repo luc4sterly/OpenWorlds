@@ -265,3 +265,26 @@ diff a/NET/worlds/scape/ImageConverter.java b/NET/worlds/scape/ImageConverter.ja
     }
  
     static {
+diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
+--- a/NET/worlds/console/Window.java
++++ b/NET/worlds/console/Window.java
+@@ -208,6 +208,8 @@
+ 
+    public static void setCursor(int var0) {
+       NET.worlds.core.NativeMock.log("Window", "setCursor", new Object[]{var0});
++      // 0x0040e710: guarda el cursor (DAT_004891c8) y lo aplica a la ventana
++      NET.worlds.core.NativeUiCursor.setCursor(var0);
+    }
+ 
+    public static int getWindowState(int var0) {
+@@ -238,6 +240,10 @@
+       if (var1) {
+          NET.worlds.core.NativeInput.attach(NET.worlds.core.NativeWindows.component(this.hWndGamma));
+       }
++      // 0x0040db60: SendMessageA(hWnd, 0x8067, DAT_004891c8) pone el cursor
++      // actual; FUN_0040f250 llama a FUN_00409ce0 (instancia unica lista)
++      NET.worlds.core.NativeUiCursor.installed();
++      NET.worlds.core.NativeUiStartup.instanceReady();
+       return 0;
+    }
+ 

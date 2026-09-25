@@ -170,7 +170,7 @@ public final class NativeInput {
             c.setCursor(c.getToolkit().createCustomCursor(new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_ARGB), new java.awt.Point(0, 0), "hidden"));
             recentre();
          } else {
-            c.setCursor(java.awt.Cursor.getDefaultCursor());
+            c.setCursor(NativeUiCursor.current());
          }
       }
    }
@@ -522,7 +522,7 @@ public final class NativeInput {
          } catch (Exception e) {
             // no Robot permission
          }
-         c.setCursor(java.awt.Cursor.getDefaultCursor());
+         c.setCursor(NativeUiCursor.current());
          hiddenState = 0;
       }
    }

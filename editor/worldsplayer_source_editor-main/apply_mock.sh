@@ -499,6 +499,7 @@ public class IniFile {
    public void setIniInt(String var1, int var2) {
       NET.worlds.core.NativeMock.log("IniFile", "setIniInt", new Object[]{var1, var2});
       this.loadSection().put(k(var1), String.valueOf(var2));
+      this.persist(var1, String.valueOf(var2));
    }
 
    public String getIniString(String var1, String var2) {
@@ -510,6 +511,7 @@ public class IniFile {
    public void setIniString(String var1, String var2) {
       NET.worlds.core.NativeMock.log("IniFile", "setIniString", new Object[]{var1, var2});
       this.loadSection().put(k(var1), var2);
+      this.persist(var1, var2);
    }
 
    public static void nativeInit() {
@@ -532,6 +534,77 @@ public class IniFile {
    // Los valores se conservan tal cual.
    private static String k(String var0) {
       return var0.toLowerCase(java.util.Locale.ROOT);
+   }
+
+   // WritePrivateProfileString escribe en el fichero en el momento: sin
+   // esto, lo que el cliente guarda (usuario, "Remember password" con la
+   // contrasena cifrada por Console.encrypt) se perdia al salir. Seccion y
+   // clave sin distinguir mayusculas; si la clave existe se cambia solo el
+   // valor, si no se anade al final de su seccion, y si la seccion no existe
+   // se crea al final. Se conservan los finales de linea del fichero.
+   private void persist(String var1, String var2) {
+      File var3 = NativeMock.resolveCaseInsensitive(this.resolveFileName());
+      java.util.List<String> var4 = new java.util.ArrayList<>();
+      String var5 = "\r\n";
+      if (var3.exists()) {
+         try {
+            String var6 = new String(java.nio.file.Files.readAllBytes(var3.toPath()), "ISO-8859-1");
+            if (!var6.contains("\r\n") && var6.contains("\n")) {
+               var5 = "\n";
+            }
+            for (String var7 : var6.split("\r?\n", -1)) {
+               var4.add(var7);
+            }
+            if (!var4.isEmpty() && var4.get(var4.size() - 1).isEmpty()) {
+               var4.remove(var4.size() - 1);
+            }
+         } catch (IOException var8) {
+            NET.worlds.core.NativeMock.log("IniFile", "persist-read-failed", new Object[]{var3, var8.toString()});
+            return;
+         }
+      }
+      String var9 = k(this.section);
+      int var10 = -1;
+      int var11 = -1;
+      for (int var12 = 0; var12 < var4.size(); var12++) {
+         String var13 = var4.get(var12).trim();
+         if (var13.startsWith("[") && var13.endsWith("]")) {
+            if (var10 >= 0) {
+               break;
+            }
+            if (k(var13.substring(1, var13.length() - 1)).equals(var9)) {
+               var10 = var12;
+               var11 = var12;
+            }
+         } else if (var10 >= 0 && !var13.isEmpty()) {
+            var11 = var12;
+            int var14 = var13.indexOf(61);
+            if (var14 > 0 && k(var13.substring(0, var14).trim()).equals(k(var1))) {
+               var4.set(var12, var13.substring(0, var14).trim() + "=" + var2);
+               this.write(var3, var4, var5);
+               return;
+            }
+         }
+      }
+      if (var10 < 0) {
+         var4.add("[" + this.section + "]");
+         var4.add(var1 + "=" + var2);
+      } else {
+         var4.add(var11 + 1, var1 + "=" + var2);
+      }
+      this.write(var3, var4, var5);
+   }
+
+   private void write(File var1, java.util.List<String> var2, String var3) {
+      StringBuilder var4 = new StringBuilder();
+      for (String var5 : var2) {
+         var4.append(var5).append(var3);
+      }
+      try {
+         java.nio.file.Files.write(var1.toPath(), var4.toString().getBytes("ISO-8859-1"));
+      } catch (IOException var6) {
+         NET.worlds.core.NativeMock.log("IniFile", "persist-write-failed", new Object[]{var1, var6.toString()});
+      }
    }
 
    private Hashtable<String, String> loadSection() {
