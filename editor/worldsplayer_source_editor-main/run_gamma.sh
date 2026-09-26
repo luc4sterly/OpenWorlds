@@ -45,6 +45,17 @@ if [ -z "${FREEWORLDS_NO_LOCAL_SERVER:-}" ]; then
    echo "run_gamma: upgradeServer local en http://127.0.0.1:$PORT/3DCDup (log: $SRVLOG)"
 fi
 
+# Consola: con LogFile=Gamma.Log en [Gamma] (worlds.ini) el cliente manda
+# System.out/err a Gamma.Log.open (LogFile.open, como en 2004); desde que el
+# mock de IniFile no distingue mayusculas esa clave si se encuentra. Los
+# diagnosticos del arnes (-Dfreeworlds.*) y los scripts (run-whirl-duo.sh...)
+# leen la consola, asi que por defecto se vacia LogFile en la copia de trabajo
+# (config, no logica: con LogFile vacio LogFile.open no redirige).
+# FREEWORLDS_GAMMA_LOG=1 conserva el Gamma.Log original.
+if [ -z "${FREEWORLDS_GAMMA_LOG:-}" ] && [ -f worlds.ini ]; then
+   perl -pi -e 's/^logfile=[^\r\n]*/LogFile=/i' worlds.ini
+fi
+
 # WorldServer: FREEWORLDS_SERVER=host:puerto (p. ej. el whirl local de
 # tools/run-whirl.sh) usa el mecanismo del propio cliente: la clave
 # [Runtime] WorldServer= de override.ini (NetUpdate.<clinit>) sustituye en
