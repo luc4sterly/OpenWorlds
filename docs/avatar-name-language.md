@@ -130,12 +130,14 @@ y, en cascada, todas las limbs → figura vacía.
 raíz de su parte: color → RGB plano; textura → `CmpTexture` con las UV
 reales del `.bod`; `origMat` → sin cambio; los subclumps conservan el
 color del `.bod`. Material con las constantes del cliente (0.32 / 0.55 /
-0). Solo la subimagen 0 de `.mov` (lo que `CmpTexture.loadMov` decodifica).
+0). La subimagen N de un `.mov` se aplica como la celda N del material
+(`CmpTexture.loadMovFrames`, todos los frames por `CmpFrames`; 2026-09-25).
 
 Comprobado visualmente: en `willy` los 515 píxeles que cambian respecto a
 la versión sin textura caen todos en la cabeza, y la cara (ojos, boca)
 aparece derecha y en la parte frontal
 (`docs/renders/bod_willy_avatar_face_texture_zoom.png`). `ogre` pide la
-subimagen 3 en 10 partes: no se aplica y se informa. ⚠️ Con textura el
+subimagen 3 en 10 partes: desde 2026-09-25 se aplica (de 1 a 11 partes
+con textura). ⚠️ Con textura el
 cliente pone `colorTable[3]` como color base; si RenderWare 2 tiñe la
 textura con él no está verificado (se dibuja sin tintar).

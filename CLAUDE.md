@@ -69,27 +69,22 @@ real siempre fue `assets/worlds.jar` (ex `GAMMACLS.ZIP`).
 
 | Subsistema | Estado | Nota |
 |---|---|---|
-| `.rwx` (geometría estática) | ✅ Completo | 118/118 verificados contra `three-rwx-loader` |
+| `.rwx` (geometría estática) | ✅ Completo | 118/118 verificados contra `three-rwx-loader` (reproducible en este Mac con `tools/verify-corpus.sh`) |
 | `.world` (escenas) | ✅ Completo | verificado end-to-end: 25 salas / 578 nodos / 103 objetos reales |
-| `.seq` (animación) | ✅ Completo | 231/231 tras corregir `SeqParser` |
+| `.seq` (animación) | ✅ Completo | 231/231; `SeqSampler.keyTime` trunca como el `fistp` en chop de gamma.dll (0x43b9c0) |
 | `.bod` (avatar, formato de red) | ✅ Completo | resuelto traduciendo el encoder oficial `RWXTOBOD.PL`, 51/51 |
-| `.cmp` / `.mov` (texturas) | ✅ Completo | 159/159 y 52/52 byte-exactos, conectado al pipeline; solo subimagen 0 de `.mov` (falta animado) |
-| `.rwg` (avatar, geometría) | 🟡 Parcial | ATOM único verificado (2/2 muestras reales); jerarquía multi-joint sin corpus real que la confirme |
+| `.cmp` / `.mov` (texturas) | ✅ Completo | 159/159 y 52/52 por `CmpFrames` (tabla de frames de gamma.dll). Los frames de un `.mov` son **celdas de Material** (`Nh*`/`Nv*`/`Ns*`), no una película; lo que cambia con el tiempo es el Material entero vía `AnimateAction`. La ruta vieja mostraba el último frame |
+| `.rwg` (avatar, geometría) | 🟢 Casi completo | lector traducido de RWL21 (TELT/MALT/RALT/ATOM/VLST/PLST, desde ASM); 5/6 del corpus (`cube.rwg` no carga ni en RW 2.1); ATOM con hijos y RAST leídos según el binario, sin muestra real |
 | Lenguaje de nombre de avatar | ✅ Completo | 146/148 avatares limpios; **corpus de vestuario mayormente perdido** (solo 14/210 texturas y 25/141 `.bod` sobreviven localmente — no recuperable sin el asset original) |
-| Renderizador (Java + LWJGL) | 🟢 ~90% | iluminación y materiales verificados por píxel; portales 56/87 en GroundZero (`Portal.recomputeFarPosition`); rasterizador recién ajustado contra RWL21/RWDL6D21 reales (ver abajo) |
-| Red / protocolo | 🟡 ~60% | handshake + login guest reales contra `worlds.worlio.com` (estado 12 MAINLOOP); falta cuenta registrada para el login primario |
-| Cliente original bajo puente portable (macOS) | 🟢 arranca y corre | `Gamma.main` llega al bucle principal construyendo la escena RenderWare real; **dibujar sigue en progreso** |
-| UI (chat, amigos, mapa, menús) | ⬜ 0% | fase 4, sin empezar |
+| Animación (DroneAnimator) | ✅ Regla cerrada | 16+2 nativos traducidos (walk/wait/endwait, sincronía con la distancia, mezclas de 250 ms y de gestos); en el puente y en el cliente propio (`WorldViewer --play`). Sin ver aún un avatar animarse en el original: las estatuas de GroundZero giran |
+| Renderizador propio (Java + LWJGL) | 🟢 ~92% | portales 53/87 como el original (`_p2pxform` 0x0041b170 + `getYaw` 0x00425440; los 34 restantes tampoco se cruzan en el original, causa en `--list-portals`); texturas animadas por `AnimateAction`; avatares animados |
+| Cliente original bajo puente portable (macOS) | 🟢 dibuja y se usa | GroundZero con el rasterizador del driver RWDL6D21; UI, sonido, sistema y COM traducidos; chat con Intro. Falta el BSP de escena (documentado en ASM) |
+| Red / protocolo | 🟢 ~75% | guest real contra `worlds.worlio.com`; en local contra `server/whirl`: login, misma sala y chat entre dos clientes originales. No se ven (whirl no manda APPRACTR). Falta una cuenta registrada para el primario |
+| UI (chat, amigos, mapa, menús) | 🟢 en el original | la UI AWT de 2004 corre bajo el puente (chat, amigos, mapa, menú contextual, cursores); ⬜ en el cliente propio |
 | Porteo OpenBSD / PSVita | ⬜ 0% | fase 5 — hoy solo hay porteo a macOS Intel |
 
-**Rasterizador (última sesión):** tres piezas que el puente portable
-resolvía "a ojo" ahora traducen el binario real de `RWDL6D21.DLL`:
-iluminación por píxel vía tabla (no fórmula inventada), relleno de polígono
-como abanico de triángulos desde el vértice 0 (no scanline izq-der), y
-normales/LTM cacheadas en vez de recalculadas por frame. FPS en GroundZero:
-31-33 → 47-48. Diagnósticos nuevos: `-Dfreeworlds.matStats`,
-`-Dfreeworlds.traceTextures`, `-Dfreeworlds.probePixel`, `-Dfreeworlds.fps`,
-`-Dfreeworlds.dumpRange`, `-Dfreeworlds.dumpWindow`.
+Estado detallado del puente, con lo pendiente: `editor/worldsplayer_source_editor-main/bridge/README.md`.
+Hoja de ruta con lo hecho y lo que queda: `docs/roadmap.md`.
 
 ### Nativo decompilado (`decompiled-native/`)
 
@@ -106,8 +101,10 @@ Todo regenerable desde `assets/WorldsPlayer/bin/*.dll` vía
 
 ## Entorno de desarrollo
 
-**Máquina actual: macOS 15.7 Intel (i5-7360U), sin Homebrew (no soporta
-Intel), sin Wine, sin node del sistema.** bash del sistema es 3.2 —
+**Máquina actual: macOS 15.7 Intel (i5-7360U, 8 GB), sin Homebrew (no soporta
+Intel), sin Wine.** Node portable oficial en `tools/node-macos/` (gitignored)
+y Rust con rustup en `~/.cargo` (no en el PATH; toolchain `nightly-2024-06-03`
+de whirl). bash del sistema es 3.2 —
 los scripts deben ser compatibles (p. ej. arrays vacíos bajo `set -u` fallan
 en 3.2, hay que evitarlos).
 
@@ -129,7 +126,11 @@ sigue siendo válido ahí. Detalle completo en `docs/setup-macos.md`.
 |---|---|
 | `native_mapper.py` | cruza métodos `native` del Java decompilado contra los exports reales de las DLLs |
 | `jni_mock.py` + `gamma-dll-debug-harness/` | bridge JNI mock con logging, para arrancar el cliente sin renderer completo |
-| `rwx-harness/` | compara geometría RWX: parser Java propio vs. `three-rwx-loader` (JS). ⚠️ necesita `node`, hoy solo hay build Linux en `tools/node/` (gitignored) — no corre en este Mac |
+| `verify-corpus.sh` | regresión en un comando: compila `client/` y reejecuta RWX 118/118 (+118/118 contra `three-rwx-loader` con `tools/node-macos`), `.world` 25/578/103, `.seq` 231, `.bod` 51, `.cmp` 159, `.mov` 52, avatares 146/148; sale ≠0 si algo cambia (~6 min) |
+| `run-checks.sh` | ejecuta todos los `*Check.java` de `client/test/**` y `bridge/test/` (reconstruye el puente si su build es vieja) |
+| `progress-panel.py` | cuenta marcas ⚠️/VERIFICAR/TODO/FIXME por módulo y fichero → `docs/progress.md` |
+| `rwx-harness/` | compara geometría RWX: parser Java propio vs. `three-rwx-loader` (JS), con `tools/node-macos` en macOS |
+| `run-whirl.sh`, `net-probe/run-whirl-duo.sh` | whirl local (solo 127.0.0.1) y la prueba de dos clientes originales contra él (`docs/net-local-whirl.md`) |
 | `net-probe/` | sondas de red reales contra servidores Worlio (handshake, login guest) |
 | `ghidra-scripts/` | `ExportAllDecompiled.java`, `ScanVtablesAndExport.java` — regeneran `decompiled-native/` |
 | `local-upgrade-server.py` | servidor HTTP local que sirve `assets/WorldsPlayer` para correr el cliente original sin red real |
@@ -174,28 +175,30 @@ cambiado). Reporta primero, actúa después.
 
 ## Abierto ahora mismo
 
-Por orden de lo que desbloquean:
+Por orden de lo que desbloquean (detalle en `docs/roadmap.md`):
 
-1. **Selección de secuencia de animación**: qué `.seq`/modo elige el
-   cliente en cada momento (`walk`/`wait` implícitos), sincronía con
-   velocidad y mezcla.
+1. **Ver avatares animándose en el original**: la regla está traducida y
+   el animador recibe `moveto`/`update`, pero en GroundZero solo hay
+   estatuas que giran. Hace falta un drone por red, y whirl no los manda
+   (APPRACTR comentado en `hub.rs`).
 2. **Login con cuenta real** en el servidor primario: bloqueado por
    necesitar una cuenta humana registrada en `worlds.worlio.com/register`.
-3. **Dibujo del cliente original bajo el puente portable**: llega al bucle
-   principal; falta reproducir un fallo visual concreto reportado por el
-   usuario (sin captura de referencia todavía) y terminar de trasladar el
-   orden de dibujo real (BSP + árbol por clump) en vez de aproximarlo con
-   z-buffer.
-4. **Texturas de avatar**: faltan las subimágenes >0 de `.mov` y llevar
-   animación+texturas a `WorldViewer` (hoy solo en `BodViewer`).
-5. Fase 4 (UI) y fase 5 (OpenBSD/PSVita): sin empezar.
-6. Menores: `.mov` animado (hoy solo frame 0), `csq` sin ejemplar propio,
-   Starbright World (posible tercer proyecto hermano de Worlds/Active
-   Worlds) sin investigar.
+   Con ella se probaría también ver a otros usuarios.
+3. **BSP de clumps de escena** de RWL21 (0x1002d170 / 0x1002cae0) y el
+   z-buffer de 16 bits por grupo: documentado en ASM, sin traducir.
+4. **Referencia de píxel**: capturas del original bajo Wine (máquina
+   Linux) para comparar el puente, y la captura del fallo visual que se
+   reportó.
+5. Decisiones abiertas: parchear la carrera `_connectThread` del cliente de
+   2004; corregir o no el fallo de `setDIBPixelInts`; lenguaje del motor
+   final para la fase 5.
+6. Fase 5 (OpenBSD/PSVita) y la UI del cliente propio: sin empezar.
+7. Menores: `csq` sin ejemplar propio, Starbright World sin investigar, los
+   7 `.mov` perdidos de Julie/Roxanne/Simon.
 
-**No reproducible en el Mac actual** (no es lo mismo que "roto"): arnés RWX
-vs. `three-rwx-loader` (falta `node` de macOS), ground truth `.cmp` contra
-`cmpview.exe` y el cliente original bajo Wine (ambos requieren Windows/Wine).
+**No reproducible en el Mac actual** (no es lo mismo que "roto"): ground
+truth `.cmp` contra `cmpview.exe` y el cliente original bajo Wine (requieren
+Windows/Wine).
 
 ## Referencias
 

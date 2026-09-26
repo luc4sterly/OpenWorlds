@@ -75,6 +75,40 @@ Queda abierta para la fase 5 una segunda pregunta: en qué lenguaje se
 escribe el motor final (Java para escritorio, o C/SDL2 para la Vita). No
 bloquea nada hasta H6.
 
+## 1b. Estado a 2026-09-26
+
+Todo lo marcado [x] está fusionado en `main` y verificado:
+`tools/verify-corpus.sh` sin fallos y `tools/run-checks.sh` 37/37. El
+coordinador comprobó en el ensamblador la afirmación clave de cada rama
+antes de fusionarla (constantes y direcciones citadas en cada merge).
+[~] = hecho en parte, con la causa anotada.
+
+| Hito | Estado | Lo que queda |
+|---|---|---|
+| H0 | ✅ | — |
+| H1 | 🟢 casi | BSP de clumps de escena y z-buffer de 16 bits por grupo (documentado en ASM, sin traducir); rasterizadores translúcido y Gouraud texturizado; referencia de píxel bajo Wine y la captura del fallo visual (dependen de ti) |
+| H2 | ✅ regla / 🟡 en juego | el animador recibe `moveto`/`update` en GroundZero, pero allí solo hay estatuas que giran (estados 1/2, sin secuencia): falta ver un drone andando |
+| H3 | 🟡 | login + misma sala + chat entre dos clientes contra whirl ✅; **no se ven** porque whirl no manda APPRACTR (`hub.rs:246` comentado, no se toca whirl); cuenta real pendiente |
+| H4 | ✅ lo previsto | CmpFrames, `.mov` como celdas + `AnimateAction`, portales 53/87 como el original, animación en `WorldViewer --play`. Quedan la red en el cliente propio, COG=true, LOD/MoveAction y la decisión de la rampa de iluminación |
+| H5 | ✅ en el original | UI, sistema/COM y sonido/web traducidos; chat con Intro. En el cliente propio, sin empezar |
+| H6 | ⬜ | no se puede hacer en esta máquina (sin Linux, OpenBSD ni Vita) |
+
+Hallazgos que corrigen lo que se creía:
+- Un `.mov` no es una película: sus frames son celdas de un Material.
+- El escalado de texturas es COLORONCOLOR, no HALFTONE (0x422682).
+- El C de Ghidra de `Surface.addSubPolys` está mal (x/u de los vértices 1-2).
+- El key de animación se trunca, no se redondea.
+- La cabecera `.rwg` es la lista de texturas, y el "id/flag" de PLST es el
+  índice de material.
+- `cube.rwg` no lo carga RW 2.1.
+- La build del puente estaba rota desde el merge `71648da`.
+
+Decisiones que te tocan:
+- Parchear o no la carrera `_connectThread` del cliente de 2004 (cuelga
+  unas 4 de cada 27 conexiones contra un servidor local).
+- Corregir o no el fallo del original en `setDIBPixelInts`.
+- El lenguaje del motor final para la fase 5.
+
 ## 2. Hitos
 
 Tamaños: **S** ≈ 1 sesión · **M** ≈ 2–4 sesiones · **L** = más.
@@ -85,37 +119,37 @@ binario, mientras que H1 está en parte bloqueado por capturas (sección 3).
 
 ### H0 — Suelo firme (S)
 
-- [ ] Commitear o descartar el diff de la auditoría de texturas.
-- [ ] `tools/verify-corpus.sh` (compatible con bash 3.2): un solo comando
+- [x] Commitear o descartar el diff de la auditoría de texturas.
+- [x] `tools/verify-corpus.sh` (compatible con bash 3.2): un solo comando
       que vuelve a ejecutar los recuentos ✅ y falla si alguno cambia.
       Cubre RWX 118, `.world` 25/578/103, `.seq` 231, `.bod` 51, `.cmp` 159,
       `.mov` 52 y los avatares 146/148.
-- [ ] Panel de progreso (la herramienta nº 2 de
+- [x] Panel de progreso (la herramienta nº 2 de
       `worlds-chat-project.md`, que nunca se construyó): contar
       ⚠️/VERIFICAR/TODO por fichero y generar `docs/progress.md`. Hoy hay 33
       marcas entre `client/` y el puente.
-- [ ] Node para macOS x64 en `tools/node-macos/` (tarball oficial, sin
+- [x] Node para macOS x64 en `tools/node-macos/` (tarball oficial, sin
       Homebrew). Con eso vuelve a correr el arnés RWX contra
       `three-rwx-loader`. `tools/rwx-harness/node_modules` no tiene módulos
       nativos `.node`, así que basta con cambiar el binario.
-- [ ] Actualizar CLAUDE.md con los puntos 1–3 y 8 de la sección 0.
+- [x] Actualizar CLAUDE.md con los puntos 1–3 y 8 de la sección 0.
 
 **Hecho cuando** `verify-corpus.sh` pase en limpio en este Mac.
 
 ### H2 — Avatares vivos: `DroneAnimator` (M) ← abierto nº 1
 
-- [ ] Traducir los 16 nativos de `DroneAnimator` desde
+- [x] Traducir los 16 nativos de `DroneAnimator` desde
       `decompiled-native/gamma_dll/`: `init`, `loadconfig`, `getnameindex`,
       `getindexgeom`, `prepFigure`, `addtype`/`deltype`,
       `CreateRep`/`DestroyRep`, `moveto`/`moveby`, `update`, `animate`,
       `getAnimationTime`, `getActionList` y `endanimations`. Además,
       `PendingCacheDrone.notifySeqLoaded`/`nativeInit`/`nativeDestroy`.
-- [ ] Reusar el decodificador `.seq` de `client/` (231/231), igual que el
+- [x] Reusar el decodificador `.seq` de `client/` (231/231), igual que el
       puente ya reusa `CmpFrames`.
-- [ ] Escribir en `docs/seq-animation-reference.md`, con direcciones, la
+- [x] Escribir en `docs/seq-animation-reference.md`, con direcciones, la
       regla real de walk/wait, la sincronía con la velocidad y la mezcla de
       250.
-- [ ] Casos de prueba calculados a mano: dada una serie de `moveto` con sus
+- [x] Casos de prueba calculados a mano: dada una serie de `moveto` con sus
       tiempos, qué acción y qué frame salen.
 
 **Hecho cuando**, en GroundZero y bajo el puente, un drone y el piloto
@@ -134,20 +168,20 @@ verificar":
       desde la misma posición de cámara (`-Dfreeworlds.fps` ya imprime
       posición y dirección), y compararlas con el puente. Sin esto, "fiel"
       es opinión.
-- [ ] Orden de dibujo: sustituir el z-buffer global por el recorrido BSP
+- [x] Orden de dibujo: sustituir el z-buffer global por el recorrido BSP
       `0x1002cae0` más el árbol por clump `0x10033750` de RWL21.
-- [ ] Perspectiva por tramos de 16 px y pendientes con la tabla de
+- [x] Perspectiva por tramos de 16 px y pendientes con la tabla de
       recíprocos `DAT_10079214` (RWDL6D21). Hoy se hace por píxel y en coma
       flotante.
-- [ ] Extraer el espacio de interpolación de Gouraud y el dithering de
+- [x] Extraer el espacio de interpolación de Gouraud y el dithering de
       texturas.
-- [ ] Texturas que no son de 128×128: `StretchBlt(HALFTONE)` y
+- [x] Texturas que no son de 128×128: `StretchBlt(HALFTONE)` y
       `RwReadTexture`, que hoy se resuelven con un promedio por cajas. Sigue
       la auditoría que está sin commitear.
-- [ ] `.rwg`: decodificar las tablas MALT/TELT. Hoy esas formas salen con
+- [x] `.rwg`: decodificar las tablas MALT/TELT. Hoy esas formas salen con
       el material por defecto. Beneficia también a B.
-- [ ] `StringTexture` (2 nativos): rótulos y nametags (`NametagDrone`).
-- [ ] Menores del README: UV fuera del rango del driver, `RwDestroyScene`,
+- [x] `StringTexture` (2 nativos): rótulos y nametags (`NametagDrone`).
+- [x] Menores del README: UV fuera del rango del driver, `RwDestroyScene`,
       `Shape.convertSpecial` y resaltado.
 
 **Hecho cuando** haya un diff de píxeles contra la referencia de Wine en al
@@ -155,13 +189,13 @@ menos 3 salas, con cada diferencia explicada.
 
 ### H3 — Red con sesión, en local (M)
 
-- [ ] Instalar Rust con rustup en el home (`x86_64-apple-darwin`, la
+- [x] Instalar Rust con rustup en el home (`x86_64-apple-darwin`, la
       toolchain de `server/whirl/rust-toolchain.toml`) y compilar whirl.
       **Sin tocar su código.** Si hiciera falta algún ajuste, va en un
       parche aparte y documentado.
-- [ ] Apuntar el original bajo el puente a whirl, en la copia temporal de
+- [x] Apuntar el original bajo el puente a whirl, en la copia temporal de
       `worlds.ini`, igual que ya se hace con `upgradeServer`.
-- [ ] Probar con dos instancias: login, entrar en una sala, verse, chatear
+- [~] Probar con dos instancias: login, entrar en una sala, verse, chatear
       y lista de amigos.
 - [ ] Login real contra `worlds.worlio.com`: **hace falta que registres una
       cuenta** (ver `docs/net-real-account-login-requisitos.md`). Queda
@@ -172,12 +206,12 @@ H2) y chateen a través de whirl.
 
 ### H4 — Que el cliente propio alcance al original (M–L)
 
-- [ ] Pasar `CmpTexture` a `CmpFrames`, lo que arregla el último frame y el
+- [x] Pasar `CmpTexture` a `CmpFrames`, lo que arregla el último frame y el
       ancho/alto de `windr3`. Añadir el `.mov` animado con la cadencia de
       `ScapePicMovie`.
-- [ ] Llevar animación y texturas de avatar a `WorldViewer` (hoy solo están
+- [x] Llevar animación y texturas de avatar a `WorldViewer` (hoy solo están
       en `BodViewer`), con la regla que salga de H2.
-- [ ] Portales:
+- [x] Portales:
       - el signo del yaw de llegada: `getYaw` ya está traducido en
         `NativeRw` con las constantes del binario, así que se puede cerrar
         con eso;

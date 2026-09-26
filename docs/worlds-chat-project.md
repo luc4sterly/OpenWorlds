@@ -3711,3 +3711,48 @@ orden de dibujo real (BSP `0x1002cae0` + árbol por clump `0x10033750`)
 sigue aproximado con z-buffer, pero **ya no por falta del binario**: leído
 por encima, el árbol se construye una vez por clump y agrupa por material,
 así que traducirlo cambiaría sobre todo el z-fighting entre coplanares.
+
+### 🟢 Hoja de ruta ejecutada con subagentes: H0-H5 fusionados (2026-09-22 → 2026-09-26)
+
+Se preparó `docs/roadmap.md` y se ejecutó con agentes en worktrees
+separados (propiedad de ficheros por agente, parches por subsistema
+`bridge/natives-<x>.patch`). Cada rama se revisó antes de fusionar,
+comprobando en el ASM la afirmación clave (citada en cada merge). Los
+cortes por límite de uso se retomaron desde el último commit de cada rama.
+
+- **Build rota desde el merge `71648da`** (rama antigua que duplicaba en
+  `apply_mock.sh` lo que ya hacía `natives.patch`): arreglada; además
+  `build_gamma.sh` ya falla cuando falla `javac`.
+- **H0**: `tools/verify-corpus.sh` (RWX 118/118 también contra
+  `three-rwx-loader`, reproducible por primera vez en macOS con
+  `tools/node-macos`), `tools/run-checks.sh` y `tools/progress-panel.py`.
+- **H1**: texturas (COLORONCOLOR, no HALFTONE; `RwReadTexture`,
+  `RwGetNamedTexture`, `StringTexture`); `.rwg` leído de RWL21 en ASM
+  (cabecera = lista de texturas, PLST con índice de material, `cube.rwg` no
+  carga en RW 2.1, ATOM vacío = clump válido); rasterizador del driver
+  (tabla de recíprocos, perspectiva cada 16 px, árbol por clump,
+  `addSubPolys` con x/u de los vértices 1-2 porque el C de Ghidra está mal).
+  El BSP de escena queda documentado en ASM y sin traducir.
+- **H2**: DroneAnimator traducido entero; la regla (walk/wait/endwait con
+  plazos 10/30/10 s, walk por distancia, mezcla de 250 ms, key truncado)
+  está en `docs/seq-animation-reference.md` §7. En GroundZero el animador ya
+  recibe `moveto`/`update`, pero solo hay estatuas que giran.
+- **H3**: whirl compilado (Rust por rustup) y arrancado en 127.0.0.1: login,
+  misma sala y chat entre dos clientes originales. No se ven porque whirl no
+  manda APPRACTR (`hub.rs:246` comentado). Encontrada la carrera
+  `_connectThread` del cliente de 2004 (no se parchea).
+- **H4**: el cliente propio usa `CmpFrames` (la ruta vieja mostraba el
+  último frame de los 52 `.mov`). Un `.mov` son celdas de Material y lo que
+  cambia con el tiempo es `AnimateAction`. Portales 53/87 como el original
+  (`_p2pxform` + `getYaw`). Animación real en `WorldViewer --play`.
+- **H5**: UI (eventos 1.0 en TextField bajo JDK 25, así que el chat va con
+  Intro; `Console.encrypt/decrypt`, cursores, menú contextual…), sistema/COM
+  (`RegKey` portable, `SystemInfo`, `VehicleShape`) y sonido/web (WAV/MIDI
+  con el volumen del binario, IMA ADPCM, IE/DirectShow/CD por su camino de
+  fallo, URLs solo por clic y con `-Dfreeworlds.openUrls=1`).
+- Mock de `IniFile` sin distinguir mayúsculas y persistente, como kernel32:
+  el cliente escribe su `Gamma.Log` y "Remember password" persiste.
+
+Queda y por qué, en `docs/roadmap.md` (§1b) y en
+`editor/worldsplayer_source_editor-main/bridge/README.md` (Pendiente de
+verificar).
