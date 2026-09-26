@@ -946,7 +946,23 @@ public final class WorldViewer {
              float[] view = fwdFromYawPitch(yaw, pitch + PLAY_CAM_PITCH, true);
              float hx = px, hy = py, hz = pz + PLAY_EYE_HEIGHT;
              float dist = cameraDistance(blockerBoxes, hx, hy, hz, view);
-             GlUtil.lookAt(hx - view[0] * dist, hy - view[1] * dist, hz - view[2] * dist, hx, hy, hz, 0, 0, 1);
+             float[] camEye = {hx - view[0] * dist, hy - view[1] * dist, hz - view[2] * dist};
+             float[] camCenter = {hx, hy, hz};
+             float[] camUp = {0f, 0f, 1f};
+             if (PORTALS) {
+                // Salas vistas a traves de los portales, antes que la propia
+                // (Room.prerender del original, ver drawPortals).
+                float aspect = (float) width / height;
+                drawPortals(room, camEye, camCenter, camUp, aspect, near, far, width, height,
+                   new int[]{0, 0, width, height}, 0);
+                glMatrixMode(GL_PROJECTION);
+                glLoadIdentity();
+                GlUtil.perspective(60f, aspect, near, far);
+                glMatrixMode(GL_MODELVIEW);
+                glLoadIdentity();
+                glClear(GL_DEPTH_BUFFER_BIT);
+             }
+             GlUtil.lookAt(camEye[0], camEye[1], camEye[2], camCenter[0], camCenter[1], camCenter[2], camUp[0], camUp[1], camUp[2]);
           } else if (inside) {
              float[] fwd = fwdFromYawPitch(yaw, pitch, upZ);
              GlUtil.lookAt(eye[0], eye[1], eye[2], eye[0] + fwd[0], eye[1] + fwd[1], eye[2] + fwd[2], up[0], up[1], up[2]);
@@ -1535,6 +1551,8 @@ public final class WorldViewer {
      * exactly through spin(atan2(f2,f1)) about Z + scale(len,f3,f3)).
      * Verified corner-by-corner against groundzero.world Reception. */
     private static final float[][] RECT_CORNERS = {{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}};
+    /** See drawRect: the original culls the back of every Rect. */
+    private static final boolean RECT_DOUBLE_SIDED = Boolean.getBoolean("freeworlds.rectDoubleSided");
 
     private static boolean isRect(WNode n) {
        return n.className.endsWith(".Rect"); // RectPatch ends with "Patch", excluded on purpose
@@ -1668,10 +1686,17 @@ public final class WorldViewer {
     /** Draws one Rect surface node as a textured (or flat) quad. The node's
      * composed matrix (glMultMatrixf above) already places the unit quad;
      * UVs come from the real u/v/uOff/vOff (tiling like (2,8.4) relies on
-     * GL_REPEAT, set at upload). Double-sided: Rect materials carry no
-     * MaterialModes and winding through arbitrary spins is unverified —
-     * from inside a closed room only inward faces are visible either way.
-     * Lighting is two-sided (see GlLighting.init) so backs get correct N·L.
+     * GL_REPEAT, set at upload). One-sided, as the original: the driver
+     * pass drops every back polygon whose material lacks MaterialModes
+     * double (bridge NativeCamera.drawClump, `!front && (materialModes &
+     * 0x80) == 0`), and a world Material never sets it (only a .rwx
+     * "MaterialModes Double" does). RW's front, area &lt; 0 with its
+     * mirrored screen x and downward y, is counter-clockwise as seen on
+     * screen, GL's default front face; the vertices go in Rect.java's
+     * order (0,0,0) (1,0,0) (1,0,1) (0,0,1). Drawn double-sided before,
+     * walls seen from behind covered the views through portals (the
+     * building of ReceptionView1 hid the landscape) and showed mirrored
+     * signs. -Dfreeworlds.rectDoubleSided=true brings that back.
      *
      * Material: el del nodo, o el que haya puesto una AnimateAction
      * (textureActions.materialOverride, ver TextureActions). Con sufijo
@@ -1683,7 +1708,7 @@ public final class WorldViewer {
        String url = override != null ? override : (n.material != null ? n.material.matTextureUrl : null);
        RwxMaterial mat = override != null ? urlMaterial(override) : rectMaterial(n);
        GlLighting.applyMaterial(mat);
-       glDisable(GL_CULL_FACE);
+       GlLighting.applyCulling(RECT_DOUBLE_SIDED);
        // World-space normal: read back the real composed modelview (parent
        // chain x node matrix, already current) and transform the two local
        // edges through its linear part - exact with no matrix threading.
@@ -2429,6 +2454,214 @@ public final class WorldViewer {
           }
        }
        HudText.end();
+    }
+
+    // --- Portales vistos a traves (Portal.prerender del original) ---
+    /** -Dfreeworlds.portals=false los apaga (huecos del color de fondo, como antes). */
+    private static final boolean PORTALS = !"false".equals(System.getProperty("freeworlds.portals"));
+    /** El original para en rwDepth > 10; aqui 3 niveles bastan para GroundZero. */
+    private static final int PORTAL_MAX_DEPTH = 3;
+    private static final Map<WNode, List<Object[]>> roomPortals = new IdentityHashMap<>();
+    /** -Dfreeworlds.portalTrace=true: una linea por portal dibujado (camara transformada, rectangulo). */
+    private static final boolean PORTAL_TRACE = Boolean.getBoolean("freeworlds.portalTrace");
+    private static final Set<WNode> tracedPortals = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /** Portales de una sala (y su entorno) con sus 4 esquinas en coordenadas de sala. */
+    private static List<Object[]> portalsOf(WNode room) {
+       List<Object[]> out = roomPortals.get(room);
+       if (out == null) {
+          out = new ArrayList<>();
+          collectPortals(room, identity(), out);
+          if (room.environment != null) {
+             collectPortals(room.environment, identity(), out);
+          }
+          roomPortals.put(room, out);
+       }
+       return out;
+    }
+
+    private static void collectPortals(WNode n, float[] parentToWorld, List<Object[]> out) {
+       float[] here = n.matrix != null ? multiply(parentToWorld, n.matrix) : parentToWorld;
+       if (n.className.endsWith("Portal")) {
+          float[][] q = new float[4][];
+          for (int i = 0; i < 4; i++) {
+             q[i] = transformPoint(here, RECT_CORNERS[i][0], RECT_CORNERS[i][1], RECT_CORNERS[i][2]);
+          }
+          out.add(new Object[]{n, q});
+       }
+       for (WNode c : n.children) {
+          collectPortals(c, here, out);
+       }
+    }
+
+    /**
+     * gamma.dll 0x0041b3b0 (NativeCamera.portalFacesCamera en el puente): el
+     * portal se ve cuando ((cam - v1) x e1) . e2 &gt; 0, con e1 = v2 - v1 y
+     * e2 = v4 - v1 normalizados (los vertices del Rect son las esquinas
+     * (0,0,0), (1,0,0), (1,0,1), (0,0,1), como RECT_CORNERS); degenerado =
+     * no se ve.
+     */
+    private static boolean portalFacesCamera(float[][] q, float[] cam) {
+       float[] v1 = q[0], v2 = q[1], v4 = q[3];
+       float e1x = v2[0] - v1[0], e1y = v2[1] - v1[1], e1z = v2[2] - v1[2];
+       float e2x = v4[0] - v1[0], e2y = v4[1] - v1[1], e2z = v4[2] - v1[2];
+       float l1 = (float) Math.sqrt(e1x * e1x + e1y * e1y + e1z * e1z);
+       float l2 = (float) Math.sqrt(e2x * e2x + e2y * e2y + e2z * e2z);
+       if (!(l1 > 0.0078125F) || !(l2 > 0.0078125F)) {
+          return false;
+       }
+       float s1 = 1.0F / l1, s2 = 1.0F / l2;
+       float dx = cam[0] - v1[0], dy = cam[1] - v1[1], dz = cam[2] - v1[2];
+       float v = (dx * e1y * s1 - dy * e1x * s1) * e2z * s2
+          + (dy * e1z * s1 - dz * e1y * s1) * e2x * s2
+          + (dz * e1x * s1 - dx * e1z * s1) * e2y * s2;
+       return v > 0.0F;
+    }
+
+    /**
+     * Rectangulo de ventana (x, y, ancho, alto; origen abajo a la izquierda,
+     * como glScissor) que cubre el portal visto con esta camara, recortado
+     * por el plano cercano; null si no se ve. Mismas matrices que
+     * GlUtil.lookAt / GlUtil.perspective(60, aspect, near, far).
+     */
+    private static int[] portalScreenRect(float[][] q, float[] eye, float[] center, float[] up, float aspect,
+          float near, int w, int h) {
+       float[] f = GlUtil.normalize(center[0] - eye[0], center[1] - eye[1], center[2] - eye[2]);
+       float[] u = GlUtil.normalize(up[0], up[1], up[2]);
+       float[] sv = GlUtil.normalize(f[1] * u[2] - f[2] * u[1], f[2] * u[0] - f[0] * u[2], f[0] * u[1] - f[1] * u[0]);
+       float[] u2 = {sv[1] * f[2] - sv[2] * f[1], sv[2] * f[0] - sv[0] * f[2], sv[0] * f[1] - sv[1] * f[0]};
+       float[][] ec = new float[4][];
+       for (int i = 0; i < 4; i++) {
+          float dx = q[i][0] - eye[0], dy = q[i][1] - eye[1], dz = q[i][2] - eye[2];
+          ec[i] = new float[]{sv[0] * dx + sv[1] * dy + sv[2] * dz, u2[0] * dx + u2[1] * dy + u2[2] * dz,
+             -(f[0] * dx + f[1] * dy + f[2] * dz)};
+       }
+       List<float[]> poly = new ArrayList<>();
+       float zc = -near;
+       for (int i = 0; i < 4; i++) {
+          float[] a = ec[i], b = ec[(i + 1) % 4];
+          boolean ina = a[2] <= zc, inb = b[2] <= zc;
+          if (ina) {
+             poly.add(a);
+          }
+          if (ina != inb) {
+             float t = (zc - a[2]) / (b[2] - a[2]);
+             poly.add(new float[]{a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, zc});
+          }
+       }
+       if (poly.isEmpty()) {
+          return null;
+       }
+       float tanH = (float) Math.tan(Math.toRadians(30.0));
+       float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+       for (float[] v : poly) {
+          float nx = v[0] / -v[2] / (tanH * aspect);
+          float ny = v[1] / -v[2] / tanH;
+          minX = Math.min(minX, nx);
+          maxX = Math.max(maxX, nx);
+          minY = Math.min(minY, ny);
+          maxY = Math.max(maxY, ny);
+       }
+       minX = Math.max(-1f, minX);
+       minY = Math.max(-1f, minY);
+       maxX = Math.min(1f, maxX);
+       maxY = Math.min(1f, maxY);
+       if (minX >= maxX || minY >= maxY) {
+          return null;
+       }
+       int x0 = (int) Math.floor((minX + 1f) * 0.5f * w), x1 = (int) Math.ceil((maxX + 1f) * 0.5f * w);
+       int y0 = (int) Math.floor((minY + 1f) * 0.5f * h), y1 = (int) Math.ceil((maxY + 1f) * 0.5f * h);
+       return new int[]{x0, y0, x1 - x0, y1 - y0};
+    }
+
+    private static int[] intersectRect(int[] a, int[] b) {
+       int x0 = Math.max(a[0], b[0]), y0 = Math.max(a[1], b[1]);
+       int x1 = Math.min(a[0] + a[2], b[0] + b[2]), y1 = Math.min(a[1] + a[3], b[1] + b[3]);
+       return x1 > x0 && y1 > y0 ? new int[]{x0, y0, x1 - x0, y1 - y0} : null;
+    }
+
+    /**
+     * Las salas vistas a traves de los portales de una sala, como el
+     * original (Portal.prerender -&gt; el pase de portal de gamma.dll,
+     * traducido en el puente como Portal.rwPrerender): cada portal en
+     * estado 2, visible (flags bit 0) y de cara a la camara dibuja su sala
+     * lejana con la camara movida por _p2pxform, recortada al rectangulo del
+     * portal en pantalla (el original cambia el viewport; aqui glScissor
+     * con la misma proyeccion), antes que la sala propia, que luego se
+     * dibuja encima con el z-buffer limpio. Primero van los portales de la
+     * sala lejana (recursion). Los portales espejo (flags bit 2) aun no.
+     */
+    private static void drawPortals(WNode room, float[] eye, float[] center, float[] up, float aspect,
+          float near, float far, int w, int h, int[] clip, int depth) {
+       for (Object[] pq : portalsOf(room)) {
+          WNode p = (WNode) pq[0];
+          float[][] q = (float[][]) pq[1];
+          if ((p.flags & 1) == 0 || (p.flags & 4) != 0) {
+             continue;
+          }
+          PortalState st = link(p);
+          if (st.state != 2 || !portalFacesCamera(q, eye)) {
+             continue;
+          }
+          int[] r = portalScreenRect(q, eye, center, up, aspect, near, w, h);
+          r = r == null ? null : intersectRect(r, clip);
+          WNode farRoom = r == null ? null : worldRoot.roomsByName.get(st.farRoom);
+          float[] m = portalRoomMatrix.get(p);
+          if (farRoom == null || m == null) {
+             continue;
+          }
+          float[] p2p = PortalLink.p2pTransform(m, p.xScale, p.yScale, p.zScale, false,
+             st.far[0], st.far[1], st.far[2], st.far[3]);
+          float[] e2 = PortalLink.transformPoint(p2p, eye[0], eye[1], eye[2]);
+          float[] c2 = PortalLink.transformPoint(p2p, center[0], center[1], center[2]);
+          float[] u2 = PortalLink.transformVector(p2p, up[0], up[1], up[2]);
+          if (PORTAL_TRACE && tracedPortals.add(p)) {
+             System.out.println("[portal] " + p.name + " (prof. " + depth + ") -> sala " + st.farRoom + " rect="
+                + java.util.Arrays.toString(r) + " ojo " + java.util.Arrays.toString(eye) + " -> "
+                + java.util.Arrays.toString(e2) + " mira " + java.util.Arrays.toString(GlUtil.normalize(
+                   c2[0] - e2[0], c2[1] - e2[1], c2[2] - e2[2])));
+          }
+          glEnable(GL_SCISSOR_TEST);
+          glScissor(r[0], r[1], r[2], r[3]);
+          // Solo el z: Camera.rwRenderRoom no borra el color de una sala
+          // vista por un portal (sin piloto) salvo que tenga colores de
+          // cielo/suelo, y ninguna sala de GroundZero los tiene; asi el
+          // portal anidado ReceptionView1 -> ReceptionView2 deja ver el
+          // panorama que ya dibujo la primera.
+          glClear(GL_DEPTH_BUFFER_BIT);
+          float farPlane = Math.max(far * 3f, 20000f);
+          if (farRoom.infiniteBackground != null && !farRoom.infiniteBackground.children.isEmpty()) {
+             // su fondo infinito, desde el origen con la orientacion de la camara (pasada 1)
+             glMatrixMode(GL_PROJECTION);
+             glLoadIdentity();
+             GlUtil.perspective(60f, aspect, 1f, 200000f);
+             glMatrixMode(GL_MODELVIEW);
+             glLoadIdentity();
+             GlUtil.lookAt(0, 0, 0, c2[0] - e2[0], c2[1] - e2[1], c2[2] - e2[2], u2[0], u2[1], u2[2]);
+             drawInfiniteBackground(farRoom);
+             glClear(GL_DEPTH_BUFFER_BIT);
+          }
+          if (depth + 1 < PORTAL_MAX_DEPTH) {
+             drawPortals(farRoom, e2, c2, u2, aspect, near, farPlane, w, h, r, depth + 1);
+             glScissor(r[0], r[1], r[2], r[3]);
+             glClear(GL_DEPTH_BUFFER_BIT);
+          }
+          glMatrixMode(GL_PROJECTION);
+          glLoadIdentity();
+          GlUtil.perspective(60f, aspect, near, farPlane);
+          glMatrixMode(GL_MODELVIEW);
+          glLoadIdentity();
+          GlUtil.lookAt(e2[0], e2[1], e2[2], c2[0], c2[1], c2[2], u2[0], u2[1], u2[2]);
+          drawNode(farRoom);
+          if (farRoom.environment != null) {
+             drawNode(farRoom.environment);
+          }
+       }
+       if (depth == 0) {
+          glDisable(GL_SCISSOR_TEST);
+       } else {
+          glScissor(clip[0], clip[1], clip[2], clip[3]);
+       }
     }
 
     private static final float PLAY_EYE_HEIGHT = 150f;
