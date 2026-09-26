@@ -122,6 +122,9 @@ PY
 # fichero y Toolkit.getImage: ver bridge/NET/worlds/core/HostPath.java. Sin
 # esto no se pintaban los botones de la ventana ni se leia redir.txt.
 python3 "$HERE/bridge/host_paths.py" "$HERE/source" "$B/source"
+# Fuentes con las metricas del JRE de 2004 (Dialog/SansSerif = Arial...): ver
+# bridge/NET/worlds/core/NativeUiFonts.java ("Jse arrow keys" en la barra).
+python3 "$HERE/bridge/ui_fonts.py" "$HERE/source" "$B/source"
 find "$B/source" -name '*.java' > "$B/sources.txt"
 # parsers verificados de client/ que usa el puente: texturas ScapePic
 # (.cmp/.mov), formas .rwg y cuerpos .bod (el .rwx lo interpreta
