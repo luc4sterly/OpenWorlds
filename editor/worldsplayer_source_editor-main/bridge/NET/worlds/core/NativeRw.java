@@ -73,32 +73,40 @@ public final class NativeRw {
       return o instanceof float[] ? (float[]) o : null;
    }
 
-   /** out[i][j] = sum_k a[i][k] * b[k][j] (RWL21.DLL 0x1005118c). */
+   /**
+    * a.b as RWL21.DLL multiplies (RwMultiplyMatrix 0x1001db10 -> 0x1005118c):
+    * an AFFINE product. Rows 0-2 are the 3x3 product
+    * out[r][c] = sum_{k<3} a[r][k] * b[k][c] (c < 3), the translation row is
+    * out[3][c] = sum_{k<3} a[3][k] * b[k][c] + b[3][c], and the fourth
+    * column (elements 3, 7, 11, 15) is never read nor written. It has to
+    * be ignored: the Transform of a WObject restored from a .world carries
+    * RW's own bookkeeping there (e.g. 0x03ddff04, 0x02890088 read as floats
+    * in Auditorium's WObject2/ShapeStand), and a full 4x4 product with
+    * m[15] ~ 2e-37 dropped the parent's translation, so every Shape or Rect
+    * inside a plain WObject (the stand in Auditorium, the iris door of
+    * IconViewRoom1Enter) was drawn at the room origin. The fourth column
+    * of the result is written as (0, 0, 0, 1); RW leaves it as it was.
+    */
    public static float[] mul(float[] a, float[] b) {
       float[] o = new float[16];
-      for (int i = 0; i < 4; i++) {
-         for (int j = 0; j < 4; j++) {
-            float s = 0f;
-            for (int k = 0; k < 4; k++) {
-               s += a[i * 4 + k] * b[k * 4 + j];
-            }
-            o[i * 4 + j] = s;
-         }
-      }
+      mulInto(a, b, o);
       return o;
    }
 
    /** a.b written into out (out must not alias a or b): mul() without the allocation. */
    public static void mulInto(float[] a, float[] b, float[] out) {
       for (int i = 0; i < 4; i++) {
-         for (int j = 0; j < 4; j++) {
-            float s = 0f;
-            for (int k = 0; k < 4; k++) {
-               s += a[i * 4 + k] * b[k * 4 + j];
-            }
-            out[i * 4 + j] = s;
+         for (int j = 0; j < 3; j++) {
+            // same summation order as the former 4x4 loop, so a matrix with a
+            // clean fourth column gives bit-identical results
+            float s = a[i * 4] * b[j] + a[i * 4 + 1] * b[4 + j] + a[i * 4 + 2] * b[8 + j];
+            out[i * 4 + j] = i == 3 ? s + b[12 + j] : s;
          }
       }
+      out[3] = 0f;
+      out[7] = 0f;
+      out[11] = 0f;
+      out[15] = 1f;
    }
 
    /** Common combine routine 0x1001c500: writes the result into dest. */

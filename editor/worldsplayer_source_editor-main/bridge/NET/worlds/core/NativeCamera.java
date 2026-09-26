@@ -918,6 +918,7 @@ public final class NativeCamera {
       drawScene(p, scene);
       rasterize(p);
       matStats(p, scene);
+      dumpScene(scene, c);
       if (probeHit != null) {
          long sec = (System.nanoTime() - DUMP_T0) / 1000000000L;
          synchronized (probeShown) {
@@ -942,6 +943,60 @@ public final class NativeCamera {
             }
          }
       }
+   }
+
+   /** -Dfreeworlds.dumpScene=SEC: the clump tree of every scene drawn by the main camera, once, from SEC seconds. */
+   private static final String DUMP_SCENE = System.getProperty("freeworlds.dumpScene");
+   private static final java.util.Set<Integer> scenesDumped = new java.util.HashSet<Integer>();
+
+   private static void dumpScene(int scene, Cam c) {
+      if (DUMP_SCENE == null || c.width != mainWidth
+            || (System.nanoTime() - DUMP_T0) / 1000000000L < Long.parseLong(DUMP_SCENE)) {
+         return;
+      }
+      synchronized (scenesDumped) {
+         if (!scenesDumped.add(Integer.valueOf(scene))) {
+            return;
+         }
+      }
+      Object owner = NativeScene.getSceneData(scene);
+      StringBuilder b = new StringBuilder("[RW] escena " + scene + " (" + describeData(owner) + "):\n");
+      java.util.List<NativeScene.Clump> roots = NativeScene.sceneRoots(scene);
+      for (int i = 0; i < roots.size(); i++) {
+         dumpTree(b, roots.get(i), null, 1);
+      }
+      System.err.print(b);
+   }
+
+   private static void dumpTree(StringBuilder b, NativeScene.Clump k, float[] parentLtm, int depth) {
+      float[] ltm = new float[16];
+      NativeRw.mulInto(k.joint, k.modeling, ltm);
+      if (parentLtm != null) {
+         float[] tmp = ltm.clone();
+         NativeRw.mulInto(tmp, parentLtm, ltm);
+      }
+      for (int i = 0; i < depth; i++) {
+         b.append("  ");
+      }
+      b.append(describeData(k.data)).append(" estado=").append(k.state)
+         .append(" vert=").append(k.verts.size()).append(" pol=").append(k.polys.size())
+         .append(String.format(" en (%.0f,%.0f,%.0f)", ltm[12], ltm[13], ltm[14]));
+      if (System.getProperty("freeworlds.dumpSceneMatrices") != null) {
+         b.append(" modeling=").append(java.util.Arrays.toString(k.modeling)).append(" joint=").append(java.util.Arrays.toString(k.joint));
+      }
+      b.append('\n');
+      for (NativeScene.Clump child : k.children) {
+         dumpTree(b, child, ltm, depth + 1);
+      }
+   }
+
+   private static String describeData(Object o) {
+      if (o == null) {
+         return "-";
+      }
+      String cls = o.getClass().getName();
+      cls = cls.substring(cls.lastIndexOf('.') + 1);
+      return o instanceof NET.worlds.scape.SuperRoot ? cls + ":" + ((NET.worlds.scape.SuperRoot) o).getName() : cls;
    }
 
    /**
