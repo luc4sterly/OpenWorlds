@@ -224,9 +224,10 @@ Por orden de lo que desbloquean (detalle en `docs/roadmap.md`):
    oscuro que el original) y el avatar por defecto del piloto (el original
    usa el de `worlds.ini`, el visor `aura`).
 7. Probar las apps de la CI en máquinas reales: la de macOS está firmada ad
-   hoc (Gatekeeper: "Abrir igualmente" o `xattr -dr com.apple.quarantine`);
-   la prueba de humo del original en macOS/Windows corre en la CI con
-   `continue-on-error` hasta ver sus primeros resultados.
+   hoc (Gatekeeper: "Abrir igualmente" o `xattr -dr com.apple.quarantine`).
+   En la CI el original empaquetado ya dibuja GroundZero en los cuatro
+   runners (Linux, macOS Intel y ARM, Windows; prueba de humo obligatoria),
+   pero nadie ha abierto aún la app a mano fuera de la CI.
 8. Menores: `csq` sin ejemplar propio, Starbright World sin investigar, los
    7 `.mov` perdidos de Julie/Roxanne/Simon.
 

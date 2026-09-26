@@ -3851,7 +3851,10 @@ original bajo el puente corre sin Wine, con Xvfb para la ventana.
   Xvfb (tiene que imprimir cámara y fps: ha dibujado) y sube el portable y
   las apps de Linux, macOS Intel, macOS Apple Silicon y Windows; con un tag
   `v*` publica una release. Primer fallo: jpackage en macOS exige que la
-  versión empiece por ≥ 1 (se usa `1.0.<commits>`).
+  versión empiece por ≥ 1 (se usa `1.0.<commits>`). La misma prueba de humo
+  con el Java de cada app (ejecución #5): GroundZero dibuja en macOS Intel,
+  macOS ARM (62 fps) y Windows (102 fps), con la cámara en (230,180,170)
+  mirando (−0,97, −0,15, −0,17) como en Linux; desde ahí es obligatoria.
 - Aprovisionamiento: `tools/setup-linux.sh` (idempotente: paquetes, JDK,
   LWJGL, arnés RWX, compila los dos clientes) y el hook `SessionStart` de
   `.claude/` para las sesiones en la web (15 s en caliente, ~50 s en frío).

@@ -130,16 +130,15 @@ fallos y `run-checks.sh` 38/38.
 | Motor nuevo: `Rect` de una cara | ✅ | regla del driver `!front && (modes & 0x80) == 0` → descartado; los edificios ya no tapan el paisaje de los portales |
 | Motor nuevo: menú y HUD | ✅ | ESC: Continuar / Ir a otra sala (las 25) / FPS / Ayuda / Salir |
 | Paquete | ✅ | `launcher/` (ventana, menú de terminal `--tui`, CLI) + `tools/build-dist.sh`: portable (.zip, Java 17+) y app con Java incluido (jlink + jpackage). Copia de la instalación en la carpeta de datos del usuario; servidor de actualización local en Java |
-| CI | ✅ Linux / 🟡 macOS y Windows | cada push: checks, corpus, prueba de humo del original empaquetado bajo Xvfb (tiene que dibujar), apps de Linux, macOS Intel, macOS Apple Silicon y Windows; con un tag `v*`, release. La prueba de humo de macOS/Windows es aún `continue-on-error` |
+| CI | ✅ | cada push: checks, corpus, apps de Linux, macOS Intel, macOS Apple Silicon y Windows, y en cada una la prueba de humo del original empaquetado (tiene que dibujar; obligatoria). Ejecución #5: GroundZero en los cuatro con la cámara en (230,180,170), 62 fps en ARM y 102 en Windows; con un tag `v*`, release |
 | Aprovisionamiento | ✅ | `tools/setup-linux.sh` (idempotente) y el hook `SessionStart` de la web |
 
 Lo nuevo que queda:
 - **`cache.index`** no estaba versionado (`.gitignore`): sin él, el clon
   limpio, la CI y los paquetes no encuentran los avatares cacheados de
   2004. Solo está en tu Mac: `git add -f assets/WorldsPlayer/cachedir/cache.index`.
-- Probar las apps en máquinas reales (Gatekeeper con firma ad hoc,
-  SmartScreen en Windows) y quitar el `continue-on-error` del humo cuando
-  pase en los tres sistemas.
+- Probar las apps a mano en máquinas reales (Gatekeeper con firma ad hoc,
+  SmartScreen en Windows): la CI solo prueba que arrancan y dibujan.
 - Motor nuevo: portales espejo, la rampa de iluminación del driver (se ve
   más oscuro que el original) y el avatar del piloto (el original usa el de
   `worlds.ini`).

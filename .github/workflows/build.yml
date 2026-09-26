@@ -169,9 +169,9 @@ jobs:
           fi
 
       # El .exe/.app son de interfaz grafica (sin consola): la prueba de humo
-      # usa el java y los jars del propio paquete para ver la salida.
+      # usa el java y los jars del propio paquete para ver la salida. Pasa en
+      # los tres sistemas desde la ejecucion #5, asi que ya es obligatoria.
       - name: Prueba de humo - el cliente original empaquetado dibuja
-        continue-on-error: true
         env:
           FREEWORLDS_DATA: ${{ runner.temp }}/freeworlds-data
         run: |
@@ -192,7 +192,9 @@ jobs:
           path: ${{ runner.temp }}/freeworlds-data/logs
           if-no-files-found: ignore
 
-      - uses: actions/upload-artifact@v4
+      # Tambien si la prueba de humo falla: la app sirve para investigarlo.
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
         with:
           name: FreeWorlds-${{ needs.build.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
           path: |
