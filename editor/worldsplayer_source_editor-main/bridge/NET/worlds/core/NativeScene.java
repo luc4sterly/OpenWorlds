@@ -834,8 +834,7 @@ public final class NativeScene {
     * (0x00420b00-0x00420b18). The first cell is rounded down and the last
     * up (floorCell / ceilCell). Flags 0x100000 / 0x80000 are the V / U
     * flip (Surface.setVFlip / setUFlip), which mirror every other tile.
-    * Returns the polygon handles (the Java polygonIDs array). Same
-    * translation as client/src/net/freeworlds/world/MaterialTiles.rectCells.
+    * Returns the polygon handles (the Java polygonIDs array).
     */
    public static int[] addSubPolys(int clump, int flags, int hRes, int vRes) {
       float[] p1 = getVertex(clump, 1);

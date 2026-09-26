@@ -39,9 +39,10 @@ que el propio usuario pidió posponer en la sesión anterior), se documentó
 la evidencia real encontrada hasta el límite razonable de tiempo, y el
 resto de la sesión (iluminación, pipeline de materiales, escena) se
 implementó usando el color/opacidad de material YA verificado (RWX/RWG
-parseado), **sin renderizar ninguna textura y sin inventar píxeles** —
-ver `docs/renders/` para la evidencia de que esto se hizo con un
-fallback de color plano explícito, no con una textura inventada.
+parseado), **sin renderizar ninguna textura y sin inventar píxeles**, con
+un fallback de color plano explícito, no con una textura inventada (las
+capturas de aquel renderizador, el del motor nuevo, se retiraron con él el
+2026-09-26 y están en el historial de git hasta el commit `8cd795d`).
 
 ---
 
@@ -1494,7 +1495,7 @@ todos sus frames). Fuera de `content.zip`, los `.mov` de avatar
 (21 en `base-avatars/`, 31 en `cachedir/`) pasan de 37/52 ficheros
 decodificables a 52/52: los 15 que fallaban tienen tamaños distintos de 128 (104×135,
 118×100, 150×150, 160×150…) o hasta 16 frames. Comprobación:
-`client/test/net/freeworlds/cmp/CmpTextureCheck.java`.
+`formats/test/net/freeworlds/cmp/CmpTextureCheck.java`.
 
 La verificación "byte-exacta contra `cmpview.exe`" de `windr1` y
 `cbirda4` de 2026-09-13 comparaba, por tanto, el **último** frame (si aquella comparación era
@@ -1519,7 +1520,8 @@ original (`NET/worlds/scape`) sus frames son:
   y los de 2 frames con `2h*` (banderas `f1`–`f8`, `signa&a`, `signtel`,
   `time`) o `2v*` (`drs1`, `drs5`). Así, por ejemplo, los 14 `sky*.mov`
   del fondo de `ReceptionView1` forman un único panorama continuo de
-  montañas: antes el visor estiraba sobre cada panel una sola celda.
+  montañas: antes el visor del motor nuevo estiraba sobre cada panel una
+  sola celda.
 - **Caras de un Hologram** según el ángulo de vista
   (`Hologram.setActiveSide`, nativo).
 - **Subimágenes de avatar** (`PosableShape`, fuera de este documento).
@@ -1531,6 +1533,5 @@ bandera de `ReceptionView1` alterna `f12h*.mov` … `f82h*.mov` (8 fases
 en 1000 ms) y el cartel del probador `drs12v*.mov`/`drs52v*.mov` cada
 3 s.
 
-Implementación en el cliente propio: `net.freeworlds.world.MaterialTiles`
-(nombre → ficheros/frames y celdas) y `WorldViewer.drawRect`; checks en
-`client/test/net/freeworlds/world/MaterialTilesCheck.java`.
+En el puente las celdas las hace `NativeScene.addSubPolys` (casos a mano en
+`bridge/test/SubPolysCheck.java`).

@@ -524,7 +524,7 @@ public final class NativeShapes {
     * state OFF, and the shape keeps no animatable clump.
     *
     * The part table and the clump tree are read with the .bod translation
-    * in client/src/net/freeworlds/bod (from the official RWXTOBOD.PL
+    * in formats/src/net/freeworlds/bod (from the official RWXTOBOD.PL
     * encoder). A placeholder clump carries its tag with bit 0x8000000 set,
     * which is the tag WObject.addChildToClump looks for when it attaches a
     * part to the body (gamma.dll 0x00412f90).

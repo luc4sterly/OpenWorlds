@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # run-checks.sh — runner de comprobaciones unitarias del hito H0 de
 # docs/roadmap.md: compila y ejecuta todos los *Check.java que haya bajo
-# client/test/** (classpath de las clases de client/) y bajo
+# formats/test/** (classpath de las clases de formats/) y bajo
 # editor/worldsplayer_source_editor-main/bridge/test/ (classpath
 # editor/.build-gamma/out). Contrato (COMUN.md): un *Check es una clase con
 # `main` que sale con codigo 0 si pasa, != 0 si falla.
 #
 # Uso:
-#   tools/run-checks.sh [--no-bridge] [--client-build DIR]
-#     --no-bridge        no construye ni ejecuta los checks de bridge/test
-#                         (utils si no quieres pagar build_gamma.sh).
-#     --client-build DIR reusa un build ya compilado de client/src+test en
-#                         DIR en vez de compilar uno propio - lo usa
-#                         verify-corpus.sh para no compilar dos veces.
+#   tools/run-checks.sh [--no-bridge] [--formats-build DIR]
+#     --no-bridge         no construye ni ejecuta los checks de bridge/test
+#                          (utils si no quieres pagar build_gamma.sh).
+#     --formats-build DIR reusa un build ya compilado de formats/src+test en
+#                          DIR en vez de compilar uno propio - lo usa
+#                          verify-corpus.sh para no compilar dos veces.
 #
 # Si bridge/test tiene *Check.java pero editor/.build-gamma/out no existe
 # todavia, este script llama a build_gamma.sh primero (compila el puente
@@ -44,13 +44,13 @@ if [ -x "$ROOT/tools/jdk/Contents/Home/bin/java" ]; then
 fi
 
 NO_BRIDGE=0
-CLIENT_BUILD=""
+FORMATS_BUILD=""
 while [ $# -gt 0 ]; do
    case "$1" in
       --no-bridge) NO_BRIDGE=1; shift ;;
-      --client-build) CLIENT_BUILD="$2"; shift 2 ;;
+      --formats-build) FORMATS_BUILD="$2"; shift 2 ;;
       -h|--help)
-         echo "Uso: $0 [--no-bridge] [--client-build DIR]"
+         echo "Uso: $0 [--no-bridge] [--formats-build DIR]"
          exit 0 ;;
       *)
          echo "Argumento desconocido: $1" >&2
@@ -60,7 +60,6 @@ done
 
 JMEM="-Xmx512m"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/fw-run-checks.XXXXXX")"
-OWN_CLIENT_BUILD=0
 cleanup() { rm -rf "$WORK"; }
 trap cleanup EXIT
 
@@ -91,53 +90,52 @@ class_name_for_java_file() {
 }
 
 # ---------------------------------------------------------------------
-# client/test/**/*Check.java
+# formats/test/**/*Check.java
 # ---------------------------------------------------------------------
-CLIENT_CHECKS="$WORK/client-checks.txt"
-if [ -d "$ROOT/client/test" ]; then
-   find "$ROOT/client/test" -name "*Check.java" 2>/dev/null | sort > "$CLIENT_CHECKS" || true
+FORMATS_CHECKS="$WORK/formats-checks.txt"
+if [ -d "$ROOT/formats/test" ]; then
+   find "$ROOT/formats/test" -name "*Check.java" 2>/dev/null | sort > "$FORMATS_CHECKS" || true
 else
-   : > "$CLIENT_CHECKS"
+   : > "$FORMATS_CHECKS"
 fi
-N_CLIENT_CHECKS=$(wc -l < "$CLIENT_CHECKS" | tr -d ' ')
+N_FORMATS_CHECKS=$(wc -l < "$FORMATS_CHECKS" | tr -d ' ')
 
-if [ -n "$CLIENT_BUILD" ]; then
-   echo "--- client: reusando build ya compilado en $CLIENT_BUILD ---"
+if [ -n "$FORMATS_BUILD" ]; then
+   echo "--- formats: reusando build ya compilado en $FORMATS_BUILD ---"
 else
-   echo "--- client: compilando client/src + client/test ---"
-   CLIENT_BUILD="$WORK/client-out"
-   OWN_CLIENT_BUILD=1
-   mkdir -p "$CLIENT_BUILD"
-   SRC_LIST="$WORK/client-sources.txt"
+   echo "--- formats: compilando formats/src + formats/test ---"
+   FORMATS_BUILD="$WORK/formats-out"
+   mkdir -p "$FORMATS_BUILD"
+   SRC_LIST="$WORK/formats-sources.txt"
    : > "$SRC_LIST"
-   find "$ROOT/client/src" -name "*.java" >> "$SRC_LIST"
-   if [ -d "$ROOT/client/test" ]; then
-      find "$ROOT/client/test" -name "*.java" >> "$SRC_LIST"
+   find "$ROOT/formats/src" -name "*.java" >> "$SRC_LIST"
+   if [ -d "$ROOT/formats/test" ]; then
+      find "$ROOT/formats/test" -name "*.java" >> "$SRC_LIST"
    fi
-   javac -cp "$ROOT/tools/lwjgl/*" -d "$CLIENT_BUILD" @"$SRC_LIST"
-   echo "compilado OK -> $CLIENT_BUILD"
+   javac -d "$FORMATS_BUILD" @"$SRC_LIST"
+   echo "compilado OK -> $FORMATS_BUILD"
 fi
 
-if [ "$N_CLIENT_CHECKS" -eq 0 ]; then
-   echo "0 *Check.java en client/test — nada que ejecutar ahi"
+if [ "$N_FORMATS_CHECKS" -eq 0 ]; then
+   echo "0 *Check.java en formats/test — nada que ejecutar ahi"
 else
-   echo "$N_CLIENT_CHECKS *Check.java encontrados en client/test:"
+   echo "$N_FORMATS_CHECKS *Check.java encontrados en formats/test:"
    while IFS= read -r f; do
       CLS="$(class_name_for_java_file "$f")"
       REL="${f#"$ROOT"/}"
       set +e
-      java $JMEM -cp "$CLIENT_BUILD" "$CLS" > "$WORK/last.txt" 2>&1
+      java $JMEM -cp "$FORMATS_BUILD" "$CLS" > "$WORK/last.txt" 2>&1
       RC=$?
       set -e
       if [ "$RC" -eq 0 ]; then
          echo "  PASA  $REL"
-         report "client" "$CLS" "PASA" "exit 0"
+         report "formats" "$CLS" "PASA" "exit 0"
       else
          echo "  FALLA $REL (exit $RC)"
          sed 's/^/    /' "$WORK/last.txt"
-         report "client" "$CLS" "FALLA" "exit $RC"
+         report "formats" "$CLS" "FALLA" "exit $RC"
       fi
-   done < "$CLIENT_CHECKS"
+   done < "$FORMATS_CHECKS"
 fi
 echo
 
@@ -165,7 +163,7 @@ else
       echo "editor/.build-gamma/out no existe: construyendo con build_gamma.sh (puede tardar) ..."
       "$BRIDGE_DIR/build_gamma.sh"
    elif [ -n "$(find "$BRIDGE_DIR/bridge/NET" "$BRIDGE_DIR/bridge" "$BRIDGE_DIR/apply_mock.sh" "$BRIDGE_DIR/build_gamma.sh" \
-                  "$ROOT/client/src/net/freeworlds/cmp" "$ROOT/client/src/net/freeworlds/rwg" "$ROOT/client/src/net/freeworlds/bod" \
+                  "$ROOT/formats/src/net/freeworlds/cmp" "$ROOT/formats/src/net/freeworlds/rwg" "$ROOT/formats/src/net/freeworlds/bod" \
                   -maxdepth 4 \( -name '*.java' -o -name '*.patch' -o -name '*.sh' \) -not -path '*/bridge/test/*' \
                   -newer "$BRIDGE_OUT" 2>/dev/null | head -1)" ]; then
       # Una build vieja compila los checks contra clases que ya no existen
@@ -205,7 +203,7 @@ echo
 # ---------------------------------------------------------------------
 echo "--- resumen run-checks ---"
 if [ "$N_TOTAL" -eq 0 ]; then
-   echo "0 *Check.java encontrados en total (client/test ni bridge/test tienen ninguno todavia)"
+   echo "0 *Check.java encontrados en total (formats/test ni bridge/test tienen ninguno todavia)"
 else
    printf '%-10s %-55s %-6s %s\n' "Grupo" "Clase" "Estado" "Detalle"
    while IFS="$(printf '\t')" read -r a b c d; do

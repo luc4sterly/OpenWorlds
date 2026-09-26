@@ -19,19 +19,6 @@ legacy/installer-reversing/build/
 # WorldsPlayer editor build output
 editor/worldsplayer_source_editor-main/out/
 
-# Portable Node.js runtime (external tool, downloaded fresh from
-# nodejs.org - see tools/rwx-harness/README or worlds-chat-project.md)
-/tools/node/
-/tools/node-macos/
-
-# npm-installed deps for the RWX comparison harness (regenerate with
-# `npm install` in tools/rwx-harness - see package.json there)
-/tools/rwx-harness/node_modules/
-
-# LWJGL jars (external tool, downloaded fresh from Maven Central - see
-# worlds-chat-project.md sec. 4/5 for exact version + module list)
-/tools/lwjgl/
-
 # Portable JDK for macOS (Temurin tar.gz from api.adoptium.net, installed by
 # tools/setup-macos.sh - Homebrew no longer supports Intel Macs)
 /tools/jdk/
@@ -39,10 +26,17 @@ editor/worldsplayer_source_editor-main/out/
 # Git worktrees that the Claude Code harness creates for background agents
 /.claude/worktrees/
 
-# New Java client (RWX parser, later the renderer) build output
-/client/out/
+# build de los lectores de formats/ (tools/setup-linux.sh, setup-macos.sh)
+/formats/out/
 
-# run-game.sh launch logs + auto-screenshots (local run evidence, not corpus)
+# Restos locales del motor nuevo, quitado el 2026-09-26 (LWJGL, node y el
+# arnes RWX, su build y sus registros): se siguen ignorando para que un
+# checkout que aun los tenga no los suba por error.
+/tools/lwjgl/
+/tools/node/
+/tools/node-macos/
+/tools/rwx-harness/
+/client/
 /logs/
 
 # Third-party documentation (Worlds Inc.'s official GammaDocs, provided
@@ -87,5 +81,5 @@ Icon?
 # build del cliente original con puente portable (build_gamma.sh)
 editor/.build-gamma/
 
-# build/dist + app nativa de tools/build-dist.sh (y sus clases/LWJGL descargados)
+# build/dist + app nativa de tools/build-dist.sh (y sus clases)
 /build/

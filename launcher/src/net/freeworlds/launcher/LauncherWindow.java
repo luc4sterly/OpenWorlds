@@ -31,7 +31,6 @@ import java.awt.Insets;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
-import java.util.List;
 import java.util.function.Consumer;
 
 /** The launcher's window: what to play, with which server and options, and the live log. */
@@ -48,7 +47,6 @@ final class LauncherWindow {
    private final JTextArea logArea = new JTextArea(12, 80);
    private final JLabel status = new JLabel("Listo");
    private final JButton playOriginal = accent(new JButton("Jugar"));
-   private final JButton playViewer = accent(new JButton("Explorar"));
    private final JButton stop = new JButton("Detener");
    private final JComboBox<WorldItem> world = new JComboBox<>();
 
@@ -68,7 +66,6 @@ final class LauncherWindow {
    private final JComboBox<String> server = new JComboBox<>(SERVERS);
    private final JTextField serverHost = new JTextField(16);
    private final JTextField user = new JTextField(12);
-   private final JComboBox<String> room = new JComboBox<>();
    private final JSpinner threads = new JSpinner(new SpinnerNumberModel(0, 0, 64, 1));
    private final JCheckBox fps = new JCheckBox("FPS en el registro");
    private Session running;
@@ -106,9 +103,10 @@ final class LauncherWindow {
       JPanel center = new JPanel();
       center.setOpaque(false);
       center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
-      center.add(originalPanel());
-      center.add(Box.createVerticalStrut(10));
-      center.add(viewerPanel());
+      JComponent original = originalPanel();
+      // a su altura: lo que sobre de la ventana es para el registro
+      original.setMaximumSize(new Dimension(Integer.MAX_VALUE, original.getPreferredSize().height));
+      center.add(original);
       center.add(Box.createVerticalStrut(10));
       JScrollPane scroll = new JScrollPane(logArea);
       logArea.setEditable(false);
@@ -199,7 +197,7 @@ final class LauncherWindow {
       };
       server.addActionListener(e -> sync.run());
       sync.run();
-      playOriginal.addActionListener(e -> start(Session.Kind.ORIGINAL));
+      playOriginal.addActionListener(e -> start());
       GridBagConstraints c = gbc();
       row(p, c, "Mundo", world);
       row(p, c, "Servidor", server);
@@ -211,24 +209,6 @@ final class LauncherWindow {
       c.anchor = GridBagConstraints.EAST;
       c.fill = GridBagConstraints.NONE;
       p.add(playOriginal, c);
-      return p;
-   }
-
-   private JComponent viewerPanel() {
-      JPanel p = section("Motor nuevo (FreeWorlds, OpenGL): GroundZero con avatar");
-      List<String> rooms = Launcher.rooms(layout);
-      for (String r : rooms) {
-         room.addItem(r);
-      }
-      room.setSelectedItem(settings.room);
-      playViewer.addActionListener(e -> start(Session.Kind.VIEWER));
-      GridBagConstraints c = gbc();
-      row(p, c, "Sala", room);
-      row(p, c, "Controles", label("W/S andar, A/D de lado, flechas giran la camara, ESC sale", 12, Font.PLAIN));
-      c.gridx = 1;
-      c.anchor = GridBagConstraints.EAST;
-      c.fill = GridBagConstraints.NONE;
-      p.add(playViewer, c);
       return p;
    }
 
@@ -248,25 +228,23 @@ final class LauncherWindow {
       settings.user = user.getText().trim();
       settings.rasterThreads = (Integer) threads.getValue();
       settings.showFps = fps.isSelected();
-      Object r = room.getSelectedItem();
-      settings.room = r == null ? "Reception" : r.toString();
       settings.save(layout.settingsFile);
    }
 
-   private void start(Session.Kind kind) {
+   private void start() {
       if (running != null && running.isRunning()) {
          return;
       }
       collect();
-      if (kind == Session.Kind.ORIGINAL && server.getSelectedIndex() == 2 && !settings.server.contains(":")) {
+      if (server.getSelectedIndex() == 2 && !settings.server.contains(":")) {
          JOptionPane.showMessageDialog(frame, "Escribe el servidor como host:puerto", "FreeWorlds", JOptionPane.WARNING_MESSAGE);
          return;
       }
-      Session s = new Session(layout, settings, kind);
+      Session s = new Session(layout, settings);
       Consumer<String> sink = this::append;
       s.log.listen(sink);
       running = s;
-      setRunning(true, kind == Session.Kind.ORIGINAL ? "WorldsPlayer en marcha" : "Motor nuevo en marcha");
+      setRunning(true, "WorldsPlayer en marcha");
       Thread t = new Thread(() -> {
          int code;
          try {
@@ -288,7 +266,6 @@ final class LauncherWindow {
 
    private void setRunning(boolean on, String text) {
       playOriginal.setEnabled(!on);
-      playViewer.setEnabled(!on);
       stop.setEnabled(on);
       status.setText(text);
    }

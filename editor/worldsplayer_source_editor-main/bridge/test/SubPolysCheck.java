@@ -6,7 +6,7 @@ import NET.worlds.core.NativeScene;
  * primera celda redondeada hacia abajo y ultima hacia arriba. Casos
  * calculados a mano sobre el Rect de Rect.addRwChildren: 1 = (0,0,0) uv
  * (uo, v+vo), 2 = (1,0,0) uv (u+uo, v+vo), 3 = (1,0,1), 4 = (0,0,1) uv
- * (uo, vo). Mismos resultados que client/.../world/MaterialTilesCheck.
+ * (uo, vo).
  */
 public final class SubPolysCheck {
    private static int failures;

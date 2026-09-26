@@ -5,8 +5,13 @@
 > `SeqParser` consume 231/231 archivos enteros (`SeqExtractMain`).
 > Actualización 2026-09-23: la reproducción de `DroneAnimator` (elección
 > de secuencia, mezclas, aplicación a joints) está traducida en el puente
-> del cliente original; ver sección 7. El cliente propio (`client/`)
-> sigue sin controlador.
+> del cliente original; ver sección 7.
+>
+> 2026-09-26: el motor nuevo (`client/`, con `BodViewer`, `WorldViewer` y
+> su copia de esta regla) se quitó del repositorio; lo que se cita de él
+> abajo, capturas de `docs/renders/` incluidas, está en el historial de git
+> hasta el commit `8cd795d`. `SeqParser` y `SeqSampler` siguen en
+> `formats/`, porque los usa el puente.
 >
 > Corrección de auditoría: el commit `bcd60fd5` afirmaba "leftover=0",
 > pero su `SeqParser` fallaba en 231/231 archivos (leía un `u16`
@@ -85,7 +90,7 @@ Figuras vistas: `SeqBed-Aura`, `pose53_a/b`, `male`, `slim`, `breaker`
   salida de `SeqExtractMain`.
 - `axelwait.seq` es byte-idéntico a `axelendwave.seq` (causa sin verificar).
 
-Reproducir: `java -cp client/out net.freeworlds.bod.SeqExtractMain -q
+Reproducir: `java -cp formats/out net.freeworlds.bod.SeqExtractMain -q
 assets/gammatutorial-samples/base-avatars/*.seq assets/WorldsPlayer/cachedir/*.seq`.
 
 ## 3. Registro `avatars.dat` / `45.dat` (texto, `# animation registry version 0.3`)
@@ -128,7 +133,7 @@ confirmado en `docs/native-methods-map.md:231-246`) hace el resto.
   **lineal por componentes + normalización** (nlerp: `FUN_004271c0` +
   `FUN_00426f40`, normaliza solo si |q|²>1e-5), no slerp; escalares y
   vectores lineales. Sin keys → identidad. Sin bucle en el muestreo.
-  Traducido en `client/src/net/freeworlds/bod/SeqSampler.java`.
+  Traducido en `formats/src/net/freeworlds/bod/SeqSampler.java`.
 - **Cuaternión**: objeto (vptr, w, x, y, z). Identidad `FUN_00428f10` =
   (1,0,0,0); eje-ángulo `FUN_00428f40` guarda `cos(a/2)` en +4; producto de
   Hamilton `FUN_004272c0`; a matriz `FUN_00427040` (4×4 fila-mayor,
@@ -249,7 +254,7 @@ tiene):
   microdesplazamientos de respiración —
   `docs/renders/bod_aura_common_a_wait_f144.png`.
 
-## 6. Forward del `.bod` (verificado, aplicado en `WorldViewer --play`)
+## 6. Forward del `.bod` (verificado)
 
 Cara y puntas de pies en **+Z local** (Y-up), coleta/talones en −Z:
 `SPIN.RWX` (cabeza −0.006/+0.043, pie −0.005/+0.059) + bytes de
@@ -408,31 +413,9 @@ suelo).
 - ⚠️ El `catch` de los errores de sintaxis de `avatars.dat` (throw de C++)
   no está localizado: el puente avisa y conserva los tipos leídos.
 
-### 7.9 Cliente propio (`client/`, 2026-09-25)
+### 7.9 `SeqSampler.keyTime`
 
-La misma regla, portada del puente a `client/src/net/freeworlds/avatar/`:
-
-- `AnimTime`, `AnimPose`, `AnimRegistry`, `AnimMotion` y `AnimGraph` son
-  copias.
-- `AnimSequence`: FUN_00438300, los ids de joint y una biblioteca de
-  `.seq` por directorio.
-- `AnimAnimator`: CreateRep, moveto, update, animate y getAnimationTime,
-  sin RenderWare.
-- `AvatarRig`: el árbol del `.bod`, FUN_00434470, `prepFigure` con
-  COG = false y `Transform.getYaw` (0x00425440).
-
-`WorldViewer` aplica la regla al avatar del jugador (`--play`) y a los
-avatares del mundo. También porta la parte Java de `PosableShape`:
-`closestView` ≤ 900 y `moveto(t-1)`/`update(t)`.
-
-`AvatarAnimCheck` reproduce la serie de `AnimatorMotionCheck` y da los
-mismos estados y keys. `SeqSampler.keyTime` ahora trunca, como los drivers
-(fistp en chop, 0x43b9c0).
-
-- ⚠️ COG = true no se porta: `WorldRestorer` descarta el COG de
-  `PosableShape`.
-- ⚠️ Los tipos y secuencias salen del `Avatars.dat` de `base-avatars`, no
-  del `45.dat` del servidor. Para los 7 avatares de GroundZero, los
-  implícitos son los mismos en los dos.
-- No se porta el LOD (`setLOD`) ni `MoveAction`: las estatuas de las
-  galerías se quedan quietas y a los 10 s pasan a `wait`.
+`SeqSampler.keyTime` (en `formats/`) trunca como los drivers (`fistp` en
+chop, 0x43b9c0). El motor nuevo llegó a tener una copia de toda esta regla
+(`client/src/net/freeworlds/avatar/`, 2026-09-25); se quitó con él el
+2026-09-26 y está en el historial de git hasta el commit `8cd795d`.

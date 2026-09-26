@@ -7,14 +7,14 @@ fichero en el arbol del proyecto y genera docs/progress.md: una tabla por
 modulo/paquete y una tabla por fichero, con el total y la fecha.
 
 Ambito exacto (pedido explicitamente en la tarea del runner H0):
-  - client/src                                        (recursivo)
-  - client/test                                        (recursivo)
+  - formats/src                                       (recursivo)
+  - formats/test                                      (recursivo)
   - editor/worldsplayer_source_editor-main/bridge/      (recursivo; en los
     *.patch SOLO se cuentan lineas anadidas: las que empiezan por un '+'
     literal que no sea la cabecera de fichero '+++')
   - tools/*.py y tools/*.sh                             (solo el nivel
     superior de tools/, sin recorrer subdirectorios - asi no se cuentan
-    fuentes de terceros como tools/rwx-harness/node_modules)
+    herramientas de terceros como las de tools/gdk-sdk)
 
 "VERIFICAR"/"TODO"/"FIXME" se buscan como palabra completa (limite \\b) para
 no confundir con palabras normales del espanol que las contienen como
@@ -118,18 +118,18 @@ def collect_targets():
             is_patch = p.suffix == ".patch"
             targets.append((str(rel), module_of(rel), is_patch))
 
-    def client_src_module(rel):
-        # client/src/net/freeworlds/<pkg>/Archivo.java -> "client/src/<pkg>"
+    def formats_src_module(rel):
+        # formats/src/net/freeworlds/<pkg>/Archivo.java -> "formats/src/<pkg>"
         parts = rel.parts
-        if len(parts) >= 5 and parts[:4] == ("client", "src", "net", "freeworlds"):
-            return "client/src/" + parts[4]
-        return "client/src/(raiz)"
+        if len(parts) >= 5 and parts[:4] == ("formats", "src", "net", "freeworlds"):
+            return "formats/src/" + parts[4]
+        return "formats/src/(raiz)"
 
-    def client_test_module(rel):
+    def formats_test_module(rel):
         parts = rel.parts
-        if len(parts) >= 5 and parts[:4] == ("client", "test", "net", "freeworlds"):
-            return "client/test/" + parts[4]
-        return "client/test/(raiz)"
+        if len(parts) >= 5 and parts[:4] == ("formats", "test", "net", "freeworlds"):
+            return "formats/test/" + parts[4]
+        return "formats/test/(raiz)"
 
     def bridge_module(rel):
         # editor/worldsplayer_source_editor-main/bridge/NET/worlds/<pkg>/X.java
@@ -146,8 +146,8 @@ def collect_targets():
             return "bridge/NET/worlds/" + parts[i + 3]
         return "bridge/(raiz)"
 
-    add_tree("client/src", client_src_module)
-    add_tree("client/test", client_test_module)
+    add_tree("formats/src", formats_src_module)
+    add_tree("formats/test", formats_test_module)
     add_tree("editor/worldsplayer_source_editor-main/bridge", bridge_module)
 
     tools_dir = ROOT / "tools"
@@ -195,7 +195,7 @@ def build_report():
     lines.append(
         "Generado por `tools/progress-panel.py` (hito H0, `docs/roadmap.md`). "
         "Cuenta apariciones de ⚠️ / `VERIFICAR` / `TODO` / `FIXME` (palabra "
-        "completa para estas tres ultimas) en `client/src`, `client/test`, "
+        "completa para estas tres ultimas) en `formats/src`, `formats/test`, "
         "`editor/worldsplayer_source_editor-main/bridge/` (en `*.patch` solo "
         "lineas anadidas) y `tools/*.py`/`tools/*.sh` (solo el nivel superior "
         "de `tools/`). No mide gravedad ni prioridad, solo cuenta - la lista "

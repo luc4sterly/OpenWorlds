@@ -2,9 +2,11 @@
 
 Reconstruido del Java decompilado del cliente,
 `editor/worldsplayer_source_editor-main/source/NET/worlds/scape/PosableShape.java`
-(abreviado `PS`). Implementación: `client/src/net/freeworlds/avatar/`.
-Reproducir: `java -cp <out> net.freeworlds.avatar.AvatarNameMain --todos`
-(o `... AvatarNameMain willy`).
+(abreviado `PS`). El cliente original lo ejecuta con su propio
+`PosableShape`. La traducción a Java de este documento
+(`client/src/net/freeworlds/avatar/`, con `AvatarNameMain --todos`) era del
+motor nuevo y se quitó con él el 2026-09-26: está en el historial de git
+hasta el commit `8cd795d`.
 
 ## Origen de las tablas
 
@@ -116,28 +118,15 @@ y, en cascada, todas las limbs → figura vacía.
 
 ## Límites
 
-- Subimagen `n-1` de un `.mov`: hoy solo se decodifica el fotograma 0
-  (`CmpStage1.decodeMovFrame0`). Probado 128×128 en willy/aura/tina.
+- Subimagen `n-1` de un `.mov`: `CmpFrames` decodifica todos los
+  fotogramas por la tabla de frames de gamma.dll (2026-09-25); antes solo
+  el 0 (`CmpStage1.decodeMovFrame0`). Probado 128×128 en willy/aura/tina.
 - `faceList`/`getFace` y `humanList`/`getHuman` los usan `WearWall` y
   `AvMenu` (personalización) y la sustitución por humano; no los usa
   `createSubparts`, así que no afectan a la geometría/material del nombre.
-- No se ha comprobado visualmente que la parte N del `.bod` y su UV
-  encajen con la subimagen resuelta.
-
-## Integración en `BodViewer` (2026-09-16)
-
-`BodViewer <x>.bod --avatar <nombre>` aplica el aspecto de cada limb a la
-raíz de su parte: color → RGB plano; textura → `CmpTexture` con las UV
-reales del `.bod`; `origMat` → sin cambio; los subclumps conservan el
-color del `.bod`. Material con las constantes del cliente (0.32 / 0.55 /
-0). La subimagen N de un `.mov` se aplica como la celda N del material
-(`CmpTexture.loadMovFrames`, todos los frames por `CmpFrames`; 2026-09-25).
-
-Comprobado visualmente: en `willy` los 515 píxeles que cambian respecto a
-la versión sin textura caen todos en la cabeza, y la cara (ojos, boca)
-aparece derecha y en la parte frontal
-(`docs/renders/bod_willy_avatar_face_texture_zoom.png`). `ogre` pide la
-subimagen 3 en 10 partes: desde 2026-09-25 se aplica (de 1 a 11 partes
-con textura). ⚠️ Con textura el
-cliente pone `colorTable[3]` como color base; si RenderWare 2 tiñe la
-textura con él no está verificado (se dibuja sin tintar).
+- Que la parte N del `.bod` y su UV encajen con la subimagen resuelta solo
+  se vio en `willy`, con el visor del motor nuevo (2026-09-16, ya
+  retirado): la cara cae derecha y en la parte frontal de la cabeza.
+  `ogre` pide la subimagen 3 de su `.mov` en 10 partes.
+- ⚠️ Con textura el cliente pone `colorTable[3]` como color base; si
+  RenderWare 2 tiñe la textura con él no está verificado.

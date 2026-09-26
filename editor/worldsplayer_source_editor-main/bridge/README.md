@@ -28,7 +28,7 @@ editor/worldsplayer_source_editor-main/run_gamma.sh home:GroundZero/groundzero.w
 adaptaciones de plataforma de `build_gamma.sh` (caché de 2004, `Std.initSyncTime`,
 `host_paths.py` y `ui_fonts.py`, ver abajo) y compila
 con `javac --release 8` (~900 clases, incluidos los decodificadores `.cmp`,
-`.rwg` y `.bod`/`.seq` de `client/`). Tras `natives.patch` se aplican los
+`.rwg` y `.bod`/`.seq` de `formats/`). Tras `natives.patch` se aplican los
 `natives-<subsistema>.patch` por orden de nombre (animator, media, system,
 text, ui). Si `javac` falla, `build_gamma.sh` sale con 1. `run_gamma.sh [URL]` copia `assets/WorldsPlayer` a un
 directorio de trabajo (`$FREEWORLDS_GAMMA_DIR`, por defecto
@@ -103,7 +103,9 @@ textura".
   APPRACTR (`hub.rs:246`, comentado).
 - El cliente escribe su `Gamma.Log` de 2004 con `FREEWORLDS_GAMMA_LOG=1`,
   con el informe de `SystemInfo.Record`.
-- `tools/run-checks.sh`: 40/40 (con `RasterGoldenCheck` y `MatrixAffineCheck`); las excepciones
+- `tools/run-checks.sh`: 35/35 (4 de `formats/` y 31 del puente, con
+  `RasterGoldenCheck` y `MatrixAffineCheck`; eran 40 con los 5 del motor
+  nuevo, quitado el 2026-09-26); las excepciones
   que salen en GroundZero (`WorldScriptGroundZero` y
   `NoWebControlException` de los carteles) son el camino del propio
   cliente. Corrección del 2026-09-26: el error de `redir.txt` que salía
@@ -184,7 +186,7 @@ Julie, Roxanne y Simon (`docs/worlds-chat-project.md`, 2026-09-18).
 | `NET/worlds/core/NativeScene.java` | Clumps, escenas, luces y materiales de RWL21 (vértices base 1, polígonos, jerarquía, LTM, bbox mundo/local, tags, estado ON=2/OFF=1, escena por defecto) y los wrappers de gamma.dll con lógica propia (`FUN_00417ac0`, `FUN_00418820/860` y sus callbacks, `FUN_00417950/a10`, `FUN_00419000`, `Surface.addSubPolys` 0x004206d0) |
 | `NET/worlds/core/NativeCamera.java` | Cámaras y render por software del driver de 16 bits (`RWDL6D21`): caché por ventana (0x00415fb0), `RwTransformCamera` con ortonormalización y det>0.9, proyección y recorte de RWL21 (0x10009dd0), culling por área en pantalla (0x10051000), iluminación ambiente/difusa/especular por faceta o vértice y paso a 5-6-5 (driver 0x1000d230/0x10019920), texel 0 transparente, opacidad como "screen door", horizonte (0x00417dc0), marca de resaltado (0x00417c40), picking. Triángulos del driver (vértices a la rejilla, pendientes con la tabla de recíprocos 0x1000a008, avance antes de pintar, abanico del último al primero), tramo texturizado 0x1002cbb0 con perspectiva cada 16 px y u/v empaquetados, Gouraud en espacio de color con tramado de G (0x1006a340), árbol de ordenación por clump 0x10033750 y modos de hints (0x10033600: más de 1000 polígonos → editable), rango de UV 0..256 (0x10017de0), `RwDestroyScene` (0x100306b0), `WObject.nativeInCamSpace` (0x00413910) |
 | `NET/worlds/core/NativeTextures.java` | Texturas: StretchBlt COLORONCOLOR (modo 3, 0x422682 → `GDI32!SetStretchBltMode` por la IAT 0x487814) a 128×128 5-6-5 (FUN_004222b0) con la paleta de FUN_00422b30; diccionario de RW (nombre base 0x10043e80, comparación 0x10043f20, duplicados rechazados) con la cuenta de gamma.dll (0x004183e0/0x00418370); `RwReadTexture`: BMP/RAS (0x10021620/0x10021da0), reescalado por área a 128 o 16 (0x10042f30), conversión del driver (0x10007a80, negro → 1); `RwGetNamedTexture` con la ruta ".;.." y .ras/.tex/.env/.bmp/.rle; `StringTexture` (0x00424af0/0x00424870) |
-| `NET/worlds/core/ScapePic.java` | Cabecera ScapePic (0x00442750) sobre `client/src/net/freeworlds/cmp/CmpFrames` (todos los frames de `.mov` por la tabla de frames) |
+| `NET/worlds/core/ScapePic.java` | Cabecera ScapePic (0x00442750) sobre `formats/src/net/freeworlds/cmp/CmpFrames` (todos los frames de `.mov` por la tabla de frames) |
 | `NET/worlds/core/NativeWindows.java` | Ventanas: la hija de render es el `RenderCanvas` AWT real (0x0040e3f0), instancia de ventana con tamaño de render (0x0040f250/0x0040d950) |
 | `NET/worlds/core/RwxReader.java` | El intérprete de scripts `.rwx` de RWL21 (`RwReadShape` 0x10009bf0, bucle 0x100163e0) mandato a mandato: pilas de CTM, joint y material con copia al entrar en un bloque, `ClumpBegin` congelando la CTM (0x1000f560), `ClumpEnd` fusionando la geometría y re-colgando los nietos (0x1000f980), vértices con la CTM interna aplicada (0x10010270), índices base 1 por clump, `Tag`/`Hints`/`AxisAlignment`, `Proto`/`Include` y el estado de material completo; `Texture`/`TextureExt` resuelve con `RwGetNamedTexture` al leer (0x10014b00) y si no hay textura la forma entera da 0 |
 | `NET/worlds/core/NativeShapes.java` | Lo que `ShapeLoader` recibe de RenderWare: el `.rwx` por `RwxReader` + callback 0x004187e0 (tag < 0x4000000 → hints 2, si no OFF); barridos previos de texturas de `loadTextFile` (0x0041cba0) y de la cabecera `.rwg` (FUN_0041c970); `RwReadStreamChunk(CLUM)` (0x10039e40, leído en ASM) con TELT (diccionario/ruta de formas, error 0x5e), materiales de MALT, PLST con material y tag, ATOM con estado/ejes/matrices/hijos (ATOM vacío = clump válido); cuerpos `.bod` (0x0041e440); `Shape.convertSpecial` (0x0041f1b0 → `TwoWayPortal`/`Rect`) |

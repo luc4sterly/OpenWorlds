@@ -1,10 +1,10 @@
 # Build, tests y paquetes de FreeWorlds en cada push.
 #
-# - build (Linux): compila el cliente original con el puente, el motor nuevo y
-#   el lanzador; pasa tools/run-checks.sh y tools/verify-corpus.sh; arranca el
-#   cliente original empaquetado bajo Xvfb (prueba de humo: tiene que dibujar);
-#   deja el paquete portable (.zip, necesita Java 17+) y la app de Linux con
-#   su propio Java (.tar.gz).
+# - build (Linux): compila el cliente original con el puente (y los lectores
+#   de formats/) y el lanzador; pasa tools/run-checks.sh y
+#   tools/verify-corpus.sh; arranca el cliente original empaquetado bajo Xvfb
+#   (prueba de humo: tiene que dibujar); deja el paquete portable (.zip,
+#   necesita Java 17+) y la app de Linux con su propio Java (.tar.gz).
 # - package: la app con Java incluido para macOS (Intel y Apple Silicon) y
 #   Windows, desde el mismo build.
 # - release: con un tag v* (git tag v0.2.0 && git push --tags) publica todo en
@@ -24,9 +24,6 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  LWJGL_VERSION: "3.4.3"
-
 jobs:
   build:
     name: Linux - compilar, probar y empaquetar
@@ -42,22 +39,10 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
       - name: Paquetes del sistema
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q xvfb patch zip
-
-      - name: Cache de LWJGL (Maven Central da 429 si se le pide deprisa)
-        uses: actions/cache@v4
-        with:
-          path: |
-            build/lwjgl
-            tools/lwjgl
-          key: lwjgl-${{ env.LWJGL_VERSION }}-all-v1
 
       - name: Version
         id: v
@@ -71,18 +56,11 @@ jobs:
           FREEWORLDS_NUMERIC_VERSION: ${{ steps.v.outputs.numeric }}
         run: tools/build-dist.sh --app-image
 
-      - name: LWJGL para los checks (los mismos jars del paquete)
-        run: |
-          mkdir -p tools/lwjgl
-          cp build/lwjgl/*.jar tools/lwjgl/
-
-      - name: Checks unitarios (client/test + bridge/test)
+      - name: Checks unitarios (formats/test + bridge/test)
         run: xvfb-run -a -s "-screen 0 1280x1024x24" tools/run-checks.sh
 
-      - name: Corpus (RWX, .world, .seq, .bod, .cmp, .mov, avatares)
-        run: |
-          (cd tools/rwx-harness && npm ci --no-audit --no-fund)
-          tools/verify-corpus.sh --no-checks
+      - name: Corpus (.seq, .bod, .cmp, .mov)
+        run: tools/verify-corpus.sh --no-checks
 
       - name: Prueba de humo - el cliente original empaquetado dibuja
         env:

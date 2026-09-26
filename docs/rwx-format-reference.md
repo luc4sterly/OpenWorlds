@@ -1,13 +1,19 @@
 # Referencia del formato RWX, verificada contra three-rwx-loader
 
 Todo lo de este documento viene de leer directamente
-`tools/rwx-harness/node_modules/three-rwx-loader/src/RWXLoader.js`
-(instalado vía npm, no vendorizado) — no de la wiki de Active Worlds ni de
-suposiciones. Donde el comportamiento real sorprende o contradice lo que
-uno esperaría, se explica con evidencia (número de línea, fragmento de
-código). Implementado en `client/src/net/freeworlds/rwx/` y verificado con
-`tools/rwx-harness/compare.py` contra los 118 archivos `.rwx` reales del
-proyecto: **118/118 OK** (ver `docs/rwx-parser-progress.md`).
+`three-rwx-loader/src/RWXLoader.js` (paquete npm, no vendorizado; se
+instalaba en `tools/rwx-harness/node_modules`) — no de la wiki de Active
+Worlds ni de suposiciones. Donde el comportamiento real sorprende o
+contradice lo que uno esperaría, se explica con evidencia (número de línea,
+fragmento de código). Se implementó en `client/src/net/freeworlds/rwx/` y
+se verificó con `tools/rwx-harness/compare.py` contra los 118 archivos
+`.rwx` reales del proyecto: **118/118 OK**.
+
+> **2026-09-26:** ese lector, el arnés `tools/rwx-harness` y su informe
+> `docs/rwx-parser-progress.md` eran del motor nuevo y se quitaron con él;
+> están en el historial de git, hasta el commit `8cd795d`. El cliente
+> original lee los `.rwx` con el lector del puente
+> (`bridge/NET/worlds/core/RwxReader.java`, traducido de RWL21).
 
 **Nota sobre este documento**: un primer intento de generarlo con un
 subagente de solo lectura se interrumpió a medio camino (se desvió

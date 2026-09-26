@@ -1,5 +1,12 @@
 # Referencia del formato `.world`, reconstruida desde el código Java real del cliente
 
+> **2026-09-26:** el motor nuevo se quitó del repositorio y con él su
+> lector de `.world` (`WorldRestorer` y compañía), `WorldViewer`, sus checks
+> y las capturas de `docs/renders/`. Lo que este documento cuenta del
+> formato sigue valiendo; el código y las capturas que se citan abajo están
+> en el historial de git, hasta el commit `8cd795d`. El cliente original
+> lee los `.world` con su propio `Restorer`.
+
 ## Resumen ejecutivo
 
 A diferencia de RWX/RWG/`.cmp`, `.world` **no es un formato binario propio
@@ -12,8 +19,9 @@ nada nativo para este formato, a diferencia de RWX/RWG/`.cmp`. Es, con
 diferencia, la fuente de evidencia más fiable de todo el proyecto: el
 propio código que escribe y lee el formato está ahí, completo.
 
-**Implementado y verificado end-to-end**: `client/src/net/freeworlds/world/
-WorldRestorer.java` parsea `assets/GROUNDZERO/GROUNDZERO.WORLD` (un
+**Implementado y verificado end-to-end** (con el lector del motor nuevo,
+`client/src/net/freeworlds/world/WorldRestorer.java`, hoy en el historial
+de git): parsea `assets/GROUNDZERO/GROUNDZERO.WORLD` (un
 archivo real de 205.759 bytes) **completo, sin errores, hasta el
 marcador `END PERSISTER`** — 25 salas reales, 578 nodos en el grafo de
 objetos, 103 objetos `Shape`/`PosableShape` con referencia real a
@@ -361,14 +369,10 @@ Qué hay en GroundZero (dueño = el objeto en cuya lista de acciones está):
 | AvatarEnter | 4 Rects (suelo, techo, 2 muros) | StartupSensor | `avflr1/2/3/2.cmp` | 4 en 1000 ms, bucle |
 | Reception | 4 kioscos `Rect84cyan1..4` | StartupSensor → SequenceAction infinita | `knews*`/`kevent*`/`kstore*.cmp` | Wait 1 s + Animate (5 en 500 ms, 1 ciclo) … |
 
-El cliente propio las ejecuta con `net.freeworlds.world.TextureActions`
-(reglas y límites en su javadoc; checks en
-`client/test/net/freeworlds/world/TextureActionsCheck.java`): el
-StartupSensor dispara en el primer frame de la sala y las acciones vivas
-se llaman una vez por frame, como `RunningActionHandler`. Las acciones de
-StartupSensor que no cambian texturas (en `ReceptionView1`: 8
-`MoveAction` de pájaros, avión y logo) no se ejecutan y se listan en la
-consola.
+En el original el StartupSensor dispara en el primer frame de la sala y
+las acciones vivas se llaman una vez por frame (`RunningActionHandler`).
+En `ReceptionView1` el StartupSensor lanza además 8 `MoveAction` (pájaros,
+avión y logo) que no cambian texturas.
 
 ### Celdas de un Rect: `Surface.addSubPolys` (gamma.dll `0x004206d0`)
 
@@ -393,8 +397,8 @@ C de Ghidra de esa función:
   alterna de bloque en bloque), y el polígono *i* lleva el material
   *i* mod *hRes·vRes*.
 
-Traducido en `net.freeworlds.world.MaterialTiles.rectCells`, con casos a
-mano en `client/test/net/freeworlds/world/MaterialTilesCheck.java`.
+En el puente: `NativeScene.addSubPolys`, con casos a mano en
+`bridge/test/SubPolysCheck.java`.
 
 ### Portales: estado, cruce y llegada, como el original (2026-09-22)
 
@@ -407,7 +411,7 @@ Corrige la sección de 2026-09-16 ("56 resuelven… 29 desconectados"):
   autoconectados (`WestPortal1AuditoriumHall`, `EastPortal2AuditoriumHall`,
   `EastPortalReflection`, flags `0x5`) no son bumpables y el original nunca
   los cruza; el visor antes sí (contaba 56).
-- **Los 31 que no cruzan, por causa** (`WorldViewer --list-portals`):
+- **Los 31 que no cruzan, por causa**:
   29 sin `farSideRoomName` (`reset()` los deja en −1: 14
   `WestPortalNNTrigger` de ReceptionView1 y 6 `EastPortal1Patch*Trigger`
   de Garden MazeC7b, invisibles y bumpables, que solo disparan acciones;
@@ -434,4 +438,3 @@ Corrige la sección de 2026-09-16 ("56 resuelven… 29 desconectados"):
   (típicamente 180°, mirando al portal del que se sale).
 - Comprobación: los 44 pares de ida y vuelta dan `p2p·p2p' = I` (error
   máximo 1.2e-4), lo que no pasaría con el signo de `getYaw` al revés.
-  Casos a mano en `client/test/net/freeworlds/world/PortalLinkCheck.java`.

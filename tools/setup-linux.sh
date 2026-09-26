@@ -3,17 +3,16 @@
 # la web, via .claude/hooks/session-start.sh) lista para desarrollar
 # FreeWorlds. Idempotente, se puede correr las veces que haga falta:
 #
-#   1. Paquetes del sistema (apt, si hay permisos): xvfb (clientes y checks
-#      AWT sin pantalla), patch (build_gamma.sh), zip (paquete portable),
+#   1. Paquetes del sistema (apt, si hay permisos): xvfb (cliente original y
+#      checks AWT sin pantalla), patch (build_gamma.sh), zip (paquete portable),
 #      fonts-liberation (metricas de Arial, las fuentes del cliente de 2004:
 #      NativeUiFonts) y, para capturar pantallas en pruebas, xdotool,
 #      imagemagick y x11-apps.
 #   2. JDK 17 o mas nuevo: el del sistema; si no hay, un Temurin 21 portable
 #      en tools/jdk (verificado por SHA-256, como setup-macos.sh).
-#   3. LWJGL con los natives de esta maquina en tools/lwjgl (fetch-lwjgl.sh).
-#   4. Arnes RWX contra three-rwx-loader: npm install en tools/rwx-harness.
-#   5. Compila client/ y el puente (editor/.build-gamma), para que
-#      tools/run-checks.sh y tools/verify-corpus.sh arranquen en caliente.
+#   3. Compila los lectores de formats/ y el puente (editor/.build-gamma),
+#      para que tools/run-checks.sh y tools/verify-corpus.sh arranquen en
+#      caliente.
 #
 # Uso: tools/setup-linux.sh [--quiet] [--no-build]
 set -euo pipefail
@@ -95,28 +94,15 @@ export JAVA_HOME="$JDK"
 export PATH="$JDK/bin:$PATH"
 say "JDK: $("$JDK/bin/java" -version 2>&1 | grep -v JAVA_TOOL | head -n 1)"
 
-# --- 3. LWJGL ---
-run bash "$ROOT/tools/fetch-lwjgl.sh" "$ROOT/tools/lwjgl"
-say "LWJGL en tools/lwjgl ($(ls "$ROOT/tools/lwjgl" | wc -l) jars)"
-
-# --- 4. arnes RWX (node) ---
-if command -v npm >/dev/null 2>&1; then
-   if [ ! -d "$ROOT/tools/rwx-harness/node_modules/three-rwx-loader" ]; then
-      (cd "$ROOT/tools/rwx-harness" && run npm install --no-audit --no-fund) || say "AVISO: npm install fallo (verify-corpus saltara la fila JS)"
-   fi
-else
-   say "sin npm: verify-corpus saltara la comparacion con three-rwx-loader"
-fi
-
-# --- 5. compilar ---
+# --- 3. compilar ---
 if [ "$BUILD" = 1 ]; then
-   mkdir -p "$ROOT/client/out"
-   find "$ROOT/client/src" -name '*.java' > "$ROOT/client/out/.sources"
-   "$JDK/bin/javac" -nowarn -encoding UTF-8 -cp "$ROOT/tools/lwjgl/*" -d "$ROOT/client/out" @"$ROOT/client/out/.sources" 2>&1 \
+   mkdir -p "$ROOT/formats/out"
+   find "$ROOT/formats/src" -name '*.java' > "$ROOT/formats/out/.sources"
+   "$JDK/bin/javac" -nowarn -encoding UTF-8 -d "$ROOT/formats/out" @"$ROOT/formats/out/.sources" 2>&1 \
       | grep -v '^Picked up JAVA_TOOL_OPTIONS' || true
-   rm -f "$ROOT/client/out/.sources"
-   [ -f "$ROOT/client/out/net/freeworlds/render/WorldViewer.class" ] || { say "ERROR: client/ no compila"; exit 3; }
+   rm -f "$ROOT/formats/out/.sources"
+   [ -f "$ROOT/formats/out/net/freeworlds/cmp/CmpFrames.class" ] || { say "ERROR: formats/ no compila"; exit 3; }
    run bash "$ROOT/editor/worldsplayer_source_editor-main/build_gamma.sh" || { say "ERROR: el puente no compila (editor/.build-gamma/javac.log)"; exit 3; }
-   say "client/out y editor/.build-gamma/out compilados"
+   say "formats/out y editor/.build-gamma/out compilados"
 fi
 say "listo: tools/run-checks.sh, tools/verify-corpus.sh, tools/build-dist.sh"

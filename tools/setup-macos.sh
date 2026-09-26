@@ -5,15 +5,10 @@
 #
 #   1. Comprueba python3 (lo traen las Command Line Tools).
 #   2. JDK 25 portable (Eclipse Temurin, tar.gz de api.adoptium.net) en
-#      tools/jdk/, verificado por SHA-256. run-game.sh e install-launcher.sh
-#      lo ponen por delante del PATH solos.
-#   3. LWJGL 3.4.3: jars comunes + natives de la arquitectura de este Mac
-#      (natives-macos en Intel, natives-macos-arm64 en Apple Silicon) en
-#      tools/lwjgl/, verificados contra el .sha1 de Maven Central.
-#   4. Compila client/src y corre la sonda WorldViewer --list-rooms.
-#
-# node no se instala: solo lo usa el harness RWX (tools/rwx-harness, ya
-# 118/118) y tools/node es binario Linux. No hace falta para jugar.
+#      tools/jdk/, verificado por SHA-256. build_gamma.sh, run_gamma.sh y los
+#      scripts de tools/ lo ponen por delante del PATH solos.
+#   3. Compila los lectores de formats/ y el cliente original con el puente
+#      (build_gamma.sh).
 #
 # Uso: tools/setup-macos.sh   (idempotente, se puede correr varias veces)
 set -u
@@ -23,12 +18,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 JDK_FEATURE=25
 JDK_DIR="$ROOT/tools/jdk"
 JDK_HOME="$JDK_DIR/Contents/Home"
-LWJGL_VER="3.4.3"
-LWJGL_DIR="$ROOT/tools/lwjgl"
 
 case "$(uname -m)" in
-   x86_64) ADOPT_ARCH="x64"; LWJGL_NATIVES="natives-macos";;
-   arm64) ADOPT_ARCH="aarch64"; LWJGL_NATIVES="natives-macos-arm64";;
+   x86_64) ADOPT_ARCH="x64";;
+   arm64) ADOPT_ARCH="aarch64";;
    *) echo "[setup] arquitectura no soportada: $(uname -m)"; exit 2;;
 esac
 
@@ -74,39 +67,16 @@ fi
 export JAVA_HOME="$JDK_HOME"
 export PATH="$JAVA_HOME/bin:$PATH"
 
-# --- 3. LWJGL ---
-mkdir -p "$LWJGL_DIR"
-BASE="https://repo1.maven.org/maven2/org/lwjgl"
-dl() { # dl url dest
-   local url="$1" dest="$2" want got
-   if [ -f "$dest" ]; then echo "[setup] ya existe: $(basename "$dest")"; return 0; fi
-   echo "[setup] descargando $(basename "$dest")..."
-   want="$(curl -fsSL "$url.sha1" | cut -c1-40)" \
-      || { echo "[setup] ERROR descargando $url.sha1"; exit 3; }
-   curl -fsSL -o "$dest.part" "$url" \
-      || { rm -f "$dest.part"; echo "[setup] ERROR descargando $url"; exit 3; }
-   got="$(shasum -a 1 "$dest.part" | cut -c1-40)"
-   if [ "$want" != "$got" ]; then
-      rm -f "$dest.part"; echo "[setup] ERROR: SHA-1 de $(basename "$dest") no coincide"; exit 3
-   fi
-   mv "$dest.part" "$dest"
-}
-for art in lwjgl lwjgl-glfw lwjgl-opengl; do
-   dl "$BASE/$art/$LWJGL_VER/$art-$LWJGL_VER.jar" "$LWJGL_DIR/$art-$LWJGL_VER.jar"
-   dl "$BASE/$art/$LWJGL_VER/$art-$LWJGL_VER-$LWJGL_NATIVES.jar" "$LWJGL_DIR/$art-$LWJGL_VER-$LWJGL_NATIVES.jar"
-done
-
-# --- 4. Compilar + sonda ---
-WORLD="$ROOT/assets/WorldsPlayer/GroundZero/groundzero.world"
-echo "[setup] compilando client/src..."
+# --- 3. Compilar ---
+echo "[setup] compilando formats/src..."
+mkdir -p "$ROOT/formats/out"
 # shellcheck disable=SC2046
-javac -cp "$LWJGL_DIR/*" -d "$ROOT/client/out" $(find "$ROOT/client/src" -name "*.java") \
+javac -nowarn -encoding UTF-8 -d "$ROOT/formats/out" $(find "$ROOT/formats/src" -name "*.java") \
    || { echo "[setup] ERROR de compilación"; exit 3; }
-echo "[setup] sonda WorldViewer --list-rooms..."
-java -XstartOnFirstThread -cp "$ROOT/client/out:$LWJGL_DIR/*" \
-   net.freeworlds.render.WorldViewer "$WORLD" --list-rooms \
-   || { echo "[setup] la sonda falló"; exit 3; }
+echo "[setup] compilando el cliente original con el puente (build_gamma.sh)..."
+bash "$ROOT/editor/worldsplayer_source_editor-main/build_gamma.sh" >/dev/null \
+   || { echo "[setup] el puente no compila (editor/.build-gamma/javac.log)"; exit 3; }
 
 echo ""
-echo "=== OK. Para jugar: tools/run-game.sh ==="
-echo "  (usa tools/jdk solo; GLFW en macOS exige -XstartOnFirstThread y run-game.sh ya lo pone)"
+echo "=== OK. Para jugar: tools/build-dist.sh y abre build/dist/FreeWorlds/FreeWorlds.command ==="
+echo "  (o el .zip de la CI; para diagnóstico: editor/worldsplayer_source_editor-main/run_gamma.sh)"

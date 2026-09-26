@@ -3935,3 +3935,52 @@ las diferencias que quedaban eran de dos motores a la vez:
   cámara del puente: z = 164 en vez de 204). El visor se apoya en los
   suelos visibles y en los muebles; copiarlo es una decisión de juego, no
   de dibujo.
+
+### 🟢 Un solo motor: fuera el motor nuevo (2026-09-26)
+
+El usuario preguntó por qué había dos motores ("eso yo no lo he pedido") y,
+tras la explicación, pidió quitar absolutamente todo el motor nuevo, lanzador
+incluido, y subirlo.
+
+**De dónde venían.** El motor nuevo (`client/`, parsers propios + LWJGL)
+empezó el 2026-09-09 (`fa5e52d`) por el objetivo 2 de CLAUDE.md; el puente
+del cliente original, el 2026-09-17 (`a79efdd`). La hoja de ruta del
+2026-09-22 (`76ff86f`, sección 1) dejó la elección A/B al usuario y nunca se
+cerró; en la sesión de empaquetado se siguió trabajando en los dos y el
+lanzador los ofrecía a la par ("Jugar" / "Explorar").
+
+**Quitado** (todo está en el historial de git hasta `8cd795d`):
+- De `client/`: el renderizador y los visores (`render/`), los lectores de
+  `.rwx`, `.world` y nombres de avatar (`rwx/`, `world/`, `avatar/`), su
+  animación y sus checks (`DriverLightCheck`, `AvatarAnimCheck`,
+  `MaterialTilesCheck`, `PortalLinkCheck`, `TextureActionsCheck`).
+- Del lanzador: "Explorar", las opciones 3-4 del menú de terminal
+  (explorar sala / elegir sala), `--viewer`, la sala de los ajustes y el
+  `freeworlds-client.jar` del paquete.
+- `tools/run-game.sh`, `install-launcher.sh`, `fetch-lwjgl.sh` y
+  `rwx-harness/`; LWJGL y node de la CI, de `build-dist.sh` y del
+  aprovisionamiento; `docs/render-pipeline-reference.md`,
+  `docs/rwx-parser-progress.md` y las 50 capturas del motor nuevo de
+  `docs/renders/` (queda la del original).
+
+**Movido, no quitado:** `bod/` (`.bod` y `.seq`), `rwg/` y `cmp/`
+(`.cmp`/`.mov`), con sus checks, a `formats/`: el puente los importa
+(`SeqParser`/`SeqSampler`, `BodParser`/`BodClump`, `RwgParser`, `CmpFrames`)
+y `build_gamma.sh` los compila con él. Mismos paquetes Java, así que el
+puente no cambia.
+
+**Consecuencias.** `verify-corpus.sh` pierde las filas RWX 118/118 (y la
+comparación con `three-rwx-loader`), `.world` 25/578/103 y avatares
+146/148, cuyos lectores solo usaba el motor nuevo; conserva `.seq` 231,
+`.bod` 51, `.cmp` 159 y `.mov` 52. Los documentos de formato siguen, con
+una nota donde citan código o capturas retiradas. `.gitignore` sigue
+ignorando `tools/lwjgl/`, `tools/node*/`, `tools/rwx-harness/`, `client/` y
+`logs/` para que un checkout antiguo (el Mac) no los suba: se pueden borrar
+a mano.
+
+**Verificado en el contenedor Linux:** `tools/setup-linux.sh` completo (904
+clases del puente + `formats/`); `run-checks.sh` 35/35 (4 + 31);
+`verify-corpus.sh` sin fallos; `build-dist.sh --app-image` sin LWJGL (zip
+portable de 5,8 MB); prueba de humo de la app de Linux: dibuja GroundZero
+con la cámara en (230,180,170); menú de terminal con 5 opciones,
+`--viewer` rechazado y la ventana solo con el cliente original.

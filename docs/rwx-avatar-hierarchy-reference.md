@@ -1,5 +1,12 @@
 # Jerarquía de joints en RWX (avatares articulados), reconstruida desde bytes reales
 
+> **2026-09-26:** el motor nuevo se quitó del repositorio y con él su
+> lector de `.rwx` en Java (`RwxJoint`, `RwxSkeletonParser`, `RwxViewer`...)
+> y las capturas de `docs/renders/`; lo que se cita abajo está en el
+> historial de git, hasta el commit `8cd795d`. El cliente original lee los
+> `.rwx` con el lector del puente (`bridge/NET/worlds/core/RwxReader.java`,
+> traducido de RWL21).
+
 ⚠️ **Esto es RWX (texto), no `.rwg`/`.bod`.** La búsqueda de esta sesión
 partió de la instrucción de avanzar en avatares multi-joint reales. Tras
 confirmar (ver `docs/rwg-bod-format-reference.md`) que ninguno de los 5

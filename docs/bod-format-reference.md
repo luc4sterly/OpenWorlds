@@ -19,7 +19,7 @@ failed with a TLS error before this was noticed). It contains
 `rwxtobod` tool, copyright 1995-1999, complete with a full inline
 specification of the `.bod` binary format in its header comments AND the
 actual encoder logic implementing it. **`docs/bod-format-reference.md`
-(this file) and `client/src/net/freeworlds/bod/BodParser.java` are a
+(this file) and `formats/src/net/freeworlds/bod/BodParser.java` are a
 direct, careful translation of that real encoder into its inverse (a
 decoder)** — not a guess, not inferred from bytes. Kept at
 `tools/gdk-sdk/RWXTOBOD.PL` for reference/attribution.
@@ -193,7 +193,7 @@ separate-material "hair" or "shoe" piece as a tag-0 child of `head`(4) or
 
 ## Verification
 
-`client/src/net/freeworlds/bod/BodExtractMain.java` parses a `.bod` and
+`formats/src/net/freeworlds/bod/BodExtractMain.java` parses a `.bod` and
 prints its full clump tree plus totals. Run against **all 26 real `.bod`
 files** in `assets/WorldsPlayer/cachedir/` (genuine avatar downloads from
 a live server in an earlier session, not synthetic) **plus 25 official
@@ -227,19 +227,19 @@ available.
 ## What's NOT done yet
 
 - ~~No visual rendering of a decoded `.bod` avatar yet~~ ✅ DONE
-  (2026-09-10): `client/src/net/freeworlds/render/BodViewer.java` renders
-  any `.bod` in bind pose through the existing fixed-function pipeline
-  (`GlLighting`'s real 2-light model, flat per-clump RGB, face normals,
-  both sides visible - see `docs/render-pipeline-reference.md` for the
-  per-decision rationale). Assembly follows the encoder's own rule
+  (2026-09-10) with the new engine's `BodViewer` (the new engine was
+  removed from the repository on 2026-09-26; it and the renders cited
+  here are in git history up to commit `8cd795d`). Today the original
+  client draws `.bod` bodies through the bridge (`NativeShapes.buildBod`,
+  same reader). Assembly follows the encoder's own rule
   (`RWXTOBOD.PL`: "Any transform value in a part is moved into a
   placeholder in the parent"): each part's world origin is its parent's
   origin plus the referencing placeholder's translation, starting at the
   single unreferenced part (pelvis(1) in every real file). Verified:
   51/51 real files assemble with 0 orphans / 0 bad indices, tina.bod's
   2350 placed triangles exactly equal its parsed triangle total, and
-  `docs/renders/bod_{tina,ogre,robed}_avatar.png` show coherent upright
-  humanoids (incl. an 8-part robed figure with no legs) from both corpora.
+  the renders of tina, ogre and robed showed coherent upright humanoids
+  (incl. an 8-part robed figure with no legs) from both corpora.
 - `RWXTOBOD.PL`'s `-unexplode`/`-swapYZ` options and the 3ds2rwx-specific
   scale/translation-doubling logic (see the script's own comments) were
   not needed for decoding (they're encode-time input-normalization

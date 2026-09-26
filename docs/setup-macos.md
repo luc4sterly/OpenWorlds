@@ -4,8 +4,8 @@ Guía para seguir el desarrollo de FreeWorlds en un Mac (Intel o Apple Silicon).
 El repo ya está subido a Codeberg: `git@codeberg.org:JoseAntonio/FreeWorlds.git`.
 
 **Sin Homebrew**: Homebrew ya no soporta Macs Intel, así que el setup no lo
-usa. Todo lo externo (JDK, LWJGL) se descarga portable dentro del repo, en
-directorios gitignored, sin `sudo`.
+usa. El JDK se descarga portable dentro del repo, en un directorio
+gitignored, sin `sudo`.
 
 ## 1. Clonar
 
@@ -30,87 +30,75 @@ Hace, en orden (idempotente):
 1. Comprueba `python3` (Command Line Tools).
 2. Descarga **JDK 25 Temurin** (tar.gz de `api.adoptium.net`, arquitectura
    del Mac) a `tools/jdk/`, verificando el SHA-256 que publica Adoptium.
-3. Descarga **LWJGL 3.4.3** (`lwjgl`, `lwjgl-glfw`, `lwjgl-opengl` + natives
-   de la arquitectura: `natives-macos` en Intel, `natives-macos-arm64` en
-   Apple Silicon) a `tools/lwjgl/`, verificando el `.sha1` de Maven Central.
-   Si el directorio viene de Linux con `natives-linux`, se quedan inertes.
-4. Compila `client/src` → `client/out/` y corre la sonda
-   `WorldViewer --list-rooms` como verificación.
-
-`node` no se instala: solo lo usa el harness RWX (`tools/rwx-harness`, ya
-118/118) y no hace falta para jugar.
+3. Compila los lectores de `formats/src` → `formats/out/` y el cliente
+   original con el puente (`build_gamma.sh` → `editor/.build-gamma/out`).
 
 ## 3. Jugar / desarrollar
 
+Para jugar, el paquete con el lanzador:
+
 ```bash
-tools/run-game.sh                  # ventana GroundZero (spawn real Reception)
-tools/run-game.sh LizCave --inside
-tools/run-game.sh Reception --screenshot /tmp/r.png   # batch sin ventana
-tools/run-game.sh --build          # recompila antes de lanzar
+tools/build-dist.sh                              # build/dist/FreeWorlds (+ .zip portable)
+open build/dist/FreeWorlds/FreeWorlds.command    # o doble clic en Finder
+tools/build-dist.sh --app-image                  # además FreeWorlds.app con su propio Java
 ```
 
-Herramientas de verificación (todas con el JDK de `tools/jdk`, y los
-visores con `-XstartOnFirstThread`):
+O el de cada push en GitHub (Artifacts de la CI; `FreeWorlds-<ver>-macOS-X64`
+en un Mac Intel).
+
+Para diagnóstico, el cliente original directo (admite `JAVA_OPTS`, ver
+`editor/worldsplayer_source_editor-main/bridge/README.md`):
 
 ```bash
+editor/worldsplayer_source_editor-main/run_gamma.sh home:GroundZero/groundzero.world
+```
+
+Verificación (todo con el JDK de `tools/jdk`):
+
+```bash
+tools/run-checks.sh      # los *Check de formats/test y bridge/test
+tools/verify-corpus.sh   # .seq 231, .bod 51, .cmp 159, .mov 52 y luego run-checks
+
 # .seq: parsea todo el corpus y resume version/joints/extras
-java -cp client/out net.freeworlds.bod.SeqExtractMain -q \
+java -cp formats/out net.freeworlds.bod.SeqExtractMain -q \
   assets/gammatutorial-samples/base-avatars/*.seq assets/WorldsPlayer/cachedir/*.seq
 
-# avatar .bod en la pose exacta de un instante de un .seq (T en unidades de key, 1/30 s)
-java -XstartOnFirstThread -cp "client/out:tools/lwjgl/*" net.freeworlds.render.BodViewer \
-  assets/gammatutorial-samples/base-avatars/aura.bod \
-  --seq assets/gammatutorial-samples/base-avatars/common_walk.seq --frame 21 \
-  --angle 90 --screenshot /tmp/walk21.png
-
-# .bod / .rwg / .world: resumen estructural
-java -cp client/out net.freeworlds.bod.BodExtractMain  assets/gammatutorial-samples/base-avatars/*.bod
-java -cp client/out net.freeworlds.rwg.RwgExtractMain  assets/gammatutorial-samples/cube.rwg
-java -cp "client/out:tools/lwjgl/*" net.freeworlds.world.WorldExtractMain \
-  assets/WorldsPlayer/GroundZero/groundzero.world
+# .bod / .rwg: resumen estructural
+java -cp formats/out net.freeworlds.bod.BodExtractMain  assets/gammatutorial-samples/base-avatars/*.bod
+java -cp formats/out net.freeworlds.rwg.RwgExtractMain  assets/gammatutorial-samples/cube.rwg
 ```
 
 Notas macOS:
 
-- **JDK portable**: `run-game.sh` e `install-launcher.sh` ponen
-  `tools/jdk/Contents/Home/bin` por delante del `PATH` si existe
+- **JDK portable**: `build_gamma.sh`, `run_gamma.sh` y los scripts de
+  `tools/` ponen `tools/jdk/Contents/Home/bin` por delante si existe
   (`/usr/bin/java` en macOS es un stub que falla sin JDK instalado).
-- **Sin X11/Xvfb**: en Mac, GLFW abre ventana nativa Cocoa. `run-game.sh`
-  detecta `Darwin` (`uname -s`) y salta todo el bloque Xvfb/`DISPLAY`; los
-  visores solo fuerzan el backend X11 de GLFW en Linux
-  (`GlUtil.forceX11OnLinux`).
-- **`-XstartOnFirstThread`**: obligatorio para GLFW en macOS; `run-game.sh`
-  ya lo añade solo en Darwin, no hace falta ponerlo a mano.
-- **`bring_to_front.py`** es X11-only y se omite en Mac (Cocoa trae su
-  ventana al frente sola).
-- `tools/install-launcher.sh` es Linux (`.desktop`); en Mac imprime el
-  comando equivalente y sigue con build+sonda.
+- **`bring_to_front.py`** es X11-only y no hace falta en Mac.
 - `tools/run-original.sh` (cliente 2004 bajo Wine) **no funciona en Mac
   modernos** (x86 Win32 + `gamma.dll`): Wine vanilla no corre eso en Apple
   Silicon. El script lo dice y sale con código 2 salvo `--force-macos` con
-  tu Wine (CrossOver/Whisky/Parallels) ya configurado. El camino principal
-  en Mac es `run-game.sh`.
+  tu Wine (CrossOver/Whisky/Parallels) ya configurado. En Mac se juega con
+  el lanzador (o `run_gamma.sh`): el mismo cliente con el puente portable,
+  sin Wine.
 
 ## 4. Qué NO se versiona (ya en `.gitignore`)
 
 | Ruta | Por qué |
 |---|---|
 | `tools/jdk/` | JDK portable por arquitectura |
-| `tools/lwjgl/` | natives por SO (linux vs macos) |
-| `tools/node/` | binario Linux ELF |
-| `tools/rwx-harness/node_modules/` | `npm install` local |
-| `client/out/`, `editor/.../out/`, `analysis/` | generados |
-| `logs/` | evidencia local de ejecución |
+| `formats/out/`, `editor/.build-gamma/`, `build/`, `analysis/` | generados |
 | `.DS_Store`, `._*`, etc. | ruido Finder/macOS |
+
+Siguen ignorados, por si quedan de antes del 2026-09-26, `tools/lwjgl/`,
+`tools/node*/`, `tools/rwx-harness/`, `client/` y `logs/`: son restos del
+motor nuevo, ya quitado, y se pueden borrar a mano.
 
 ## 5. Requisitos manuales (si no usas el script)
 
 - JDK 17+ (probado con 25): tar.gz de Temurin desde
   `https://adoptium.net/temurin/releases/` (macOS, x64 o aarch64),
   descomprimido en `tools/jdk/` (debe quedar `tools/jdk/Contents/Home/bin/java`)
-- LWJGL 3.4.3 (`lwjgl`, `lwjgl-glfw`, `lwjgl-opengl` + `natives-macos` en
-  Intel o `natives-macos-arm64` en Apple Silicon) desde Maven Central a
-  `tools/lwjgl/`
-- Compilar: `tools/jdk/Contents/Home/bin/javac -cp "tools/lwjgl/*" -d client/out $(find client/src -name "*.java")`
-- Lanzar: `tools/jdk/Contents/Home/bin/java -XstartOnFirstThread -cp "client/out:tools/lwjgl/*"
-  net.freeworlds.render.WorldViewer assets/WorldsPlayer/GroundZero/groundzero.world Reception --play`
+- Compilar: `bash editor/worldsplayer_source_editor-main/build_gamma.sh`
+  (usa `python3` y `patch`, que ya trae macOS)
+- Jugar: `editor/worldsplayer_source_editor-main/run_gamma.sh home:GroundZero/groundzero.world`,
+  o el paquete de `tools/build-dist.sh`

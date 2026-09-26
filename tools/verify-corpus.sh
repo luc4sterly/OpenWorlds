@@ -1,44 +1,30 @@
 #!/usr/bin/env bash
 # verify-corpus.sh — runner de regresion del hito H0 de docs/roadmap.md:
-# un solo comando que compila client/ (src + test) y vuelve a ejecutar,
+# un solo comando que compila formats/ (src + test) y vuelve a ejecutar,
 # contra el corpus real de assets/, los recuentos que CLAUDE.md da por ✅.
 # Si alguna cifra cambia, imprime la tabla con esperado/obtenido y sale con
 # codigo != 0 - es lo unico que hasta ahora se reejecutaba a mano en cada
 # auditoria (docs/worlds-chat-project.md, seccion "AUDITORIA", 2026-09-15).
 #
 # Que compara y de donde sale cada cifra (puntos de entrada reales, todos
-# en client/src salvo el marcado [client/test], nuevo de esta sesion):
-#   RWX 118/118      RwxExtractMain, 1 fichero por invocacion (igual que
-#                     tools/rwx-harness/compare.py). Corpus: union de
-#                     assets/GROUNDZERO/*.RWX (59) y
-#                     assets/WorldsPlayer/GroundZero/tex/*.rwx (59) - el
-#                     mismo conjunto que docs/rwx-parser-progress.md.
-#   .world 25/578/103 WorldExtractMain sobre
-#                     assets/WorldsPlayer/GroundZero/groundzero.world
-#                     ("Rooms:", "Total nodes...:", "Total shapes...:").
+# en formats/src salvo el marcado [formats/test]):
 #   .seq 231/231      SeqExtractMain -q sobre TODOS los .seq de
 #                     assets/WorldsPlayer/cachedir y
 #                     assets/gammatutorial-samples/base-avatars.
 #   .bod 51/51        BodExtractMain, mismos dos directorios, *.bod.
-#   .cmp 159/159      [client/test] CmpMovCorpusCheck (net.freeworlds.corpus):
+#   .cmp 159/159      [formats/test] CmpMovCorpusCheck (net.freeworlds.corpus):
 #   .mov 52/52        no existia ningun *Main que decodificara el corpus
 #                     agregado (CmpStage2 solo compara un fichero de
 #                     evidencia capturada a mano). Extrae tex/*.cmp y
 #                     tex/*.mov de assets/WorldsPlayer/GroundZero/content.zip
 #                     con java.util.zip (sin depender de `unzip`) y decodifica
-#                     cada uno con CmpTexture.loadRaw/loadMov, el camino real
-#                     del pipeline de materiales.
-#   avatares 146/148  AvatarNameMain --todos ("decodificados sin anomalias:").
+#                     cada uno con CmpTexture.loadRaw/loadMov, sobre CmpFrames,
+#                     el mismo decodificador que usa el puente.
 #
-# RWX contra three-rwx-loader (JS) necesita node; tools/node (historico) es
-# un ELF de Linux y no corre en este Mac. Desde 2026-09-23 hay un node
-# oficial darwin-x64 en tools/node-macos/ (gitignored, provisionar aparte y
-# enlazar en el worktree: ver COMUN.md) - si esta ahi (o hay node en PATH) y
-# tools/rwx-harness/node_modules existe, este script llama de verdad a
-# tools/rwx-harness/compare.py (con FREEWORLDS_NODE_BIN/FREEWORLDS_CLIENT_OUT,
-# variables anadidas a compare.py para esto - ver ese fichero) sobre los 118
-# .rwx y compara la geometria real, ya no solo "no lanza excepcion". Si
-# falta node o node_modules lo dice y SALTA esa fila (no la simula).
+# Las filas RWX 118/118 (y contra three-rwx-loader), .world 25/578/103 y
+# nombres de avatar 146/148 se quitaron el 2026-09-26 junto con el motor
+# nuevo: sus lectores solo los usaba el. Estan en el historial de git
+# (client/src hasta el commit 8cd795d).
 #
 # Uso:
 #   tools/verify-corpus.sh [--no-checks] [--no-bridge]
@@ -96,15 +82,15 @@ echo "root: $ROOT"
 echo "build temporal: $BUILD"
 echo
 
-echo "--- compilando client/src + client/test ---"
+echo "--- compilando formats/src + formats/test ---"
 SRC_LIST="$BUILD/sources.txt"
 : > "$SRC_LIST"
-find "$ROOT/client/src" -name "*.java" >> "$SRC_LIST"
-if [ -d "$ROOT/client/test" ]; then
-   find "$ROOT/client/test" -name "*.java" >> "$SRC_LIST"
+find "$ROOT/formats/src" -name "*.java" >> "$SRC_LIST"
+if [ -d "$ROOT/formats/test" ]; then
+   find "$ROOT/formats/test" -name "*.java" >> "$SRC_LIST"
 fi
 N_SRC=$(wc -l < "$SRC_LIST" | tr -d ' ')
-javac -cp "$ROOT/tools/lwjgl/*" -d "$BUILD" @"$SRC_LIST"
+javac -d "$BUILD" @"$SRC_LIST"
 echo "compilado OK: $N_SRC ficheros -> $BUILD"
 echo
 
@@ -128,95 +114,6 @@ capture() {
    CAP_RC=$?
    set -e
 }
-
-# ---------------------------------------------------------------------
-# RWX: 118/118 (lado Java)
-# ---------------------------------------------------------------------
-RWX_LIST="$BUILD/rwx-files.txt"
-find "$ROOT/assets/GROUNDZERO" "$ROOT/assets/WorldsPlayer/GroundZero/tex" -iname "*.rwx" 2>/dev/null | sort > "$RWX_LIST" || true
-RWX_TOTAL=$(wc -l < "$RWX_LIST" | tr -d ' ')
-RWX_OK=0
-if [ "$RWX_TOTAL" -gt 0 ]; then
-   while IFS= read -r f; do
-      capture java $JMEM -cp "$BUILD" net.freeworlds.rwx.RwxExtractMain "$f"
-      OUT="$(cat "$CAP")"
-      case "$OUT" in
-         *'"error"'*) echo "  RWX FALLO: $f"; head -c 300 "$CAP"; echo ;;
-         *) RWX_OK=$((RWX_OK + 1)) ;;
-      esac
-   done < "$RWX_LIST"
-fi
-if [ "$RWX_OK" -eq 118 ] && [ "$RWX_TOTAL" -eq 118 ]; then
-   row "RWX (Java)" "118/118" "$RWX_OK/$RWX_TOTAL" "OK"
-else
-   row "RWX (Java)" "118/118" "$RWX_OK/$RWX_TOTAL" "FALLO"
-fi
-
-# tools/rwx-harness/compare.py (mismo corpus RWX_LIST) corre el JS real
-# (three-rwx-loader via extract.mjs) contra RwxExtractMain y compara la
-# geometria - la unica comparacion independiente que tenemos para RWX (el
-# recuento OK/OK de arriba solo prueba que el lado Java no lanza excepcion,
-# no que el resultado sea correcto). Necesita: (a) un node que corra en
-# este Mac - tools/node es un ELF de Linux, de ahi que se comprueben
-# tools/node-macos/bin/node y el PATH primero - y (b)
-# tools/rwx-harness/node_modules (jsdom etc., gitignored: enlazar desde el
-# repo principal como tools/jdk/tools/lwjgl, ver COMUN.md). Si falta
-# cualquiera de las dos, se dice exactamente que falta y se SALTA - no se
-# fabrica un resultado.
-NODE_BIN=""
-if [ -x "$ROOT/tools/node-macos/bin/node" ]; then
-   NODE_BIN="$ROOT/tools/node-macos/bin/node"
-elif command -v node >/dev/null 2>&1; then
-   NODE_BIN="$(command -v node)"
-fi
-
-if [ -z "$NODE_BIN" ]; then
-   row "RWX vs three-rwx-loader (JS)" "118/118" "sin node usable" "SALTADO (no hay tools/node-macos/bin/node ni node en PATH - tools/node es ELF de Linux; no se simula)"
-elif [ ! -d "$ROOT/tools/rwx-harness/node_modules" ]; then
-   row "RWX vs three-rwx-loader (JS)" "118/118" "node OK ($NODE_BIN) pero falta tools/rwx-harness/node_modules" "SALTADO (enlaza node_modules desde el repo principal; no se simula)"
-else
-   echo "--- RWX vs three-rwx-loader (JS): $RWX_TOTAL ficheros, un proceso node + uno java cada uno (varios minutos) ---"
-   set +e
-   FREEWORLDS_NODE_BIN="$NODE_BIN" FREEWORLDS_CLIENT_OUT="$BUILD" \
-      python3 -u "$ROOT/tools/rwx-harness/compare.py" --files-from "$RWX_LIST" 2>&1 | tee "$CAP"
-   CMP_RC=$?
-   set -e
-   JS_OK=$(grep -c '^OK ' "$CAP" || true)
-   JS_DIFF=$(grep -c '^DIFERENCIAS' "$CAP" || true)
-   JS_FALLA=$(grep -c '^FALLA' "$CAP" || true)
-   JS_TOTAL=$((JS_OK + JS_DIFF + JS_FALLA))
-   DETALLE="$JS_OK OK / $JS_DIFF con diferencias / $JS_FALLA fallan (de $JS_TOTAL)"
-   if [ "$CMP_RC" -eq 0 ] && [ "$JS_OK" -eq 118 ] && [ "$JS_TOTAL" -eq 118 ]; then
-      row "RWX vs three-rwx-loader (JS)" "118/118" "$DETALLE" "OK"
-   else
-      row "RWX vs three-rwx-loader (JS)" "118/118" "$DETALLE" "FALLO"
-      echo "  detalle de lo que no fue OK (no se toca el parser: solo se informa):"
-      grep -E '^(DIFERENCIAS|FALLA)' "$CAP" || true
-   fi
-fi
-
-# ---------------------------------------------------------------------
-# .world: 25 salas / 578 nodos / 103 objetos
-# ---------------------------------------------------------------------
-WORLD_FILE="$ROOT/assets/WorldsPlayer/GroundZero/groundzero.world"
-if [ -f "$WORLD_FILE" ]; then
-   capture java $JMEM -cp "$BUILD" net.freeworlds.world.WorldExtractMain "$WORLD_FILE"
-   if [ "$CAP_RC" -eq 0 ]; then
-      ROOMS=$(grep -E '^Rooms: ' "$CAP" | sed -E 's/^Rooms: ([0-9]+).*/\1/' || echo "?")
-      NODES=$(grep -E '^Total nodes' "$CAP" | sed -E 's/.*: ([0-9]+)$/\1/' || echo "?")
-      SHAPES=$(grep -E '^Total shapes' "$CAP" | sed -E 's/.*: ([0-9]+)$/\1/' || echo "?")
-      if [ "$ROOMS" = "25" ] && [ "$NODES" = "578" ] && [ "$SHAPES" = "103" ]; then
-         row ".world (GroundZero)" "25 salas / 578 nodos / 103 obj" "$ROOMS salas / $NODES nodos / $SHAPES obj" "OK"
-      else
-         row ".world (GroundZero)" "25 salas / 578 nodos / 103 obj" "$ROOMS salas / $NODES nodos / $SHAPES obj" "FALLO"
-      fi
-   else
-      row ".world (GroundZero)" "25 salas / 578 nodos / 103 obj" "excepcion (ver arriba)" "FALLO"
-      cat "$CAP"
-   fi
-else
-   row ".world (GroundZero)" "25 salas / 578 nodos / 103 obj" "no existe $WORLD_FILE" "FALLO"
-fi
 
 # ---------------------------------------------------------------------
 # .seq: 231/231
@@ -288,25 +185,6 @@ else
 fi
 
 # ---------------------------------------------------------------------
-# Nombres de avatar: 146/148 limpios
-# ---------------------------------------------------------------------
-capture java $JMEM -cp "$BUILD" net.freeworlds.avatar.AvatarNameMain --todos
-if [ "$CAP_RC" -eq 0 ]; then
-   AV_LINE="$(grep -E '^decodificados sin anomalias:' "$CAP" || true)"
-   AV_OK="$(echo "$AV_LINE" | sed -E 's#^decodificados sin anomalias: ([0-9]+)/([0-9]+).*#\1#')"
-   AV_OF="$(echo "$AV_LINE" | sed -E 's#^decodificados sin anomalias: ([0-9]+)/([0-9]+).*#\2#')"
-   if [ "${AV_OK:-0}" = "146" ] && [ "${AV_OF:-0}" = "148" ]; then
-      row "Nombres de avatar" "146/148" "$AV_OK/$AV_OF" "OK"
-   else
-      row "Nombres de avatar" "146/148" "${AV_OK:-?}/${AV_OF:-?}" "FALLO"
-      cat "$CAP"
-   fi
-else
-   row "Nombres de avatar" "146/148" "excepcion (ver arriba)" "FALLO"
-   cat "$CAP"
-fi
-
-# ---------------------------------------------------------------------
 # Tabla final
 # ---------------------------------------------------------------------
 echo
@@ -330,9 +208,9 @@ if [ "$RUN_CHECKS" -eq 1 ]; then
    echo "--- run-checks.sh ---"
    set +e
    if [ "$PASS_NO_BRIDGE" -eq 1 ]; then
-      "$ROOT/tools/run-checks.sh" --no-bridge --client-build "$BUILD"
+      "$ROOT/tools/run-checks.sh" --no-bridge --formats-build "$BUILD"
    else
-      "$ROOT/tools/run-checks.sh" --client-build "$BUILD"
+      "$ROOT/tools/run-checks.sh" --formats-build "$BUILD"
    fi
    CHECKS_RC=$?
    set -e

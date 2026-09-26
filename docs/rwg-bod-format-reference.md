@@ -1,5 +1,11 @@
 # Referencia del formato RWG/BOD, reconstruida desde bytes reales
 
+> **2026-09-26:** el motor nuevo se quitó del repositorio. Sus visores
+> (`RwgViewer`, `BodViewer`) y las capturas de `docs/renders/` que se citan
+> abajo están en el historial de git, hasta el commit `8cd795d`.
+> `RwgParser` y el lector de `.bod` siguen en `formats/`, porque los usa el
+> puente del cliente original.
+
 ⚠️ **A diferencia de RWX, no existe ninguna biblioteca ni documentación
 externa que documente el formato binario exacto de `.rwg`/`.bod`** —
 confirmado con investigación real, no asumido (ver sección "Investigación
@@ -46,8 +52,8 @@ rellenado con suposiciones.
 > lector real, `RwReadStreamChunk` de `RWL21.DLL` (0x10039e40, leído en
 > ensamblador con `objdump`, el C de Ghidra de esa función está roto) y de
 > la parte de `gamma.dll` que abre el fichero. Implementado en
-> `client/src/net/freeworlds/rwg/RwgParser.java`, comprobado en
-> `client/test/net/freeworlds/rwg/RwgTablesCheck.java`. Ver la sección
+> `formats/src/net/freeworlds/rwg/RwgParser.java`, comprobado en
+> `formats/test/net/freeworlds/rwg/RwgTablesCheck.java`. Ver la sección
 > "Formato según el binario" justo debajo.
 
 ## Formato según el binario (RWL21 + gamma.dll)

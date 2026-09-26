@@ -3,15 +3,10 @@ FreeWorlds - Worlds Chat / WorldsPlayer (1995-2004), preservado
 
 Que es
 ------
-Dos formas de volver a entrar en GroundZero:
-
-  1. El CLIENTE ORIGINAL de 2004 (WorldsPlayer), decompilado, con el motor
-     RenderWare 2.1 y la DLL gamma.dll traducidos a Java (el "puente
-     portable"): la misma logica, la misma interfaz (menus Help, Options,
-     Teleport, mapa del universo...) y el mismo dibujo por software, sin
-     Windows ni Wine.
-  2. El MOTOR NUEVO de FreeWorlds (OpenGL): GroundZero en tercera persona
-     con tu avatar animado.
+El CLIENTE ORIGINAL de 2004 (WorldsPlayer), decompilado, con el motor
+RenderWare 2.1 y la DLL gamma.dll traducidos a Java (el "puente portable"):
+la misma logica, la misma interfaz (menus Help, Options, Teleport, mapa del
+universo...) y el mismo dibujo por software, sin Windows ni Wine.
 
 Como se arranca
 ---------------
@@ -28,9 +23,8 @@ Como se arranca
            FreeWorlds.command (macOS), FreeWorlds.bat (Windows),
            FreeWorlds.sh (Linux)
 
-Se abre un menu: elige "Jugar" (cliente original) o "Explorar" (motor
-nuevo). Sin pantalla, o con --tui, el menu sale en la terminal. Todas las
-opciones: FreeWorlds --help
+Se abre un menu: elige el mundo y pulsa "Jugar". Sin pantalla, o con
+--tui, el menu sale en la terminal. Todas las opciones: FreeWorlds --help
 
 Cliente original
 ----------------
@@ -47,10 +41,6 @@ Cliente original
        Linux:   ~/.local/share/freeworlds
   - Ventana grande = mas pixeles que dibujar por software: el puente usa
     varios hilos (opcion "Hilos de dibujo", 0 = automatico).
-
-Motor nuevo
------------
-  W/S andar, A/D de lado, flechas giran la camara, ESC sale.
 
 Problemas
 ---------

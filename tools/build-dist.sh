@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # build-dist.sh — compila y empaqueta FreeWorlds para jugar sin scripts de
 # arranque ni checkout: un lanzador con menu (net.freeworlds.launcher) que
-# arranca el cliente original de 2004 (con el puente portable) o el motor
-# nuevo, con los datos del juego dentro.
+# arranca el cliente original de 2004 (con el puente portable), con los datos
+# del juego dentro.
 #
 # Uso:
 #   tools/build-dist.sh                 build/dist/FreeWorlds + build/FreeWorlds-<ver>-portable.zip
@@ -63,28 +63,18 @@ LIB="$DIST/lib"
 
 if [ "$BUILD" = 1 ]; then
    rm -rf "$OUT/dist" "$OUT/classes"
-   mkdir -p "$LIB/lwjgl" "$OUT/classes/client" "$OUT/classes/launcher"
-
-   echo "[dist] LWJGL (natives de todas las plataformas)"
-   bash "$ROOT/tools/fetch-lwjgl.sh" "$OUT/lwjgl" all
-   cp "$OUT"/lwjgl/*.jar "$LIB/lwjgl/"
+   mkdir -p "$LIB" "$OUT/classes/launcher"
 
    echo "[dist] cliente original + puente (build_gamma.sh)"
    bash "$ROOT/editor/worldsplayer_source_editor-main/build_gamma.sh"
    printf 'Main-Class: NET.worlds.console.Gamma\nImplementation-Title: WorldsPlayer (FreeWorlds bridge)\nImplementation-Version: %s\n' "$VERSION" > "$OUT/manifest-gamma.txt"
    "$JDK/bin/jar" cfm "$LIB/worldsplayer.jar" "$OUT/manifest-gamma.txt" -C "$ROOT/editor/.build-gamma/out" .
 
-   echo "[dist] motor nuevo (client/src)"
-   find "$ROOT/client/src" -name '*.java' > "$OUT/client-sources.txt"
-   "$JDK/bin/javac" --release 17 -nowarn -encoding UTF-8 -cp "$LIB/lwjgl/*" -d "$OUT/classes/client" @"$OUT/client-sources.txt"
-   printf 'Main-Class: net.freeworlds.render.WorldViewer\nImplementation-Title: FreeWorlds client\nImplementation-Version: %s\n' "$VERSION" > "$OUT/manifest-client.txt"
-   "$JDK/bin/jar" cfm "$LIB/freeworlds-client.jar" "$OUT/manifest-client.txt" -C "$OUT/classes/client" .
-
    echo "[dist] lanzador"
    find "$ROOT/launcher/src" -name '*.java' > "$OUT/launcher-sources.txt"
-   "$JDK/bin/javac" --release 17 -nowarn -encoding UTF-8 -cp "$OUT/classes/client" -d "$OUT/classes/launcher" @"$OUT/launcher-sources.txt"
+   "$JDK/bin/javac" --release 17 -nowarn -encoding UTF-8 -d "$OUT/classes/launcher" @"$OUT/launcher-sources.txt"
    cp -R "$ROOT/launcher/resources/." "$OUT/classes/launcher/"
-   printf 'Main-Class: net.freeworlds.launcher.Launcher\nClass-Path: freeworlds-client.jar\nImplementation-Title: FreeWorlds\nImplementation-Version: %s\n' "$VERSION" > "$OUT/manifest-launcher.txt"
+   printf 'Main-Class: net.freeworlds.launcher.Launcher\nImplementation-Title: FreeWorlds\nImplementation-Version: %s\n' "$VERSION" > "$OUT/manifest-launcher.txt"
    "$JDK/bin/jar" cfm "$LIB/freeworlds-launcher.jar" "$OUT/manifest-launcher.txt" -C "$OUT/classes/launcher" .
 
    echo "[dist] datos del juego"
@@ -145,23 +135,8 @@ if [ "$APP_IMAGE" = 1 ]; then
    echo "[dist] app nativa $OS-$ARCH"
    STAGE="$OUT/jpackage-input"
    rm -rf "$STAGE" "$OUT/runtime" "$OUT/app"
-   mkdir -p "$STAGE/lwjgl"
+   mkdir -p "$STAGE"
    cp "$LIB"/*.jar "$STAGE/"
-   # solo los natives de este sistema (el portable los lleva todos)
-   case "$OS-$ARCH" in
-      linux-x64) KEEP="natives-linux.jar";;
-      linux-arm64) KEEP="natives-linux-arm64.jar";;
-      macos-x64) KEEP="natives-macos.jar";;
-      macos-arm64) KEEP="natives-macos-arm64.jar";;
-      windows-*) KEEP="natives-windows.jar";;
-      *) KEEP="natives-";;
-   esac
-   for j in "$LIB"/lwjgl/*.jar; do
-      case "$(basename "$j")" in
-         *natives-*) case "$(basename "$j")" in *"$KEEP") cp "$j" "$STAGE/lwjgl/";; esac;;
-         *) cp "$j" "$STAGE/lwjgl/";;
-      esac
-   done
    cp -R "$DIST/game" "$STAGE/game"
 
    # Java propio: jlink SIN --strip-native-commands (el lanzador arranca

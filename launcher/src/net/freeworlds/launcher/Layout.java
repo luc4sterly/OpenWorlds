@@ -22,8 +22,8 @@ import java.util.Locale;
  *
  * {@code game/} mirrors the repo's {@code assets/}: {@code assets/WorldsPlayer}
  * (the 2004 install, read-only template) and
- * {@code assets/gammatutorial-samples/base-avatars} (the viewer looks for it
- * at {@code <world dir>/../../assets/gammatutorial-samples/base-avatars}).
+ * {@code assets/gammatutorial-samples/base-avatars} (served by the local
+ * upgrade server under /3DCDup/avatar/, see UpgradeServer).
  * -Dfreeworlds.game=DIR (a directory with {@code assets/} inside) and
  * -Dfreeworlds.data=DIR override the lookups.
  */
@@ -115,29 +115,11 @@ final class Layout {
       return new File(libDir, name);
    }
 
-   /** The LWJGL jars (all platforms' natives are fine on the class path: LWJGL picks its own). */
-   String lwjglClassPath() {
-      File dir = new File(libDir, "lwjgl");
-      List<String> out = new ArrayList<>();
-      File[] jars = dir.listFiles((d, n) -> n.endsWith(".jar"));
-      if (jars != null) {
-         java.util.Arrays.sort(jars);
-         for (File j : jars) {
-            out.add(j.getPath());
-         }
-      }
-      return String.join(File.pathSeparator, out);
-   }
-
    /** The java launcher of the running runtime (jpackage images keep bin/java, see build-dist.sh). */
    static String javaExecutable() {
       File home = new File(System.getProperty("java.home"));
       File exe = new File(home, isWindows() ? "bin/java.exe" : "bin/java");
       return exe.isFile() ? exe.getPath() : "java";
-   }
-
-   File groundZeroWorld() {
-      return new File(template, "GroundZero/groundzero.world");
    }
 
    static String version() {

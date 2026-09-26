@@ -6,17 +6,15 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 /**
  * FreeWorlds: one entry point for the packaged build (replaces
- * run_gamma.sh, run-game.sh and tools/local-upgrade-server.py).
+ * run_gamma.sh and tools/local-upgrade-server.py).
  *
  * <pre>
  *   FreeWorlds                      window with the menu (terminal menu if there is no display)
  *   FreeWorlds --tui                terminal menu
  *   FreeWorlds --original [URL]     the 2004 client straight away (URL: home:GroundZero/groundzero.world...)
- *   FreeWorlds --viewer [ROOM]      the new engine straight away
  *   FreeWorlds --server HOST:PORT --user NAME   world server for --original (e.g. a local whirl)
  *   FreeWorlds --offline            no world server (single-user)
  *   FreeWorlds --threads N --fps    raster threads of the bridge / frame rate in the log
@@ -46,8 +44,7 @@ public final class Launcher {
          String next = i + 1 < args.length && !args[i + 1].startsWith("--") ? args[i + 1] : null;
          switch (a) {
             case "--original":
-            case "--viewer":
-               mode = a.substring(2);
+               mode = "original";
                if (next != null) {
                   modeArg = next;
                   i++;
@@ -121,13 +118,7 @@ public final class Launcher {
             if (modeArg != null) {
                settings.world = modeArg;
             }
-            System.exit(smoke > 0 ? smoke(layout, settings, smoke) : run(layout, settings, Session.Kind.ORIGINAL, true));
-            break;
-         case "viewer":
-            if (modeArg != null) {
-               settings.room = modeArg;
-            }
-            System.exit(run(layout, settings, Session.Kind.VIEWER, true));
+            System.exit(smoke > 0 ? smoke(layout, settings, smoke) : run(layout, settings, true));
             break;
          case "tui":
             new TextMenu(layout, settings).run();
@@ -142,8 +133,8 @@ public final class Launcher {
    }
 
    /** Runs one session in the foreground, echoing its log on this terminal. */
-   static int run(Layout layout, Settings settings, Session.Kind kind, boolean echo) throws IOException, InterruptedException {
-      Session s = new Session(layout, settings, kind);
+   static int run(Layout layout, Settings settings, boolean echo) throws IOException, InterruptedException {
+      Session s = new Session(layout, settings);
       if (echo) {
          s.log.listen(System.out::println);
       }
@@ -159,7 +150,7 @@ public final class Launcher {
     * within the given time; then it is stopped.
     */
    static int smoke(Layout layout, Settings settings, int seconds) throws IOException, InterruptedException {
-      Session s = new Session(layout, settings, Session.Kind.ORIGINAL);
+      Session s = new Session(layout, settings);
       final boolean[] drew = {false};
       final boolean[] fps = {false};
       s.log.listen(line -> {
@@ -198,7 +189,6 @@ public final class Launcher {
          + "  (sin argumentos)          ventana con el menu (menu de terminal si no hay pantalla)\n"
          + "  --tui                     menu de terminal\n"
          + "  --original [URL]          cliente original de 2004 (URL home:GroundZero/groundzero.world, vacio = login)\n"
-         + "  --viewer [SALA]           motor nuevo en modo juego (Reception por defecto)\n"
          + "  --server HOST:PUERTO      servidor de mundos (p. ej. un whirl local 127.0.0.1:6650)\n"
          + "  --user NOMBRE             usuario para ese servidor\n"
          + "  --offline                 sin servidor (un jugador)\n"
@@ -220,19 +210,6 @@ public final class Launcher {
       System.exit(1);
    }
 
-   /** Rooms of GroundZero for the viewer (sorted), read with the client's own WorldRestorer. */
-   static List<String> rooms(Layout l) {
-      try {
-         byte[] data = java.nio.file.Files.readAllBytes(l.groundZeroWorld().toPath());
-         net.freeworlds.world.WNode world = net.freeworlds.world.WorldRestorer.parse(data);
-         List<String> names = new java.util.ArrayList<>(world.roomsByName.keySet());
-         java.util.Collections.sort(names);
-         return names;
-      } catch (Throwable e) {
-         return java.util.Collections.singletonList("Reception");
-      }
-   }
-
    /** Terminal menu, for machines without a display or when asked with --tui. */
    static final class TextMenu {
       private final Layout layout;
@@ -250,13 +227,11 @@ public final class Launcher {
             System.out.println("=== FreeWorlds " + Layout.version() + " ===");
             System.out.println(" 1) Jugar: cliente original de 2004 (" + describeWorld(settings.world) + ")");
             System.out.println(" 2) Jugar: cliente original desde la pantalla de login");
-            System.out.println(" 3) Motor nuevo: explorar la sala " + settings.room);
-            System.out.println(" 4) Elegir sala del motor nuevo");
-            System.out.println(" 5) Servidor de mundos: " + (settings.server.isEmpty() ? "sin conexion (un jugador)" : settings.server
+            System.out.println(" 3) Servidor de mundos: " + (settings.server.isEmpty() ? "sin conexion (un jugador)" : settings.server
                + (settings.user.isEmpty() ? "" : " como " + settings.user)));
-            System.out.println(" 6) Opciones: hilos de dibujo " + (settings.rasterThreads == 0 ? "auto" : settings.rasterThreads)
+            System.out.println(" 4) Opciones: hilos de dibujo " + (settings.rasterThreads == 0 ? "auto" : settings.rasterThreads)
                + ", fps en el registro " + (settings.showFps ? "si" : "no"));
-            System.out.println(" 7) Rutas (datos, registros)");
+            System.out.println(" 5) Rutas (datos, registros)");
             System.out.println(" 0) Salir");
             String c = ask("Opcion");
             if (c == null || c.equals("0") || c.equalsIgnoreCase("q")) {
@@ -271,19 +246,12 @@ public final class Launcher {
                   play("");
                   break;
                case "3":
-                  settings.save(layout.settingsFile);
-                  Launcher.run(layout, settings, Session.Kind.VIEWER, true);
-                  break;
-               case "4":
-                  chooseRoom();
-                  break;
-               case "5":
                   chooseServer();
                   break;
-               case "6":
+               case "4":
                   options();
                   break;
-               case "7":
+               case "5":
                   printPaths(layout);
                   break;
                default:
@@ -296,32 +264,8 @@ public final class Launcher {
          String keep = settings.world;
          settings.world = world;
          settings.save(layout.settingsFile);
-         Launcher.run(layout, settings, Session.Kind.ORIGINAL, true);
+         Launcher.run(layout, settings, true);
          settings.world = keep.isEmpty() ? world : keep;
-      }
-
-      private void chooseRoom() throws IOException {
-         List<String> rooms = rooms(layout);
-         for (int i = 0; i < rooms.size(); i++) {
-            System.out.println(String.format(" %2d) %s", i + 1, rooms.get(i)));
-         }
-         String c = ask("Sala (numero o nombre, Intro = " + settings.room + ")");
-         if (c == null || c.isEmpty()) {
-            return;
-         }
-         try {
-            int n = Integer.parseInt(c);
-            if (n >= 1 && n <= rooms.size()) {
-               settings.room = rooms.get(n - 1);
-            }
-         } catch (NumberFormatException e) {
-            if (rooms.contains(c)) {
-               settings.room = c;
-            } else {
-               System.out.println("No existe la sala " + c);
-            }
-         }
-         settings.save(layout.settingsFile);
       }
 
       private void chooseServer() throws IOException {

@@ -51,8 +51,9 @@ honestly, never silently skipped).
 install archive) has 159 real `.cmp` files under `tex/*.cmp`. This report
 covers **all 159**, which includes (as a strict subset) the **47 unique
 texture names the real `GroundZero.world` scene actually references**
-(measured by `WorldViewer`'s own material resolution - see
-`docs/render-pipeline-reference.md` - not a static grep of every `.rwx` file
+(measured by the new engine's material resolution in `WorldViewer`, removed
+with that engine on 2026-09-26 and kept in git history up to `8cd795d` -
+not a static grep of every `.rwx` file
 in the directory, which counts models never placed in the scene). All 47 are
 present and were ground-truthed successfully in this run - see the table
 below for the current per-file decode status of each.

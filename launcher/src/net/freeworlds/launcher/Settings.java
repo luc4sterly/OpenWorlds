@@ -15,8 +15,6 @@ final class Settings {
    /** host:port of a world server, empty = no server (single-user). */
    String server = "";
    String user = "";
-   /** Room of the new engine's viewer. */
-   String room = "Reception";
    /** 0 = automatic. */
    int rasterThreads = 0;
    boolean showFps = false;
@@ -36,7 +34,6 @@ final class Settings {
       s.world = p.getProperty("world", s.world);
       s.server = p.getProperty("server", s.server);
       s.user = p.getProperty("user", s.user);
-      s.room = p.getProperty("room", s.room);
       try {
          s.rasterThreads = Integer.parseInt(p.getProperty("rasterThreads", "0"));
       } catch (NumberFormatException e) {
@@ -52,7 +49,6 @@ final class Settings {
       p.setProperty("world", world);
       p.setProperty("server", server);
       p.setProperty("user", user);
-      p.setProperty("room", room);
       p.setProperty("rasterThreads", Integer.toString(rasterThreads));
       p.setProperty("showFps", Boolean.toString(showFps));
       p.setProperty("keepGammaLog", Boolean.toString(keepGammaLog));

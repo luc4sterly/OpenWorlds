@@ -422,7 +422,10 @@ Xvfb/`import` (window at fixed coords, 1:1 pixels).
   failures were a false pairing by filename, not a decoder problem.
   (`test4b.bmp`↔`test4b.cmp` is genuine self-made ground truth.)
 
-**Pipeline connection (this round's close-out criterion)**:
+**Pipeline connection (this round's close-out criterion)** (the Java
+package now lives in `formats/src/net/freeworlds/cmp/`; `RwxParser`,
+`RwxModel` and `RwxViewer` were removed with the new engine on 2026-09-26
+and remain in git history):
 `client/src/net/freeworlds/cmp/` (`CmpStage2` port of this directory's
 verified decoder + `CmpTexture` loader), `assets/cmp-verified/sball/`
 (`.cmp` + 5 Stage-2 streams trimmed to exact verified consumption —
