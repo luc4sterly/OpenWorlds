@@ -132,6 +132,9 @@ fallos y `run-checks.sh` 38/38.
 | Motor nuevo: luz | ✅ | `DriverLight`: la del driver traducida en el puente (dos luces por sala en el espacio de cada objeto, `I = 31 amb + Σ 31 lc (dif d + spec S(d))`, rampa que por encima de 0,75 aclara hacia blanco; texturas auto-iluminadas tal cual). Antes: luces de GL pegadas a la cámara y nunca por encima del color → mucho más oscuro. Columna de color de Reception igual al puente a ±15/255 (casi todo a ±6) |
 | Motor nuevo: superficies | ✅ | UVs de `Rect.addRwChildren` (97 paredes desplazadas), celdas de `addSubPolys` con espejado, `RectPatch` de 4 triángulos, vallas `Billboard` (`adworlds.cmp` en cada celda), texturas `ScapePicTexture`, portales a 11 niveles |
 | Puente: matrices | ✅ | producto afín como RWL21 (0x1005118c): lo que cuelga de un `WObject` contenedor caía en el origen (soporte del Auditorium, puerta en iris) |
+| Puente: material `.bod` | ✅ | gamma.dll FUN_0041d950: `RwSetMaterialSurface(0.32, 0.55, 0)` + liso; era (0.75, 0, 0) facetado y las estatuas salían planas |
+| Motor nuevo: avatares | ✅ | luz por vértice por parte (como `RwCalculateClumpVertexNormal`), material del binario y `colorTable[3]` (naranja) para el vestuario perdido, como `PosableShape.scanTexture` |
+| Barrido de las 25 salas | ✅ | puente y visor con la misma pose en cada sala (`#Sala@x,y,z,…`): Reception 0,14 de RMSE; las diferencias que quedan son el avatar del piloto, la cámara en salas pequeñas y la altura del suelo (abajo) |
 | Paquete | ✅ | `launcher/` (ventana, menú de terminal `--tui`, CLI) + `tools/build-dist.sh`: portable (.zip, Java 17+) y app con Java incluido (jlink + jpackage). Copia de la instalación en la carpeta de datos del usuario; servidor de actualización local en Java |
 | CI | ✅ | cada push: checks, corpus, apps de Linux, macOS Intel, macOS Apple Silicon y Windows, y en cada una la prueba de humo del original empaquetado (tiene que dibujar; obligatoria). Ejecución #5: GroundZero en los cuatro con la cámara en (230,180,170), 62 fps en ARM y 102 en Windows; con un tag `v*`, release |
 | Aprovisionamiento | ✅ | `tools/setup-linux.sh` (idempotente) y el hook `SessionStart` de la web |
@@ -142,9 +145,10 @@ Lo nuevo que queda:
   2004. Solo está en tu Mac: `git add -f assets/WorldsPlayer/cachedir/cache.index`.
 - Probar las apps a mano en máquinas reales (Gatekeeper con firma ad hoc,
   SmartScreen en Windows): la CI solo prueba que arrancan y dibujan.
-- Motor nuevo: portales espejo, la rampa de iluminación del driver (se ve
-  más oscuro que el original) y el avatar del piloto (el original usa el de
-  `worlds.ini`).
+- Motor nuevo: portales espejo, `MoveAction` (puertas) y el avatar del
+  piloto. Decidir si se copia la altura de suelo del original
+  (`Room.floorHeight`: solo `RectPatch`, 0 si no hay; en la galería el
+  piloto va hundido 40) o se mantiene la del visor.
 
 ## 2. Hitos
 

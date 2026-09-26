@@ -3912,3 +3912,26 @@ se compararon capturas columna a columna y con mapas de diferencias:
 40/40; `verify-corpus` sin fallos. Pendiente en el motor nuevo: espejos,
 `MoveAction` (la puerta en iris se abre al cruzar el portal de Reception) y
 la luz por vértice de los avatares.
+
+**Tercera parte — barrido de las 25 salas.** Con el mismo método (pose del
+visor dentro de la sala pasada al original por URL, `#Sala@x,y,z,giro,0,0,-1`),
+las diferencias que quedaban eran de dos motores a la vez:
+
+- **Puente, material de las partes `.bod`.** gamma.dll FUN_0041d950 hace
+  `RwSetMaterialSurface(mat, 0.32, 0.55, 0.0)` (floats de `DAT_00470ac4`,
+  `DAT_00470ac0` y `DAT_00470abc` leídos del `.data`) y `FUN_00417a10`
+  (luz por vértice); el puente tenía (0.75, 0, 0) facetado y las estatuas
+  salían planas.
+- **Motor nuevo, avatares.** Luz por vértice por parte, como
+  `RwCalculateClumpVertexNormal`; el mismo material; y el vestuario perdido
+  (`cmalea*`, `mfa`…) en `colorTable[3]` = (255, 102, 51), que es el color
+  con que `PosableShape.scanTexture` crea el material antes de intentar la
+  textura. Por eso las estatuas de la galería salen naranjas en el
+  original, y ahora también en el visor.
+- **Encontrado, sin cambiar:** `Room.floorHeight` del original solo usa
+  los `RectPatch` del contenido de la sala y devuelve 0 si no hay. En las
+  salas de la galería el suelo visible está a 40 y no hay `RectPatch`, así
+  que el piloto del original anda hundido 40 (se ve en la altura de la
+  cámara del puente: z = 164 en vez de 204). El visor se apoya en los
+  suelos visibles y en los muebles; copiarlo es una decisión de juego, no
+  de dibujo.

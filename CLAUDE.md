@@ -82,7 +82,7 @@ real siempre fue `assets/worlds.jar` (ex `GAMMACLS.ZIP`).
 | Lenguaje de nombre de avatar | ✅ Completo | 146/148 avatares limpios; **corpus de vestuario mayormente perdido** (solo 14/210 texturas y 25/141 `.bod` sobreviven localmente — no recuperable sin el asset original) |
 | Animación (DroneAnimator) | ✅ Regla cerrada | 16+2 nativos traducidos (walk/wait/endwait, sincronía con la distancia, mezclas de 250 ms y de gestos); en el puente y en el cliente propio (`WorldViewer --play`). Sin ver aún un avatar animarse en el original: las estatuas de GroundZero giran |
 | Renderizador propio (Java + LWJGL) | 🟢 ~97% | **luz del driver del original** (`DriverLight`: dos luces por sala en el espacio de cada objeto, rampa hacia blanco, texturas auto-iluminadas tal cual; mismas columnas de color que el puente), UVs y celdas de `Rect` como `Rect.addRwChildren`/`addSubPolys`, `RectPatch` de 4 triángulos, vallas (`Billboard`) con `adworlds.cmp`; portales 53/87 como el original (`_p2pxform` 0x0041b170 + `getYaw` 0x00425440) y **salas vistas a través de ellos hasta 11 niveles** (espejos aún no); `Rect` de una cara como el driver; spawn y cámara BEHIND (140, −10°, con colisión); menú de pausa (ESC), HUD y viaje entre salas; texturas y avatares animados. Reception, AvatarEnter y Auditorium coinciden con el puente salvo el avatar |
-| Cliente original bajo puente portable (macOS, Linux; Windows en CI) | 🟢 dibuja y se usa | GroundZero con el rasterizador del driver RWDL6D21, **por franjas en varios hilos e idéntico al píxel** (`RasterGoldenCheck`; 1172×848: 25 → ~53 fps); producto de matrices afín como RWL21 (antes lo que cuelga de un `WObject` caía en el origen de la sala); menús de la ventana visibles (rutas `u:/` resueltas por `HostPath`), fuentes con métricas de Arial como el JRE de 2004, sin bloqueo al arrancar (time.worlds.net); UI, sonido, sistema y COM traducidos; chat con Intro. Falta el BSP de escena (documentado en ASM) |
+| Cliente original bajo puente portable (macOS, Linux; Windows en CI) | 🟢 dibuja y se usa | GroundZero con el rasterizador del driver RWDL6D21, **por franjas en varios hilos e idéntico al píxel** (`RasterGoldenCheck`; 1172×848: 25 → ~53 fps); producto de matrices afín como RWL21 (antes lo que cuelga de un `WObject` caía en el origen de la sala) y material de las partes `.bod` del binario (0.32/0.55/0, liso: las estatuas ya tienen sombreado); menús de la ventana visibles (rutas `u:/` resueltas por `HostPath`), fuentes con métricas de Arial como el JRE de 2004, sin bloqueo al arrancar (time.worlds.net); UI, sonido, sistema y COM traducidos; chat con Intro. Falta el BSP de escena (documentado en ASM) |
 | Red / protocolo | 🟢 ~75% | guest real contra `worlds.worlio.com`; en local contra `server/whirl`: login, misma sala y chat entre dos clientes originales. No se ven (whirl no manda APPRACTR). Falta una cuenta registrada para el primario |
 | UI (chat, amigos, mapa, menús) | 🟢 en el original | la UI AWT de 2004 corre bajo el puente (panel Help/Options/Teleport/Actions/VIP, amigos, chat, mapa del universo, menú contextual, cursores); 🟡 en el cliente propio: menú de pausa y HUD, sin chat/amigos |
 | Paquete y CI | ✅ | `tools/build-dist.sh`: portable (.zip, Java 17+) y app con su Java (jlink + jpackage) para macOS Intel/ARM, Windows y Linux; lanzador con ventana, menú de terminal y CLI. `.github/workflows/build.yml` lo hace en cada push |
@@ -222,9 +222,12 @@ Por orden de lo que desbloquean (detalle en `docs/roadmap.md`):
    mapa): sin empezar. En el motor propio faltan además los portales
    espejo (flags bit 2), las `MoveAction` (p. ej. la puerta en iris que
    abre el `BumpSensor` de Reception; hoy se queda cerrada, como la guarda
-   el mundo), la luz por vértice de los avatares (van por cara) y el
-   avatar por defecto del piloto (el original usa el de `worlds.ini`, el
-   visor `aura`).
+   el mundo) y el avatar del piloto (el original, el de la sesión; el
+   visor `aura`). **Decisión abierta:** la altura del suelo. En el
+   original `Room.floorHeight` solo usa los `RectPatch` (`FloorPatch`) del
+   contenido de la sala y si no hay da 0: en la galería (suelo visible a
+   40, sin `RectPatch`) el piloto anda hundido 40. El visor se apoya en los
+   suelos visibles y en los muebles.
 7. Probar las apps de la CI en máquinas reales: la de macOS está firmada ad
    hoc (Gatekeeper: "Abrir igualmente" o `xattr -dr com.apple.quarantine`).
    En la CI el original empaquetado ya dibuja GroundZero en los cuatro
