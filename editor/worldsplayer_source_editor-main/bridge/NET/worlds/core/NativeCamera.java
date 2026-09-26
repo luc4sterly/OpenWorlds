@@ -41,6 +41,10 @@ public final class NativeCamera {
       public int data;
       int handle;
 
+      /** What show() blits: the raster converted to 0xRRGGBB (see SCREEN_RGB). */
+      BufferedImage screen;
+      int[] screenPixels;
+
       Cam(int w, int h) {
          this.width = w;
          this.height = h;
@@ -49,6 +53,39 @@ public final class NativeCamera {
          this.vpW = w;
          this.vpH = h;
       }
+
+      /** The raster as 0xRRGGBB, for drawing to the screen. */
+      BufferedImage screenImage() {
+         if (this.screen == null) {
+            this.screen = new BufferedImage(this.width, this.height, BufferedImage.TYPE_INT_RGB);
+            this.screenPixels = ((java.awt.image.DataBufferInt) this.screen.getRaster().getDataBuffer()).getData();
+         }
+         short[] src = this.raster;
+         int[] dst = this.screenPixels;
+         int[] lut = SCREEN_RGB;
+         for (int i = 0; i < src.length; i++) {
+            dst[i] = lut[src[i] & 0xFFFF];
+         }
+         return this.screen;
+      }
+   }
+
+   /**
+    * 5-6-5 to 0xRRGGBB exactly as Java2D converts a TYPE_USHORT_565_RGB
+    * image when it draws one (its ColorModel.getRGB): drawing the 565 image
+    * directly went through the generic per-pixel blit loop
+    * (MaskBlit$General on X11), the slowest part of a frame in a big
+    * window. Same colours on screen, one table lookup per pixel.
+    */
+   private static final int[] SCREEN_RGB = screenTable();
+
+   private static int[] screenTable() {
+      java.awt.image.ColorModel cm = new BufferedImage(1, 1, BufferedImage.TYPE_USHORT_565_RGB).getColorModel();
+      int[] t = new int[65536];
+      for (int i = 0; i < t.length; i++) {
+         t[i] = cm.getRGB(i) & 0xFFFFFF;
+      }
+      return t;
    }
 
    public static Cam cam(int h) {
@@ -145,11 +182,12 @@ public final class NativeCamera {
             System.err.println("[RW] sin BufferStrategy en " + c.width + "x" + c.height + ": se pinta con getGraphics()");
          }
          if (bs != null) {
+            BufferedImage img = c.screenImage();
             do {
                do {
                   Graphics bg = bs.getDrawGraphics();
                   try {
-                     bg.drawImage(c.image, 0, 0, null);
+                     bg.drawImage(img, 0, 0, null);
                   } finally {
                      bg.dispose();
                   }
@@ -162,7 +200,7 @@ public final class NativeCamera {
       Graphics g = comp.getGraphics();
       if (g != null) {
          try {
-            g.drawImage(c.image, 0, 0, null);
+            g.drawImage(c.screenImage(), 0, 0, null);
          } finally {
             g.dispose();
          }
@@ -876,7 +914,9 @@ public final class NativeCamera {
          p.matPixels = new java.util.HashMap<String, int[]>();
       }
       probeHit = null;
+      TRIS.clear();
       drawScene(p, scene);
+      rasterize(p);
       matStats(p, scene);
       if (probeHit != null) {
          long sec = (System.nanoTime() - DUMP_T0) / 1000000000L;
@@ -1088,13 +1128,17 @@ public final class NativeCamera {
             a[9] = wv[vi * 3 + 1];
             a[10] = wv[vi * 3 + 2];
          }
-         float[][] cl = clip(vs, c);
-         if (cl.length < 3) {
+         int m2 = clip(vs, n, c);
+         float[][] cl = clipResult;
+         if (m2 < 3) {
             continue;
          }
          p.drawn++;
-         int m2 = cl.length;
-         float[] sx = new float[m2], sy = new float[m2];
+         if (sxBuf.length < m2) {
+            sxBuf = new float[m2 * 2];
+            syBuf = new float[m2 * 2];
+         }
+         float[] sx = sxBuf, sy = syBuf;
          for (int i = 0; i < m2; i++) {
             sx[i] = cl[i][0] / cl[i][2] * c.vpW + c.renderOffX + c.vpX;
             sy[i] = cl[i][1] / cl[i][2] * c.vpH + c.renderOffY + c.vpY;
@@ -1124,15 +1168,16 @@ public final class NativeCamera {
          // projected polygon is warped or concave, and interpolates the
          // texture and the shading over the wrong domain.
          if (!p.pick) {
-            // The driver's own triangles (see rasterTri): the fan is walked
+            // The driver's own triangles (see Raster.rasterTri): the fan is walked
             // from its LAST triangle back to the first, (v0, v[i], v[i+1])
             // for a front polygon and (v0, v[i+1], v[i]) for the back of a
-            // double-sided one (the 0x10000 flag the caller passes).
+            // double-sided one (the 0x10000 flag the caller passes). They
+            // are recorded in that order and drawn by rasterize().
             for (int t = m2 - 2; t >= 1; t--) {
                if (front) {
-                  rasterTri(p, cl[0], cl[t], cl[t + 1], mat, tex, k, facet);
+                  TRIS.add(cl[0], cl[t], cl[t + 1], mat, tex, k, facet, c);
                } else {
-                  rasterTri(p, cl[0], cl[t + 1], cl[t], mat, tex, k, facet);
+                  TRIS.add(cl[0], cl[t + 1], cl[t], mat, tex, k, facet, c);
                }
             }
             continue;
@@ -1217,19 +1262,6 @@ public final class NativeCamera {
       float[] a;
    }
 
-   private static final DVert[] dv = {new DVert(), new DVert(), new DVert()};
-
-   private static DVert dvert(int i, float[] c, Cam cam) {
-      DVert d = dv[i];
-      d.x16 = screen16(c[0], c[2], cam.vpW);
-      d.y16 = screen16(c[1], c[2], cam.vpH);
-      d.z = c[2];
-      d.u = NativeScene.uvFixed(c[3]);
-      d.v = NativeScene.uvFixed(c[4]);
-      d.a = c;
-      return d;
-   }
-
    /** Edge state of one side of the triangle, stepped once per scanline. */
    private static final class Edge {
       int x;
@@ -1274,190 +1306,12 @@ public final class NativeCamera {
       }
    }
 
-   private static final Edge edgeA = new Edge();
-   private static final Edge edgeB = new Edge();
-
-   /**
-    * A triangle as the 16-bit driver fills it, from the setups 0x100259e0
-    * (Gouraud), 0x10019fa0 (flat) and 0x1002d200 (textured, perspective),
-    * which share their geometry:
-    *
-    * - the vertices are rotated, keeping their cyclic order, so the first
-    *   has the smallest 16.16 y; from then on only the INTEGER parts of x
-    *   and y are used (the vertex snaps to the pixel grid);
-    * - edge a runs top -> second vertex (left), edge b top -> third (right),
-    *   with 16.16 slopes from slope(); a triangle whose right edge is not
-    *   at least one unit to the right is dropped (wrong winding);
-    * - each scanline first steps both edges and then fills
-    *   x = (xa >> 16) .. (xb >> 16) - 1 (the span routine 0x1002cbb0 /
-    *   0x1006a340): the first row drawn, y_top, already uses the edge one
-    *   step down;
-    * - textured: per-vertex q_i = Z_j * Z_k and u_i * (1/512) * q_i
-    *   (u in RWL21's fixed 16.16, NativeScene.uvFixed), stepped per line
-    *   along each edge in float; spans of up to 16 pixels interpolate
-    *   linearly between the perspective-correct ends, longer spans divide
-    *   once every 16 pixels (texSpan);
-    * - texel 0 is transparent.
-    *
-    * The depth buffer and the untextured shading keep the bridge's
-    * approximation (1/Z and lighting linear in screen space along the same
-    * edges), see ⚠️ in bridge/README.md.
-    */
-   private static void rasterTri(Pass p, float[] c0, float[] c1, float[] c2, NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k, float[] facetLit) {
-      Cam c = p.c;
-      DVert a = dvert(0, c0, c), b = dvert(1, c1, c), d = dvert(2, c2, c);
-      // rotation to the top vertex (0x1002d200 head)
-      DVert t0 = a, t1 = b, t2 = d;
-      if (b.y16 < a.y16) {
-         if (b.y16 < d.y16) {
-            t0 = b;
-            t1 = d;
-            t2 = a;
-         } else {
-            t0 = d;
-            t1 = a;
-            t2 = b;
-         }
-      } else if (d.y16 < a.y16) {
-         t0 = d;
-         t1 = a;
-         t2 = b;
-      }
-      int yT = t0.y16 >> 16, xT = t0.x16 >> 16;
-      int y3 = t1.y16 >> 16, x3 = t1.x16 >> 16;
-      int y4 = t2.y16 >> 16, x4 = t2.x16 >> 16;
-      // q_i = product of the other two camera Z (0x1007f330/334/338) and u*q, v*q
-      float qT = t2.z * t1.z, q3 = t2.z * t0.z, q4 = t1.z * t0.z;
-      float uT = (float) t0.u * UV_SCALE * qT, vT = (float) t0.v * UV_SCALE * qT;
-      float u3 = (float) t1.u * UV_SCALE * q3, v3 = (float) t1.v * UV_SCALE * q3;
-      float u4 = (float) t2.u * UV_SCALE * q4, v4 = (float) t2.v * UV_SCALE * q4;
-      int dy1 = y3 - yT;
-      int row = yT;
-      // untextured, opaque, per-vertex lit: the Gouraud triangle 0x100259e0
-      gouraud = tex == null && facetLit == null && mat != null && mat.opacity >= 1.0F;
-      int[] cT = null, c3 = null, c4 = null;
-      if (gouraud) {
-         int base = device565(mat.color[0], mat.color[1], mat.color[2]);
-         cT = vertexColour(t0, base);
-         c3 = vertexColour(t1, base);
-         c4 = vertexColour(t2, base);
-         rowDither = DITHER_ROWS[(c.vpY & 7) + (yT & 7)];
-      }
-      if (dy1 < 1) {
-         if (xT - x3 < 1) {
-            return;
-         }
-         int dy = y4 - y3;
-         if (dy == 0) {
-            return;
-         }
-         if (gouraud) {
-            // colour from the second vertex; across x towards the top one
-            int w = xT - x3;
-            gAcc = packRG(c3[0], c3[1]);
-            gStep = pack(div(c4[0] - c3[0], dy), div(c4[1] - c3[1], dy));
-            gGrad = pack(div(cT[0] - c3[0], w), div(cT[1] - c3[1], w));
-            bAcc = c3[2] << 8;
-            bStep = (short) div(c4[2] - c3[2], dy);
-            bGrad = (short) div(cT[2] - c3[2], w);
-         }
-         edgeA.set(t1, q3, u3, v3, t2, q4, u4, v4, dy, x3 << 16, slope(x4 - x3, dy));
-         edgeB.set(t0, qT, uT, vT, t2, q4, u4, v4, dy, xT << 16, slope(x4 - xT, dy));
-         spans(p, row, dy, mat, tex, k, facetLit);
-         return;
-      }
-      int dxa = slope(x3 - xT, dy1);
-      int dy2 = y4 - yT;
-      if (dy2 < 1) {
-         if (x4 - xT < 1) {
-            return;
-         }
-         if (gouraud) {
-            int w = x4 - xT;
-            gAcc = packRG(cT[0], cT[1]);
-            gStep = pack(div(c3[0] - cT[0], dy1), div(c3[1] - cT[1], dy1));
-            gGrad = pack(div(c4[0] - cT[0], w), div(c4[1] - cT[1], w));
-            bAcc = cT[2] << 8;
-            bStep = (short) div(c3[2] - cT[2], dy1);
-            bGrad = (short) div(c4[2] - cT[2], w);
-         }
-         edgeA.set(t0, qT, uT, vT, t1, q3, u3, v3, dy1, xT << 16, dxa);
-         edgeB.set(t2, q4, u4, v4, t1, q3, u3, v3, dy1, x4 << 16, slope(x3 - x4, dy1));
-         spans(p, row, dy1, mat, tex, k, facetLit);
-         return;
-      }
-      int dxb = slope(x4 - xT, dy2);
-      if (dxb - dxa < 1) {
-         return;
-      }
-      edgeA.set(t0, qT, uT, vT, t1, q3, u3, v3, dy1, xT << 16, dxa);
-      edgeB.set(t0, qT, uT, vT, t2, q4, u4, v4, dy2, xT << 16, dxb);
-      if (gouraud) {
-         // per line along edge a; across x from the difference of the two
-         // edges' per-line steps over the difference of their slopes
-         int w = dxb - dxa;
-         gAcc = packRG(cT[0], cT[1]);
-         gStep = pack(div(c3[0] - cT[0], dy1), div(c3[1] - cT[1], dy1));
-         int dr = div(c4[0] - cT[0], dy2) - (gStep >> 16);
-         gGrad = dr != 0 ? dr * 0x10000 / w << 16 : 0;
-         int dg = div(c4[1] - cT[1], dy2) - (short) gStep;
-         if (dg != 0) {
-            int u = gGrad | dg * 0x10000 / w & 0xFFFF;
-            gGrad = u + (u & 0x8000) * -2;
-         }
-         bAcc = cT[2] << 8;
-         bStep = (short) div(c3[2] - cT[2], dy1);
-         int db = div(c4[2] - cT[2], dy2) - (short) bStep;
-         bGrad = db != 0 ? (short) (db * 0x10000 / w) : 0;
-      }
-      if (dy1 < dy2) {
-         row = spans(p, row, dy1, mat, tex, k, facetLit);
-         int rest = dy2 - dy1;
-         edgeA.set(t1, q3, u3, v3, t2, q4, u4, v4, rest, x3 << 16, slope(x4 - x3, rest));
-         if (gouraud) {
-            // the accumulators carry on; only edge a's per-line step changes
-            gStep = pack(div(c4[0] - c3[0], rest), div(c4[1] - c3[1], rest));
-            bStep = (short) div(c4[2] - c3[2], rest);
-         }
-         spans(p, row, rest, mat, tex, k, facetLit);
-      } else {
-         row = spans(p, row, dy2, mat, tex, k, facetLit);
-         int rest = dy1 - dy2;
-         if (rest == 0) {
-            return;
-         }
-         edgeB.set(t2, q4, u4, v4, t1, q3, u3, v3, rest, x4 << 16, slope(x3 - x4, rest));
-         spans(p, row, rest, mat, tex, k, facetLit);
-      }
-   }
-
-   private static int[] spanUV = new int[64];
-
-   // Gouraud state of 0x100259e0 / span 0x1006a340: R and G of the left
-   // edge packed in one 32-bit word (R 8.8 in bits 16..31, G 8.8 in bits
-   // 0..15, carries included: 0x1007f2c0), its per-line step (0x1007f2c4)
-   // and per-pixel gradient (0x1007f2c8); B 8.8 apart (0x1007f2cc /
-   // 0x1007f2d0 / 0x1007f2d4); the row dither word (0x1007f2a4).
-   private static boolean gouraud;
-   private static int gAcc;
-   private static int gStep;
-   private static int gGrad;
-   private static int bAcc;
-   private static int bStep;
-   private static int bGrad;
-   private static int rowDither;
 
    /** Dither words 0x10079240 (x) and 0x10079280 (y): each is the previous one xor (itself >>> 6). */
    public static final int[] DITHER_COLS = {0x08022002, 0x08222882, 0x0802a020, 0x0822aaa0, 0x0802200a, 0x0822288a, 0x0802a028, 0x0822aaa8,
       0x08022002, 0x08222882, 0x0802a020, 0x0822aaa0, 0x0802200a, 0x0822288a, 0x0802a028, 0x0822aaa8};
    static final int[] DITHER_ROWS = {0x0c033003, 0x0c333cc3, 0x0c03f030, 0x0c33fff0, 0x0c03300f, 0x0c333ccf, 0x0c03f03c, 0x0c33fffc,
       0x0c033003, 0x0c333cc3, 0x0c03f030, 0x0c33fff0, 0x0c03300f, 0x0c333ccf, 0x0c03f03c, 0x0c33fffc};
-
-   /** Ramp outputs (5 bits) of a vertex for the material colour: R, G (top 5 of 6), B (0x100259e0 head). */
-   private static int[] vertexColour(DVert d, int c565) {
-      int ir = clampRamp(d.a[5]), ig = clampRamp(d.a[6]), ib = clampRamp(d.a[7]);
-      return new int[]{RAMP[ir * 32 + (c565 >> 11 & 0x1F)], RAMP[ig * 32 + (c565 >> 6 & 0x1F)], RAMP[ib * 32 + (c565 & 0x1F)]};
-   }
 
    private static int clampRamp(float f) {
       int i = (int) f;
@@ -1590,111 +1444,608 @@ public final class NativeCamera {
       return ((pk >>> 7) & 0x7F) * NativeTextures.SIZE + (pk >>> 25);
    }
 
-   private static final float[] spanAt = new float[4];
+   // ------------------------------------------------------------------
+   // Deferred triangles, drawn in horizontal bands
 
-   /** count scanlines from row; returns the next row. */
-   private static int spans(Pass p, int row, int count, NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k, float[] facetLit) {
+   /**
+    * The triangles of the current pass, in the order the clump pass hands
+    * them to the driver (drawClump), with their clipped vertices copied:
+    * the clip buffers are reused by the next polygon.
+    */
+   private static final TriList TRIS = new TriList();
+
+   private static final class TriList {
+      int n;
+      float[][] v = new float[3 * 256][];
+      NativeScene.Material[] mat = new NativeScene.Material[256];
+      NativeTextures.Texture[] tex = new NativeTextures.Texture[256];
+      NativeScene.Clump[] clump = new NativeScene.Clump[256];
+      boolean[] facetLit = new boolean[256];
+      float[] facet = new float[3 * 256];
+      /** Rows the triangle can write, [rowLo, rowHi), from its 16.16 screen y (see Raster.rasterTri). */
+      int[] rowLo = new int[256];
+      int[] rowHi = new int[256];
+
+      void add(float[] a, float[] b, float[] d, NativeScene.Material m, NativeTextures.Texture t, NativeScene.Clump k, float[] f, Cam c) {
+         if (n == mat.length) {
+            int cap = n * 2;
+            v = java.util.Arrays.copyOf(v, cap * 3);
+            mat = java.util.Arrays.copyOf(mat, cap);
+            tex = java.util.Arrays.copyOf(tex, cap);
+            clump = java.util.Arrays.copyOf(clump, cap);
+            facetLit = java.util.Arrays.copyOf(facetLit, cap);
+            facet = java.util.Arrays.copyOf(facet, cap * 3);
+            rowLo = java.util.Arrays.copyOf(rowLo, cap);
+            rowHi = java.util.Arrays.copyOf(rowHi, cap);
+         }
+         copy(3 * n, a);
+         copy(3 * n + 1, b);
+         copy(3 * n + 2, d);
+         mat[n] = m;
+         tex[n] = t;
+         clump[n] = k;
+         facetLit[n] = f != null;
+         if (f != null) {
+            facet[3 * n] = f[0];
+            facet[3 * n + 1] = f[1];
+            facet[3 * n + 2] = f[2];
+         }
+         // the setup starts at the vertex with the smallest 16.16 y and fills
+         // rows (yTop >> 16) .. (yBottom >> 16) - 1, plus the render offset
+         int ya = screen16(a[1], a[2], c.vpH), yb = screen16(b[1], b[2], c.vpH), yd = screen16(d[1], d[2], c.vpH);
+         int oy = c.renderOffY + c.vpY;
+         rowLo[n] = (Math.min(ya, Math.min(yb, yd)) >> 16) + oy;
+         rowHi[n] = (Math.max(ya, Math.max(yb, yd)) >> 16) + oy;
+         n++;
+      }
+
+      private void copy(int slot, float[] src) {
+         float[] dst = v[slot];
+         if (dst == null) {
+            dst = new float[NA];
+            v[slot] = dst;
+         }
+         System.arraycopy(src, 0, dst, 0, NA);
+      }
+
+      void clear() {
+         java.util.Arrays.fill(mat, 0, n, null);
+         java.util.Arrays.fill(tex, 0, n, null);
+         java.util.Arrays.fill(clump, 0, n, null);
+         n = 0;
+      }
+   }
+
+   /**
+    * -Dfreeworlds.rasterThreads=N: threads that draw the bands of a pass
+    * (default: the processors, at most 8; 1 = everything on the render
+    * thread, as before).
+    */
+   static final int RASTER_THREADS = rasterThreads();
+
+   /** Below this many viewport pixels a pass is drawn on the render thread alone. */
+   private static final int PARALLEL_MIN_PIXELS = 40000;
+
+   private static int rasterThreads() {
+      int n = Math.min(8, Runtime.getRuntime().availableProcessors());
+      String v = System.getProperty("freeworlds.rasterThreads");
+      if (v != null) {
+         try {
+            n = Integer.parseInt(v.trim());
+         } catch (NumberFormatException e) {
+            System.err.println("[RW] freeworlds.rasterThreads no es un numero: " + v);
+         }
+      }
+      return Math.max(1, Math.min(64, n));
+   }
+
+   private static final Raster[] RASTERS = new Raster[RASTER_THREADS];
+   private static java.util.concurrent.ExecutorService pool;
+
+   private static synchronized java.util.concurrent.ExecutorService pool() {
+      if (pool == null) {
+         final java.util.concurrent.atomic.AtomicInteger id = new java.util.concurrent.atomic.AtomicInteger();
+         pool = java.util.concurrent.Executors.newFixedThreadPool(RASTER_THREADS - 1, new java.util.concurrent.ThreadFactory() {
+            public Thread newThread(Runnable r) {
+               Thread t = new Thread(r, "freeworlds-raster-" + id.incrementAndGet());
+               t.setDaemon(true);
+               return t;
+            }
+         });
+      }
+      return pool;
+   }
+
+   private static Raster raster(int i) {
+      Raster r = RASTERS[i];
+      if (r == null) {
+         r = new Raster();
+         RASTERS[i] = r;
+      }
+      return r;
+   }
+
+   /**
+    * Draws the recorded triangles. The viewport rows are split into bands
+    * that the render thread and the raster threads take one at a time;
+    * each band walks the WHOLE list in order and a triangle only writes its
+    * own rows, so every pixel receives the same writes in the same order as
+    * drawing the list once from top to bottom: the frame is identical
+    * (bridge/test/RasterGoldenCheck). A triangle's rows above the band are
+    * still stepped (edges, Gouraud accumulators, dither word), exactly as
+    * rows above the viewport were; below the band nothing is left to write.
+    */
+   private static void rasterize(final Pass p) {
+      final TriList tl = TRIS;
+      if (tl.n == 0) {
+         return;
+      }
       Cam c = p.c;
-      int base = mat == null ? 0 : device565(mat.color[0], mat.color[1], mat.color[2]);
-      boolean litTex = mat != null && (mat.textureModes & 1) != 0;
-      int opacity = mat == null ? 255 : (mat.opacity >= 1.0F ? 255 : ((int) (mat.opacity * 65536.0F) >> 8) & 0xFC);
-      float flatR = facetLit != null ? facetLit[0] : 31.0F;
-      float flatG = facetLit != null ? facetLit[1] : 31.0F;
-      float flatB = facetLit != null ? facetLit[2] : 31.0F;
-      int ox = c.renderOffX + c.vpX, oy = c.renderOffY + c.vpY;
-      int xMin = Math.max(0, c.renderOffX), xMax = Math.min(c.width, c.renderOffX + c.vpW);
-      int yMin = Math.max(0, c.renderOffY), yMax = Math.min(c.height, c.renderOffY + c.vpH);
-      int wrote = 0;
-      for (int r = 0; r < count; r++, row++) {
-         edgeA.step();
-         edgeB.step();
-         int xl = edgeA.x >> 16, xr = edgeB.x >> 16;
-         int cnt = xr - xl;
-         int y = row + oy;
-         int thr = 0, acc = 0, accB = 0;
-         if (gouraud) {
-            gAcc += gStep;
-            bAcc += bStep;
-            acc = gAcc;
-            accB = bAcc;
-            thr = DITHER_COLS[(c.vpX & 7) + (xl & 7)];
-            thr = (thr & ~0xFF) | ((thr ^ rowDither) & 0xFF);
-            rowDither ^= rowDither >>> 6;
+      final int y0 = Math.max(0, c.renderOffY);
+      int y1 = Math.min(c.height, c.renderOffY + c.vpH);
+      int rows = y1 - y0;
+      int threads = RASTER_THREADS;
+      if ((long) c.vpW * rows < PARALLEL_MIN_PIXELS || rows < 2 * threads) {
+         threads = 1;
+      }
+      try {
+         if (threads == 1) {
+            Raster r = raster(0);
+            r.reset(p);
+            r.band(p, tl, y0, y1);
+            r.merge(p);
+            return;
          }
-         if (cnt <= 0 || y < yMin || y >= yMax) {
-            continue;
+         final int bands = Math.min(rows, threads * 4);
+         final int perBand = (rows + bands - 1) / bands;
+         final int yEnd = y1;
+         final java.util.concurrent.atomic.AtomicInteger next = new java.util.concurrent.atomic.AtomicInteger();
+         final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(threads - 1);
+         final Throwable[] failure = new Throwable[1];
+         for (int t = 0; t < threads; t++) {
+            raster(t).reset(p);
          }
-         int[] uv = null;
-         if (tex != null) {
-            uv = spanUV = texSpan(edgeA.q, edgeA.uq, edgeA.vq, edgeB.q, edgeB.uq, edgeB.vq, cnt, spanUV);
+         for (int t = 1; t < threads; t++) {
+            final Raster r = raster(t);
+            pool().execute(new Runnable() {
+               public void run() {
+                  try {
+                     drawBands(p, tl, r, next, bands, perBand, y0, yEnd);
+                  } catch (Throwable e) {
+                     synchronized (failure) {
+                        failure[0] = e;
+                     }
+                  } finally {
+                     done.countDown();
+                  }
+               }
+            });
          }
-         int rowBase = y * c.width;
-         int ditherRow = DITHER_Y[y & 7];
-         float invCnt = 1.0F / cnt;
-         for (int i = 0; i < cnt; i++) {
-            int x = xl + i + ox;
-            if (x < xMin || x >= xMax) {
-               continue;
+         drawBands(p, tl, raster(0), next, bands, perBand, y0, yEnd);
+         try {
+            done.await();
+         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+         }
+         synchronized (failure) {
+            if (failure[0] instanceof RuntimeException) {
+               throw (RuntimeException) failure[0];
             }
-            float tt = i * invCnt;
-            for (int j = 0; j < 4; j++) {
-               spanAt[j] = edgeA.at[j] + (edgeB.at[j] - edgeA.at[j]) * tt;
+            if (failure[0] instanceof Error) {
+               throw (Error) failure[0];
             }
-            float iz = spanAt[0];
-            int zi = rowBase + x;
-            int gpix = 0;
-            if (gouraud) {
-               gpix = gouraudPixel(acc, accB, thr);
-               acc += gGrad;
-               accB += bGrad;
-               thr ^= thr >>> 6;
-            }
-            if (iz <= p.z[zi]) {
-               continue;
-            }
-            if (opacity != 255) {
-               int dd = (DITHER_X[x & 7] ^ ditherRow) & 0xFF;
-               if (opacity <= dd) {
-                  continue;
+         }
+         for (int t = 0; t < threads; t++) {
+            raster(t).merge(p);
+         }
+      } finally {
+         tl.clear();
+      }
+   }
+
+   private static void drawBands(Pass p, TriList tl, Raster r, java.util.concurrent.atomic.AtomicInteger next, int bands, int perBand, int y0, int y1) {
+      for (int b = next.getAndIncrement(); b < bands; b = next.getAndIncrement()) {
+         int lo = y0 + b * perBand;
+         int hi = Math.min(y1, lo + perBand);
+         if (lo < hi) {
+            r.band(p, tl, lo, hi);
+         }
+      }
+   }
+
+   /**
+    * One raster thread's copy of the driver's per-triangle state (the
+    * RWDL6D21 globals: vertices, edges 0x1007f440.., Gouraud 0x1007f2c0..,
+    * span buffer) plus its counters, drawing the rows [bandMin, bandMax).
+    */
+   private static final class Raster {
+      private final DVert[] dv = {new DVert(), new DVert(), new DVert()};
+      private final Edge edgeA = new Edge();
+      private final Edge edgeB = new Edge();
+      private int[] spanUV = new int[64];
+      private final float[] facetBuf = new float[3];
+      private final int[] colT = new int[3];
+      private final int[] col3 = new int[3];
+      private final int[] col4 = new int[3];
+
+      // Gouraud state of 0x100259e0 / span 0x1006a340: R and G of the left
+      // edge packed in one 32-bit word (R 8.8 in bits 16..31, G 8.8 in bits
+      // 0..15, carries included: 0x1007f2c0), its per-line step (0x1007f2c4)
+      // and per-pixel gradient (0x1007f2c8); B 8.8 apart (0x1007f2cc /
+      // 0x1007f2d0 / 0x1007f2d4); the row dither word (0x1007f2a4).
+      private boolean gouraud;
+      private int gAcc;
+      private int gStep;
+      private int gGrad;
+      private int bAcc;
+      private int bStep;
+      private int bGrad;
+      private int rowDither;
+
+      private int bandMin;
+      private int bandMax;
+      private long pixels;
+      private long texPixels;
+      private int texPx;
+      private int flatPx;
+      private String probe;
+      private java.util.Map<String, int[]> matPx;
+
+      void reset(Pass p) {
+         pixels = 0L;
+         texPixels = 0L;
+         texPx = 0;
+         flatPx = 0;
+         probe = null;
+         matPx = p.matPixels == null ? null : new java.util.HashMap<String, int[]>();
+      }
+
+      /** Counters of this thread into the pass and the frame totals. */
+      void merge(Pass p) {
+         framePixels += pixels;
+         frameTexPixels += texPixels;
+         p.texPixels += texPx;
+         p.flatPixels += flatPx;
+         if (probe != null) {
+            probeHit = probe;
+         }
+         if (matPx != null) {
+            for (java.util.Map.Entry<String, int[]> e : matPx.entrySet()) {
+               int[] n2 = p.matPixels.get(e.getKey());
+               if (n2 == null) {
+                  p.matPixels.put(e.getKey(), e.getValue());
+               } else {
+                  n2[0] += e.getValue()[0];
                }
             }
-            int pix;
-            if (tex != null) {
-               int texel = tex.pixels[texelIndex(uv[i])] & 0xFFFF;
-               if (texel == 0) {
-                  continue;
-               }
-               pix = litTex ? lit565(texel, flatR, flatG, flatB) : texel;
-               p.texPixels++;
-            } else if (gouraud) {
-               pix = gpix;
-               p.flatPixels++;
+         }
+      }
+
+      void band(Pass p, TriList tl, int lo, int hi) {
+         bandMin = lo;
+         bandMax = hi;
+         for (int i = 0; i < tl.n; i++) {
+            if (tl.rowHi[i] <= lo || tl.rowLo[i] >= hi) {
+               continue;
+            }
+            float[] facetLit = null;
+            if (tl.facetLit[i]) {
+               facetLit = facetBuf;
+               facetLit[0] = tl.facet[3 * i];
+               facetLit[1] = tl.facet[3 * i + 1];
+               facetLit[2] = tl.facet[3 * i + 2];
+            }
+            rasterTri(p, tl.v[3 * i], tl.v[3 * i + 1], tl.v[3 * i + 2], tl.mat[i], tl.tex[i], tl.clump[i], facetLit);
+         }
+      }
+
+      private DVert dvert(int i, float[] c, Cam cam) {
+         DVert d = dv[i];
+         d.x16 = screen16(c[0], c[2], cam.vpW);
+         d.y16 = screen16(c[1], c[2], cam.vpH);
+         d.z = c[2];
+         d.u = NativeScene.uvFixed(c[3]);
+         d.v = NativeScene.uvFixed(c[4]);
+         d.a = c;
+         return d;
+      }
+
+      /** Ramp outputs (5 bits) of a vertex for the material colour: R, G (top 5 of 6), B (0x100259e0 head). */
+      private int[] vertexColour(DVert d, int c565, int[] out) {
+         int ir = clampRamp(d.a[5]), ig = clampRamp(d.a[6]), ib = clampRamp(d.a[7]);
+         out[0] = RAMP[ir * 32 + (c565 >> 11 & 0x1F)];
+         out[1] = RAMP[ig * 32 + (c565 >> 6 & 0x1F)];
+         out[2] = RAMP[ib * 32 + (c565 & 0x1F)];
+         return out;
+      }
+
+      /**
+       * A triangle as the 16-bit driver fills it, from the setups 0x100259e0
+       * (Gouraud), 0x10019fa0 (flat) and 0x1002d200 (textured, perspective),
+       * which share their geometry:
+       *
+       * - the vertices are rotated, keeping their cyclic order, so the first
+       *   has the smallest 16.16 y; from then on only the INTEGER parts of x
+       *   and y are used (the vertex snaps to the pixel grid);
+       * - edge a runs top -> second vertex (left), edge b top -> third (right),
+       *   with 16.16 slopes from slope(); a triangle whose right edge is not
+       *   at least one unit to the right is dropped (wrong winding);
+       * - each scanline first steps both edges and then fills
+       *   x = (xa >> 16) .. (xb >> 16) - 1 (the span routine 0x1002cbb0 /
+       *   0x1006a340): the first row drawn, y_top, already uses the edge one
+       *   step down;
+       * - textured: per-vertex q_i = Z_j * Z_k and u_i * (1/512) * q_i
+       *   (u in RWL21's fixed 16.16, NativeScene.uvFixed), stepped per line
+       *   along each edge in float; spans of up to 16 pixels interpolate
+       *   linearly between the perspective-correct ends, longer spans divide
+       *   once every 16 pixels (texSpan);
+       * - texel 0 is transparent.
+       *
+       * The depth buffer and the untextured shading keep the bridge's
+       * approximation (1/Z and lighting linear in screen space along the same
+       * edges), see ⚠️ in bridge/README.md.
+       */
+      void rasterTri(Pass p, float[] c0, float[] c1, float[] c2, NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k, float[] facetLit) {
+         Cam c = p.c;
+         DVert a = dvert(0, c0, c), b = dvert(1, c1, c), d = dvert(2, c2, c);
+         // rotation to the top vertex (0x1002d200 head)
+         DVert t0 = a, t1 = b, t2 = d;
+         if (b.y16 < a.y16) {
+            if (b.y16 < d.y16) {
+               t0 = b;
+               t1 = d;
+               t2 = a;
             } else {
-               pix = lit565(base, spanAt[1], spanAt[2], spanAt[3]);
-               p.flatPixels++;
+               t0 = d;
+               t1 = a;
+               t2 = b;
             }
-            p.z[zi] = iz;
-            c.raster[zi] = (short) pix;
-            wrote++;
-            if (probeX >= 0 && x == probeX && y == probeY && c.width == mainWidth) {
-               probeHit = describe(mat, tex, k) + " px=#" + Integer.toHexString(pix);
-            }
+         } else if (d.y16 < a.y16) {
+            t0 = d;
+            t1 = a;
+            t2 = b;
          }
-      }
-      framePixels += wrote;
-      if (tex != null) {
-         frameTexPixels += wrote;
-      }
-      if (p.matPixels != null && wrote > 0) {
-         String key = describe(mat, tex, k);
-         int[] n2 = p.matPixels.get(key);
-         if (n2 == null) {
-            p.matPixels.put(key, new int[]{wrote});
+         int yT = t0.y16 >> 16, xT = t0.x16 >> 16;
+         int y3 = t1.y16 >> 16, x3 = t1.x16 >> 16;
+         int y4 = t2.y16 >> 16, x4 = t2.x16 >> 16;
+         // q_i = product of the other two camera Z (0x1007f330/334/338) and u*q, v*q
+         float qT = t2.z * t1.z, q3 = t2.z * t0.z, q4 = t1.z * t0.z;
+         float uT = (float) t0.u * UV_SCALE * qT, vT = (float) t0.v * UV_SCALE * qT;
+         float u3 = (float) t1.u * UV_SCALE * q3, v3 = (float) t1.v * UV_SCALE * q3;
+         float u4 = (float) t2.u * UV_SCALE * q4, v4 = (float) t2.v * UV_SCALE * q4;
+         int dy1 = y3 - yT;
+         int row = yT;
+         // untextured, opaque, per-vertex lit: the Gouraud triangle 0x100259e0
+         gouraud = tex == null && facetLit == null && mat != null && mat.opacity >= 1.0F;
+         int[] cT = null, c3 = null, c4 = null;
+         if (gouraud) {
+            int base = device565(mat.color[0], mat.color[1], mat.color[2]);
+            cT = vertexColour(t0, base, colT);
+            c3 = vertexColour(t1, base, col3);
+            c4 = vertexColour(t2, base, col4);
+            rowDither = DITHER_ROWS[(c.vpY & 7) + (yT & 7)];
+         }
+         if (dy1 < 1) {
+            if (xT - x3 < 1) {
+               return;
+            }
+            int dy = y4 - y3;
+            if (dy == 0) {
+               return;
+            }
+            if (gouraud) {
+               // colour from the second vertex; across x towards the top one
+               int w = xT - x3;
+               gAcc = packRG(c3[0], c3[1]);
+               gStep = pack(div(c4[0] - c3[0], dy), div(c4[1] - c3[1], dy));
+               gGrad = pack(div(cT[0] - c3[0], w), div(cT[1] - c3[1], w));
+               bAcc = c3[2] << 8;
+               bStep = (short) div(c4[2] - c3[2], dy);
+               bGrad = (short) div(cT[2] - c3[2], w);
+            }
+            edgeA.set(t1, q3, u3, v3, t2, q4, u4, v4, dy, x3 << 16, slope(x4 - x3, dy));
+            edgeB.set(t0, qT, uT, vT, t2, q4, u4, v4, dy, xT << 16, slope(x4 - xT, dy));
+            spans(p, row, dy, mat, tex, k, facetLit);
+            return;
+         }
+         int dxa = slope(x3 - xT, dy1);
+         int dy2 = y4 - yT;
+         if (dy2 < 1) {
+            if (x4 - xT < 1) {
+               return;
+            }
+            if (gouraud) {
+               int w = x4 - xT;
+               gAcc = packRG(cT[0], cT[1]);
+               gStep = pack(div(c3[0] - cT[0], dy1), div(c3[1] - cT[1], dy1));
+               gGrad = pack(div(c4[0] - cT[0], w), div(c4[1] - cT[1], w));
+               bAcc = cT[2] << 8;
+               bStep = (short) div(c3[2] - cT[2], dy1);
+               bGrad = (short) div(c4[2] - cT[2], w);
+            }
+            edgeA.set(t0, qT, uT, vT, t1, q3, u3, v3, dy1, xT << 16, dxa);
+            edgeB.set(t2, q4, u4, v4, t1, q3, u3, v3, dy1, x4 << 16, slope(x3 - x4, dy1));
+            spans(p, row, dy1, mat, tex, k, facetLit);
+            return;
+         }
+         int dxb = slope(x4 - xT, dy2);
+         if (dxb - dxa < 1) {
+            return;
+         }
+         edgeA.set(t0, qT, uT, vT, t1, q3, u3, v3, dy1, xT << 16, dxa);
+         edgeB.set(t0, qT, uT, vT, t2, q4, u4, v4, dy2, xT << 16, dxb);
+         if (gouraud) {
+            // per line along edge a; across x from the difference of the two
+            // edges' per-line steps over the difference of their slopes
+            int w = dxb - dxa;
+            gAcc = packRG(cT[0], cT[1]);
+            gStep = pack(div(c3[0] - cT[0], dy1), div(c3[1] - cT[1], dy1));
+            int dr = div(c4[0] - cT[0], dy2) - (gStep >> 16);
+            gGrad = dr != 0 ? dr * 0x10000 / w << 16 : 0;
+            int dg = div(c4[1] - cT[1], dy2) - (short) gStep;
+            if (dg != 0) {
+               int u = gGrad | dg * 0x10000 / w & 0xFFFF;
+               gGrad = u + (u & 0x8000) * -2;
+            }
+            bAcc = cT[2] << 8;
+            bStep = (short) div(c3[2] - cT[2], dy1);
+            int db = div(c4[2] - cT[2], dy2) - (short) bStep;
+            bGrad = db != 0 ? (short) (db * 0x10000 / w) : 0;
+         }
+         if (dy1 < dy2) {
+            row = spans(p, row, dy1, mat, tex, k, facetLit);
+            int rest = dy2 - dy1;
+            edgeA.set(t1, q3, u3, v3, t2, q4, u4, v4, rest, x3 << 16, slope(x4 - x3, rest));
+            if (gouraud) {
+               // the accumulators carry on; only edge a's per-line step changes
+               gStep = pack(div(c4[0] - c3[0], rest), div(c4[1] - c3[1], rest));
+               bStep = (short) div(c4[2] - c3[2], rest);
+            }
+            spans(p, row, rest, mat, tex, k, facetLit);
          } else {
-            n2[0] += wrote;
+            row = spans(p, row, dy2, mat, tex, k, facetLit);
+            int rest = dy1 - dy2;
+            if (rest == 0) {
+               return;
+            }
+            edgeB.set(t2, q4, u4, v4, t1, q3, u3, v3, rest, x4 << 16, slope(x3 - x4, rest));
+            spans(p, row, rest, mat, tex, k, facetLit);
          }
       }
-      return row;
+
+      /**
+       * count scanlines from row; returns the next row. Rows outside the
+       * viewport or above the band are stepped without writing; once a row
+       * is below the band (or the viewport) no later row of the triangle can
+       * be written, so it stops there. Per pixel, only what the pixel's path
+       * needs is interpolated (1/Z always; the flat lighting only for the
+       * untextured non-Gouraud path) with the same float operations as
+       * before, and the viewport columns are clamped once per row instead of
+       * tested per pixel (a skipped column had no side effect).
+       */
+      int spans(Pass p, int row, int count, NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k, float[] facetLit) {
+         Cam c = p.c;
+         int base = mat == null ? 0 : device565(mat.color[0], mat.color[1], mat.color[2]);
+         boolean litTex = mat != null && (mat.textureModes & 1) != 0;
+         int opacity = mat == null ? 255 : (mat.opacity >= 1.0F ? 255 : ((int) (mat.opacity * 65536.0F) >> 8) & 0xFC);
+         float flatR = facetLit != null ? facetLit[0] : 31.0F;
+         float flatG = facetLit != null ? facetLit[1] : 31.0F;
+         float flatB = facetLit != null ? facetLit[2] : 31.0F;
+         // lit565(texel, flatR, flatG, flatB) with its three ramp rows taken once
+         int rampR = clampRamp(flatR) * 32, rampG = clampRamp(flatG) * 32, rampB = clampRamp(flatB) * 32;
+         short[] texels = tex == null ? null : tex.pixels;
+         int ox = c.renderOffX + c.vpX, oy = c.renderOffY + c.vpY;
+         int xMin = Math.max(0, c.renderOffX), xMax = Math.min(c.width, c.renderOffX + c.vpW);
+         int yMin = Math.max(Math.max(0, c.renderOffY), bandMin);
+         int yMax = Math.min(Math.min(c.height, c.renderOffY + c.vpH), bandMax);
+         float[] zb = p.z;
+         short[] out = c.raster;
+         int width = c.width;
+         int end = row + count;
+         int wrote = 0;
+         for (int r = 0; r < count; r++, row++) {
+            int y = row + oy;
+            if (y >= yMax) {
+               break;
+            }
+            edgeA.step();
+            edgeB.step();
+            int xl = edgeA.x >> 16, xr = edgeB.x >> 16;
+            int cnt = xr - xl;
+            int thr = 0, acc = 0, accB = 0;
+            if (gouraud) {
+               gAcc += gStep;
+               bAcc += bStep;
+               acc = gAcc;
+               accB = bAcc;
+               thr = DITHER_COLS[(c.vpX & 7) + (xl & 7)];
+               thr = (thr & ~0xFF) | ((thr ^ rowDither) & 0xFF);
+               rowDither ^= rowDither >>> 6;
+            }
+            if (cnt <= 0 || y < yMin) {
+               continue;
+            }
+            int[] uv = null;
+            if (tex != null) {
+               uv = spanUV = texSpan(edgeA.q, edgeA.uq, edgeA.vq, edgeB.q, edgeB.uq, edgeB.vq, cnt, spanUV);
+            }
+            int rowBase = y * width;
+            int ditherRow = DITHER_Y[y & 7];
+            float invCnt = 1.0F / cnt;
+            int x0 = xl + ox;
+            int iStart = xMin - x0;
+            if (iStart < 0) {
+               iStart = 0;
+            }
+            int iEnd = xMax - x0;
+            if (iEnd > cnt) {
+               iEnd = cnt;
+            }
+            float a0 = edgeA.at[0], d0 = edgeB.at[0] - a0;
+            float a1 = edgeA.at[1], d1 = edgeB.at[1] - a1;
+            float a2 = edgeA.at[2], d2 = edgeB.at[2] - a2;
+            float a3 = edgeA.at[3], d3 = edgeB.at[3] - a3;
+            for (int i = iStart; i < iEnd; i++) {
+               int x = x0 + i;
+               float tt = i * invCnt;
+               float iz = a0 + d0 * tt;
+               int zi = rowBase + x;
+               int gpix = 0;
+               if (gouraud) {
+                  gpix = gouraudPixel(acc, accB, thr);
+                  acc += gGrad;
+                  accB += bGrad;
+                  thr ^= thr >>> 6;
+               }
+               if (iz <= zb[zi]) {
+                  continue;
+               }
+               if (opacity != 255) {
+                  int dd = (DITHER_X[x & 7] ^ ditherRow) & 0xFF;
+                  if (opacity <= dd) {
+                     continue;
+                  }
+               }
+               int pix;
+               if (texels != null) {
+                  int texel = texels[texelIndex(uv[i])] & 0xFFFF;
+                  if (texel == 0) {
+                     continue;
+                  }
+                  pix = litTex
+                     ? RAMP[rampR + (texel >> 11 & 0x1F)] << 11 | RAMP[rampG + (texel >> 6 & 0x1F)] << 6 | RAMP[rampB + (texel & 0x1F)]
+                     : texel;
+                  texPx++;
+               } else if (gouraud) {
+                  pix = gpix;
+                  flatPx++;
+               } else {
+                  pix = lit565(base, a1 + d1 * tt, a2 + d2 * tt, a3 + d3 * tt);
+                  flatPx++;
+               }
+               zb[zi] = iz;
+               out[zi] = (short) pix;
+               wrote++;
+               if (probeX >= 0 && x == probeX && y == probeY && c.width == mainWidth) {
+                  probe = describe(mat, tex, k) + " px=#" + Integer.toHexString(pix);
+               }
+            }
+         }
+         pixels += wrote;
+         if (tex != null) {
+            texPixels += wrote;
+         }
+         if (matPx != null && wrote > 0) {
+            String key = describe(mat, tex, k);
+            int[] n2 = matPx.get(key);
+            if (n2 == null) {
+               matPx.put(key, new int[]{wrote});
+            } else {
+               n2[0] += wrote;
+            }
+         }
+         return end;
+      }
    }
 
    /**
@@ -2171,30 +2522,85 @@ public final class NativeCamera {
       return b;
    }
 
-   /** Clip against Z >= near, Z <= far, X >= 0, X <= Z, Y >= 0, Y <= Z (flags 0x10, 0x20, 1, 2, 4, 8). */
-   private static float[][] clip(float[][] poly, Cam c) {
-      float[][] p = poly;
-      for (int plane = 0; plane < 6 && p.length >= 3; plane++) {
-         java.util.List<float[]> out = new ArrayList<float[]>();
-         for (int i = 0; i < p.length; i++) {
-            float[] a = p[i];
-            float[] b = p[(i + 1) % p.length];
+   /** Output of clip(): the clipped polygon's vertices, valid until the next call. */
+   private static float[][] clipResult;
+   private static float[][] clipA = new float[32][];
+   private static float[][] clipB = new float[32][];
+   /** Vertices created by the clipper; reused from one polygon to the next. */
+   private static float[][] clipPool = new float[64][];
+   private static float[] sxBuf = new float[32];
+   private static float[] syBuf = new float[32];
+
+   /**
+    * Clip against Z >= near, Z <= far, X >= 0, X <= Z, Y >= 0, Y <= Z (flags
+    * 0x10, 0x20, 1, 2, 4, 8), one plane after another (Sutherland-Hodgman).
+    * Returns the vertex count; the vertices are in clipResult. A polygon
+    * with every vertex inside every plane comes back as it is, which is
+    * what the plane loop gives for it anyway. The per-plane lists and new
+    * vertices come from reused buffers instead of being allocated for every
+    * polygon of every frame (the values are the same: same operations in
+    * the same order).
+    */
+   private static int clip(float[][] poly, int n, Cam c) {
+      boolean inside = true;
+      float near = c.nearClip, far = c.farClip;
+      for (int i = 0; i < n; i++) {
+         float[] v = poly[i];
+         float x = v[0], y = v[1], z = v[2];
+         if (!(z - near >= 0.0F) || !(far - z >= 0.0F) || !(x >= 0.0F) || !(z - x >= 0.0F)
+               || !(y >= 0.0F) || !(z - y >= 0.0F)) {
+            inside = false;
+            break;
+         }
+      }
+      if (inside) {
+         clipResult = poly;
+         return n;
+      }
+      int used = 0;
+      float[][] src = poly;
+      int sn = n;
+      float[][] dst = clipA;
+      for (int plane = 0; plane < 6 && sn >= 3; plane++) {
+         if (dst.length < sn * 2) {
+            dst = new float[sn * 4][];
+            if (src == clipA) {
+               clipB = dst;
+            } else {
+               clipA = dst;
+            }
+         }
+         int dn = 0;
+         for (int i = 0; i < sn; i++) {
+            float[] a = src[i];
+            float[] b = src[i + 1 == sn ? 0 : i + 1];
             float da = dist(a, plane, c), db = dist(b, plane, c);
             if (da >= 0.0F) {
-               out.add(a);
+               dst[dn++] = a;
             }
             if (da >= 0.0F != db >= 0.0F) {
                float t = da / (da - db);
-               float[] r = new float[NA];
+               if (used == clipPool.length) {
+                  clipPool = java.util.Arrays.copyOf(clipPool, used * 2);
+               }
+               float[] r = clipPool[used];
+               if (r == null) {
+                  r = new float[NA];
+                  clipPool[used] = r;
+               }
+               used++;
                for (int j = 0; j < NA; j++) {
                   r[j] = a[j] + (b[j] - a[j]) * t;
                }
-               out.add(r);
+               dst[dn++] = r;
             }
          }
-         p = out.toArray(new float[0][]);
+         src = dst;
+         sn = dn;
+         dst = src == clipA ? clipB : clipA;
       }
-      return p;
+      clipResult = src;
+      return sn;
    }
 
    private static float dist(float[] v, int plane, Cam c) {

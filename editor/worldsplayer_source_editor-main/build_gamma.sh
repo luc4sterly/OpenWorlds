@@ -63,6 +63,65 @@ assert c in t
 t = t.replace(c, "   private static final java.util.Set<String> loadErrorsSeen = java.util.Collections.synchronizedSet(new java.util.HashSet<String>());\n\n" + c + "      if (!loadErrorsSeen.add(String.valueOf(var1))) {\n         return;\n      }\n\n", 1)
 open(m, "w").write(t)
 PY
+# Std.initSyncTime: el primer Std.getSynchronizedTime() (lo llama
+# BlackBox.postrender en CADA frame, via Room.postrender) abria un Socket
+# SIN timeout a time.worlds.net:37 (RFC 868) dentro del hilo de render.
+# worlds.net ya no existe: segun el DNS el connect cuelga hasta el timeout de
+# TCP del sistema (75 s en macOS, ~130 s en Linux) con la ventana en negro.
+# Ahora la base sale del reloj del sistema (hoy va por NTP) pasado a
+# segundos RFC 868 (desde 1900) y con la MISMA resta que el original:
+# `var10 -= -1141367296L` es 100*365*86400 desbordado en int, asi que el
+# origen real es 1999-12-08 UTC, no el 2000 (se conserva tal cual). Si el
+# servidor responde, corrige la base desde un hilo aparte (timeouts de 2 s).
+python3 - "$B/source/NET/worlds/core/Std.java" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+a = "   static int syncTimeBase;\n"
+assert a in s
+s = s.replace(a, "   static volatile int syncTimeBase;\n", 1)
+start = s.index("            String var2 = IniFile.override().getIniString(\"timeServer\", \"time.worlds.net\");\n")
+end = s.index("      } else {\n         syncTimeInited = true;\n         syncTimeBase = 0;")
+body = """            long var14 = System.currentTimeMillis() / 1000L + 2208988800L;
+            var14 -= -1141367296L;
+            syncTimeBase = (int)var14 - getFastTime() / 1000;
+            final String var2 = IniFile.override().getIniString("timeServer", "time.worlds.net");
+            Thread var13 = new Thread(new Runnable() {
+               public void run() {
+                  try {
+                     InetAddress var3 = InetAddress.getByName(var2);
+                     Socket var4 = new Socket();
+                     var4.connect(new java.net.InetSocketAddress(var3, 37), 2000);
+                     var4.setSoTimeout(2000);
+                     InputStream var5 = var4.getInputStream();
+                     int var6 = var5.read();
+                     int var7 = var5.read();
+                     int var8 = var5.read();
+                     int var9 = var5.read();
+                     var5.close();
+                     if ((var6 | var7 | var8 | var9) < 0) {
+                        throw new java.io.EOFException("short RFC 868 answer");
+                     }
+                     long var10 = (var6 << 24) + (var7 << 16) + (var8 << 8) + var9;
+                     var10 -= -1141367296L;
+                     syncTimeBase = (int)var10 - getFastTime() / 1000;
+                     var4.close();
+                  } catch (Exception var12) {
+                     System.out.println("Error retrieving network time: " + var12);
+                  }
+               }
+            }, "freeworlds-timeServer");
+            var13.setDaemon(true);
+            var13.start();
+         }
+"""
+s = s[:start] + body + s[end:]
+open(p, "w").write(s)
+PY
+# Rutas del cliente de 2004 ("u:/...", minusculas, '\') en cada apertura de
+# fichero y Toolkit.getImage: ver bridge/NET/worlds/core/HostPath.java. Sin
+# esto no se pintaban los botones de la ventana ni se leia redir.txt.
+python3 "$HERE/bridge/host_paths.py" "$HERE/source" "$B/source"
 find "$B/source" -name '*.java' > "$B/sources.txt"
 # parsers verificados de client/ que usa el puente: texturas ScapePic
 # (.cmp/.mov), formas .rwg y cuerpos .bod (el .rwx lo interpreta
