@@ -794,9 +794,7 @@ public final class WorldRestorer {
                node.groundColorRGB = restoreInt();
             }
             restoreMaybeNull();
-            restore(); // defaultPosition
-            restore(); // defaultOrientationAxis
-            restoreFloat();
+            readDefaultView(node);
             restoreVector();
             node.environment = restore(); // environment
             break;
@@ -809,9 +807,7 @@ public final class WorldRestorer {
                node.groundColorRGB = restoreInt();
             }
             restoreMaybeNull();
-            restore();
-            restore();
-            restoreFloat();
+            readDefaultView(node);
             node.environment = restore(); // environment
             break;
          case 3:
@@ -825,9 +821,7 @@ public final class WorldRestorer {
             if (v == 3) {
                restoreMaybeNull();
             }
-            restore();
-            restore();
-            restoreFloat();
+            readDefaultView(node);
             node.environment = restore(); // environment
             node.infiniteBackground = restore(); // infiniteBackground
             break;
@@ -842,12 +836,8 @@ public final class WorldRestorer {
                node.groundColorRGB = restoreInt();
             }
             trace("Room: after groundColor");
-            restore(); // defaultPosition
-            trace("Room: after defaultPosition");
-            restore(); // defaultOrientationAxis
-            trace("Room: after defaultOrientationAxis");
-            restoreFloat();
-            trace("Room: after defaultOrientation");
+            readDefaultView(node);
+            trace("Room: after defaultPosition/OrientationAxis/Orientation");
             WNode lightPos = restore(); // Room.lightPosition
             trace("Room: after lightPosition");
             if (lightPos != null) {
@@ -942,6 +932,25 @@ public final class WorldRestorer {
             node.roomsByName.put(key, value);
          }
       }
+   }
+
+   /**
+    * Room.defaultPosition, defaultOrientationAxis and defaultOrientation
+    * (Room.restoreState, the same three reads in every version): where
+    * TeleportAction puts the pilot when a URL names the room without a
+    * position (moveTo(defaultPosition).spin(axis, orientation)).
+    */
+   private void readDefaultView(WNode node) throws IOException {
+      WNode pos = restore();
+      WNode axis = restore();
+      float angle = restoreFloat();
+      if (pos != null) {
+         node.defaultPosition = new float[]{pos.x, pos.y, pos.z};
+      }
+      if (axis != null) {
+         node.defaultOrientationAxis = new float[]{axis.x, axis.y, axis.z};
+      }
+      node.defaultOrientation = angle;
    }
 
    // ---- leaf value types ----

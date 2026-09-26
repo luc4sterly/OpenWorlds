@@ -39,6 +39,10 @@ public final class WNode {
    public float x, y, z;
    /** Room-specific fields (only meaningful when className is "NET.worlds.scape.Room" or a subclass like WrStaircase). */
    public float[] lightPosition; // 3 floats, from Room.lightPosition (a Point3 sub-object)
+   /** Room.defaultPosition / defaultOrientationAxis / defaultOrientation (degrees), see WorldRestorer.readDefaultView. */
+   public float[] defaultPosition;
+   public float[] defaultOrientationAxis;
+   public float defaultOrientation;
    public Integer lightColorRGB;
    public Integer skyColorRGB;
    public Integer groundColorRGB;

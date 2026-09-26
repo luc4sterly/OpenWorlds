@@ -467,7 +467,8 @@ public final class WorldViewer {
        // (1290,865) igual que el default sin args, yaw=atan2(-364,-582).
        // --spawn (solo arnes headless) sobreescribe px/py/pz/yaw abajo,
        // tras fijar pitch=0 - ver el bloque "if (inside)" mas adelante.
-       float px = 1872f, py = 1229f, pz = 150f;
+       float px = RESTART_AT[0], py = RESTART_AT[1], pz = RESTART_AT[2];
+       float spawnYaw = 0f;
        float[] bbox = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
        int[] objectCount = {0};
        int loadedBefore = loadedCount;
@@ -480,6 +481,13 @@ public final class WorldViewer {
        // 6 sessions); avatars (.bod) now preload too (feet bbox included).
        if (room.environment != null) {
           preload(room.environment, identity(), bbox, objectCount);
+       }
+       {
+          float[] sp = spawnFor(room, roomName, bbox);
+          px = sp[0];
+          py = sp[1];
+          pz = sp[2];
+          spawnYaw = sp[3];
        }
        // Bbox SOLO del fondo (para el frustum de su propia pasada; el
        // fondo nunca entra en el bbox de la sala ni en su camara).
@@ -600,10 +608,10 @@ public final class WorldViewer {
          up = upArg != null ? upArg.clone() : new float[]{0, 0, 1};
          upZ = up[2] > 0.9f;
          if (play) {
-            yaw = (float) Math.atan2(865f - 1229f, 1290f - 1872f);
+            yaw = spawnYaw;
             pitch = 0f;
-            System.out.println("Play mode: spawn Reception (1872,1229,150) facing kiosk, yaw=" + yaw
-               + " avatar=aura.bod (default real del cliente)");
+            System.out.println("Play mode: spawn " + roomName + " (" + px + "," + py + "," + pz + ") yaw="
+               + Math.round(Math.toDegrees(yaw)) + " grados, avatar=aura.bod (default real del cliente)");
             if (spawnArg != null) {
                // Solo arnes headless (PortalCrossHarness): posiciona al
                // jugador en una sala/posicion arbitraria para capturar
@@ -906,15 +914,16 @@ public final class WorldViewer {
           glMatrixMode(GL_MODELVIEW);
           glLoadIdentity();
           if (play) {
-             // Tercera persona como el original (HoloPilot BEHIND):
-             // camara detras de la cabeza (pies+150 = eyeHeight real
-             // de SmoothDriver/HoloPilot) mirando hacia adelante; las
-             // flechas UP/DOWN (pitch) la suben/bajan.
-             float[] fwd = fwdFromYawPitch(yaw, pitch, true);
+             // Tercera persona como el original al arrancar (HoloPilot
+             // CAM_MODE_BEHIND, medido en el puente): la camara mira al
+             // punto de ojo (pies + 150, eyeHeight de SmoothDriver) desde
+             // 140 unidades por detras, inclinada 10 grados hacia abajo, y
+             // se acerca si hay un muro por medio (la camara del original
+             // es bumpable). Las flechas UP/DOWN suman a esa inclinacion.
+             float[] view = fwdFromYawPitch(yaw, pitch + PLAY_CAM_PITCH, true);
              float hx = px, hy = py, hz = pz + PLAY_EYE_HEIGHT;
-             GlUtil.lookAt(hx - fwd[0] * PLAY_CAM_DIST, hy - fwd[1] * PLAY_CAM_DIST,
-                hz - fwd[2] * PLAY_CAM_DIST, hx + fwd[0] * 10f, hy + fwd[1] * 10f,
-                hz + fwd[2] * 10f, 0, 0, 1);
+             float dist = cameraDistance(blockerBoxes, hx, hy, hz, view);
+             GlUtil.lookAt(hx - view[0] * dist, hy - view[1] * dist, hz - view[2] * dist, hx, hy, hz, 0, 0, 1);
           } else if (inside) {
              float[] fwd = fwdFromYawPitch(yaw, pitch, upZ);
              GlUtil.lookAt(eye[0], eye[1], eye[2], eye[0] + fwd[0], eye[1] + fwd[1], eye[2] + fwd[2], up[0], up[1], up[2]);
@@ -2162,12 +2171,83 @@ public final class WorldViewer {
 
     // --- Modo juego (--play): constantes del cliente original ---
     // PLAY_EYE_HEIGHT=150: SmoothDriver.eyeHeight / HoloPilot.loadInit.
-    // PLAY_CAM_DIST=220: HoloPilot WIDESHOT (modo 8) moveTo(0,-220,-40).
+    // PLAY_CAM_DIST=140, PLAY_CAM_PITCH=-10: HoloPilot BEHIND (modo 7)
+    // moveTo(0,-140,0).postspin(1,0,0,-10), el modo con que arranca el
+    // original (en el puente, camara a 137.9 en horizontal y +24.3 del ojo:
+    // 140*cos 10 y 140*sin 10). Antes era WIDESHOT (modo 8, 220), que en
+    // salas pequenas dejaba la camara al otro lado de la pared.
     // PLAY_WALK_SPEED=250: entre maxdvLR=166 y maxdvFB=300 de SmoothDriver.
     // PLAY_RADIUS=30: medio ancho del bound box real setLocalBoundBox(
     // -30,-30,-v / 30,50,20) de HoloPilot. PLAY_STEP=30: stepHeight real.
+    /**
+     * worlds.ini RestartAt of the 2004 install:
+     * home:GroundZero/GroundZero.world#Reception<>@1872.0,1229.0,150.0,125.0,0.0,0.0,-1.0
+     * (x, y, z, rot, axis: TeleportAction.setFromURL).
+     */
+    private static final float[] RESTART_AT = {1872f, 1229f, 150f, 125f, 0f, 0f, -1f};
+
+    /**
+     * Where the pilot starts in a room and where it looks, as TeleportAction
+     * does it: moveTo(pos).spin(axis, rot) on an identity pilot, whose
+     * forward is +Y. Measured on the bridge (camera behind the pilot): the
+     * default room AvatarEnter (261 degrees about (0,0,-1)) faces
+     * (-0.97,-0.15) and Reception at its RestartAt (125 about (0,0,-1))
+     * faces (0.81,-0.56); both are +Y turned to the heading 90 + s*rot
+     * degrees for a spin about (0,0,s). (The viewer used to face Reception
+     * towards the kiosk, -148 degrees, chosen by hand; the original faces
+     * -35.) Reception uses the install's RestartAt, as the original on
+     * startup; any other room its defaultPosition/defaultOrientation, or the
+     * centre of its box when that point is outside it (the 500,500,120 of
+     * rooms that were never given one). Returns {x, y, z, yaw radians}.
+     */
+    static float[] spawnFor(WNode room, String roomName, float[] bbox) {
+       float x, y, z, rot, az;
+       if ("Reception".equals(roomName) || room.defaultPosition == null) {
+          x = RESTART_AT[0];
+          y = RESTART_AT[1];
+          z = RESTART_AT[2];
+          rot = RESTART_AT[3];
+          az = RESTART_AT[6];
+       } else {
+          x = room.defaultPosition[0];
+          y = room.defaultPosition[1];
+          z = room.defaultPosition[2];
+          rot = room.defaultOrientation;
+          az = room.defaultOrientationAxis == null ? -1f : room.defaultOrientationAxis[2];
+       }
+       if (bbox[0] <= bbox[3] && (x < bbox[0] || x > bbox[3] || y < bbox[1] || y > bbox[4])) {
+          x = (bbox[0] + bbox[3]) / 2f;
+          y = (bbox[1] + bbox[4]) / 2f;
+          z = Math.max(bbox[2], Math.min(bbox[5], z));
+       }
+       float heading = 90f + Math.signum(az == 0f ? -1f : az) * rot;
+       return new float[]{x, y, z, (float) Math.toRadians(heading)};
+    }
+
     private static final float PLAY_EYE_HEIGHT = 150f;
-    private static final float PLAY_CAM_DIST = 220f;
+    private static final float PLAY_CAM_DIST = 140f;
+    private static final float PLAY_CAM_PITCH = (float) Math.toRadians(-10.0);
+
+    /**
+     * How far behind the eye point the camera can be: PLAY_CAM_DIST unless a
+     * wall or bumper (the boxes the pilot collides with) is closer along the
+     * way back; then just in front of it. The original camera is bumpable
+     * (HoloPilot.setOutsideCameraMode: cam.setBumpable(true)), which is why
+     * the bridge shows it at 116 instead of 138 in the small AvatarEnter.
+     */
+    private static float cameraDistance(List<float[]> blockers, float hx, float hy, float hz, float[] view) {
+       final float margin = 8f;
+       for (float d = 4f; d <= PLAY_CAM_DIST; d += 4f) {
+          float x = hx - view[0] * d, y = hy - view[1] * d, z = hz - view[2] * d;
+          for (float[] b : blockers) {
+             if (x > b[0] - margin && x < b[3] + margin && y > b[1] - margin && y < b[4] + margin
+                   && z > b[2] - margin && z < b[5] + margin) {
+                return Math.max(20f, d - 4f);
+             }
+          }
+       }
+       return PLAY_CAM_DIST;
+    }
     private static final float PLAY_WALK_SPEED = 250f;
     private static final float PLAY_RADIUS = 30f;
     private static final float PLAY_STEP = 30f;
