@@ -36,10 +36,35 @@ public final class NativeSysProcess {
    private NativeSysProcess() {
    }
 
-   /** CreateProcSpecial (0x00404740). */
+   /**
+    * CreateProcSpecial (0x00404740). The client's only call is the updater
+    * (NetUpdate.runUpdates: {@code .\bin\gdkup.exe updates.lst}), a Windows
+    * program: its command line without the program ("updates.lst &lt;pid&gt;")
+    * is left in {@link GdkUp#PENDING} and true is returned, as if it had
+    * started. Whoever started the client (the launcher, run_gamma.sh) runs
+    * {@link GdkUp} with it once the client has ended, which is what
+    * gdkup.exe does by waiting for its parent process.
+    */
    public static boolean createProcSpecial(String program, String args) {
       String line = commandLine(program, args, pid());
       List<String> argv = split(line);
+      if (!argv.isEmpty() && isGdkUp(argv.get(0))) {
+         StringBuilder rest = new StringBuilder();
+         for (int i = 1; i < argv.size(); i++) {
+            rest.append(i > 1 ? " " : "").append(argv.get(i));
+         }
+         try {
+            java.nio.file.Files.write(new File(System.getProperty("user.dir"), GdkUp.PENDING).toPath(),
+               (rest + System.lineSeparator()).getBytes("ISO-8859-1"));
+            System.err.println("[gdkup] pendiente: " + rest);
+            return true;
+         } catch (IOException e) {
+            System.err.println("Internal error - can't execute \"" + line + "\"");
+            System.err.println(e.getMessage());
+            System.err.flush();
+            return false;
+         }
+      }
       if (!argv.isEmpty()) {
          String exe = argv.get(0);
          String base = exe.substring(Math.max(exe.lastIndexOf('\\'), exe.lastIndexOf('/')) + 1);
@@ -57,6 +82,11 @@ public final class NativeSysProcess {
          System.err.flush();
          return false;
       }
+   }
+
+   static boolean isGdkUp(String exe) {
+      String base = exe.substring(Math.max(exe.lastIndexOf('\\'), exe.lastIndexOf('/')) + 1).toLowerCase(java.util.Locale.ROOT);
+      return base.equals("gdkup.exe") || base.equals("gdkup");
    }
 
    /** wsprintfA "%s %s %lu" (0x0046d620). */

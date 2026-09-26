@@ -113,6 +113,46 @@ final class Install {
       }
    }
 
+   /**
+    * The upgrade server of the 2004 install ([Gamma] upgradeServer of the
+    * template's worlds.ini: http://us1.worlds.net/3DCDup, today LibreWorlds'
+    * mirror), without a trailing slash; null if there is none.
+    */
+   static String mirrorOf(Layout l) {
+      String forced = System.getProperty("freeworlds.mirror");
+      if (forced != null) {
+         return forced.isEmpty() ? null : trimSlash(forced);
+      }
+      File ini = findNoCase(l.template, "worlds.ini");
+      if (ini == null) {
+         return null;
+      }
+      try {
+         String v = getKey(ini, "Gamma", "upgradeServer");
+         return v == null || v.isEmpty() ? null : trimSlash(v);
+      } catch (IOException e) {
+         return null;
+      }
+   }
+
+   private static String trimSlash(String s) {
+      return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
+   }
+
+   /** GetPrivateProfileString: first section with the name, key without case; null if missing. */
+   static String getKey(File ini, String section, String key) throws IOException {
+      boolean inSec = false;
+      for (String ln : read(ini)) {
+         Matcher m = SECTION.matcher(ln);
+         if (m.matches()) {
+            inSec = m.group(1).trim().equalsIgnoreCase(section);
+         } else if (inSec && isKey(ln, key)) {
+            return ln.substring(ln.indexOf('=') + 1).trim();
+         }
+      }
+      return null;
+   }
+
    static File findNoCase(File dir, String name) {
       File exact = new File(dir, name);
       if (exact.exists()) {
@@ -215,16 +255,42 @@ final class Install {
    }
 
    /** The .world files of the copy, as the client's home: URLs (GroundZero first). */
-   static List<String> worlds(Layout l) {
-      List<String> out = new ArrayList<>();
-      out.add("home:GroundZero/groundzero.world");
+   /**
+    * Worlds to offer, {label, home: URL}: GroundZero, the other .world files
+    * at the top of the install, and the places of GroundZero's map
+    * (GroundZero/groundzero-map.inf: "x y w h Name -URL" after the count),
+    * which the client downloads from the upgrade server the first time.
+    */
+   static List<String[]> worlds(Layout l) {
+      List<String[]> out = new ArrayList<>();
+      out.add(new String[]{"GroundZero", "home:GroundZero/groundzero.world"});
       File[] top = l.template.listFiles();
       if (top != null) {
          java.util.Arrays.sort(top);
          for (File f : top) {
-            if (f.isFile() && f.getName().toLowerCase(Locale.ROOT).endsWith(".world") && !f.getName().equalsIgnoreCase("ad.world")) {
-               out.add("home:" + f.getName());
+            String n = f.getName();
+            if (f.isFile() && n.toLowerCase(Locale.ROOT).endsWith(".world") && !n.equalsIgnoreCase("ad.world")) {
+               out.add(new String[]{n.substring(0, n.length() - 6), "home:" + n});
             }
+         }
+      }
+      File gz = findNoCase(l.template, "GroundZero");
+      File inf = gz == null ? null : findNoCase(gz, "groundzero-map.inf");
+      if (inf != null) {
+         try {
+            for (String ln : read(inf)) {
+               String[] f = ln.trim().split("\\s+");
+               if (f.length >= 6 && f[5].startsWith("-home:")) {
+                  String url = f[5].substring(1);
+                  String pkg = url.substring(5).replaceFirst("^/", "");
+                  pkg = pkg.contains("/") ? pkg.substring(0, pkg.indexOf('/')) : pkg;
+                  boolean installed = new File(new File(l.workDir, pkg), "ver.txt").isFile()
+                     || new File(new File(l.template, pkg), "ver.txt").isFile();
+                  out.add(new String[]{f[4].replace('_', ' ') + (installed ? "" : "  (se descarga la primera vez)"), url});
+               }
+            }
+         } catch (IOException e) {
+            // sin mapa: solo los mundos de la instalacion
          }
       }
       return out;

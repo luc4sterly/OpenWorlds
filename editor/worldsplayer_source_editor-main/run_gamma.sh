@@ -24,12 +24,18 @@ rm -rf "$CWD/cachedir"
 cp -R "$REPO/assets/WorldsPlayer/." "$CWD/"
 cd "$CWD"
 
-# El host original (us1.worlds.net) ya no existe: se levanta un servidor local
-# (tools/local-upgrade-server.py) y la copia de worlds.ini apunta a el.
+# Servidor local de actualizaciones (tools/local-upgrade-server.py): sirve la
+# instalacion de assets/ al instante y la copia de worlds.ini apunta a el. Lo
+# que falta (paquetes de mundo, vestuario de avatares, el mapa del universo)
+# lo pide al upgradeServer original, http://us1.worlds.net/3DCDup, que hoy es
+# el espejo de LibreWorlds, y lo guarda en build/mirror-cache, como el
+# lanzador. FREEWORLDS_MIRROR=URL usa otro espejo y FREEWORLDS_MIRROR=0 ninguno.
 # FREEWORLDS_NO_LOCAL_SERVER=1 conserva el upgradeServer original.
 if [ -z "${FREEWORLDS_NO_LOCAL_SERVER:-}" ]; then
    SRVLOG="$CWD/upgrade-server.log"
-   python3 "$REPO/tools/local-upgrade-server.py" --root "$REPO/assets/WorldsPlayer" >"$SRVLOG.port" 2>"$SRVLOG" &
+   MIRROR="${FREEWORLDS_MIRROR-$(sed -n 's/^[Uu]pgrade[Ss]erver=//p' worlds.ini 2>/dev/null | head -1 | tr -d '\r')}"
+   case "$MIRROR" in 0|none|"") MIRROR_ARGS="" ;; *) MIRROR_ARGS="--mirror $MIRROR --cache $REPO/build/mirror-cache" ;; esac
+   python3 "$REPO/tools/local-upgrade-server.py" --root "$REPO/assets/WorldsPlayer" $MIRROR_ARGS >"$SRVLOG.port" 2>"$SRVLOG" &
    SRV_PID=$!
    trap 'kill $SRV_PID 2>/dev/null' EXIT
    PORT=""
@@ -42,7 +48,7 @@ if [ -z "${FREEWORLDS_NO_LOCAL_SERVER:-}" ]; then
    for f in worlds.ini worlds.dst; do
       [ -f "$f" ] && sed -i.bak "s#^upgradeServer=.*#upgradeServer=http://127.0.0.1:$PORT/3DCDup#" "$f" && rm -f "$f.bak"
    done
-   echo "run_gamma: upgradeServer local en http://127.0.0.1:$PORT/3DCDup (log: $SRVLOG)"
+   echo "run_gamma: upgradeServer local en http://127.0.0.1:$PORT/3DCDup${MIRROR_ARGS:+, lo que falte de $MIRROR} (log: $SRVLOG)"
 fi
 
 # Consola: con LogFile=Gamma.Log en [Gamma] (worlds.ini) el cliente manda
@@ -118,4 +124,26 @@ if [ -n "${FREEWORLDS_LOGIN:-}${FREEWORLDS_CHAT:-}" ]; then
    CP="$CP:$DRV"
    MAIN=LoginDriver
 fi
+set +e
 "$JAVA" ${JAVA_OPTS:-} -cp "$CP" $MAIN "$@"
+RC=$?
+# Instalar un mundo o una actualizacion: el cliente pide gdkup.exe y se
+# cierra. gdkup.exe no corre fuera de Windows, asi que el puente deja la
+# peticion en gdkup.pending (NativeSysProcess.createProcSpecial) y aqui se
+# aplica con el gdkup en Java (NET.worlds.core.GdkUp). Con su codigo 10 el
+# cliente se arranca otra vez con lo que pide la linea run.exe del guion
+# (world:restart), como hace el lanzador (Session).
+while [ -f gdkup.pending ]; do
+   GARGS="$(tr -d '\r\n' < gdkup.pending)"
+   rm -f gdkup.pending
+   echo "run_gamma: actualizacion pendiente: gdkup $GARGS"
+   "$JAVA" -cp "$REPO/editor/.build-gamma/out" NET.worlds.core.GdkUp $GARGS > gdkup.out 2>&1
+   GRC=$?
+   cat gdkup.out
+   [ "$GRC" -eq 10 ] || break
+   RESTART="$(sed -n 's/^\[gdkup\] reinicio: *//p' gdkup.out | tail -1)"
+   echo "run_gamma: reinicio tras la actualizacion: ${RESTART:-world:restart}"
+   "$JAVA" ${JAVA_OPTS:-} -cp "$CP" $MAIN ${RESTART:-world:restart}
+   RC=$?
+done
+exit $RC

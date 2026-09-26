@@ -53,14 +53,16 @@ final class LauncherWindow {
    /** A world of the install as the combo shows it (GroundZero, not its home: URL). */
    private static final class WorldItem {
       final String url;
+      final String label;
 
-      WorldItem(String url) {
+      WorldItem(String label, String url) {
+         this.label = label;
          this.url = url;
       }
 
       @Override
       public String toString() {
-         return url.isEmpty() ? "Pantalla de inicio (login)" : Launcher.describeWorld(url) + "   (" + url + ")";
+         return url.isEmpty() ? "Pantalla de inicio (login)" : label;
       }
    }
    private final JComboBox<String> server = new JComboBox<>(SERVERS);
@@ -68,6 +70,7 @@ final class LauncherWindow {
    private final JTextField user = new JTextField(12);
    private final JSpinner threads = new JSpinner(new SpinnerNumberModel(0, 0, 64, 1));
    private final JCheckBox fps = new JCheckBox("FPS en el registro");
+   private final JCheckBox mirror = new JCheckBox("Descargar mundos y avatares que falten (us1.worlds.net)");
    private Session running;
 
    private LauncherWindow(Layout layout, Settings settings) {
@@ -166,10 +169,10 @@ final class LauncherWindow {
 
    private JComponent originalPanel() {
       JPanel p = section("Cliente original de 2004 (WorldsPlayer con el puente portable)");
-      for (String w : Install.worlds(layout)) {
-         world.addItem(new WorldItem(w));
+      for (String[] w : Install.worlds(layout)) {
+         world.addItem(new WorldItem(w[0], w[1]));
       }
-      world.addItem(new WorldItem(""));
+      world.addItem(new WorldItem("", ""));
       world.setSelectedIndex(0);
       for (int i = 0; i < world.getItemCount(); i++) {
          if (world.getItemAt(i).url.equals(settings.world)) {
@@ -189,6 +192,9 @@ final class LauncherWindow {
       fps.setSelected(settings.showFps);
       fps.setOpaque(false);
       fps.setForeground(FG);
+      mirror.setSelected(settings.mirror);
+      mirror.setOpaque(false);
+      mirror.setForeground(FG);
       Runnable sync = () -> {
          boolean custom = server.getSelectedIndex() == 2;
          boolean any = server.getSelectedIndex() != 0;
@@ -205,6 +211,7 @@ final class LauncherWindow {
       row(p, c, "Host:puerto", hostRow);
       JPanel opts = flow(label("Hilos de dibujo (0 = auto)", 12, Font.PLAIN), threads, fps);
       row(p, c, "Opciones", opts);
+      row(p, c, "Contenido", flow(mirror));
       c.gridx = 1;
       c.anchor = GridBagConstraints.EAST;
       c.fill = GridBagConstraints.NONE;
@@ -228,6 +235,7 @@ final class LauncherWindow {
       settings.user = user.getText().trim();
       settings.rasterThreads = (Integer) threads.getValue();
       settings.showFps = fps.isSelected();
+      settings.mirror = mirror.isSelected();
       settings.save(layout.settingsFile);
    }
 

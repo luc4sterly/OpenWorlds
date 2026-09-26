@@ -5,23 +5,37 @@ import com.sun.net.httpserver.HttpServer;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.TimeZone;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 
 /**
- * Local stand-in for http://us1.worlds.net/3DCDup (gone), the Java port of
+ * The client's upgrade server (worlds.ini upgradeServer), the Java port of
  * tools/local-upgrade-server.py: files of the 2004 install under /3DCDup/,
  * the official base avatars under /3DCDup/avatar/, names matched without
- * case as on Windows, and an immediate 404 for what does not exist instead
- * of the client waiting on a dead host. Bound to 127.0.0.1 only.
+ * case as on Windows. Bound to 127.0.0.1 only.
+ *
+ * <p>What the install lacks (other worlds' upgrades.lst and packages, avatar
+ * wardrobe) is asked, when a mirror is given, of the upgrade server the 2004
+ * install points at: http://us1.worlds.net/3DCDup is alive again as
+ * LibreWorlds' mirror (upgrade.libreworlds.org). Each file fetched is kept in
+ * the user's data folder (mirror/), so it is fetched once; a 404 or a network
+ * error is answered with an immediate 404 and not asked again this session.
  */
 final class UpgradeServer {
    private static final String PREFIX = "/3DCDup/";
@@ -30,11 +44,17 @@ final class UpgradeServer {
    private final HttpServer server;
    private final File root;
    private final File avatars;
+   private final String mirror;
+   private final File cache;
    private final Log log;
+   private final Set<String> missing = Collections.synchronizedSet(new HashSet<>());
+   private final ConcurrentHashMap<String, Object> locks = new ConcurrentHashMap<>();
 
-   UpgradeServer(File root, File avatars, Log log) throws IOException {
+   UpgradeServer(File root, File avatars, String mirror, File cache, Log log) throws IOException {
       this.root = root;
       this.avatars = avatars;
+      this.mirror = mirror;
+      this.cache = cache;
       this.log = log;
       this.server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 16);
       this.server.createContext("/", this::handle);
@@ -110,13 +130,44 @@ final class UpgradeServer {
             }
          }
       }
-      File cur = root;
-      for (String part : path.substring(PREFIX.length()).split("/")) {
+      String rel = safeRelative(path.substring(PREFIX.length()));
+      if (rel == null) {
+         return null;
+      }
+      File local = lookup(root, rel);
+      if (local != null && local.isFile()) {
+         return local;
+      }
+      if (cache == null) {
+         return null;
+      }
+      File cached = lookup(cache, rel);
+      if (cached != null && cached.isFile()) {
+         return cached;
+      }
+      return fetch(rel);
+   }
+
+   /** The path's segments joined with '/', or null if one is "..", has a backslash or a NUL. */
+   private static String safeRelative(String p) {
+      StringBuilder sb = new StringBuilder();
+      for (String part : p.split("/")) {
          if (part.isEmpty() || part.equals(".")) {
             continue;
          }
-         if (part.equals("..") || part.contains("\\") || part.indexOf('\0') >= 0) {
+         if (part.equals("..") || part.contains("\\") || part.indexOf('\0') >= 0 || part.indexOf(':') >= 0) {
             return null;
+         }
+         sb.append(sb.length() == 0 ? "" : "/").append(part);
+      }
+      return sb.toString();
+   }
+
+   private static File lookup(File dir, String rel) {
+      File cur = dir;
+      for (String part : rel.split("/")) {
+         if (part.isEmpty()) {
+            continue;
          }
          cur = Install.findNoCase(cur, part);
          if (cur == null) {
@@ -124,6 +175,52 @@ final class UpgradeServer {
          }
       }
       return cur;
+   }
+
+   /** GET mirror/rel into the cache; null (and remembered) when it is not there. */
+   private File fetch(String rel) {
+      if (mirror == null || rel.isEmpty() || missing.contains(rel.toLowerCase(Locale.ROOT))) {
+         return null;
+      }
+      Object lock = locks.computeIfAbsent(rel.toLowerCase(Locale.ROOT), k -> new Object());
+      synchronized (lock) {
+         File cached = lookup(cache, rel);
+         if (cached != null && cached.isFile()) {
+            return cached;
+         }
+         if (missing.contains(rel.toLowerCase(Locale.ROOT))) {
+            return null;
+         }
+         File to = new File(cache, rel);
+         File tmp = new File(to.getPath() + ".part");
+         try {
+            URL url = URI.create(mirror + "/").resolve(new URI(null, null, rel, null)).toURL();
+            HttpURLConnection c = (HttpURLConnection) url.openConnection();
+            c.setConnectTimeout(5000);
+            c.setReadTimeout(30000);
+            c.setInstanceFollowRedirects(true);
+            c.setRequestProperty("User-Agent", "FreeWorlds/" + Layout.version());
+            int code = c.getResponseCode();
+            if (code != 200) {
+               c.disconnect();
+               missing.add(rel.toLowerCase(Locale.ROOT));
+               log.line("[servidor local] espejo " + code + " " + rel);
+               return null;
+            }
+            to.getParentFile().mkdirs();
+            try (InputStream in = c.getInputStream()) {
+               Files.copy(in, tmp.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+            Files.move(tmp.toPath(), to.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            log.line("[servidor local] espejo: " + rel + " (" + to.length() + " bytes)");
+            return to;
+         } catch (IOException | java.net.URISyntaxException | RuntimeException e) {
+            tmp.delete();
+            missing.add(rel.toLowerCase(Locale.ROOT));
+            log.line("[servidor local] espejo sin respuesta para " + rel + ": " + e);
+            return null;
+         }
+      }
    }
 
    private static String httpDate(long ms) {

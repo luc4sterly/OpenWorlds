@@ -39,6 +39,14 @@ Cliente original
        macOS:   ~/Library/Application Support/FreeWorlds
        Windows: %LOCALAPPDATA%\FreeWorlds
        Linux:   ~/.local/share/freeworlds
+  - Otros mundos: la instalacion de 2004 solo trae GroundZero. Los demas
+    (Avatar Gallery, Worlds Center, Animal House, Hang, Meteor, The Blair
+    Witch World, los de Bowie...) se piden desde el mapa, el menu Teleport
+    o el mapa del universo: el juego ofrece descargarlos de us1.worlds.net
+    (hoy el espejo de LibreWorlds) y pide reiniciar; el lanzador instala el
+    paquete y vuelve a abrir el juego solo. Options > Upgrade Now busca
+    actualizaciones de los mundos instalados. Sin red, o con la opcion
+    "Contenido" desmarcada (--no-mirror), solo hay GroundZero.
   - Ventana grande = mas pixeles que dibujar por software: el puente usa
     varios hilos (opcion "Hilos de dibujo", 0 = automatico).
 

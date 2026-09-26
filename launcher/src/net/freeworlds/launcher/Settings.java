@@ -15,6 +15,8 @@ final class Settings {
    /** host:port of a world server, empty = no server (single-user). */
    String server = "";
    String user = "";
+   /** Ask the install's upgrade server (us1.worlds.net, LibreWorlds' mirror) for what the local copy lacks: worlds, avatars. */
+   boolean mirror = true;
    /** 0 = automatic. */
    int rasterThreads = 0;
    boolean showFps = false;
@@ -40,6 +42,7 @@ final class Settings {
          s.rasterThreads = 0;
       }
       s.showFps = Boolean.parseBoolean(p.getProperty("showFps", "false"));
+      s.mirror = Boolean.parseBoolean(p.getProperty("mirror", "true"));
       s.keepGammaLog = Boolean.parseBoolean(p.getProperty("keepGammaLog", "false"));
       return s;
    }
@@ -51,6 +54,7 @@ final class Settings {
       p.setProperty("user", user);
       p.setProperty("rasterThreads", Integer.toString(rasterThreads));
       p.setProperty("showFps", Boolean.toString(showFps));
+      p.setProperty("mirror", Boolean.toString(mirror));
       p.setProperty("keepGammaLog", Boolean.toString(keepGammaLog));
       f.getParentFile().mkdirs();
       try (OutputStream out = new FileOutputStream(f)) {

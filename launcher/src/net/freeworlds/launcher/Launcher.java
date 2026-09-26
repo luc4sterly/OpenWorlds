@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
  *   FreeWorlds --server HOST:PORT --user NAME   world server for --original (e.g. a local whirl)
  *   FreeWorlds --offline            no world server (single-user)
  *   FreeWorlds --threads N --fps    raster threads of the bridge / frame rate in the log
+ *   FreeWorlds --no-mirror | --mirror   do not / do ask us1.worlds.net for what the install lacks
  *   FreeWorlds --smoke SECONDS      CI: run --original for that long and fail unless it drew frames
  *   FreeWorlds --paths | --version | --help
  * </pre>
@@ -82,6 +83,11 @@ public final class Launcher {
                break;
             case "--fps":
                settings.showFps = true;
+               break;
+            case "--mirror":
+            case "--no-mirror":
+               settings.mirror = a.equals("--mirror");
+               save = true;
                break;
             case "--smoke":
                mode = "original";
@@ -194,6 +200,7 @@ public final class Launcher {
          + "  --offline                 sin servidor (un jugador)\n"
          + "  --threads N               hilos del rasterizador del puente (0 = automatico)\n"
          + "  --fps                     fotogramas por segundo en el registro\n"
+         + "  --no-mirror | --mirror    no pedir / pedir a us1.worlds.net los mundos y avatares que falten\n"
          + "  --smoke SEGUNDOS          prueba de humo para CI (falla si el original no dibuja)\n"
          + "  --paths | --version | --help");
    }
@@ -230,7 +237,8 @@ public final class Launcher {
             System.out.println(" 3) Servidor de mundos: " + (settings.server.isEmpty() ? "sin conexion (un jugador)" : settings.server
                + (settings.user.isEmpty() ? "" : " como " + settings.user)));
             System.out.println(" 4) Opciones: hilos de dibujo " + (settings.rasterThreads == 0 ? "auto" : settings.rasterThreads)
-               + ", fps en el registro " + (settings.showFps ? "si" : "no"));
+               + ", fps en el registro " + (settings.showFps ? "si" : "no")
+               + ", descargar lo que falte " + (settings.mirror ? "si" : "no"));
             System.out.println(" 5) Rutas (datos, registros)");
             System.out.println(" 0) Salir");
             String c = ask("Opcion");
@@ -305,6 +313,10 @@ public final class Launcher {
          if (f != null && !f.isEmpty()) {
             settings.showFps = f.trim().toLowerCase().startsWith("s") || f.trim().toLowerCase().startsWith("y");
          }
+         String m = ask("Descargar de us1.worlds.net los mundos y avatares que falten (s/n, ahora " + (settings.mirror ? "s" : "n") + ")");
+         if (m != null && !m.isEmpty()) {
+            settings.mirror = m.trim().toLowerCase().startsWith("s") || m.trim().toLowerCase().startsWith("y");
+         }
          settings.save(layout.settingsFile);
       }
 
@@ -320,7 +332,9 @@ public final class Launcher {
       if (w == null || w.isEmpty()) {
          return "pantalla de login";
       }
-      String n = w.substring(w.lastIndexOf('/') + 1);
+      int hash = w.indexOf('#');
+      String n = hash >= 0 ? w.substring(0, hash) : w;
+      n = n.substring(n.lastIndexOf('/') + 1);
       int dot = n.lastIndexOf('.');
       return dot > 0 ? n.substring(0, dot) : n;
    }
