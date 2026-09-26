@@ -63,10 +63,12 @@ jobs:
         id: v
         run: |
           echo "version=$(git describe --tags --always)" >> "$GITHUB_OUTPUT"
+          echo "numeric=1.0.$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Paquete portable + app de Linux
         env:
           FREEWORLDS_VERSION: ${{ steps.v.outputs.version }}
+          FREEWORLDS_NUMERIC_VERSION: ${{ steps.v.outputs.numeric }}
         run: tools/build-dist.sh --app-image
 
       - name: LWJGL para los checks (los mismos jars del paquete)
@@ -118,6 +120,7 @@ jobs:
 
     outputs:
       version: ${{ steps.v.outputs.version }}
+      numeric: ${{ steps.v.outputs.numeric }}
 
   package:
     name: App ${{ matrix.name }}
@@ -153,6 +156,7 @@ jobs:
       - name: jlink + jpackage
         env:
           FREEWORLDS_VERSION: ${{ needs.build.outputs.version }}
+          FREEWORLDS_NUMERIC_VERSION: ${{ needs.build.outputs.numeric }}
         run: tools/build-dist.sh --package-only
 
       - name: Prueba rapida del lanzador empaquetado

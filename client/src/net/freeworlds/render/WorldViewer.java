@@ -248,6 +248,11 @@ public final class WorldViewer {
     private static TextureActions textureActions;
 
       public static void main(String[] args) throws Exception {
+         // Java2D solo dibuja el atlas del HUD (HudText) en una imagen: sin
+         // ventana AWT, que en macOS competiria con GLFW por el hilo principal.
+         if (System.getProperty("java.awt.headless") == null) {
+            System.setProperty("java.awt.headless", "true");
+         }
          if (args.length < 2) {
             System.err.println("Usage: WorldViewer <file.world> <roomName|ALL|--list-rooms|--list-portals> [--screenshot out.png] [--screenshot-dir outdir] [--window] [--fullscreen] [--inside] [--play] [--eye x,y,z] [--look x,y,z] [--up x,y,z]");
             System.exit(2);
@@ -578,9 +583,15 @@ public final class WorldViewer {
           // en otra (el usuario no la ve aunque esté renderizando bien).
           glfwFocusWindow(window);
           glfwRequestWindowAttention(window);
-         // ESC or window close button exits the interactive viewer.
+         // ESC or window close button exits the interactive viewer; in
+         // play mode ESC opens the pause menu instead (menuKey).
+         final boolean pauseMenu = play;
          glfwSetKeyCallback(window, (win, key, scancode, action, mods) -> {
-            if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+            if (pauseMenu) {
+               if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+                  menuKey(win, key);
+               }
+            } else if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
                glfwSetWindowShouldClose(win, true);
             }
          });
@@ -754,7 +765,17 @@ public final class WorldViewer {
                   autopilotDone = true;
                }
             }
-            if (dx != 0f || dy != 0f) {
+            PortalCross cross = null;
+            if (pendingRoom != null && !autopilot) {
+               // "Ir a otra sala" del menu de pausa: TeleportAction con la
+               // sala sin posicion (su defaultPosition), ver spawnFor.
+               cross = teleportCross(pendingRoom);
+               pendingRoom = null;
+               if (cross != null) {
+                  System.out.println("Menu: ir a la sala \"" + cross.destRoomName + "\"");
+               }
+            }
+            if (cross == null && (dx != 0f || dy != 0f)) {
                float p0x = px, p0y = py, p0z = pz;
                boolean movedX = false, movedY = false;
                float nx = px + dx;
@@ -772,52 +793,54 @@ public final class WorldViewer {
                // jugador al cielo (empotrado + ratchet, 2026-09-14).
                if (movedX || movedY) {
                   pz = floorHeightAt(floorQuads, propTris, px, py, pz);
-                  PortalCross cross = crossPortal(portalNodes, portalQuads, p0x, p0y, p0z, px - p0x, py - p0y, yaw);
+                  cross = crossPortal(portalNodes, portalQuads, p0x, p0y, p0z, px - p0x, py - p0y, yaw);
                   if (cross != null) {
                      System.out.println("Cruzando portal \"" + cross.srcName + "\" (sala \"" + roomName
                         + "\", de " + p0x + "," + p0y + "," + p0z + " a " + px + "," + py + ") -> \"" + cross.farName
                         + "\" (sala \"" + cross.destRoomName + "\")");
-                     room = cross.destRoom;
-                     roomName = cross.destRoomName;
-                     bbox = loadPlayRoom(room, floorQuads, blockerBoxes, propTris, portalNodes, portalQuads);
-                     startRoomActions(room, roomName, (long) (glfwGetTime() * 1000.0));
-                     radius = Math.max(0.01f, distance(bbox));
-                     cx = (bbox[0] + bbox[3]) / 2f;
-                     cy = (bbox[1] + bbox[4]) / 2f;
-                     cz = (bbox[2] + bbox[5]) / 2f;
-                     // Fondo infinito de la sala destino (misma logica que
-                     // la carga inicial, ver arriba - una sala nueva puede
-                     // no tener fondo, o uno distinto).
-                     bgBbox = null;
-                     if (room.infiniteBackground != null) {
-                        float[] freshBg = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
-                        int[] bgCount = {0};
-                        preloadBg(room.infiniteBackground, identity(), freshBg, bgCount);
-                        if (bgCount[0] != 0) {
-                           bgBbox = freshBg;
-                        }
-                     }
-                     bgNear = 1f; bgFar = 10000f; bgCx = 0f; bgCy = 0f; bgCz = 0f;
-                     if (bgBbox != null) {
-                        bgCx = (bgBbox[0] + bgBbox[3]) / 2f;
-                        bgCy = (bgBbox[1] + bgBbox[4]) / 2f;
-                        bgCz = (bgBbox[2] + bgBbox[5]) / 2f;
-                        float bgR = distance(bgBbox) / 2f;
-                        float bgDist = (float) Math.sqrt(bgCx * bgCx + bgCy * bgCy + bgCz * bgCz);
-                        bgFar = (bgDist + bgR) * 2f + radius;
-                     }
-                     px = cross.x;
-                     py = cross.y;
-                     pz = floorHeightAt(floorQuads, propTris, cross.x, cross.y, cross.z);
-                     yaw = cross.yaw;
-                     System.out.println("  -> sala \"" + roomName + "\" pos=(" + px + "," + py + "," + pz
-                        + ") yaw=" + yaw + " (" + floorQuads.size() + " floor quads, " + blockerBoxes.size()
-                        + " blockers, " + portalNodes.size() + " portals)");
-                     if (autopilot) {
-                        autopilotDone = true;
-                        crossedThisFrame = true;
-                     }
                   }
+               }
+            }
+            if (cross != null) {
+               room = cross.destRoom;
+               roomName = cross.destRoomName;
+               bbox = loadPlayRoom(room, floorQuads, blockerBoxes, propTris, portalNodes, portalQuads);
+               startRoomActions(room, roomName, (long) (glfwGetTime() * 1000.0));
+               radius = Math.max(0.01f, distance(bbox));
+               cx = (bbox[0] + bbox[3]) / 2f;
+               cy = (bbox[1] + bbox[4]) / 2f;
+               cz = (bbox[2] + bbox[5]) / 2f;
+               // Fondo infinito de la sala destino (misma logica que
+               // la carga inicial, ver arriba - una sala nueva puede
+               // no tener fondo, o uno distinto).
+               bgBbox = null;
+               if (room.infiniteBackground != null) {
+                  float[] freshBg = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+                  int[] bgCount = {0};
+                  preloadBg(room.infiniteBackground, identity(), freshBg, bgCount);
+                  if (bgCount[0] != 0) {
+                     bgBbox = freshBg;
+                  }
+               }
+               bgNear = 1f; bgFar = 10000f; bgCx = 0f; bgCy = 0f; bgCz = 0f;
+               if (bgBbox != null) {
+                  bgCx = (bgBbox[0] + bgBbox[3]) / 2f;
+                  bgCy = (bgBbox[1] + bgBbox[4]) / 2f;
+                  bgCz = (bgBbox[2] + bgBbox[5]) / 2f;
+                  float bgR = distance(bgBbox) / 2f;
+                  float bgDist = (float) Math.sqrt(bgCx * bgCx + bgCy * bgCy + bgCz * bgCz);
+                  bgFar = (bgDist + bgR) * 2f + radius;
+               }
+               px = cross.x;
+               py = cross.y;
+               pz = floorHeightAt(floorQuads, propTris, cross.x, cross.y, cross.z);
+               yaw = cross.yaw;
+               System.out.println("  -> sala \"" + roomName + "\" pos=(" + px + "," + py + "," + pz
+                  + ") yaw=" + yaw + " (" + floorQuads.size() + " floor quads, " + blockerBoxes.size()
+                  + " blockers, " + portalNodes.size() + " portals)");
+               if (autopilot) {
+                  autopilotDone = true;
+                  crossedThisFrame = true;
                }
             }
             if (!autopilot && frame % 300 == 0) {
@@ -999,6 +1022,9 @@ public final class WorldViewer {
                 System.out.println("PortalCrossHarness: screenshots guardadas (" + screenshotBeforePath
                    + " / " + screenshotAfterPath + ")");
              }
+          }
+          if (play && visible) {
+             drawHud(width, height, roomName, now);
           }
           glfwSwapBuffers(window);
           glfwPollEvents();
@@ -2224,6 +2250,187 @@ public final class WorldViewer {
        return new float[]{x, y, z, (float) Math.toRadians(heading)};
     }
 
+    // --- Menu de pausa y HUD (--play con ventana) ---
+    private static final String[] MENU = {"Continuar", "Ir a otra sala", "Mostrar FPS", "Ayuda de controles", "Salir"};
+    private static volatile boolean menuOpen;
+    private static int menuSel;
+    private static boolean menuRooms;
+    private static int roomSel;
+    /** Sala pedida desde el menu; la aplica el bucle de juego (como un cruce de portal). */
+    private static volatile String pendingRoom;
+    private static boolean showFps = Boolean.getBoolean("freeworlds.fps");
+    private static boolean showHelp = true;
+    private static double helpUntil = -1.0;
+    private static HudText hud;
+    private static HudText hudBig;
+    private static List<String> menuRoomNames;
+    private static int fpsFrames;
+    private static double fpsMark;
+    private static int fpsShown;
+
+    private static List<String> roomNames() {
+       if (menuRoomNames == null) {
+          menuRoomNames = new ArrayList<>(worldRoot.roomsByName.keySet());
+          java.util.Collections.sort(menuRoomNames, String.CASE_INSENSITIVE_ORDER);
+       }
+       return menuRoomNames;
+    }
+
+    /** Teclas en modo juego: ESC abre/cierra el menu; con el menu abierto, flechas + Intro. */
+    private static void menuKey(long win, int key) {
+       if (!menuOpen) {
+          if (key == GLFW_KEY_ESCAPE) {
+             menuOpen = true;
+             menuSel = 0;
+             menuRooms = false;
+          } else if (key == GLFW_KEY_F3) {
+             showFps = !showFps;
+          } else if (key == GLFW_KEY_F1) {
+             showHelp = !showHelp;
+             helpUntil = -1.0;
+          }
+          return;
+       }
+       boolean up = key == GLFW_KEY_UP || key == GLFW_KEY_W;
+       boolean down = key == GLFW_KEY_DOWN || key == GLFW_KEY_S;
+       boolean ok = key == GLFW_KEY_ENTER || key == GLFW_KEY_KP_ENTER || key == GLFW_KEY_SPACE;
+       if (menuRooms) {
+          List<String> names = roomNames();
+          if (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_BACKSPACE) {
+             menuRooms = false;
+          } else if (up) {
+             roomSel = (roomSel + names.size() - 1) % names.size();
+          } else if (down) {
+             roomSel = (roomSel + 1) % names.size();
+          } else if (key == GLFW_KEY_PAGE_UP) {
+             roomSel = Math.max(0, roomSel - 10);
+          } else if (key == GLFW_KEY_PAGE_DOWN) {
+             roomSel = Math.min(names.size() - 1, roomSel + 10);
+          } else if (ok) {
+             pendingRoom = names.get(roomSel);
+             menuRooms = false;
+             menuOpen = false;
+          }
+          return;
+       }
+       if (key == GLFW_KEY_ESCAPE) {
+          menuOpen = false;
+       } else if (up) {
+          menuSel = (menuSel + MENU.length - 1) % MENU.length;
+       } else if (down) {
+          menuSel = (menuSel + 1) % MENU.length;
+       } else if (ok) {
+          switch (menuSel) {
+             case 0:
+                menuOpen = false;
+                break;
+             case 1:
+                menuRooms = true;
+                break;
+             case 2:
+                showFps = !showFps;
+                break;
+             case 3:
+                showHelp = !showHelp;
+                helpUntil = -1.0;
+                break;
+             default:
+                glfwSetWindowShouldClose(win, true);
+          }
+       }
+    }
+
+    /** El cruce de "Ir a otra sala": la sala por nombre, en su punto de entrada (spawnFor). */
+    private static PortalCross teleportCross(String name) {
+       WNode dest = worldRoot.roomsByName.get(name);
+       if (dest == null) {
+          return null;
+       }
+       float[] bb = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+       int[] count = {0};
+       preload(dest, identity(), bb, count);
+       if (dest.environment != null) {
+          preload(dest.environment, identity(), bb, count);
+       }
+       float[] sp = spawnFor(dest, name, bb);
+       return new PortalCross(dest, name, "(menu)", "(menu)", sp[0], sp[1], sp[2], sp[3]);
+    }
+
+    /** Sala, FPS, ayuda y el menu de pausa, sobre el frame ya dibujado. */
+    private static void drawHud(int w, int h, String roomName, double now) {
+       if (hud == null) {
+          hud = new HudText(16);
+          hudBig = new HudText(24);
+          fpsMark = now;
+       }
+       if (helpUntil < 0.0 && showHelp) {
+          helpUntil = now + 12.0;
+       }
+       fpsFrames++;
+       if (now - fpsMark >= 1.0) {
+          fpsShown = (int) Math.round(fpsFrames / (now - fpsMark));
+          fpsFrames = 0;
+          fpsMark = now;
+       }
+       HudText.begin(w, h);
+       hud.drawShadowed(12, 10, roomName, 1f, 1f, 1f);
+       if (showFps) {
+          String f = fpsShown + " fps";
+          hud.drawShadowed(w - 12 - hud.width(f), 10, f, 1f, 0.9f, 0.4f);
+       }
+       if (!menuOpen && showHelp && now < helpUntil) {
+          String[] lines = {"W/S andar   A/D de lado   flechas: girar y mirar", "ESC menu   F3 fps   F1 esta ayuda"};
+          float y = h - 16 - lines.length * hud.lineHeight;
+          for (String l : lines) {
+             hud.drawShadowed(12, y, l, 0.85f, 0.9f, 1f);
+             y += hud.lineHeight;
+          }
+       }
+       if (menuOpen) {
+          HudText.rect(0, 0, w, h, 0f, 0f, 0.05f, 0.55f);
+          if (!menuRooms) {
+             float bw = 360, bh = 60 + MENU.length * (hud.lineHeight + 14);
+             float bx = (w - bw) / 2f, by = (h - bh) / 2f;
+             HudText.rect(bx, by, bw, bh, 0.08f, 0.10f, 0.20f, 0.92f);
+             hudBig.drawShadowed(bx + 20, by + 12, "FreeWorlds", 1f, 1f, 1f);
+             float y = by + 56;
+             for (int i = 0; i < MENU.length; i++) {
+                String label = MENU[i];
+                if (i == 2) {
+                   label += showFps ? ": si" : ": no";
+                } else if (i == 3) {
+                   label += showHelp ? ": si" : ": no";
+                }
+                if (i == menuSel) {
+                   HudText.rect(bx + 12, y - 4, bw - 24, hud.lineHeight + 8, 0.22f, 0.36f, 1f, 0.9f);
+                }
+                hud.draw(bx + 24, y, label, 1f, 1f, 1f, 1f);
+                y += hud.lineHeight + 14;
+             }
+          } else {
+             List<String> names = roomNames();
+             int visibleRows = Math.max(5, (int) ((h - 160) / (hud.lineHeight + 6)));
+             int first = Math.max(0, Math.min(roomSel - visibleRows / 2, names.size() - visibleRows));
+             int last = Math.min(names.size(), first + visibleRows);
+             float bw = 420, bh = 70 + (last - first) * (hud.lineHeight + 6);
+             float bx = (w - bw) / 2f, by = (h - bh) / 2f;
+             HudText.rect(bx, by, bw, bh, 0.08f, 0.10f, 0.20f, 0.92f);
+             hudBig.drawShadowed(bx + 20, by + 12, "Ir a otra sala", 1f, 1f, 1f);
+             float y = by + 52;
+             for (int i = first; i < last; i++) {
+                if (i == roomSel) {
+                   HudText.rect(bx + 12, y - 3, bw - 24, hud.lineHeight + 6, 0.22f, 0.36f, 1f, 0.9f);
+                }
+                boolean here = names.get(i).equals(roomName);
+                hud.draw(bx + 24, y, names.get(i) + (here ? "   (aqui)" : ""), 1f, 1f, here ? 0.6f : 1f, 1f);
+                y += hud.lineHeight + 6;
+             }
+             hud.drawShadowed(bx + 20, by + bh - 22, "Intro: ir   ESC: volver", 0.7f, 0.75f, 0.9f);
+          }
+       }
+       HudText.end();
+    }
+
     private static final float PLAY_EYE_HEIGHT = 150f;
     private static final float PLAY_CAM_DIST = 140f;
     private static final float PLAY_CAM_PITCH = (float) Math.toRadians(-10.0);
@@ -2790,7 +2997,7 @@ public final class WorldViewer {
 
     /** Interior-camera small vector helpers (yaw/pitch fly controls). */
     private static boolean isDown(long window, int key) {
-       return glfwGetKey(window, key) == GLFW_PRESS;
+       return !menuOpen && glfwGetKey(window, key) == GLFW_PRESS;
     }
 
     private static float[] add(float[] a, float[] b) {

@@ -54,8 +54,9 @@ if [ "${JV%%.*}" -lt 17 ]; then
 fi
 
 VERSION="${FREEWORLDS_VERSION:-$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null || echo dev)}"
-# jpackage solo acepta numeros: 0.1.<commits> salvo que se de uno
-NUMVER="${FREEWORLDS_NUMERIC_VERSION:-0.1.$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 0)}"
+# jpackage solo acepta numeros y en macOS el primero tiene que ser >= 1:
+# 1.0.<commits> salvo que se de uno (la CI lo calcula con el historial entero)
+NUMVER="${FREEWORLDS_NUMERIC_VERSION:-1.0.$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 0)}"
 OUT="$ROOT/build"
 DIST="$OUT/dist/FreeWorlds"
 LIB="$DIST/lib"
