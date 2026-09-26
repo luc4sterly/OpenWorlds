@@ -150,7 +150,7 @@ el script sigue para el diagnóstico con `JAVA_OPTS`.
 |---|---|
 | `build-dist.sh` | paquete portable y, con `--app-image`, la app nativa con su Java (jlink + jpackage) de este sistema; lo usa la CI |
 | `setup-linux.sh`, `setup-macos.sh` | aprovisionar Linux/la nube (el primero lo llama el hook de sesión) o un Mac: JDK, paquetes, compilar `formats/` y el puente |
-| `dist-README.txt`, `icons/` | README que va dentro del paquete; icono propio (no el de Worlds.com) |
+| `dist-README.txt`, `icons/` | README que va dentro del paquete; icono propio, no el de Worlds.com: un planeta low-poly con anillo (`icons/make_icons.py` lo dibuja en SVG y saca el PNG, el ICO, el ICNS y el del lanzador) |
 | `native_mapper.py` | cruza métodos `native` del Java decompilado contra los exports reales de las DLLs |
 | `jni_mock.py` + `gamma-dll-debug-harness/` | bridge JNI mock con logging, para arrancar el cliente sin renderer completo |
 | `verify-corpus.sh` | regresión en un comando: compila `formats/` y reejecuta `.seq` 231, `.bod` 51, `.cmp` 159 y `.mov` 52 sobre el corpus real, luego `run-checks.sh`; sale ≠0 si algo cambia |

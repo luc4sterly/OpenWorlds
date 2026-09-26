@@ -4043,3 +4043,20 @@ del universo, donde el espejo sirve los 16 mundos.
 **Queda:** parches xdelta, chat de voz sin traducir, "Sleep" invisible,
 ⚠️ otros sitios con AWT bajo el monitor de un diálogo, y la decisión de
 guardar o no en el repo los paquetes del espejo.
+
+### 🟢 Logo nuevo: un planeta low-poly (2026-09-26)
+
+Al usuario no le gustaba nada el logo del paquete: un globo azul genérico
+con "FW" y un anillo naranja. Se le enseñaron cuatro propuestas, todas sin
+letras para que se lean a 16 px: planeta low-poly, portal entre mundos,
+planeta-burbuja de chat y pixel art. Eligió el **planeta low-poly**: una
+icosfera de 80 caras con sombreado plano, como el 3D de RenderWare (una
+luz, un color por cara), con continentes y un anillo que pasa por detrás y
+por delante, sobre un azulejo de cielo nocturno.
+
+`tools/icons/make_icons.py` lo dibuja en SVG (`freeworlds.svg`, y
+`freeworlds-small.svg` sin estrellas y con el anillo más grueso para
+16-32 px) y saca con Chrome sin interfaz y Pillow el PNG de 1024, el ICO
+(16-256), el ICNS (16-1024) y el icono de la ventana del lanzador. Chrome
+sin interfaz recorta las ventanas pequeñas, así que todo se dibuja a 1024
+y se reduce con Lanczos.
