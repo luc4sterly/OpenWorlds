@@ -103,7 +103,7 @@ textura".
   APPRACTR (`hub.rs:246`, comentado).
 - El cliente escribe su `Gamma.Log` de 2004 con `FREEWORLDS_GAMMA_LOG=1`,
   con el informe de `SystemInfo.Record`.
-- `tools/run-checks.sh`: 38/38 (con `RasterGoldenCheck`); las excepciones
+- `tools/run-checks.sh`: 40/40 (con `RasterGoldenCheck` y `MatrixAffineCheck`); las excepciones
   que salen en GroundZero (`WorldScriptGroundZero` y
   `NoWebControlException` de los carteles) son el camino del propio
   cliente. Corrección del 2026-09-26: el error de `redir.txt` que salía
@@ -144,6 +144,19 @@ textura".
   interpolan lo que usa el camino del píxel y volcado a pantalla por tabla
   565→RGB (el `drawImage` de la imagen 565 iba por el bucle genérico de
   Java2D). GroundZero a 1172×848: 25 → ~53 fps; a 468×272: 72 → ~90.
+- **Producto de matrices afín** (`NativeRw.mul/mulInto`): RWL21 multiplica
+  solo el 3×3 más la fila de traslación (`RwMultiplyMatrix` 0x1001db10 →
+  0x1005118c) y no toca la cuarta columna; el puente hacía un 4×4 completo.
+  Los `Transform` del `.world` traen ahí datos internos de RW (p. ej.
+  `m[15] = 2e-37`), así que un hijo perdía la traslación del padre y todo
+  lo que cuelga de un `WObject` contenedor (30 en GroundZero) se dibujaba
+  en el origen de la sala: faltaban el soporte con cuerdas del Auditorium
+  y la puerta en iris de IconViewRoom1Enter (se ve desde AvatarEnter y
+  desde la puerta "Avatar Gallery" de Reception). Mismo orden de sumas:
+  con matrices limpias, bit a bit igual (`MatrixAffineCheck`,
+  `RasterGoldenCheck`).
+- `-Dfreeworlds.dumpScene=SEG` (y `dumpSceneMatrices`): vuelca el árbol de
+  clumps de cada escena (objeto, estado, polígonos, posición en el mundo).
 
 Red: `run_gamma.sh` levanta `tools/local-upgrade-server.py` y apunta
 `upgradeServer` de la copia temporal a `127.0.0.1` (el host original ya no

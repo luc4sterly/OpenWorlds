@@ -81,8 +81,8 @@ real siempre fue `assets/worlds.jar` (ex `GAMMACLS.ZIP`).
 | `.rwg` (avatar, geometría) | 🟢 Casi completo | lector traducido de RWL21 (TELT/MALT/RALT/ATOM/VLST/PLST, desde ASM); 5/6 del corpus (`cube.rwg` no carga ni en RW 2.1); ATOM con hijos y RAST leídos según el binario, sin muestra real |
 | Lenguaje de nombre de avatar | ✅ Completo | 146/148 avatares limpios; **corpus de vestuario mayormente perdido** (solo 14/210 texturas y 25/141 `.bod` sobreviven localmente — no recuperable sin el asset original) |
 | Animación (DroneAnimator) | ✅ Regla cerrada | 16+2 nativos traducidos (walk/wait/endwait, sincronía con la distancia, mezclas de 250 ms y de gestos); en el puente y en el cliente propio (`WorldViewer --play`). Sin ver aún un avatar animarse en el original: las estatuas de GroundZero giran |
-| Renderizador propio (Java + LWJGL) | 🟢 ~95% | portales 53/87 como el original (`_p2pxform` 0x0041b170 + `getYaw` 0x00425440; los 34 restantes tampoco se cruzan en el original, causa en `--list-portals`); **salas vistas a través de los portales** (pase de portal de gamma.dll, cámara igual al decimal que en el puente; espejos aún no); `Rect` de una cara como el driver; spawn y cámara BEHIND (140, −10°, con colisión) como el original; menú de pausa (ESC), HUD y viaje entre salas; texturas animadas; avatares animados |
-| Cliente original bajo puente portable (macOS, Linux; Windows en CI) | 🟢 dibuja y se usa | GroundZero con el rasterizador del driver RWDL6D21, **por franjas en varios hilos e idéntico al píxel** (`RasterGoldenCheck`; 1172×848: 25 → ~53 fps); menús de la ventana visibles (rutas `u:/` resueltas por `HostPath`), fuentes con métricas de Arial como el JRE de 2004, sin bloqueo al arrancar (time.worlds.net); UI, sonido, sistema y COM traducidos; chat con Intro. Falta el BSP de escena (documentado en ASM) |
+| Renderizador propio (Java + LWJGL) | 🟢 ~97% | **luz del driver del original** (`DriverLight`: dos luces por sala en el espacio de cada objeto, rampa hacia blanco, texturas auto-iluminadas tal cual; mismas columnas de color que el puente), UVs y celdas de `Rect` como `Rect.addRwChildren`/`addSubPolys`, `RectPatch` de 4 triángulos, vallas (`Billboard`) con `adworlds.cmp`; portales 53/87 como el original (`_p2pxform` 0x0041b170 + `getYaw` 0x00425440) y **salas vistas a través de ellos hasta 11 niveles** (espejos aún no); `Rect` de una cara como el driver; spawn y cámara BEHIND (140, −10°, con colisión); menú de pausa (ESC), HUD y viaje entre salas; texturas y avatares animados. Reception, AvatarEnter y Auditorium coinciden con el puente salvo el avatar |
+| Cliente original bajo puente portable (macOS, Linux; Windows en CI) | 🟢 dibuja y se usa | GroundZero con el rasterizador del driver RWDL6D21, **por franjas en varios hilos e idéntico al píxel** (`RasterGoldenCheck`; 1172×848: 25 → ~53 fps); producto de matrices afín como RWL21 (antes lo que cuelga de un `WObject` caía en el origen de la sala); menús de la ventana visibles (rutas `u:/` resueltas por `HostPath`), fuentes con métricas de Arial como el JRE de 2004, sin bloqueo al arrancar (time.worlds.net); UI, sonido, sistema y COM traducidos; chat con Intro. Falta el BSP de escena (documentado en ASM) |
 | Red / protocolo | 🟢 ~75% | guest real contra `worlds.worlio.com`; en local contra `server/whirl`: login, misma sala y chat entre dos clientes originales. No se ven (whirl no manda APPRACTR). Falta una cuenta registrada para el primario |
 | UI (chat, amigos, mapa, menús) | 🟢 en el original | la UI AWT de 2004 corre bajo el puente (panel Help/Options/Teleport/Actions/VIP, amigos, chat, mapa del universo, menú contextual, cursores); 🟡 en el cliente propio: menú de pausa y HUD, sin chat/amigos |
 | Paquete y CI | ✅ | `tools/build-dist.sh`: portable (.zip, Java 17+) y app con su Java (jlink + jpackage) para macOS Intel/ARM, Windows y Linux; lanzador con ventana, menú de terminal y CLI. `.github/workflows/build.yml` lo hace en cada push |
@@ -147,7 +147,7 @@ para jugar; los scripts siguen para el diagnóstico con `JAVA_OPTS`.
 | `native_mapper.py` | cruza métodos `native` del Java decompilado contra los exports reales de las DLLs |
 | `jni_mock.py` + `gamma-dll-debug-harness/` | bridge JNI mock con logging, para arrancar el cliente sin renderer completo |
 | `verify-corpus.sh` | regresión en un comando: compila `client/` y reejecuta RWX 118/118 (+118/118 contra `three-rwx-loader` con `tools/node-macos`), `.world` 25/578/103, `.seq` 231, `.bod` 51, `.cmp` 159, `.mov` 52, avatares 146/148; sale ≠0 si algo cambia (~6 min) |
-| `run-checks.sh` | ejecuta todos los `*Check.java` de `client/test/**` y `bridge/test/` (reconstruye el puente si su build es vieja); 38 hoy, incluido `RasterGoldenCheck` (CRC de 18 vistas del rasterizador) |
+| `run-checks.sh` | ejecuta todos los `*Check.java` de `client/test/**` y `bridge/test/` (reconstruye el puente si su build es vieja); 40 hoy, incluidos `RasterGoldenCheck` (CRC de 18 vistas del rasterizador), `DriverLightCheck` y `MatrixAffineCheck` |
 | `progress-panel.py` | cuenta marcas ⚠️/VERIFICAR/TODO/FIXME por módulo y fichero → `docs/progress.md` |
 | `rwx-harness/` | compara geometría RWX: parser Java propio vs. `three-rwx-loader` (JS), con `tools/node-macos` en macOS |
 | `run-whirl.sh`, `net-probe/run-whirl-duo.sh` | whirl local (solo 127.0.0.1) y la prueba de dos clientes originales contra él (`docs/net-local-whirl.md`) |
@@ -220,9 +220,11 @@ Por orden de lo que desbloquean (detalle en `docs/roadmap.md`):
    final para la fase 5.
 6. Fase 5 (OpenBSD/PSVita) y la UI del cliente propio (chat, amigos,
    mapa): sin empezar. En el motor propio faltan además los portales
-   espejo (flags bit 2), la rampa de iluminación del driver (se ve más
-   oscuro que el original) y el avatar por defecto del piloto (el original
-   usa el de `worlds.ini`, el visor `aura`).
+   espejo (flags bit 2), las `MoveAction` (p. ej. la puerta en iris que
+   abre el `BumpSensor` de Reception; hoy se queda cerrada, como la guarda
+   el mundo), la luz por vértice de los avatares (van por cara) y el
+   avatar por defecto del piloto (el original usa el de `worlds.ini`, el
+   visor `aura`).
 7. Probar las apps de la CI en máquinas reales: la de macOS está firmada ad
    hoc (Gatekeeper: "Abrir igualmente" o `xattr -dr com.apple.quarantine`).
    En la CI el original empaquetado ya dibuja GroundZero en los cuatro

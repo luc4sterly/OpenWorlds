@@ -129,6 +129,9 @@ fallos y `run-checks.sh` 38/38.
 | Motor nuevo: portales | 🟢 | se ve la sala de al lado a través del portal, con el algoritmo de `Camera.rwRenderRoom`/`Portal.rwPrerender` (cara hacia la cámara 0x0041b3b0, rectángulo en pantalla, `_p2pxform`, sin borrar color, profundidad ≤ 3 frente a 10 del original). Cámaras de ChatHall y ReceptionView1 iguales al decimal que en el puente. **Faltan los espejos** (flag bit 2) |
 | Motor nuevo: `Rect` de una cara | ✅ | regla del driver `!front && (modes & 0x80) == 0` → descartado; los edificios ya no tapan el paisaje de los portales |
 | Motor nuevo: menú y HUD | ✅ | ESC: Continuar / Ir a otra sala (las 25) / FPS / Ayuda / Salir |
+| Motor nuevo: luz | ✅ | `DriverLight`: la del driver traducida en el puente (dos luces por sala en el espacio de cada objeto, `I = 31 amb + Σ 31 lc (dif d + spec S(d))`, rampa que por encima de 0,75 aclara hacia blanco; texturas auto-iluminadas tal cual). Antes: luces de GL pegadas a la cámara y nunca por encima del color → mucho más oscuro. Columna de color de Reception igual al puente a ±15/255 (casi todo a ±6) |
+| Motor nuevo: superficies | ✅ | UVs de `Rect.addRwChildren` (97 paredes desplazadas), celdas de `addSubPolys` con espejado, `RectPatch` de 4 triángulos, vallas `Billboard` (`adworlds.cmp` en cada celda), texturas `ScapePicTexture`, portales a 11 niveles |
+| Puente: matrices | ✅ | producto afín como RWL21 (0x1005118c): lo que cuelga de un `WObject` contenedor caía en el origen (soporte del Auditorium, puerta en iris) |
 | Paquete | ✅ | `launcher/` (ventana, menú de terminal `--tui`, CLI) + `tools/build-dist.sh`: portable (.zip, Java 17+) y app con Java incluido (jlink + jpackage). Copia de la instalación en la carpeta de datos del usuario; servidor de actualización local en Java |
 | CI | ✅ | cada push: checks, corpus, apps de Linux, macOS Intel, macOS Apple Silicon y Windows, y en cada una la prueba de humo del original empaquetado (tiene que dibujar; obligatoria). Ejecución #5: GroundZero en los cuatro con la cámara en (230,180,170), 62 fps en ARM y 102 en Windows; con un tag `v*`, release |
 | Aprovisionamiento | ✅ | `tools/setup-linux.sh` (idempotente) y el hook `SessionStart` de la web |
@@ -253,8 +256,9 @@ H2) y chateen a través de whirl.
       - averiguar por qué no se cruzan los 31 portales restantes de 87.
 - [ ] Usar el handshake/login de `tools/net-probe` como capa de red de B,
       contra whirl.
-- [ ] Decidir si B emula la rampa de iluminación del driver (más
-      fidelidad) o se queda en función fija.
+- [x] B emula la luz y la rampa del driver (`DriverLight`, §1c), en
+      función fija con `GL_COLOR_SUM`; solo la textura iluminada pierde
+      los escalones de 5 bits.
 - ⚠️ El `.rwg` con varios joints sigue sin un corpus que lo confirme: no
   inventar.
 

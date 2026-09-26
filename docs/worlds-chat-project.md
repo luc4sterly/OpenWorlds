@@ -3867,3 +3867,48 @@ cacheados de la copia de trabajo (medido en el paquete: quedan 31, los que
 se vuelven a bajar del servidor local), así que en un clon limpio, en la
 CI y en los paquetes los avatares cacheados de 2004 salen sin textura. La
 única copia está en el Mac del usuario; ya no está en `.gitignore`.
+
+**Segunda parte del mismo día — el motor nuevo alcanza al original en color
+y el puente pierde un fallo de matrices.** Con la cámara del visor igual a
+la del puente al decimal y el mismo aspecto (`-Dfreeworlds.windowSize=468x272`),
+se compararon capturas columna a columna y con mapas de diferencias:
+
+- **Luz del motor nuevo.** Estaba muy oscuro por tres cosas: las luces de GL
+  se fijaban una vez con la vista identidad (iban pegadas a la cámara), la
+  normal de los `Rect` se transformaba dos veces, y GL nunca pasa del color
+  del material, mientras que la rampa del driver RWDL6D21 (FUN_10008d00)
+  aclara hacia blanco por encima de 0,75 de la escala. Además, 586 de las
+  699 superficies del mundo son "auto-iluminadas" (ambiente ~0,75 sin
+  difusa: FUN_00417950) y el original pinta su textura tal cual.
+  `DriverLight` hace lo del puente: dos luces por sala en el espacio de
+  cada objeto (con la inversa: una pared escalada 2149×2×400 recibe d ≈ 1,
+  no el coseno del mundo), la intensidad `31 amb + Σ 31 lc (dif d + spec
+  S(d))` y la rampa, en GL como `texel·P + S` con `GL_COLOR_SUM`. El RWX
+  guarda ahora lo que RW usa (ambiente 0 si el script no lo pone, como
+  `RwCreateMaterial` 0x1001b340; `LightSampling`; normales por polígono y
+  de vértice compartidas; las `Normal` del script). Resultado: techo
+  (214,210,181) en el puente y (208,208,176) en el visor.
+- **Superficies.** UVs de `Rect.addRwChildren` (97 paredes con repetición
+  no entera salían desplazadas), celdas de `addSubPolys` con espejado
+  alterno, `RectPatch` de 4 triángulos al centro, vallas `Billboard`
+  (`new Material(adworlds.cmp, h, v)`: cada celda con el fichero entero,
+  como `Material.syncBackgroundLoad`) y portales hasta 11 niveles
+  (`rwDepth <= 10`; con 3 no se veía Reception al fondo de AvatarEnter).
+- **Fallo del puente: producto de matrices.** El soporte con cuerdas del
+  Auditorium y la puerta en iris de IconViewRoom1Enter salían en el visor y
+  no en el puente. Un volcado nuevo del árbol de clumps
+  (`-Dfreeworlds.dumpScene`) mostró `WObject2` en (0,1000,0) y su hijo
+  `ShapeStand` en (0,0,0): la cuarta columna de los `Transform` del `.world`
+  trae datos internos de RW (0x03ddff04, 0x02890088 leídos como float,
+  `m[15] = 2e-37`) y el puente multiplicaba 4×4, mientras que
+  `RwMultiplyMatrix` (0x1001db10 → 0x1005118c) es afín y no la toca. Todo lo
+  que cuelga de un `WObject` contenedor (30 en GroundZero) caía en el origen
+  de la sala en el cliente original. Arreglado con el mismo orden de sumas
+  (bit a bit igual con matrices limpias). Queda confirmado que el visor
+  tenía razón en los dos casos, y que el puente no es referencia de píxel
+  hasta tener capturas bajo Wine.
+
+`DriverLightCheck` y `MatrixAffineCheck` (casos a mano); `run-checks`
+40/40; `verify-corpus` sin fallos. Pendiente en el motor nuevo: espejos,
+`MoveAction` (la puerta en iris se abre al cruzar el portal de Reception) y
+la luz por vértice de los avatares.
