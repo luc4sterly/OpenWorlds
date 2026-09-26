@@ -1,0 +1,16 @@
+// 10060a60 FUN_10060a60 [Global]
+// programa: rwdlmd21.dll
+
+void FUN_10060a60(void)
+
+{
+  PTR_LAB_100875bc = &LAB_10060e80;
+  PTR_LAB_100875c0 = &LAB_10060f00;
+  PTR_LAB_100875c4 = &LAB_10060e10;
+  PTR_LAB_100875c8 = &LAB_10060ee0;
+  PTR_LAB_100875b8 = &LAB_100612a0;
+  PTR_LAB_100875cc = &LAB_100612a0;
+  return;
+}
+
+

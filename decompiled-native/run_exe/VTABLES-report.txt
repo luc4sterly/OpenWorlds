@@ -1,0 +1,8 @@
+candidatos=1
+ya_funcion=1
+omitidas_dentro_de_otra_funcion=0
+creadas=0
+fallidas=0
+exportadas=0
+decompile_fallidas=0
+--- direcciones fallidas al crear funcion ---

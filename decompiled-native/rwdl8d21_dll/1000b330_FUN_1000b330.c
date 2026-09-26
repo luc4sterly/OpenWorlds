@@ -1,0 +1,75 @@
+// 1000b330 FUN_1000b330 [Global]
+// programa: RWDL8D21.DLL
+
+/* WARNING: Removing unreachable block (ram,0x1000b341) */
+/* WARNING: Removing unreachable block (ram,0x1000b3d1) */
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+longlong __fastcall FUN_1000b330(undefined4 param_1,uint param_2)
+
+{
+  byte bVar1;
+  int extraout_ECX;
+  undefined4 extraout_ECX_00;
+  uint uVar2;
+  int iVar3;
+  int iVar4;
+  int iVar5;
+  int iVar6;
+  int iVar7;
+  undefined8 uVar8;
+  longlong lVar9;
+  
+  log2((float10)_DAT_100740b0);
+  iVar5 = 0x100;
+  do {
+    iVar6 = iVar5 + 1;
+    log2(((float10)_DAT_1007403c + (float10)iVar5) * (float10)_DAT_100740b8);
+    log2((float10)iVar5 * (float10)_DAT_100740b8);
+    lVar9 = __ftol();
+    (&DAT_1007b5c0)[iVar5] = (char)lVar9;
+    iVar5 = iVar6;
+  } while (iVar6 < 0x200);
+  DAT_10075208 = &DAT_1007b5c0;
+  uVar8 = (**(code **)(DAT_10077da8 + 0x34c))(0x10000);
+  uVar2 = (uint)((ulonglong)uVar8 >> 0x20);
+  iVar5 = (int)uVar8;
+  if (iVar5 == 0) {
+    DAT_1007520c = 0;
+  }
+  else {
+    iVar3 = -0x1f;
+    iVar4 = -0x1f00;
+    iVar6 = extraout_ECX;
+    do {
+      iVar7 = -0x100;
+      do {
+        FUN_10059662(iVar6);
+        FUN_10059662(extraout_ECX_00);
+        lVar9 = __ftol();
+        uVar2 = (uint)((ulonglong)lVar9 >> 0x20);
+        if (iVar4 < 1) {
+          uVar2 = iVar7 + iVar4;
+          bVar1 = -(byte)iVar3;
+          iVar6 = CONCAT31((int3)((uint)iVar3 >> 8),bVar1);
+          *(int *)(iVar5 + 0x8000 + uVar2 * 4) = (int)lVar9 << (bVar1 & 0x1f);
+        }
+        else {
+          iVar6 = iVar7 + iVar4;
+          *(int *)(iVar5 + 0x8000 + iVar6 * 4) = (int)lVar9 >> ((byte)iVar3 & 0x1f);
+        }
+        iVar7 = iVar7 + 1;
+      } while (iVar7 != 0);
+      iVar4 = iVar4 + 0x100;
+      iVar3 = iVar3 + 1;
+    } while (iVar4 < 0x2000);
+    DAT_1007520c = iVar5 + 0x8000;
+  }
+  if (DAT_1007520c == 0) {
+    return (ulonglong)uVar2 << 0x20;
+  }
+  DAT_1007b7c0 = DAT_1007520c;
+  return CONCAT44(uVar2,1);
+}
+
+

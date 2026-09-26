@@ -23,7 +23,7 @@ import java.util.TreeSet;
 /**
  * ScanVtablesAndExport
  *
- * Busca en .data/.rdata (o cualquier bloque inicializado no-.text) runs de
+ * Busca en .data/.rdata (DGROUP en Watcom) runs de
  * >=3 punteros DWORD consecutivos que caigan dentro del rango de .text
  * (candidatos a vtables), fuerza createFunction() en cada destino que aun
  * no sea funcion, y exporta el C decompilado SOLO de las funciones nuevas
@@ -63,7 +63,8 @@ public class ScanVtablesAndExport extends GhidraScript {
         for (MemoryBlock b : mem.getBlocks()) {
             if (!b.isInitialized()) continue;
             String bn = b.getName();
-            if (!(bn.equals(".data") || bn.equals(".rdata"))) continue;
+            // DGROUP: datos de los ejecutables de Watcom (gdkup.exe, sfmain.exe)
+            if (!(bn.equals(".data") || bn.equals(".rdata") || bn.equals("DGROUP"))) continue;
             if (!b.isRead()) continue;
 
             int beforeCount = candidateTargets.size();
@@ -216,13 +217,16 @@ public class ScanVtablesAndExport extends GhidraScript {
         for (Long v : failedAddrs) {
             rep.println(String.format("%08x", v));
         }
-        rep.println("--- las 13 entradas de la vtable 0x00475200 ---");
-        long[] vt = {0x00432010L,0x00431e90L,0x00432020L,0x00432070L,0x00432090L,0x004320b0L,
-                     0x00432550L,0x00432790L,0x004327b0L,0x00432800L,0x00432820L,0x00432830L,0x00432840L};
-        for (long v : vt) {
-            Address a = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(v);
-            Function f = fm.getFunctionAt(a);
-            rep.println(String.format("%08x", v) + " -> " + (f != null ? ("function OK: " + f.getName()) : "SIGUE SIN SER FUNCION"));
+        // comprobacion propia de gamma.dll (la vtable del reproductor de animacion)
+        if (currentProgram.getName().equalsIgnoreCase("gamma.dll")) {
+            rep.println("--- las 13 entradas de la vtable 0x00475200 ---");
+            long[] vt = {0x00432010L,0x00431e90L,0x00432020L,0x00432070L,0x00432090L,0x004320b0L,
+                         0x00432550L,0x00432790L,0x004327b0L,0x00432800L,0x00432820L,0x00432830L,0x00432840L};
+            for (long v : vt) {
+                Address a = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(v);
+                Function f = fm.getFunctionAt(a);
+                rep.println(String.format("%08x", v) + " -> " + (f != null ? ("function OK: " + f.getName()) : "SIGUE SIN SER FUNCION"));
+            }
         }
         rep.close();
 

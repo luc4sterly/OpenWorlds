@@ -1,0 +1,24 @@
+// 10006d00 FUN_10006d00 [Global]
+// programa: RWDL8D21.DLL
+
+uint FUN_10006d00(byte param_1,int param_2)
+
+{
+  uint uVar1;
+  int iVar2;
+  
+  uVar1 = (uint)param_1;
+  if (param_2 == 1) {
+    iVar2 = (int)(uVar1 & 0xffffffe7) >> 3;
+    *(uint *)(&DAT_100751e8 + iVar2) = *(uint *)(&DAT_100751e8 + iVar2) & ~(1 << (param_1 & 0x1f));
+    return uVar1;
+  }
+  if (param_2 != 2) {
+    return 0xffffffff;
+  }
+  iVar2 = (int)(uVar1 & 0xffffffe7) >> 3;
+  *(uint *)(&DAT_100751e8 + iVar2) = *(uint *)(&DAT_100751e8 + iVar2) | 1 << (param_1 & 0x1f);
+  return uVar1;
+}
+
+

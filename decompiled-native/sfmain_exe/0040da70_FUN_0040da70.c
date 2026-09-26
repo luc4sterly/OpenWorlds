@@ -1,0 +1,13 @@
+// 0040da70 FUN_0040da70 [Global]
+// programa: sfmain.exe
+
+void __fastcall FUN_0040da70(undefined4 param_1,undefined4 param_2)
+
+{
+  if (DAT_004393a4 != 0) {
+    FUN_0042c82b(param_1,param_2);
+  }
+  return;
+}
+
+

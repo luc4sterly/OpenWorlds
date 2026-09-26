@@ -1,0 +1,13 @@
+// 00434082 Ordinal_116 [WSOCK32.DLL]
+// programa: sfmain.exe
+
+void Ordinal_116(void)
+
+{
+                    /* WARNING: Could not recover jumptable at 0x00434082. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  Ordinal_116();
+  return;
+}
+
+

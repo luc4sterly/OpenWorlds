@@ -1,0 +1,37 @@
+// 1006ab60 FUN_1006ab60 [Global]
+// programa: rwdlmd21.dll
+
+void FUN_1006ab60(undefined4 *param_1,uint param_2,int param_3,undefined4 param_4)
+
+{
+  byte bVar1;
+  uint uVar2;
+  undefined4 *puVar3;
+  
+  puVar3 = (undefined4 *)*param_1;
+  DAT_1008dc50 = param_2;
+  DAT_1008dc4c = DAT_1008d5a0 - param_2;
+  do {
+    uVar2 = DAT_1008dc50;
+    if ((int)DAT_1008dc50 < 0x11) goto LAB_1006abbb;
+    uVar2 = DAT_1008dc50 >> 4;
+    do {
+      bVar1 = (char)uVar2 - 1;
+      uVar2 = (uint)bVar1;
+    } while (bVar1 != 0);
+    for (uVar2 = DAT_1008dc50 >> 2; uVar2 != 0; uVar2 = uVar2 - 1) {
+      *puVar3 = param_4;
+      puVar3 = puVar3 + 1;
+    }
+    for (uVar2 = DAT_1008dc50 & 3; uVar2 != 0; uVar2 = uVar2 - 1) {
+LAB_1006abbb:
+      *(char *)puVar3 = (char)param_4;
+      puVar3 = (undefined4 *)((int)puVar3 + 1);
+    }
+    puVar3 = (undefined4 *)((int)puVar3 + DAT_1008dc4c);
+    param_3 = param_3 + -1;
+  } while (param_3 != 0);
+  return;
+}
+
+

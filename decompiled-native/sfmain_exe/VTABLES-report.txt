@@ -1,0 +1,8 @@
+candidatos=77
+ya_funcion=10
+omitidas_dentro_de_otra_funcion=16
+creadas=51
+fallidas=0
+exportadas=51
+decompile_fallidas=0
+--- direcciones fallidas al crear funcion ---

@@ -1,4 +1,57 @@
-# Nativo decompilado (`gamma.dll`, `RWL21.DLL`, `RWDL6D21.DLL`)
+# Nativo decompilado: todos los binarios propios del juego
+
+C decompilado con Ghidra 12.1.3 (headless), 0 fallos en todos:
+
+| Carpeta | Binario | Funciones | Por vtable | Qué es |
+|---|---|---|---|---|
+| `gamma_dll/` | `bin/gamma.dll` (613 KB) | 2537 | 881 | puente JNI del cliente y sus códecs (`.seq`, `.cmp`/`.mov`) |
+| `rwl21_dll/` | `bin/RWL21.DLL` (389 KB) | 1152 | 21 | RenderWare 2.1, el motor (795 con nombre real de la API) |
+| `rwdl6d21_dll/` | `bin/RWDL6D21.DLL` (578 KB) | 411 | 26 | driver de RenderWare de 16 bits: el rasterizador que traduce el puente |
+| `rwdl8d21_dll/` | `bin/RWDL8D21.DLL` (560 KB) | 427 | 33 | driver de RenderWare de 8 bits (paleta), DirectDraw |
+| `rwdlmd21_dll/` | `bin/rwdlmd21.dll` (653 KB) | 435 | 28 | driver de RenderWare con MMX (120 `emms`, `cpuid`), DirectDraw |
+| `rwdldd21_dll/` | `bin/RWDLDD21.DLL` (252 KB) | 305 | 2 | driver de RenderWare DirectDraw (`DirectDrawEnumerateA`) |
+| `run_exe/` | `run.exe` (49 KB) | 139 | 0 | el lanzador de 2004: busca el Java y arranca `NET.worlds.console.Gamma -home . -dllpath bin` (lo que gdkup reinicia con `run.exe world:restart`) |
+| `gdkup_exe/` | `bin/gdkup.exe` (42 KB) | 256 | 9 | el actualizador (`\GAMMA\network\gdkup`): ejecuta `updates.lst` línea a línea y reinicia el cliente; traducido en `bridge/.../GdkUp.java` |
+| `sfmain_exe/` | `sfmain.exe` (315 KB) | 619 | 51 | el chat de voz (SpeakFreely con GSM, `\GAMMA\speakfre`), compilado con Watcom |
+
+"Por vtable" son las funciones a las que solo se llega por tablas de
+punteros, que Ghidra no ve como función (abajo). `tools/ghidra-scripts/decompile-all.sh`
+regenera todo menos `gamma_dll/`, que se hizo antes con los mismos dos
+scripts.
+
+Lo que queda en `assets/WorldsPlayer` sin decompilar es de terceros, no del
+juego:
+
+- **Java de Sun 1.4.2_05** que traía el instalador: `java.exe`,
+  `javaw.exe`, `awt.dll`, `java.dll`, `net.dll`, `nio.dll`, `zip.dll`,
+  `jpeg.dll`, `fontmanager.dll`, `jsound.dll`, `jawt.dll`, `verify.dll`,
+  `hpi.dll`, `hprof.dll`, `jdwp.dll`, `jcov.dll`, `rmi.dll`, `ioser12.dll`,
+  `jaas_nt.dll`, `w2k_lsa_auth.dll`, `dt_shmem.dll`, `dt_socket.dll`,
+  `cmm.dll`, `dcpr.dll`, `JdbcOdbc.dll`, y el plug-in de Java
+  (`jpi*.dll`, `jpins*.dll`, `NPJava*.dll`, `NPJPI142_05.dll`,
+  `NPOJI610.dll`, `axbridge.dll`, `eula.dll`, `RegUtils.dll`). El puente
+  sustituye a todo esto con un Java moderno.
+- `msvcrt.dll` (runtime de C de Microsoft).
+- `xdelta.exe` y `glib-1.2.dll`: xdelta 1.x (GPL, con código fuente
+  publicado), para los parches incrementales `%XDZ` de los mundos viejos.
+  No está traducido: `GdkUp` da esos parches por no aplicables.
+- `UNWISE32.EXE`: el desinstalador de Wise.
+
+## Esta sesión (2026-09-26)
+
+- **Ghidra 12.1.3** desde el espejo de SourceForge
+  (`https://sourceforge.net/projects/ghidra.mirror/files/Ghidra_12.1.3_build/ghidra_12.1.3_PUBLIC_20260817.zip/download`),
+  porque la descarga de GitHub la corta el proxy de la nube. SHA-256
+  comprobado contra el del README de la versión:
+  `93a5d11a9ad510622acaaf908c556a7b9b764d338e78a7567f3689bf5081fd54`. En
+  Linux trae el decompilador nativo, así que no hay que compilarlo como en
+  macOS Intel.
+- `ScanVtablesAndExport.java` acepta además el bloque `DGROUP` de Watcom
+  (`sfmain.exe` no tiene `.data`/`.rdata`). La comprobación de las 13
+  entradas de la vtable del reproductor de animación solo se hace en
+  `gamma.dll`.
+
+## `gamma.dll`
 
 C decompilado con Ghidra 12.1.3 (headless) de la `gamma.dll` ORIGINAL
 de 2004 (`assets/WorldsPlayer/bin/gamma.dll`, 613 KB) — el puente JNI
@@ -64,8 +117,8 @@ ghidra_*/ghidra_*/support/analyzeHeadless <projdir> RWL21 \
   -postScript ExportAllDecompiled.java decompiled-native/rwl21_dll
 ```
 
-No se ha pasado aun `ScanVtablesAndExport.java` (el que en `gamma.dll`
-saco 881 funciones mas alcanzables solo por vtable).
+`ScanVtablesAndExport.java` (2026-09-26): 28 candidatos, 21 funciones
+nuevas, `INDEX.txt` pasa a 1152.
 
 ## `RWDL6D21.DLL` (driver RenderWare de 16 bits, 578 KB) — anadido 2026-09-19
 
@@ -74,3 +127,4 @@ software real (el que el puente traduce en `NativeCamera.raster`), con
 148 nombres reales, aunque muchos son del runtime de C (`__ftol`,
 `__CRT_INIT`). Aqui vive lo que sigue pendiente en el puente: la division
 de perspectiva por tramos de 16 pixeles y las tablas de color del driver.
+`ScanVtablesAndExport.java` (2026-09-26): 26 funciones más, 411 en total.
