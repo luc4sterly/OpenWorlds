@@ -966,7 +966,7 @@ public final class WorldViewer {
                 // (Room.prerender del original, ver drawPortals).
                 float aspect = (float) width / height;
                 drawPortals(room, camEye, camCenter, camUp, aspect, near, far, width, height,
-                   new int[]{0, 0, width, height}, 0);
+                   new int[]{0, 0, width, height}, 0, false);
                 glMatrixMode(GL_PROJECTION);
                 glLoadIdentity();
                 GlUtil.perspective(60f, aspect, near, far);
@@ -2902,28 +2902,42 @@ public final class WorldViewer {
      * portal en pantalla (el original cambia el viewport; aqui glScissor
      * con la misma proyeccion), antes que la sala propia, que luego se
      * dibuja encima con el z-buffer limpio. Primero van los portales de la
-     * sala lejana (recursion). Los portales espejo (flags bit 2) aun no.
+     * sala lejana (recursion).
+     *
+     * Espejos (flags bit 2; en GroundZero los dos del fondo de
+     * AuditoriumHall y EastPortalReflection de ReceptionView1, enlazados
+     * consigo mismos): _p2pxform con la columna x negada (PortalLink), y el
+     * original niega el view offset y luego da la vuelta a los pixeles del
+     * rectangulo (Portal.rwPrerender + mirrorViewport), que es lo mismo que
+     * dibujar con la x de la proyeccion negada: glScalef(-1, 1, 1) en la
+     * proyeccion y glFrontFace(GL_CW), y los rectangulos de los portales de
+     * dentro reflejados. "mirrored" es el estado del pase en curso.
      */
     private static void drawPortals(WNode room, float[] eye, float[] center, float[] up, float aspect,
-          float near, float far, int w, int h, int[] clip, int depth) {
+          float near, float far, int w, int h, int[] clip, int depth, boolean mirrored) {
        for (Object[] pq : portalsOf(room)) {
           WNode p = (WNode) pq[0];
           float[][] q = (float[][]) pq[1];
-          if ((p.flags & 1) == 0 || (p.flags & 4) != 0) {
+          if ((p.flags & 1) == 0) {
              continue;
           }
           PortalState st = link(p);
           if (st.state != 2 || !portalFacesCamera(q, eye)) {
              continue;
           }
+          boolean mirror = (p.flags & 4) != 0;
+          boolean inner = mirrored ^ mirror;
           int[] r = portalScreenRect(q, eye, center, up, aspect, near, w, h);
+          if (r != null && mirrored) {
+             r = new int[]{w - r[0] - r[2], r[1], r[2], r[3]};
+          }
           r = r == null ? null : intersectRect(r, clip);
           WNode farRoom = r == null ? null : worldRoot.roomsByName.get(st.farRoom);
           float[] m = portalRoomMatrix.get(p);
           if (farRoom == null || m == null) {
              continue;
           }
-          float[] p2p = PortalLink.p2pTransform(m, p.xScale, p.yScale, p.zScale, false,
+          float[] p2p = PortalLink.p2pTransform(m, p.xScale, p.yScale, p.zScale, mirror,
              st.far[0], st.far[1], st.far[2], st.far[3]);
           float[] e2 = PortalLink.transformPoint(p2p, eye[0], eye[1], eye[2]);
           float[] c2 = PortalLink.transformPoint(p2p, center[0], center[1], center[2]);
@@ -2947,31 +2961,40 @@ public final class WorldViewer {
              // su fondo infinito, desde el origen con la orientacion de la camara (pasada 1)
              glMatrixMode(GL_PROJECTION);
              glLoadIdentity();
+             if (inner) {
+                glScalef(-1f, 1f, 1f);
+             }
              GlUtil.perspective(60f, aspect, 1f, 200000f);
              glMatrixMode(GL_MODELVIEW);
              glLoadIdentity();
              GlUtil.lookAt(0, 0, 0, c2[0] - e2[0], c2[1] - e2[1], c2[2] - e2[2], u2[0], u2[1], u2[2]);
+             glFrontFace(inner ? GL_CW : GL_CCW);
              roomLights(farRoom);
              drawInfiniteBackground(farRoom);
              glClear(GL_DEPTH_BUFFER_BIT);
           }
           if (depth + 1 < PORTAL_MAX_DEPTH) {
-             drawPortals(farRoom, e2, c2, u2, aspect, near, farPlane, w, h, r, depth + 1);
+             drawPortals(farRoom, e2, c2, u2, aspect, near, farPlane, w, h, r, depth + 1, inner);
              glScissor(r[0], r[1], r[2], r[3]);
              glClear(GL_DEPTH_BUFFER_BIT);
           }
           glMatrixMode(GL_PROJECTION);
           glLoadIdentity();
+          if (inner) {
+             glScalef(-1f, 1f, 1f);
+          }
           GlUtil.perspective(60f, aspect, near, farPlane);
           glMatrixMode(GL_MODELVIEW);
           glLoadIdentity();
           GlUtil.lookAt(e2[0], e2[1], e2[2], c2[0], c2[1], c2[2], u2[0], u2[1], u2[2]);
+          glFrontFace(inner ? GL_CW : GL_CCW);
           roomLights(farRoom);
           drawNode(farRoom);
           if (farRoom.environment != null) {
              drawNode(farRoom.environment);
           }
        }
+       glFrontFace(mirrored ? GL_CW : GL_CCW);
        if (depth == 0) {
           glDisable(GL_SCISSOR_TEST);
        } else {

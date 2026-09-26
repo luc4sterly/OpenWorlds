@@ -134,6 +134,7 @@ fallos y `run-checks.sh` 38/38.
 | Puente: matrices | ✅ | producto afín como RWL21 (0x1005118c): lo que cuelga de un `WObject` contenedor caía en el origen (soporte del Auditorium, puerta en iris) |
 | Puente: material `.bod` | ✅ | gamma.dll FUN_0041d950: `RwSetMaterialSurface(0.32, 0.55, 0)` + liso; era (0.75, 0, 0) facetado y las estatuas salían planas |
 | Motor nuevo: avatares | ✅ | luz por vértice por parte (como `RwCalculateClumpVertexNormal`), material del binario y `colorTable[3]` (naranja) para el vestuario perdido, como `PosableShape.scanTexture` |
+| Motor nuevo: espejos | ✅ | los 3 portales espejo (enlazados consigo mismos): `_p2pxform` con la x negada y proyección con la x negada (lo que hace el original negando el view offset y dando la vuelta al rectángulo); el espejo del fondo de AuditoriumHall sale igual que en el puente |
 | Barrido de las 25 salas | ✅ | puente y visor con la misma pose en cada sala (`#Sala@x,y,z,…`): Reception 0,14 de RMSE; las diferencias que quedan son el avatar del piloto, la cámara en salas pequeñas y la altura del suelo (abajo) |
 | Paquete | ✅ | `launcher/` (ventana, menú de terminal `--tui`, CLI) + `tools/build-dist.sh`: portable (.zip, Java 17+) y app con Java incluido (jlink + jpackage). Copia de la instalación en la carpeta de datos del usuario; servidor de actualización local en Java |
 | CI | ✅ | cada push: checks, corpus, apps de Linux, macOS Intel, macOS Apple Silicon y Windows, y en cada una la prueba de humo del original empaquetado (tiene que dibujar; obligatoria). Ejecución #5: GroundZero en los cuatro con la cámara en (230,180,170), 62 fps en ARM y 102 en Windows; con un tag `v*`, release |
@@ -145,8 +146,8 @@ Lo nuevo que queda:
   2004. Solo está en tu Mac: `git add -f assets/WorldsPlayer/cachedir/cache.index`.
 - Probar las apps a mano en máquinas reales (Gatekeeper con firma ad hoc,
   SmartScreen en Windows): la CI solo prueba que arrancan y dibujan.
-- Motor nuevo: portales espejo, `MoveAction` (puertas) y el avatar del
-  piloto. Decidir si se copia la altura de suelo del original
+- Motor nuevo: `MoveAction` (puertas) y el avatar del piloto (los
+  espejos ya están: §1c). Decidir si se copia la altura de suelo del original
   (`Room.floorHeight`: solo `RectPatch`, 0 si no hay; en la galería el
   piloto va hundido 40) o se mantiene la del visor.
 
