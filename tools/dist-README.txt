@@ -15,9 +15,12 @@ Dos formas de volver a entrar en GroundZero:
 
 Como se arranca
 ---------------
-  macOS:   FreeWorlds.app (paquete con Java incluido). La primera vez:
-           clic derecho > Abrir (no esta firmado por Apple). Si dice que
-           "esta danado": xattr -dr com.apple.quarantine FreeWorlds.app
+  macOS:   FreeWorlds.app (paquete con Java incluido). No esta firmado
+           por Apple: la primera vez macOS lo bloquea. En macOS 15
+           (Sequoia) ve a Ajustes del Sistema > Privacidad y seguridad >
+           "Abrir igualmente" tras el primer intento; o, en Terminal:
+              xattr -dr com.apple.quarantine /ruta/a/FreeWorlds.app
+           (esto tambien arregla el aviso de "esta danado").
   Windows: FreeWorlds\FreeWorlds.exe
   Linux:   FreeWorlds/bin/FreeWorlds
 
