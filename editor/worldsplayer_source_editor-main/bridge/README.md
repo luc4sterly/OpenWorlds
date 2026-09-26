@@ -103,9 +103,10 @@ textura".
   APPRACTR (`hub.rs:246`, comentado).
 - El cliente escribe su `Gamma.Log` de 2004 con `FREEWORLDS_GAMMA_LOG=1`,
   con el informe de `SystemInfo.Record`.
-- `tools/run-checks.sh`: 35/35 (4 de `formats/` y 31 del puente, con
-  `RasterGoldenCheck` y `MatrixAffineCheck`; eran 40 con los 5 del motor
-  nuevo, quitado el 2026-09-26); las excepciones
+- `tools/run-checks.sh`: 38/38 (5 de `formats/` y 33 del puente, con
+  `RasterGoldenCheck`, `MatrixAffineCheck`, `GdkUpCheck` y
+  `UiDisposeCheck`; los 5 del motor nuevo se fueron con él el 2026-09-26);
+  las excepciones
   que salen en GroundZero (`WorldScriptGroundZero` y
   `NoWebControlException` de los carteles) son el camino del propio
   cliente. Corrección del 2026-09-26: el error de `redir.txt` que salía
@@ -169,9 +170,59 @@ textura".
   (0.75, 0, 0) y facetado, y las estatuas y drones salían planos, sin
   sombreado.
 
+### Añadido el 2026-09-26 (viajes entre mundos y pruebas del juego)
+
+Informe completo en `docs/pruebas-juego.md`.
+
+- **Instalar mundos y actualizaciones.** El cliente pide `gdkup.exe
+  updates.lst <pid>` (`NetUpdate.runUpdates` → `CreateProcSpecial`,
+  0x00404740) y se cierra. El puente deja la petición en `gdkup.pending`
+  (`NativeSysProcess`). Quien arrancó el cliente (el lanzador, `Session`,
+  o `run_gamma.sh`) ejecuta el gdkup en Java (`GdkUp`, traducido de
+  `decompiled-native/gdkup_exe`), que instala cada paquete como su propio
+  instalador: `WisePackage` (WiseMain + PKZIP, destinos y
+  `[InstalledWorlds]` leídos del guion compilado) y `NsisPackage` (una
+  máquina NSIS 3 Unicode con las 22 instrucciones que usan los paquetes).
+  Con su código 10 se arranca otra vez el cliente con `world:restart`. Como
+  gdkup.exe, no lee el código de salida de cada línea (0x00401e75): un
+  instalador que aborta no impide el reinicio. `WinIni` hace
+  Get/WritePrivateProfileString. Lo que falta en local lo pide el servidor
+  de actualizaciones del lanzador al espejo (`us1.worlds.net`, hoy
+  LibreWorlds).
+- **Reloj como `GetTickCount`** (`NativeInput.tick`): `Std.nativeGetMillis`
+  de gamma.dll usa `GetTickCount()` (la rama de `timeGetTime` depende de
+  `DAT_00489054`, que nunca se escribe), que en XP avanza a saltos de
+  15,625 ms. Con el reloj de 1 ms del puente y 600-800 fps, los umbrales de
+  `SmoothDriver` (minFB_vel=4, minLR_vel=3) anulaban la velocidad cada
+  frame y girar iba lentísimo. `-Dfreeworlds.tickMs=N` cambia el paso (0 =
+  1 ms).
+- **Cerrar diálogos con campo de texto** (`AwtCompat.closeHoldingLock`):
+  `PolledDialog.mainCallback` es `synchronized` y cierra con
+  `setVisible(false)`, `requestFocus` y `dispose()`. En X11 el método de
+  entrada hace que el hilo de eventos tome el monitor de la ventana
+  (`InputContext.add/removeClientWindowListeners`), y el Java de hoy hace
+  `dispose()` esperando a ese hilo: bloqueo mutuo, diálogo negro y UI
+  congelada (WorldsMark → Change Location...). Las tres llamadas van ahora
+  al hilo de eventos con el monitor soltado. `UiDisposeCheck` lo prueba y
+  reproduce el bloqueo con el cierre original. ⚠️ Quedan otros sitios con
+  AWT bajo el monitor de un diálogo (la primera `mainCallback`, el
+  `activeCallback` de `LoginWizard`) sin bloqueo visto.
+- **`Window.usingMicrosoftVMHacks`** devuelve `DAT_004891cc == 1`
+  (0x0040de40), que solo pone `doMicrosoftVMHacks` (0x0040de30) con la JVM
+  de Microsoft. El mock devolvía `true` y el mapa del universo cerraba el
+  juego (`getLocationOnScreen` del lienzo oculto en `RenderCanvas.handle`).
+- **Texturas**: varios grupos de filas por fotograma y la fila `esi` única
+  (`formats/.../CmpFrames`), el salto del byte 13 de la cabecera
+  (`CmpStage1`) y el `idx == 0` de la copia simple (`CmpStage2`); ver
+  `docs/cmp-texture-format-reference.md`. Cargan el holograma de la taza de
+  Blair Witch y el caleidoscopio `kcl.mov` del vestuario.
+
 Red: `run_gamma.sh` levanta `tools/local-upgrade-server.py` y apunta
-`upgradeServer` de la copia temporal a `127.0.0.1` (el host original ya no
-existe; lo que no hay responde 404 al instante). `build_gamma.sh` parchea
+`upgradeServer` de la copia temporal a `127.0.0.1`. Lo que no hay en local
+lo pide al espejo, el `upgradeServer` original (`FREEWORLDS_MIRROR=0` lo
+quita), y responde 404 al instante a lo que tampoco tiene el espejo. Al
+salir el cliente aplica `gdkup.pending` y lo arranca otra vez, como el
+lanzador. `build_gamma.sh` parchea
 `Cache`/`CacheEntry` para que el `cache.index` de 2004 cargue en macOS
 (separador de ruta y `localName` de Windows) y las entradas ya cacheadas no
 se refresquen contra el servidor. Faltan, y no están en ningún sitio, las
@@ -191,16 +242,18 @@ Julie, Roxanne y Simon (`docs/worlds-chat-project.md`, 2026-09-18).
 | `NET/worlds/core/RwxReader.java` | El intérprete de scripts `.rwx` de RWL21 (`RwReadShape` 0x10009bf0, bucle 0x100163e0) mandato a mandato: pilas de CTM, joint y material con copia al entrar en un bloque, `ClumpBegin` congelando la CTM (0x1000f560), `ClumpEnd` fusionando la geometría y re-colgando los nietos (0x1000f980), vértices con la CTM interna aplicada (0x10010270), índices base 1 por clump, `Tag`/`Hints`/`AxisAlignment`, `Proto`/`Include` y el estado de material completo; `Texture`/`TextureExt` resuelve con `RwGetNamedTexture` al leer (0x10014b00) y si no hay textura la forma entera da 0 |
 | `NET/worlds/core/NativeShapes.java` | Lo que `ShapeLoader` recibe de RenderWare: el `.rwx` por `RwxReader` + callback 0x004187e0 (tag < 0x4000000 → hints 2, si no OFF); barridos previos de texturas de `loadTextFile` (0x0041cba0) y de la cabecera `.rwg` (FUN_0041c970); `RwReadStreamChunk(CLUM)` (0x10039e40, leído en ASM) con TELT (diccionario/ruta de formas, error 0x5e), materiales de MALT, PLST con material y tag, ATOM con estado/ejes/matrices/hijos (ATOM vacío = clump válido); cuerpos `.bod` (0x0041e440); `Shape.convertSpecial` (0x0041f1b0 → `TwoWayPortal`/`Rect`) |
 | `NET/worlds/core/NativeSystem.java` | `GlobalMemoryStatus` de `StatMemNode.updateMemoryStatus` (0x0040a360) |
-| `NET/worlds/core/NativeInput.java` | Entrada: el WndProc de gamma.dll (0x0040c970, teclas/botones 0x0040c440, movimiento/delta 0x0040c2c0) sobre los eventos AWT del canvas, cola nativa con fusión de movimientos (0x00416940/0x00416b00), teclas pulsadas liberadas al perder foco o soltar el último botón, modo delta y cursor oculto (0x0040c6a0/0x0040c780/0x0040e670); reloj `GetTickCount` y `Std.getTimeZero` (0x00403e6a) |
+| `NET/worlds/core/NativeInput.java` | Entrada: el WndProc de gamma.dll (0x0040c970, teclas/botones 0x0040c440, movimiento/delta 0x0040c2c0) sobre los eventos AWT del canvas, cola nativa con fusión de movimientos (0x00416940/0x00416b00), teclas pulsadas liberadas al perder foco o soltar el último botón, modo delta y cursor oculto (0x0040c6a0/0x0040c780/0x0040e670); reloj `GetTickCount` a saltos de 15,625 ms (0x00402d10) y `Std.getTimeZero` (0x00403e6a) |
 | `NET/worlds/core/NativeAnimator.java` + `Anim*.java`, `natives-animator.patch` | `DroneAnimator` y `PendingCacheDrone` de gamma.dll: registro `avatars.dat` (flex FUN_0042a4c0, FUN_0042cb90), caché de `.seq` y descargas (FUN_0042ffd0/0042fc90, 0x44bda0), drivers por tiempo y por distancia (key truncado: RC chop en 0x43b9c0), mezcla de implícitos de 250 ms ({0, 0xfa} en FUN_00432d10) y de gestos 8x(1−x), máquina walk/wait/endwait (FUN_00434670), `update` (FUN_00435520/00433710), aplicación de la pose (FUN_00434470) y `prepFigure` (FUN_00434f00). Regla escrita en `docs/seq-animation-reference.md` §7 |
 | `NET/worlds/core/NativeUi*.java`, `natives-ui.patch` | Adaptación de plataforma (no es de gamma.dll): devuelve el modelo de eventos 1.0 a los `TextField`/`TextArea`, cuyo peer ligero (JDK ≥ 9, macOS) pone `newEventsOnly`, con las reglas de `AWTEvent.convertToOld`: el chat funciona con Intro. `Console.encrypt/decrypt` (0x0040b7f0/0x0040bb00); serie de volumen e instancia única de `Startup` (0x00409e70/80, 0x004098b0 + FUN_00409ce0, enganchada a `Window.install`); `Cursor` (tabla IDC de 0x0046e81c, `.cur`, aplicado por `Window.setCursor`); `RightMenu`, `FileSysDialog`, `RenderCanvasOverlay`, `ImageConverter`, `ScapePicImage`/`ScapePicCanvas` |
 | `NET/worlds/core/NativeSys*.java`, `natives-system.patch` | `RegKey` sobre un registro portable REGEDIT4 (0x00402360-0x00402770); `SystemInfo` con la aritmética y las cadenas del binario (0x00442020-0x00442470); COM fuera de Windows: `getPtr`, la fábrica de clases propia de gamma.dll y las ramas de fallo de ole32 con sus mensajes literales (0x0040ab80-0x0040b450, 0x00441f30); `VehicleShape` (0x0043f4c0-0x0043f580); `CreateProcSpecial` (0x00404740); `Restorer.makeArray` (0x0041a8d0); `get3DHardware*` = false (0x0043c4f0/510); `Pilot.nativeInit`; `VoiceChat.terminateVC` |
 | `NET/worlds/core/NativeMedia*.java`, `ImaAdpcmWav.java`, `natives-media.patch` | Sonido: `PlaySound` y `waveOutSetVolume` de `WavSoundPlayer` (0x00420120..0x00420200; 65535.0f en 0x4711f8), MCI waveaudio/sequencer de `MCISoundPlayer` (0x0041f780..0x0041fe40), ASF sin `playfile.exe` (0x0041f670), flags `disableWav/MIDI/ASF` (0x00420260/0x00420030); salida por javax.sound y WAV IMA ADPCM. DirectShow y CD por su camino de fallo (0x0043f180..0x0043f450, 0x004153e0..0x00415ea0). IE embebido (`nativeInit` → false), `WebBrowser`/`IWebBrowserApp` (IOException), DDE, `TextureSurface`; `launchViaRegistry`/`sendURL` registran la URL |
 | `natives-text.patch` | `StringTexture.makeStringTexture` → `NativeTextures.makeStringTexture` |
+| `NET/worlds/core/GdkUp.java`, `WisePackage.java`, `NsisPackage.java`, `WinIni.java` | gdkup.exe (`decompiled-native/gdkup_exe`: WinMain 0x004020a9, cada línea 0x00401d52, fin de proceso 0x00401e75) y los instaladores de los paquetes de mundo: Wise 2000 (guion compilado y PKZIP) y NSIS 3 Unicode (22 instrucciones de `exec.c`), con Get/WritePrivateProfileString de kernel32 |
+| `NET/worlds/core/AwtCompat.java` | Plataforma: el cierre de `PolledDialog` en el hilo de eventos con el monitor del diálogo soltado (en X11 el cierre original se bloquea con el Java de hoy) |
 | `NET/worlds/core/NativeAssert.java` | Aserción nativa `FUN_00402800`: mismo mensaje y `exit(41)` (sin el MessageBox modal) |
 | `NET/worlds/core/HostPath.java`, `host_paths.py` | Plataforma: rutas `u:/...` del cliente a ficheros reales en cada apertura de fichero y `Toolkit.getImage` |
 | `NET/worlds/core/NativeUiFonts.java`, `ui_fonts.py` | Plataforma: `new Font(...)` y la fuente por defecto de `GammaFrame` con las fuentes del `font.properties` de 2004 (o de métricas iguales) |
-| `natives.patch` | Cuerpos de los stubs de `Transform`, `Point3Temp`, `WObject`, `Surface`, `Room`, `RoomEnvironment`, `Material`, `Camera` (`renderScene` 0x00415190 y el pase de sala 0x00414aa0), `Texture`, `FileTexture`, `ScapePicTexture`, `ScapePicMovie`, `EventQueue`, `Window`, `ActiveX`, y los de `Std` (reloj, `instanceOf`, `byteArraysEqual`, `getenv`, `exit(42)`, versión 1900 y cadenas de build literales de gamma.dll); `NativeMock` con log acotado y `localFile`; `Archive` abre ficheros y `content.zip` a través de `localFile` (la unidad sintética `u:` del parche de `URL`); `PolledDialog` usa `isDisplayable()` en lugar de `getPeer()` (eliminado tras Java 8; un barrido por reflexión de las 934 llamadas al JDK no encuentra más casos); y la corrección de `Room` de abajo |
+| `natives.patch` | Cuerpos de los stubs de `Transform`, `Point3Temp`, `WObject`, `Surface`, `Room`, `RoomEnvironment`, `Material`, `Camera` (`renderScene` 0x00415190 y el pase de sala 0x00414aa0), `Texture`, `FileTexture`, `ScapePicTexture`, `ScapePicMovie`, `EventQueue`, `Window`, `ActiveX`, y los de `Std` (reloj, `instanceOf`, `byteArraysEqual`, `getenv`, `exit(42)`, versión 1900 y cadenas de build literales de gamma.dll); `NativeMock` con log acotado y `localFile`; `Archive` abre ficheros y `content.zip` a través de `localFile` (la unidad sintética `u:` del parche de `URL`); `PolledDialog` cierra con `AwtCompat.closeHoldingLock` (con `isDisplayable()` en lugar de `getPeer()`, eliminado tras Java 8; un barrido por reflexión de las 934 llamadas al JDK no encuentra más casos); `Window.usingMicrosoftVMHacks` con el valor de gamma.dll; y la corrección de `Room` de abajo |
 
 ## Error de decompilación encontrado
 

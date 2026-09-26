@@ -1535,3 +1535,40 @@ en 1000 ms) y el cartel del probador `drs12v*.mov`/`drs52v*.mov` cada
 
 En el puente las celdas las hace `NativeScene.addSubPolys` (casos a mano en
 `bridge/test/SubPolysCheck.java`).
+
+### Varios grupos por fotograma, el byte 13 y el salto de `idx == 0` (2026-09-26)
+
+Tres cosas que no salían en el corpus de GroundZero y sí en mundos
+descargados del espejo (muestras y procedencia en `assets/cmp-verified/`,
+test en `formats/test/net/freeworlds/cmp/CmpGroupsCheck.java`):
+
+- **Un fotograma puede ser varios grupos de filas.** `FUN_00442bc0` es un
+  bucle `while (filas < alto)`: cada grupo trae su cabecera de 16 bytes
+  (`u16` pares de filas, 5 longitudes de flujo, `u16` tamaño del
+  **siguiente** grupo y un `u16` que debe ser 0), sus cinco flujos
+  decodificados con las mismas tablas de Huffman y su llamada a
+  `FUN_00457d88` con `edi = ((alto par − 1) − filas hechas) · pitch + base`,
+  es decir, justo donde acabó el grupo anterior. El tamaño del primer grupo
+  sale de la tabla de fotogramas y el de los siguientes, de la cabecera del
+  anterior. `tex/mug.cmp` de The Blair Witch World (213×233) va en dos
+  grupos de 76 y 41 pares; 943 + 2 071 + 1 674 = 4 688, el final exacto del
+  fichero, y cada grupo gasta sus flujos exactos. En las `.mov` el campo
+  "siguiente" da el tamaño del fotograma que sigue (su primer grupo).
+- **La fila `esi` es una sola por fichero.** `FUN_00442750` la reserva una
+  vez (`this+0x3c`, `(ancho+3>>2)·2` bytes, sin borrar) y `FUN_00442bc0` la
+  pasa a todos los grupos y fotogramas. Una mirada atrás al empezar un
+  fotograma lee lo que dejó el último pase del anterior. Guardarla cambió
+  el fotograma 3 de `logo256.mov` y el 1 de `splashscreen.mov` de GroundZero,
+  y ningún fotograma 0.
+- **Byte 13 de la cabecera distinto de 0**: en la región de tablas,
+  gamma.dll salta `(byte13·18+7)>>3` bytes **y además** el número de
+  colores (0x442963..0x442983). Solo `kcl.mov` (vestuario de avatares:
+  caleidoscopio de 8 fotogramas, modo `0xc2`) lo usa; antes se descuadraba
+  256 bytes y se caía construyendo las tablas.
+- **`idx == 0` en el camino de copia simple de `FUN_00457d88`**
+  (0x457e22 `and ebx,0xff` / `je 0x457e0c`) no escribe nada. Consume el bit
+  de relleno (0x457e0c `add edx,edx` / `je` recarga) y avanza `edi += 4` y
+  `esi += 2`, de modo que el bloque 2×4 conserva lo que había. ⚠️ VERIFICAR:
+  traducido del ensamblador, sin ningún fichero conocido que lo use.
+  `mug.cmp` solo llegaba ahí porque el lector viejo leía el relleno de ceros
+  tras el primer grupo.

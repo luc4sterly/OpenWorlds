@@ -136,6 +136,25 @@ Lo nuevo que queda:
 - Probar las apps a mano en máquinas reales (Gatekeeper con firma ad hoc,
   SmartScreen en Windows): la CI solo prueba que arrancan y dibujan.
 
+
+## 1d. Decompilado entero, viajes entre mundos y todo el juego probado (2026-09-26)
+
+Pedido: terminar de decompilar el juego con Ghidra, probar el viaje a otros
+mundos y probar todo lo que se puede hacer en el juego.
+
+| Frente | Estado | Evidencia / lo que queda |
+|---|---|---|
+| Ghidra | ✅ | los 9 binarios propios del juego, 0 fallos: además de gamma.dll, RWL21 y RWDL6D21 (con su barrido de vtables, +21 y +26), `run.exe`, `gdkup.exe`, `sfmain.exe` (chat de voz) y los drivers de 8 bits, MMX y DirectDraw. `tools/ghidra-scripts/decompile-all.sh`. Lo que no se decompila es de terceros (Java de Sun 1.4.2, msvcrt, xdelta/glib, Wise): `decompiled-native/README.md` |
+| Viajes entre mundos | ✅ | `us1.worlds.net` vuelve a responder (espejo de LibreWorlds). Los 11 mundos que no trae la instalación de 2004 se descargan e instalan como en Windows: `gdkup.pending` → `GdkUp` (Wise y NSIS) → reinicio con `world:restart`. Probados: AvatarGallery, WorldsChat, AnimalHouse, lets, Meteor, Dcn, PolyGram, DressingRoom, Chaos (Bowie), BWStreet y The Blair Witch World; GroundZero 37 → 40 con Upgrade Now |
+| Todo el juego | ✅ | `docs/pruebas-juego.md`: menús Help/Options/WorldsMail/WorldsMark/Teleport/Actions/VIP, amigos, correo, mapa del universo, cámaras, chat. Arreglados: cierre de diálogos (bloqueo en X11), mapa del universo (cerraba el juego), reloj (giro lento), `.cmp` de varios grupos y byte 13, 5 instrucciones NSIS, gdkup que no reiniciaba tras un aborto |
+| Tests | ✅ | `run-checks.sh` 38/38: `CmpGroupsCheck`, `GdkUpCheck` (paquetes reales en `assets/packages/`), `UiDisposeCheck` |
+
+Lo que queda de esto: los parches xdelta de los mundos viejos, el chat de
+voz sin traducir, el gesto "Sleep" invisible en el pingüino, y ⚠️ otros
+sitios del código de 2004 que tocan AWT con el monitor de un diálogo
+tomado. **Decisión tuya:** guardar o no en el repo los paquetes de mundo
+del espejo (Bowie son 13 MB; PolyGram, 12,6 MB).
+
 ## 2. Hitos
 
 Tamaños: **S** ≈ 1 sesión · **M** ≈ 2–4 sesiones · **L** = más.

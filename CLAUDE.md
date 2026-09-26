@@ -81,13 +81,14 @@ real siempre fue `assets/worlds.jar` (ex `GAMMACLS.ZIP`).
 | `.world` (escenas) | ✅ Completo | el original lo lee con su propio `Restorer`; formato en `docs/world-format-reference.md` (25 salas / 578 nodos / 103 objetos, medido con el lector propio, quitado con el motor nuevo) |
 | `.seq` (animación) | ✅ Completo | 231/231; `SeqSampler.keyTime` trunca como el `fistp` en chop de gamma.dll (0x43b9c0) |
 | `.bod` (avatar, formato de red) | ✅ Completo | resuelto traduciendo el encoder oficial `RWXTOBOD.PL`, 51/51 |
-| `.cmp` / `.mov` (texturas) | ✅ Completo | 159/159 y 52/52 por `CmpFrames` (tabla de frames de gamma.dll). Los frames de un `.mov` son **celdas de Material** (`Nh*`/`Nv*`/`Ns*`), no una película; lo que cambia con el tiempo es el Material entero vía `AnimateAction`. La ruta vieja mostraba el último frame |
+| `.cmp` / `.mov` (texturas) | ✅ Completo | 159/159 y 52/52 por `CmpFrames` (tabla de frames de gamma.dll); fotogramas de varios grupos de filas (FUN_00442bc0, `mug.cmp` de Blair Witch) y byte 13 de la cabecera (`kcl.mov`), muestras en `assets/cmp-verified/`. Los frames de un `.mov` son **celdas de Material** (`Nh*`/`Nv*`/`Ns*`), no una película; lo que cambia con el tiempo es el Material entero vía `AnimateAction`. La ruta vieja mostraba el último frame |
 | `.rwg` (avatar, geometría) | 🟢 Casi completo | lector traducido de RWL21 (TELT/MALT/RALT/ATOM/VLST/PLST, desde ASM); 5/6 del corpus (`cube.rwg` no carga ni en RW 2.1); ATOM con hijos y RAST leídos según el binario, sin muestra real |
 | Lenguaje de nombre de avatar | ✅ Documentado | lo ejecuta `PosableShape` del original; `docs/avatar-name-language.md` (146/148 limpios, medido con el decodificador propio, quitado con el motor nuevo); **corpus de vestuario mayormente perdido** (solo 14/210 texturas y 25/141 `.bod` sobreviven localmente — no recuperable sin el asset original) |
 | Animación (DroneAnimator) | ✅ Regla cerrada | 16+2 nativos traducidos (walk/wait/endwait, sincronía con la distancia, mezclas de 250 ms y de gestos) en el puente. Sin ver aún un avatar animarse en el original: las estatuas de GroundZero giran |
-| Cliente original bajo puente portable (macOS, Linux; Windows en CI) | 🟢 dibuja y se usa | GroundZero con el rasterizador del driver RWDL6D21, **por franjas en varios hilos e idéntico al píxel** (`RasterGoldenCheck`; 1172×848: 25 → ~53 fps); producto de matrices afín como RWL21 (antes lo que cuelga de un `WObject` caía en el origen de la sala) y material de las partes `.bod` del binario (0.32/0.55/0, liso: las estatuas ya tienen sombreado); menús de la ventana visibles (rutas `u:/` resueltas por `HostPath`), fuentes con métricas de Arial como el JRE de 2004, sin bloqueo al arrancar (time.worlds.net); UI, sonido, sistema y COM traducidos; chat con Intro. Falta el BSP de escena (documentado en ASM) |
+| Mundos e instalador | ✅ probado | 12 mundos visitados en el original; la instalación de 2004 solo trae GroundZero, y los otros 11 se descargaron e instalaron desde el espejo (`us1.worlds.net`, hoy LibreWorlds): Wise y NSIS por el gdkup en Java (`GdkUp`, `WisePackage`, `NsisPackage`) con reinicio `world:restart`; GroundZero 37 → 40 por Upgrade Now; el mapa del universo ofrece 16 mundos, todos en el espejo (Blair Witch, Yankees, WWF, Aerosmith, Hanson, Bowie...). Informe: `docs/pruebas-juego.md` |
+| Cliente original bajo puente portable (macOS, Linux; Windows en CI) | 🟢 dibuja y se usa | GroundZero con el rasterizador del driver RWDL6D21, **por franjas en varios hilos e idéntico al píxel** (`RasterGoldenCheck`; 1172×848: 25 → ~53 fps); producto de matrices afín como RWL21 (antes lo que cuelga de un `WObject` caía en el origen de la sala) y material de las partes `.bod` del binario (0.32/0.55/0, liso: las estatuas ya tienen sombreado); menús de la ventana visibles (rutas `u:/` resueltas por `HostPath`), fuentes con métricas de Arial como el JRE de 2004, sin bloqueo al arrancar (time.worlds.net); UI, sonido, sistema y COM traducidos; chat con Intro; reloj a saltos de `GetTickCount` (girar ya no va a cámara lenta); cierre de diálogos sin el bloqueo de X11 (`AwtCompat`). Falta el BSP de escena (documentado en ASM) |
 | Red / protocolo | 🟢 ~75% | guest real contra `worlds.worlio.com`; en local contra `server/whirl`: login, misma sala y chat entre dos clientes originales. No se ven (whirl no manda APPRACTR). Falta una cuenta registrada para el primario |
-| UI (chat, amigos, mapa, menús) | 🟢 en el original | la UI AWT de 2004 corre bajo el puente (panel Help/Options/Teleport/Actions/VIP, amigos, chat, mapa del universo, menú contextual, cursores) |
+| UI (chat, amigos, mapa, menús) | 🟢 en el original | la UI AWT de 2004 corre bajo el puente y se probó entera (`docs/pruebas-juego.md`): Help/Options/WorldsMail/WorldsMark/Teleport/Actions/VIP, amigos, chat, correo, mapa del universo, menú contextual, cursores |
 | Paquete y CI | ✅ | `tools/build-dist.sh`: portable (.zip, Java 17+) y app con su Java (jlink + jpackage) para macOS Intel/ARM, Windows y Linux; lanzador con ventana, menú de terminal y CLI. `.github/workflows/build.yml` lo hace en cada push |
 | Porteo OpenBSD / PSVita | ⬜ 0% | fase 5. Ojo: el cliente original es Java con UI AWT, y en la PSVita no hay Java |
 
@@ -96,16 +97,23 @@ Hoja de ruta con lo hecho y lo que queda: `docs/roadmap.md`.
 
 ### Nativo decompilado (`decompiled-native/`)
 
+Todos los binarios propios del juego, 0 fallos (los demás son del Java
+de Sun 1.4.2 que traía el instalador, msvcrt, xdelta/glib y el
+desinstalador de Wise: lista y motivo en `decompiled-native/README.md`):
+
 | Binario | Funciones | Qué es |
 |---|---|---|
-| `gamma_dll/` | 2537, 0 fallos | puente JNI + códecs nativos (`.seq`/`.cmp`/`.mov`) |
-| `rwl21_dll/` | 1131, 0 fallos (795 con nombre real de la API) | el motor RenderWare 2.1 en sí |
-| `rwdl6d21_dll/` | 385, 0 fallos | driver/rasterizador de software de 16 bits |
+| `gamma_dll/` | 2537 | puente JNI + códecs nativos (`.seq`/`.cmp`/`.mov`) |
+| `rwl21_dll/` | 1152 (795 con nombre real de la API) | el motor RenderWare 2.1 en sí |
+| `rwdl6d21_dll/` | 411 | driver/rasterizador de software de 16 bits (el que traduce el puente) |
+| `rwdl8d21_dll/`, `rwdlmd21_dll/`, `rwdldd21_dll/` | 427, 435, 305 | drivers de 8 bits, MMX y DirectDraw |
+| `run_exe/` | 139 | lanzador de 2004 (`run.exe world:restart`) |
+| `gdkup_exe/` | 256 | el actualizador; traducido en `bridge/.../GdkUp.java` |
+| `sfmain_exe/` | 619 | chat de voz (SpeakFreely + GSM, Watcom); sin traducir |
 
-Todo regenerable desde `assets/WorldsPlayer/bin/*.dll` vía
-`tools/ghidra-scripts/*.java` + `analyzeHeadless` (detalle en
-`decompiled-native/README.md`); el proyecto Ghidra en sí vive en
-`/analysis/` (gitignored).
+Regenerable con `tools/ghidra-scripts/decompile-all.sh` (Ghidra 12.1.3
+headless, `ExportAllDecompiled.java` + `ScanVtablesAndExport.java`); el
+proyecto Ghidra vive fuera del repo.
 
 ## Entorno de desarrollo
 
@@ -146,12 +154,12 @@ el script sigue para el diagnóstico con `JAVA_OPTS`.
 | `native_mapper.py` | cruza métodos `native` del Java decompilado contra los exports reales de las DLLs |
 | `jni_mock.py` + `gamma-dll-debug-harness/` | bridge JNI mock con logging, para arrancar el cliente sin renderer completo |
 | `verify-corpus.sh` | regresión en un comando: compila `formats/` y reejecuta `.seq` 231, `.bod` 51, `.cmp` 159 y `.mov` 52 sobre el corpus real, luego `run-checks.sh`; sale ≠0 si algo cambia |
-| `run-checks.sh` | ejecuta todos los `*Check.java` de `formats/test/**` y `bridge/test/` (reconstruye el puente si su build es vieja); 35 hoy (4 + 31), incluidos `RasterGoldenCheck` (CRC de 18 vistas del rasterizador) y `MatrixAffineCheck` |
+| `run-checks.sh` | ejecuta todos los `*Check.java` de `formats/test/**` y `bridge/test/` (reconstruye el puente si su build es vieja); 38 hoy (5 + 33), incluidos `RasterGoldenCheck` (CRC de 18 vistas del rasterizador), `MatrixAffineCheck`, `GdkUpCheck` (instala `assets/packages/`) y `UiDisposeCheck` (necesita pantalla: la CI lo pasa bajo `xvfb-run`) |
 | `progress-panel.py` | cuenta marcas ⚠️/VERIFICAR/TODO/FIXME por módulo y fichero → `docs/progress.md` |
 | `run-whirl.sh`, `net-probe/run-whirl-duo.sh` | whirl local (solo 127.0.0.1) y la prueba de dos clientes originales contra él (`docs/net-local-whirl.md`) |
 | `net-probe/` | sondas de red reales contra servidores Worlio (handshake, login guest) |
-| `ghidra-scripts/` | `ExportAllDecompiled.java`, `ScanVtablesAndExport.java` — regeneran `decompiled-native/` |
-| `local-upgrade-server.py` | servidor HTTP local que sirve `assets/WorldsPlayer` para correr el cliente original sin red real (el lanzador lleva su versión en Java: `UpgradeServer`) |
+| `ghidra-scripts/` | `ExportAllDecompiled.java`, `ScanVtablesAndExport.java` y `decompile-all.sh` — regeneran `decompiled-native/` |
+| `local-upgrade-server.py` | servidor HTTP local que sirve `assets/WorldsPlayer` al cliente original y, con `--mirror`, pide lo que falte al espejo (`run_gamma.sh` lo usa así; el lanzador lleva su versión en Java: `UpgradeServer`) |
 | `rwg-explore/`, `gdk-sdk/` | exploración de `.rwg` y herramientas oficiales de avatar recuperadas de GammaTutorial |
 | `bring_to_front.py`, `bytecode-call-diff.py`, `pe_exports.py` | utilidades puntuales |
 
@@ -222,7 +230,16 @@ Por orden de lo que desbloquean (detalle en `docs/roadmap.md`):
    runners (Linux, macOS Intel y ARM, Windows; prueba de humo obligatoria),
    pero nadie ha abierto aún la app a mano fuera de la CI.
 8. Menores: `csq` sin ejemplar propio, Starbright World sin investigar, los
-   7 `.mov` perdidos de Julie/Roxanne/Simon.
+   7 `.mov` perdidos de Julie/Roxanne/Simon (**ojo**: el espejo sirve
+   `avatar/cfemaleb.mov`, `cfc.mov`, `fga.mov`... revisar si son esos).
+9. De las pruebas del juego (`docs/pruebas-juego.md`): parches xdelta de los
+   mundos viejos sin aplicar; chat de voz (`sfmain.exe`) sin traducir; el
+   gesto "Sleep" no se ve en el pingüino; ⚠️ otros sitios donde el código de
+   2004 toca AWT con el monitor de un diálogo tomado (primera
+   `mainCallback`, `activeCallback` de `LoginWizard`) podrían bloquearse en
+   X11 como el cierre (sin caso visto). **Decisión abierta:** guardar en el
+   repo los paquetes de mundo del espejo (hoy solo hay dos, para los tests,
+   en `assets/packages/`).
 
 **No reproducible en el Mac actual** (no es lo mismo que "roto"): ground
 truth `.cmp` contra `cmpview.exe` y el cliente original bajo Wine (requieren
@@ -243,6 +260,8 @@ llegó ahí:
   puente nativo/JNI
 - `docs/avatar-name-language.md`, `docs/net-real-account-login-requisitos.md`
   — avatares y red
+- `docs/pruebas-juego.md` — todo lo que se probó en el juego (mundos,
+  menús, instalación de mundos) con los fallos arreglados y lo abierto
 - `docs/setup-macos.md` — detalle del entorno macOS
 - `docs/renders/` — capturas (la del cliente original; las del motor nuevo
   están en el historial de git, hasta `8cd795d`)

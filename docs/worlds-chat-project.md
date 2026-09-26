@@ -3984,3 +3984,62 @@ clases del puente + `formats/`); `run-checks.sh` 35/35 (4 + 31);
 portable de 5,8 MB); prueba de humo de la app de Linux: dibuja GroundZero
 con la cámara en (230,180,170); menú de terminal con 5 opciones,
 `--viewer` rechazado y la ventana solo con el cliente original.
+
+### 🟢 El juego decompilado de cabo a rabo, los viajes entre mundos y todo el juego probado (2026-09-26)
+
+Pedido del usuario: "con Ghidra termina de decompilar el juego de cabo a
+rabo. Y prueba lo de irse a otros mundos, que eso no está probado; prueba
+todas las cosas que se pueden hacer en el juego". Informe completo:
+`docs/pruebas-juego.md`.
+
+**Ghidra.** Faltaban seis binarios propios del juego. Ghidra 12.1.3 se bajó
+del espejo de SourceForge (el proxy de la nube corta GitHub), con el SHA-256
+comprobado. Salieron `run.exe` (139 funciones), `gdkup.exe` (256),
+`sfmain.exe` (619, el chat de voz SpeakFreely/GSM compilado con Watcom, cuyo
+`DGROUP` hubo que enseñar a `ScanVtablesAndExport.java`) y los drivers de
+RenderWare de 8 bits (427), MMX (435) y DirectDraw (305). El barrido de
+vtables se pasó también a RWL21 (+21) y RWDL6D21 (+26). Todo con 0 fallos,
+y reproducible con `tools/ghidra-scripts/decompile-all.sh`. Lo que queda
+sin decompilar es de terceros: el Java de Sun 1.4.2 del instalador,
+msvcrt, xdelta/glib y el desinstalador de Wise.
+
+**Viajes.** El hallazgo que lo desbloqueó: `us1.worlds.net` vuelve a
+responder, porque es el espejo de LibreWorlds, con los paquetes de mundo y
+el vestuario de avatares que se daban por perdidos. El lanzador pide al
+espejo lo que no hay en local. Para instalar, el cliente pide `gdkup.exe`
+y se cierra; el puente deja la petición en `gdkup.pending`, y el gdkup
+traducido (`GdkUp`, de `gdkup_exe`) instala los paquetes Wise
+(`WisePackage`) y NSIS (`NsisPackage`) y arranca el cliente otra vez.
+Probados: 11 mundos descargados (la instalación de 2004 solo trae
+GroundZero), entre ellos Chaos, el mundo de David Bowie, con su BWStreet,
+y The Blair Witch World, la cafetería de Burkittsville, sacado del mapa
+del universo, donde el espejo sirve los 16 mundos.
+
+**Fallos encontrados probando, todos arreglados con test:**
+
+- Diálogos con campo de texto (WorldsMark → Change Location...): en X11 el
+  cierre de `PolledDialog` (bajo su monitor) se bloqueaba con el hilo de
+  eventos, que toma ese monitor por el método de entrada. Diálogo negro y
+  UI congelada. `AwtCompat.closeHoldingLock`, `UiDisposeCheck`.
+- El mapa del universo cerraba el juego: el mock de
+  `usingMicrosoftVMHacks` devolvía `true`. En gamma.dll es
+  `DAT_004891cc == 1`, que solo se activa con la JVM de Microsoft.
+- Texturas: `FUN_00442bc0` decodifica un fotograma en varios grupos de
+  filas (`mug.cmp` de Blair Witch, dos grupos que cuadran al byte con el
+  fichero), y la fila `esi` es un único búfer para todo el fichero.
+  Además, el byte 13 de la cabecera hace saltar también el número de
+  colores (`kcl.mov`, un caleidoscopio del vestuario). `CmpGroupsCheck`,
+  con muestras en `assets/cmp-verified/`.
+- Upgrade Now (GroundZero 37 → 40, un NSIS de LibreWorlds): faltaban
+  Delete, Push/Pop/Exch, FileOpen, FileRead y FileClose. Además, un
+  instalador que abortaba dejaba al jugador sin juego; gdkup.exe no lee
+  los códigos de salida (0x00401e75) y sigue hasta el reinicio. Ahora igual.
+  `GdkUpCheck`, con `Meteor25.exe` (Wise) y `GroundZero37-40.exe` en
+  `assets/packages/`.
+- (Antes, en la misma sesión) el giro a cámara lenta: el puente daba un
+  reloj de 1 ms a 600-800 fps y los umbrales de `SmoothDriver` anulaban la
+  velocidad. Ahora avanza a saltos de `GetTickCount` (15,625 ms), como en XP.
+
+**Queda:** parches xdelta, chat de voz sin traducir, "Sleep" invisible,
+⚠️ otros sitios con AWT bajo el monitor de un diálogo, y la decisión de
+guardar o no en el repo los paquetes del espejo.
