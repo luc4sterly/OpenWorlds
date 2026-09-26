@@ -28,9 +28,34 @@ public final class NativeInput {
 
    private static final long START_NANOS = System.nanoTime();
 
-   /** GetTickCount: milliseconds of a monotonic clock. */
+   /**
+    * Length of a Windows clock tick in nanoseconds: GetTickCount advances in
+    * steps of the system timer, 15.625 ms (64 Hz) on NT/2000/XP, the systems
+    * of the 2004 client. gamma.dll takes its time from GetTickCount
+    * (0x00402d10; the timeGetTime branch depends on DAT_00489054, which
+    * nothing in the binary writes). The game logic counts on that step:
+    * SmoothDriver zeroes a velocity under minFB_vel / minLR_vel after each
+    * frame, and with a 1 ms clock at the bridge's hundreds of frames per
+    * second the push of one frame never gets past them (turning dropped to
+    * about 1 degree a second instead of about 100). -Dfreeworlds.tickMs
+    * changes the step (0 = one millisecond).
+    */
+   private static final long TICK_NANOS = tickNanos();
+
+   private static long tickNanos() {
+      String s = System.getProperty("freeworlds.tickMs");
+      try {
+         double ms = s == null ? 15.625 : Double.parseDouble(s);
+         return ms <= 0 ? 1000000L : Math.round(ms * 1000000.0);
+      } catch (NumberFormatException e) {
+         return 15625000L;
+      }
+   }
+
+   /** GetTickCount: whole milliseconds at the start of the current system tick. */
    public static int tick() {
-      return (int) ((System.nanoTime() - START_NANOS) / 1000000L) + 1000;
+      long ns = System.nanoTime() - START_NANOS;
+      return (int) (ns / TICK_NANOS * TICK_NANOS / 1000000L) + 1000;
    }
 
    public static final int TIME_ZERO = tick() - 1;

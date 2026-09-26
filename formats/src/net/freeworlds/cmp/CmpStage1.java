@@ -26,15 +26,29 @@ public final class CmpStage1 {
    public final byte[] streamFillIdx;
    public final byte[] streamCtrl;
    public final byte[] streamLit;
+   /**
+    * Group header fields (FUN_00442bc0 reads them from the 16 bytes at the
+    * group's start as puVar3[0], [6] and [7]): the row pairs this group
+    * decodes (the outer count handed to FUN_00457d88), the byte size of
+    * the next group of the same frame, and a word that must be 0 (with
+    * its top bit also 0) or the frame fails with error 6.
+    */
+   public final int rowPairs;
+   public final int nextGroupSize;
+   public final int groupFlags;
 
    private CmpStage1(int[][] palette, byte[] bits,
-                      byte[] streamA, byte[] streamFillIdx, byte[] streamCtrl, byte[] streamLit) {
+                      byte[] streamA, byte[] streamFillIdx, byte[] streamCtrl, byte[] streamLit,
+                      int rowPairs, int nextGroupSize, int groupFlags) {
       this.palette = palette;
       this.bits = bits;
       this.streamA = streamA;
       this.streamFillIdx = streamFillIdx;
       this.streamCtrl = streamCtrl;
       this.streamLit = streamLit;
+      this.rowPairs = rowPairs;
+      this.nextGroupSize = nextGroupSize;
+      this.groupFlags = groupFlags;
    }
 
    // The 3 real fixed alphabet-permutation tables, extracted byte-exact from
@@ -354,7 +368,9 @@ public final class CmpStage1 {
       for (int i = 0; i < paletteCount * 18; i++) br.nextBit();
       int cursor = br.bytesConsumed;
       if ((mode & 0x02) == 0) cursor += paletteCount;
-      if (byte13 != 0) cursor += (byte13 * 18 + 7) / 8;
+      // gamma.dll 0x442963..0x442983: (byte13*18+7)>>3 and then the palette
+      // count as well (only kcl.mov, avatar wardrobe, has byte13 != 0)
+      if (byte13 != 0) cursor += (byte13 * 18 + 7) / 8 + paletteCount;
       if ((flags & 0x01) != 0) cursor += (paletteCount / 2) + paletteCount - 1;
       if ((mode & 0x08) != 0) cursor += 4;
       return u16(file, 34 + cursor);
@@ -420,7 +436,9 @@ public final class CmpStage1 {
       int cursor = br.bytesConsumed;
 
       if ((mode & 0x02) == 0) cursor += paletteCount;
-      if (byte13 != 0) cursor += (byte13 * 18 + 7) / 8;
+      // gamma.dll 0x442963..0x442983: (byte13*18+7)>>3 and then the palette
+      // count as well (only kcl.mov, avatar wardrobe, has byte13 != 0)
+      if (byte13 != 0) cursor += (byte13 * 18 + 7) / 8 + paletteCount;
       if ((flags & 0x01) != 0) cursor += (paletteCount / 2) + paletteCount - 1;
       if ((mode & 0x08) != 0) cursor += 4;
       int groupCount;
@@ -516,6 +534,7 @@ public final class CmpStage1 {
       skipRawBits(bc, bc.bitsAvail);
       byte[] litOut = decodeChannel(bc, huff[4], wanted[4]);
 
-      return new CmpStage1(palette, bitsOut, streamAOut, fillIdxOut, ctrlOut, litOut);
+      return new CmpStage1(palette, bitsOut, streamAOut, fillIdxOut, ctrlOut, litOut,
+         u16(groupRegion, 0), u16(groupRegion, 12), u16(groupRegion, 14));
    }
 }

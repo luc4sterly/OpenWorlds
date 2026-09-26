@@ -194,6 +194,13 @@ public class CmpStage2 {
         out[outPos++] = (byte) b;
     }
 
+    /** esi += n with no store: the bytes already there (an earlier pass's, or 0) stay. */
+    void skipOut(int n) {
+        if (out == null) { out = new byte[1024]; }
+        while (outPos + n > out.length) { out = java.util.Arrays.copyOf(out, out.length * 2); }
+        outPos += n;
+    }
+
     int lookback(int offsetFromCurrent) {
         // Real esi resets to the SAME starting address every outer pass (see
         // decodeFull below) and, like the edi/history buffer, is NEVER
@@ -265,7 +272,24 @@ public class CmpStage2 {
                 // single 4-byte predictor copy
                 int idx = streamA[posA++] & 0xFF;
                 if (idx == 0) {
-                    throw new IllegalStateException("idx==0 special case not modeled (never observed live)");
+                    // Skip (gamma.dll 0x457e22 "and ebx,0xff / je 0x457e0c"):
+                    // nothing is stored, neither the two history words nor
+                    // the two esi bytes. 0x457e0c shifts out the pad bit
+                    // (add edx,edx / je 0x457df8 refill), as 0x457e52 does on
+                    // the copy path, then 0x457e10 advances edi by 4 and,
+                    // unless the row ends, esi by 2. So the 2x4 block keeps
+                    // what it held: the previous frame's pixels in a .mov,
+                    // and in the esi row the byte of an earlier pass.
+                    // ⚠️ VERIFICAR: read from the disassembly only; no file in
+                    // the corpus or in the worlds tried takes it (tex/mug.cmp
+                    // of the Blair Witch world threw here only because the
+                    // old single-group CmpFrames ran past its first group's
+                    // streams into the zero padding).
+                    if (TRACE) System.out.println("iter=" + i + " SKIP posA=" + posA);
+                    shiftBit();
+                    skipOut(2);
+                    edi += 4;
+                    continue;
                 }
                 int off = predOffset(idx);
                 if (TRACE) System.out.println("iter=" + i + " SINGLE idx=" + idx + " off=" + off + " posA=" + posA);

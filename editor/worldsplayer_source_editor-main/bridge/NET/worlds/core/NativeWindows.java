@@ -32,6 +32,17 @@ public final class NativeWindows {
    }
 
    /**
+    * DAT_004891cc: set only by Window.doMicrosoftVMHacks (0x0040de30), which
+    * Gamma.main calls when java.vendor contains "Microsoft"; read by
+    * usingMicrosoftVMHacks (0x0040de40) and by reShape and the child-window
+    * lookups. It stays false on any other Java. The mock answered true, and
+    * RenderCanvas.handle then called getLocationOnScreen on a hidden canvas:
+    * opening the Universe Map closed the game (IllegalComponentStateException
+    * out of the main loop).
+    */
+   public static volatile boolean microsoftVMHacks;
+
+   /**
     * Diagnostico (opt-in): -Dfreeworlds.dumpWindow=DIR escribe, en los
     * segundos 12/20/30/40, el arbol de componentes AWT de cada ventana
     * (clase, nombre, texto y limites) y ademas intenta un PNG con

@@ -12,6 +12,14 @@ import java.io.IOException;
  * history buffer that is never cleared, so a frame whose table entry
  * references the previous one starts from its pixels.
  *
+ * A frame can be several groups of rows, each with its own header and five
+ * streams (FUN_00442bc0), and the esi row of FUN_00457d88 is one buffer
+ * for the whole file (FUN_00442750, this+0x3c): both are kept here. Carrying
+ * that row from frame to frame changed frame 3 of logo256.mov and frame 1 of
+ * splashscreen.mov (GroundZero), where a lookback at a frame's first pass
+ * now reads the previous frame's last pass instead of 0; frame 0 of every
+ * file is unchanged.
+ *
  * Unverified beyond frame 0 against a reference renderer: cmpview.exe
  * shows only one image per movie.
  */
@@ -58,28 +66,60 @@ public final class CmpFrames {
       boolean evenIsA = (file[5] & 0x01) != 0;
       int[][] palette = null;
       byte[][] frames = new byte[n][];
+      // The esi row of FUN_00457d88: one buffer per reader, (w+3>>2)*2 bytes
+      // allocated once (FUN_00442750, this+0x3c), never cleared, shared by
+      // every group and frame. Lookbacks can read what an earlier pass left.
+      byte[] esiRow = null;
       int done = 0;
       for (int f = 0; f < n; f++) {
-         CmpStage1 s1;
-         try {
-            s1 = CmpStage1.decodeGroupAt(file, table[f][0], table[f][1]);
-         } catch (IOException e) {
-            break;
-         }
-         if (palette == null) {
-            palette = s1.palette;
-         }
-         CmpStage2 dec = new CmpStage2(history, edi0, stride, pad(s1.streamA), pad(s1.streamCtrl),
-            pad(s1.streamLit), pad(s1.streamFillIdx), pad(s1.bits));
+         // A frame is a run of groups (FUN_00442bc0's loop): each one
+         // decodes its own row pairs from its own five streams, starting
+         // where the previous group's rows ended, until the height is
+         // covered. The first group's size comes from the frame table, the
+         // next one's from the group header. tex/mug.cmp of the Blair Witch
+         // world (TheBurkittsvilleDiner) is 233 rows high in two groups of
+         // 76 and 41 row pairs (assets/cmp-verified/mug); every file of the
+         // GroundZero corpus has one group per frame.
          int edi = edi0;
          int outerAdvance = 2 * stride - ch0 * 4;
-         for (int o = 0; o < outer; o++) {
-            dec.outPos = 0;
-            dec.decode(ch0, edi);
-            edi += ch0 * 4 + outerAdvance;
+         int groupOff = table[f][0];
+         int groupSize = table[f][1];
+         int rows = 0;
+         boolean failed = false;
+         while (rows < height) {
+            CmpStage1 s1;
+            try {
+               s1 = CmpStage1.decodeGroupAt(file, groupOff, groupSize);
+            } catch (IOException e) {
+               failed = true;
+               break;
+            }
+            // (puVar3[7] & 0x7fff) != 0 or byte 0xf negative: error 6
+            if (s1.groupFlags != 0 || s1.rowPairs <= 0 || rows + 2 * s1.rowPairs > h2) {
+               failed = true;
+               break;
+            }
+            if (palette == null) {
+               palette = s1.palette;
+            }
+            CmpStage2 dec = new CmpStage2(history, edi0, stride, pad(s1.streamA), pad(s1.streamCtrl),
+               pad(s1.streamLit), pad(s1.streamFillIdx), pad(s1.bits));
+            dec.out = esiRow;
+            for (int o = 0; o < s1.rowPairs; o++) {
+               dec.outPos = 0;
+               dec.decode(ch0, edi);
+               edi += ch0 * 4 + outerAdvance;
+            }
+            // CmpStage2 works on a padded copy: carry that buffer on
+            history = java.util.Arrays.copyOf(dec.history, history.length);
+            esiRow = dec.out;
+            rows += 2 * s1.rowPairs;
+            groupOff += groupSize;
+            groupSize = s1.nextGroupSize;
          }
-         // CmpStage2 works on a padded copy: carry that buffer to the next frame
-         history = java.util.Arrays.copyOf(dec.history, history.length);
+         if (failed) {
+            break;
+         }
          byte[] idx = new byte[w4 * h2];
          for (int p = 0; p < outer; p++) {
             int edip = edi0 + p * 2 * stride;

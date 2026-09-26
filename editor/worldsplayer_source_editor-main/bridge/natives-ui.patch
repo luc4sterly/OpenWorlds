@@ -268,7 +268,7 @@ diff a/NET/worlds/scape/ImageConverter.java b/NET/worlds/scape/ImageConverter.ja
 diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
 --- a/NET/worlds/console/Window.java
 +++ b/NET/worlds/console/Window.java
-@@ -208,6 +208,8 @@
+@@ -209,6 +209,8 @@
  
     public static void setCursor(int var0) {
        NET.worlds.core.NativeMock.log("Window", "setCursor", new Object[]{var0});
@@ -277,7 +277,7 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
     }
  
     public static int getWindowState(int var0) {
-@@ -238,6 +240,10 @@
+@@ -239,6 +241,10 @@
        if (var1) {
           NET.worlds.core.NativeInput.attach(NET.worlds.core.NativeWindows.component(this.hWndGamma));
        }

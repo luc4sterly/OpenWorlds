@@ -19,14 +19,14 @@ diff a/NET/worlds/console/ActiveX.java b/NET/worlds/console/ActiveX.java
 diff a/NET/worlds/console/PolledDialog.java b/NET/worlds/console/PolledDialog.java
 --- a/NET/worlds/console/PolledDialog.java
 +++ b/NET/worlds/console/PolledDialog.java
-@@ -118,7 +118,7 @@
+@@ -118,7 +118,3 @@
           if (this.toBeDisposed) {
-             this.setVisible(false);
-             this.parent.requestFocus();
+-            this.setVisible(false);
+-            this.parent.requestFocus();
 -            if (this.getPeer() != null) {
-+            if (this.isDisplayable()) { // Component.getPeer() != null: removed after Java 8, isDisplayable() is its documented equivalent
-                this.dispose();
-             }
+-               this.dispose();
+-            }
++            NET.worlds.core.AwtCompat.closeHoldingLock(this, this.parent); // setVisible(false), parent.requestFocus(), dispose() if getPeer() != null: done here they deadlock with the event thread on X11 today (see AwtCompat)
  
 diff a/NET/worlds/console/StatMemNode.java b/NET/worlds/console/StatMemNode.java
 --- a/NET/worlds/console/StatMemNode.java
@@ -47,7 +47,21 @@ diff a/NET/worlds/console/StatMemNode.java b/NET/worlds/console/StatMemNode.java
 diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
 --- a/NET/worlds/console/Window.java
 +++ b/NET/worlds/console/Window.java
-@@ -114,7 +114,8 @@
+@@ -82,11 +82,12 @@
+ 
+    public static void doMicrosoftVMHacks() {
+       NET.worlds.core.NativeMock.log("Window", "doMicrosoftVMHacks", new Object[0]);
++      NET.worlds.core.NativeWindows.microsoftVMHacks = true; // DAT_004891cc = 1 (0x0040de30)
+    }
+ 
+    public static boolean usingMicrosoftVMHacks() {
+       NET.worlds.core.NativeMock.log("Window", "usingMicrosoftVMHacks", new Object[0]);
+-      return true;
++      return NET.worlds.core.NativeWindows.microsoftVMHacks; // DAT_004891cc == 1 (0x0040de40)
+    }
+ 
+    public static boolean getActivated() {
+@@ -114,7 +115,8 @@
  
     public int getHwnd() {
        NET.worlds.core.NativeMock.log("Window", "getHwnd", new Object[0]);
@@ -57,7 +71,7 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
     }
  
     public void hideNativeWindow() {
-@@ -147,20 +148,22 @@
+@@ -147,20 +149,22 @@
  
     public void maybeResize(int var1, int var2) {
        NET.worlds.core.NativeMock.log("Window", "maybeResize", new Object[]{var1, var2});
@@ -82,7 +96,7 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
     }
  
     public static void makeJavaReleaseCapture() {
-@@ -173,17 +176,19 @@
+@@ -173,17 +177,19 @@
  
     public int fullWidth() {
        NET.worlds.core.NativeMock.log("Window", "fullWidth", new Object[0]);
@@ -105,7 +119,7 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
     }
  
     public static int getFrameWindow() {
-@@ -193,11 +198,12 @@
+@@ -193,11 +199,12 @@
  
     public static void hideCursor() {
        NET.worlds.core.NativeMock.log("Window", "hideCursor", new Object[0]);
@@ -119,7 +133,7 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
     }
  
     public static void setCursor(int var0) {
-@@ -206,11 +212,12 @@
+@@ -206,11 +213,12 @@
  
     public static int getWindowState(int var0) {
        NET.worlds.core.NativeMock.log("Window", "getWindowState", new Object[]{var0});
@@ -133,7 +147,7 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
     }
  
     public static void setForegroundWindow(int var0) {
-@@ -227,6 +234,10 @@
+@@ -227,6 +235,10 @@
  
     private int install(boolean var1) {
        NET.worlds.core.NativeMock.log("Window", "install", new Object[]{var1});
@@ -144,7 +158,7 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
        return 0;
     }
  
-@@ -250,12 +261,12 @@
+@@ -250,12 +262,12 @@
  
     private static int nativeFindChildWindow(int var0, int var1, int var2, int var3, int var4) {
        NET.worlds.core.NativeMock.log("Window", "nativeFindChildWindow", new Object[]{var0, var1, var2, var3, var4});
@@ -159,7 +173,7 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
     }
  
     public static int playVideoClip(Component var0, String var1) {
-@@ -280,12 +291,12 @@
+@@ -280,12 +292,12 @@
  
     public static int getWindowWidth(int var0) {
        NET.worlds.core.NativeMock.log("Window", "getWindowWidth", new Object[]{var0});
