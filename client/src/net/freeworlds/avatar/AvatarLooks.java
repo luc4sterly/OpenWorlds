@@ -51,6 +51,15 @@ public final class AvatarLooks {
       public int unchanged;
    }
 
+   /**
+    * El color con que nace un material de textura de nombre:
+    * PosableShape.scanTexture hace new Material(0.32, 0.55, 0, colorTable[3],
+    * null, ...) y luego loadTexture; si la textura no llega (fichero perdido,
+    * o un .mov sin esa subimagen) el material se queda con ese color. Es el
+    * naranja que el original enseña en el vestuario que ya no existe.
+    */
+   public static final float[] MISSING_TEXTURE_COLOR = {255 / 255f, 102 / 255f, 51 / 255f};
+
    /** Texturas ya decodificadas, compartidas entre avatares (clave: fichero en minusculas). */
    private static final Map<String, CmpTexture[]> MOV_CACHE = new HashMap<>();
    private static final Map<String, CmpTexture> CMP_CACHE = new HashMap<>();
@@ -82,7 +91,9 @@ public final class AvatarLooks {
          } else {
             File tf = findIgnoreCase(texDir, m.textureFile);
             if (tf == null) {
-               res.skipped.add(part.letra + " (" + m.textureFile + " no esta en el corpus)");
+               res.skipped.add(part.letra + " (" + m.textureFile + " no esta en el corpus: colorTable[3], como el original)");
+               res.byTag.put(part.tag, missingTextureLook());
+               res.colored++;
                continue;
             }
             String key = tf.getAbsolutePath().toLowerCase(java.util.Locale.ROOT);
@@ -99,7 +110,9 @@ public final class AvatarLooks {
                res.movies.put(tf.getName(), frames);
                if (m.textureSubIndex + 1 > frames.length) {
                   res.skipped.add(part.letra + " (" + m.textureFile + " subimagen " + m.textureSubIndex
-                     + ": el .mov solo tiene " + frames.length + " frames; el original deja el material sin textura)");
+                     + ": el .mov solo tiene " + frames.length + " frames; el original deja el material sin textura, en colorTable[3])");
+                  res.byTag.put(part.tag, missingTextureLook());
+                  res.colored++;
                   continue;
                }
                tex = frames[m.textureSubIndex];
@@ -117,6 +130,10 @@ public final class AvatarLooks {
          }
       }
       return res;
+   }
+
+   private static Look missingTextureLook() {
+      return new Look(MISSING_TEXTURE_COLOR[0], MISSING_TEXTURE_COLOR[1], MISSING_TEXTURE_COLOR[2], null);
    }
 
    /** Una linea de resumen y una por cada cosa no aplicada. */

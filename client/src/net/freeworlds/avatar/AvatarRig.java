@@ -64,6 +64,9 @@ public final class AvatarRig {
       public CmpTexture texture;
       /** true si el material viene del nombre de avatar (constantes de PosableShape.scanTexture/readColor). */
       public boolean avatarMaterial;
+      /** Parte (clump) del .bod de la que sale y los indices de sus vertices en ella: RW calcula las normales de vertice por clump (vertices compartidos). */
+      public int limb;
+      public final int[] vi = new int[3];
    }
 
    private final List<Node> nodes = new ArrayList<>();
@@ -336,7 +339,9 @@ public final class AvatarRig {
    /** Los triangulos con la pose actual, en el sistema del PosableShape. */
    public List<Tri> triangles() {
       List<Tri> out = new ArrayList<>();
+      int limb = -1;
       for (Node n : this.nodes) {
+         limb++;
          BodClump c = n.clump;
          if (c == null || c.vertices == null || c.vertices.isEmpty() || c.triangles == null) {
             continue;
@@ -358,7 +363,9 @@ public final class AvatarRig {
                tri.p[j * 3 + 2] = a.x * m[2] + a.y * m[6] + a.z * m[10] + m[14];
                tri.uv[j * 2] = a.u;
                tri.uv[j * 2 + 1] = a.v;
+               tri.vi[j] = t[j];
             }
+            tri.limb = limb;
             tri.r = r;
             tri.g = g;
             tri.b = b;

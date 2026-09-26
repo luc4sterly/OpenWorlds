@@ -1466,12 +1466,43 @@ public final class WorldViewer {
     }
 
     /** Triangulos del avatar: color plano por clump o textura del nombre,
-     * iluminados por DriverLight con la normal de cara (el .bod no trae
-     * normales), ambas caras (bobinado sin verificar). ⚠️ Los materiales
-     * de PosableShape son lisos (smooth = true: luz por vertice en los
-     * limbs sin textura); aqui van por cara, porque los triangulos del rig
-     * no conservan que vertices comparte cada limb. */
+     * iluminados por DriverLight, ambas caras (bobinado sin verificar). Los
+     * dos materiales son lisos (gamma.dll FUN_0041d950 y PosableShape:
+     * superficie 0.32/0.55/0 y FUN_00417a10), asi que los triangulos sin
+     * textura van con luz por vertice: la normal de cada vertice es la suma
+     * sin pesos de las de los triangulos de su parte (clump) que lo
+     * comparten, como RwCalculateClumpVertexNormal (RWL21 0x10041df0; el
+     * .bod no trae normales); los texturizados, por cara. */
     private static void drawAvatarTris(List<AvatarRig.Tri> tris) {
+       // normales de cara (espacio del objeto) y de vertice por (parte, indice)
+       int nt = tris.size();
+       float[][] faceN = new float[nt][];
+       Map<Long, float[]> vSum = new HashMap<>();
+       Map<Long, float[]> vFirst = new HashMap<>();
+       for (int k = 0; k < nt; k++) {
+          AvatarRig.Tri t = tris.get(k);
+          float[] p = t.p;
+          faceN[k] = DriverLight.polygonNormal(new float[][]{{p[0], p[1], p[2]}, {p[3], p[4], p[5]}, {p[6], p[7], p[8]}});
+          for (int j = 0; j < 3; j++) {
+             long key = ((long) t.limb << 32) | (t.vi[j] & 0xFFFFFFFFL);
+             float[] s = vSum.computeIfAbsent(key, x -> new float[3]);
+             s[0] += faceN[k][0];
+             s[1] += faceN[k][1];
+             s[2] += faceN[k][2];
+             vFirst.putIfAbsent(key, faceN[k]);
+          }
+       }
+       for (Map.Entry<Long, float[]> e : vSum.entrySet()) {
+          float[] s = e.getValue();
+          float len = (float) Math.sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]);
+          if (len > 0f) {
+             s[0] /= len;
+             s[1] /= len;
+             s[2] /= len;
+          } else {
+             System.arraycopy(vFirst.get(e.getKey()), 0, s, 0, 3);
+          }
+       }
        boolean first = true;
        boolean inBegin = false;
        float lr = 0f, lg = 0f, lb = 0f;
@@ -1479,7 +1510,8 @@ public final class WorldViewer {
        boolean lastAvatarMat = false;
        RwxMaterial mat = null;
        glDisable(GL_CULL_FACE);
-       for (AvatarRig.Tri t : tris) {
+       for (int k = 0; k < nt; k++) {
+          AvatarRig.Tri t = tris.get(k);
           if (first || t.r != lr || t.g != lg || t.b != lb || t.texture != lastTex || t.avatarMaterial != lastAvatarMat) {
              if (inBegin) {
                 glEnd();
@@ -1504,10 +1536,18 @@ public final class WorldViewer {
              inBegin = true;
           }
           float[] p = t.p;
-          float[] n = DriverLight.polygonNormal(new float[][]{{p[0], p[1], p[2]}, {p[3], p[4], p[5]}, {p[6], p[7], p[8]}});
-          driverColour(mat.rwAmbient(), mat.diffuse, mat.specular, t.texture != null, true, mat.colorR, mat.colorG, mat.colorB,
-             mat.opacity, n[0], n[1], n[2]);
+          float[] n = faceN[k];
+          boolean textured = t.texture != null;
+          if (textured) {
+             driverColour(mat.rwAmbient(), mat.diffuse, mat.specular, true, true, mat.colorR, mat.colorG, mat.colorB,
+                mat.opacity, n[0], n[1], n[2]);
+          }
           for (int j = 0; j < 3; j++) {
+             if (!textured) {
+                float[] vn = vSum.get(((long) t.limb << 32) | (t.vi[j] & 0xFFFFFFFFL));
+                driverColour(mat.rwAmbient(), mat.diffuse, mat.specular, false, true, mat.colorR, mat.colorG, mat.colorB,
+                   mat.opacity, vn[0], vn[1], vn[2]);
+             }
              if (t.texture != null) {
                 glTexCoord2f(t.uv[j * 2], t.uv[j * 2 + 1]);
              }
@@ -1546,23 +1586,25 @@ public final class WorldViewer {
        mat.diffuse = 0.55f;
        mat.specular = 0.0f;
        mat.opacity = 1f;
+       mat.lightSampling = 2; // PosableShape: smooth = true
        return mat;
     }
 
-    /** Material plano por clump .bod (el formato no trae scalars: misma
-     * convencion placeholder que RwgViewer/BodViewer — ambient 0.3,
-     * diffuse 0.8, specular 0.1, opaco — marcada VERIFICAR igual que
-     * alli). */
+    /** Material de una parte .bod sin textura de nombre: el de gamma.dll
+     * FUN_0041d950, RwSetMaterialSurface(0.32, 0.55, 0.0) (DAT_00470ac4,
+     * DAT_00470ac0, DAT_00470abc) y liso (FUN_00417a10), con el color de la
+     * parte. Antes, un placeholder 0.3/0.8/0.1. */
     private static RwxMaterial bodAvatarMaterial(float r, float g, float b) {
        RwxMaterial mat = new RwxMaterial();
        mat.colorR = r;
        mat.colorG = g;
        mat.colorB = b;
-       mat.ambient = 0.3f;
+       mat.ambient = 0.32f;
        mat.ambientSet = true;
-       mat.diffuse = 0.8f;
-       mat.specular = 0.1f;
+       mat.diffuse = 0.55f;
+       mat.specular = 0.0f;
        mat.opacity = 1f;
+       mat.lightSampling = 2;
        return mat;
     }
 
