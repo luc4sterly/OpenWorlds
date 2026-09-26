@@ -157,6 +157,15 @@ textura".
   `RasterGoldenCheck`).
 - `-Dfreeworlds.dumpScene=SEG` (y `dumpSceneMatrices`): vuelca el árbol de
   clumps de cada escena (objeto, estado, polígonos, posición en el mundo).
+- **Material de las partes `.bod`** (`NativeShapes.buildBod`): gamma.dll
+  FUN_0041d950 hace `RwPushCurrentMaterial`,
+  `RwSetMaterialSurface(0.32, 0.55, 0.0)` (los floats de `DAT_00470ac4`,
+  `DAT_00470ac0` y `DAT_00470abc` leídos del `.data` de gamma.dll: la
+  misma superficie que `PosableShape`), el color de la parte y
+  `FUN_00417a10` (`RwSetMaterialLightSampling(2)` +
+  `RwAddTextureModeToMaterial(1)`): liso, con luz por vértice. Aquí era
+  (0.75, 0, 0) y facetado, y las estatuas y drones salían planos, sin
+  sombreado.
 
 Red: `run_gamma.sh` levanta `tools/local-upgrade-server.py` y apunta
 `upgradeServer` de la copia temporal a `127.0.0.1` (el host original ya no

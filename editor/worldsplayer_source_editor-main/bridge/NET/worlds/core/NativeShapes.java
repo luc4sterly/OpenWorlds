@@ -583,10 +583,19 @@ public final class NativeShapes {
          }
          int mat = 0;
          if (b.triangles != null && !b.triangles.isEmpty()) {
+            // gamma.dll FUN_0041d950 (0x0041d950, lines after the part
+            // header): FUN_00419920 creates the material,
+            // FUN_00419ef0(mat, DAT_00470ac4, DAT_00470ac0, DAT_00470abc) =
+            // RwSetMaterialSurface(mat, 0.32, 0.55, 0.0) (the floats read
+            // from gamma.dll's .data: the same surface as PosableShape's
+            // new Material(0.32F, 0.55F, 0.0F, ...)), FUN_00419e90 the
+            // colour, and FUN_00417a10 = RwSetMaterialLightSampling(mat, 2)
+            // + RwAddTextureModeToMaterial(mat, 1): smooth, per-vertex light.
+            // It was (0.75, 0, 0) facet here, which drew the statues flat.
             mat = NativeScene.createMaterial();
+            NativeScene.setMaterialSurface(mat, 0.32F, 0.55F, 0.0F);
             NativeScene.setMaterialColor(mat, b.r / 255.0F, b.g / 255.0F, b.b / 255.0F);
-            NativeScene.setMaterialSurface(mat, 0.75F, 0.0F, 0.0F);
-            NativeScene.setMaterialTextureModes(mat, 1);
+            NativeScene.smoothShading(mat);
             for (int[] tri : b.triangles) {
                int poly = NativeScene.addPolygon(c, 3, new int[]{tri[0] + 1, tri[1] + 1, tri[2] + 1});
                if (poly != 0) {
