@@ -168,6 +168,30 @@ jobs:
             build/app/FreeWorlds/FreeWorlds.exe --version || true
           fi
 
+      # El .exe/.app son de interfaz grafica (sin consola): la prueba de humo
+      # usa el java y los jars del propio paquete para ver la salida.
+      - name: Prueba de humo - el cliente original empaquetado dibuja
+        continue-on-error: true
+        env:
+          FREEWORLDS_DATA: ${{ runner.temp }}/freeworlds-data
+        run: |
+          if [ -d build/app/FreeWorlds.app ]; then
+            APP=build/app/FreeWorlds.app/Contents
+            JAVA="$APP/runtime/Contents/Home/bin/java"
+          else
+            APP=build/app/FreeWorlds
+            JAVA="$APP/runtime/bin/java.exe"
+          fi
+          "$JAVA" -jar "$APP/app/freeworlds-launcher.jar" --smoke 120
+
+      - name: Registro de la prueba de humo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-log-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/freeworlds-data/logs
+          if-no-files-found: ignore
+
       - uses: actions/upload-artifact@v4
         with:
           name: FreeWorlds-${{ needs.build.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
