@@ -45,6 +45,12 @@ import java.util.Locale;
 public final class RwxParser {
    private List<RwxVector3> localVertices = new ArrayList<>();
    private List<float[]> localUvs = new ArrayList<>(); // parallel to localVertices; {0,0} when the line has no UV suffix
+   // Parallel to localVertices, for the RW lighting only (RwxModel.vertexKeys
+   // / vertexNormals): a unique key per script vertex and its baked Normal.
+   private List<Integer> localKeys = new ArrayList<>();
+   private List<float[]> localNormals = new ArrayList<>();
+   private int nextVertexKey = 0;
+   private int polygonCount = 0; // RwxModel.trianglePolygons
 
    private RwxMatrix4 groupWorld = RwxMatrix4.identity(); // world transform of the innermost enclosing clump
    private final Deque<RwxMatrix4> groupWorldStack = new ArrayDeque<>();
@@ -89,6 +95,8 @@ public final class RwxParser {
             currentTransform = RwxMatrix4.identity();
             localVertices = new ArrayList<>();
             localUvs = new ArrayList<>();
+            localKeys = new ArrayList<>();
+            localNormals = new ArrayList<>();
             materialStack.push(currentMaterial);
             currentMaterial = currentMaterial.copy();
             break;
@@ -97,6 +105,8 @@ public final class RwxParser {
             groupWorld = groupWorldStack.isEmpty() ? RwxMatrix4.identity() : groupWorldStack.pop();
             localVertices = new ArrayList<>();
             localUvs = new ArrayList<>();
+            localKeys = new ArrayList<>();
+            localNormals = new ArrayList<>();
             currentMaterial = materialStack.isEmpty() ? currentMaterial : materialStack.pop();
             break;
          // ModelBegin/ModelEnd: deliberately NOT handled - not recognized by
@@ -130,14 +140,19 @@ public final class RwxParser {
          case "vertexext":
             localVertices.add(bakedVertex(f(tok[1]), f(tok[2]), f(tok[3])));
             localUvs.add(parseUvSuffix(tok));
+            localKeys.add(nextVertexKey++);
+            localNormals.add(parseNormalSuffix(tok));
             break;
          case "triangle":
+            polygonCount++;
             emitTriangle(idx(tok[1]), idx(tok[2]), idx(tok[3]));
             break;
          case "quad":
+            polygonCount++;
             emitQuad(idx(tok[1]), idx(tok[2]), idx(tok[3]), idx(tok[4]));
             break;
          case "polygon": {
+            polygonCount++;
             int n = Integer.parseInt(tok[1]);
             // Reference builds the index list via unshift() - i.e. reversed
             // relative to file order - before fan-triangulating.
@@ -166,11 +181,38 @@ public final class RwxParser {
             currentMaterial.ambient = f(tok[1]);
             currentMaterial.diffuse = f(tok[2]);
             currentMaterial.specular = f(tok[3]);
+            currentMaterial.ambientSet = true;
             break;
          case "ambient":
             currentMaterial = currentMaterial.copy();
             currentMaterial.ambient = f(tok[1]);
+            currentMaterial.ambientSet = true;
             break;
+         case "lightsampling":
+            // RW 2.1 reader (bridge RwxReader): Vertex -> 2, anything else -> Facet (1).
+            currentMaterial = currentMaterial.copy();
+            currentMaterial.lightSampling = tok.length > 1 && tok[1].equalsIgnoreCase("vertex") ? 2 : 1;
+            break;
+         case "addtexturemode":
+         case "removetexturemode": {
+            // RW 2.1 reader (bridge RwxReader): add/remove bits of the mask.
+            // three-rwx-loader ignores both; they only feed the RW lighting.
+            currentMaterial = currentMaterial.copy();
+            for (int ti = 1; ti < tok.length; ti++) {
+               String m = tok[ti].toUpperCase();
+               RwxMaterial.TextureMode mode = m.equals("LIT") ? RwxMaterial.TextureMode.LIT
+                  : m.equals("FORESHORTEN") ? RwxMaterial.TextureMode.FORESHORTEN
+                  : m.equals("FILTER") ? RwxMaterial.TextureMode.FILTER : null;
+               if (mode != null) {
+                  if (cmd.startsWith("add")) {
+                     currentMaterial.textureModes.add(mode);
+                  } else {
+                     currentMaterial.textureModes.remove(mode);
+                  }
+               }
+            }
+            break;
+         }
          case "diffuse":
             currentMaterial = currentMaterial.copy();
             currentMaterial.diffuse = f(tok[1]);
@@ -257,10 +299,34 @@ public final class RwxParser {
    }
 
    private void emitTriangle(int a, int b, int c) {
-      int va = model.addVertex(localVertices.get(a), localUvs.get(a)[0], localUvs.get(a)[1]);
-      int vb = model.addVertex(localVertices.get(b), localUvs.get(b)[0], localUvs.get(b)[1]);
-      int vc = model.addVertex(localVertices.get(c), localUvs.get(c)[0], localUvs.get(c)[1]);
-      model.addTriangle(va, vb, vc, currentMaterial);
+      int va = model.addVertex(localVertices.get(a), localUvs.get(a)[0], localUvs.get(a)[1], localKeys.get(a), localNormals.get(a));
+      int vb = model.addVertex(localVertices.get(b), localUvs.get(b)[0], localUvs.get(b)[1], localKeys.get(b), localNormals.get(b));
+      int vc = model.addVertex(localVertices.get(c), localUvs.get(c)[0], localUvs.get(c)[1], localKeys.get(c), localNormals.get(c));
+      model.addTriangle(va, vb, vc, currentMaterial, polygonCount);
+   }
+
+   /** Optional {@code Normal x y z} suffix on vertex lines (GROUNDZERO's
+    * VertexExt): baked through the same matrix as the position (as a
+    * direction) and normalised, as the RW 2.1 reader stores it (bridge
+    * RwxReader.vertex + NativeScene.setVertexNormal). Null when absent,
+    * malformed or zero. Only the RW lighting reads it. */
+   private float[] parseNormalSuffix(String[] tok) {
+      for (int i = 4; i + 3 <= tok.length - 1; i++) {
+         if (tok[i].equalsIgnoreCase("normal")) {
+            try {
+               float x = f(tok[i + 1]), y = f(tok[i + 2]), z = f(tok[i + 3]);
+               float[] e = groupWorld.multiply(currentTransform).e;
+               float nx = e[0] * x + e[4] * y + e[8] * z;
+               float ny = e[1] * x + e[5] * y + e[9] * z;
+               float nz = e[2] * x + e[6] * y + e[10] * z;
+               float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+               return len > 0f ? new float[]{nx / len, ny / len, nz / len} : null;
+            } catch (RuntimeException e) {
+               return null;
+            }
+         }
+      }
+      return null;
    }
 
    private void emitQuad(int a, int b, int c, int d) {

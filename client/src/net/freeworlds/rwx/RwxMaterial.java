@@ -37,6 +37,14 @@ public final class RwxMaterial {
    /** MaterialModes Double/Null - real corpus evidence: assets/GROUNDZERO/YARD_TABLE.RWX uses "MaterialModes Double". Default false (single-sided/backface-culled) per the RWX spec. */
    public boolean doubleSided = false;
    public Set<TextureMode> textureModes = EnumSet.of(TextureMode.LIT, TextureMode.FORESHORTEN, TextureMode.FILTER);
+   /** Whether the script set the ambient (Ambient/Surface). RenderWare 2.1
+    * starts every material at surface (0, 0, 0): RwCreateMaterial
+    * (RWL21 0x1001b340) calls RwSetMaterialSurface(mat, 0, 0, 0); the
+    * 0.69 default above is three-rwx-loader's, so the RW lighting
+    * (render/DriverLight) reads {@link #rwAmbient()}. */
+   public boolean ambientSet = false;
+   /** LightSampling: 1 Facet (RwCreateMaterial's default), 2 Vertex. */
+   public int lightSampling = 1;
 
    public RwxMaterial copy() {
       RwxMaterial c = new RwxMaterial();
@@ -51,7 +59,19 @@ public final class RwxMaterial {
       c.maskName = maskName;
       c.doubleSided = doubleSided;
       c.textureModes = textureModes.isEmpty() ? EnumSet.noneOf(TextureMode.class) : EnumSet.copyOf(textureModes);
+      c.ambientSet = ambientSet;
+      c.lightSampling = lightSampling;
       return c;
+   }
+
+   /** The ambient RenderWare 2.1 uses: the script's, or 0 (see {@link #ambientSet}). */
+   public float rwAmbient() {
+      return ambientSet ? ambient : 0f;
+   }
+
+   /** TextureModes Lit: a textured polygon goes through the driver's light ramp; without it the texel is drawn as is. */
+   public boolean rwLit() {
+      return textureModes.contains(TextureMode.LIT);
    }
 
    /** Effective surface triple: parsed values only under Lit, else the AW default. */

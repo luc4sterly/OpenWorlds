@@ -24,6 +24,7 @@ import net.freeworlds.world.WorldRestorer;
 
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
+import org.lwjgl.opengl.GL14;
 import org.lwjgl.system.MemoryStack;
 
 import java.io.File;
@@ -137,14 +138,17 @@ import static org.lwjgl.opengl.GL11.*;
  */
 public final class WorldViewer {
    private static final Map<String, RwxModel> modelCache = new HashMap<>();
-   // Display list por modelo unico (clave = instancia de modelCache).
-   // Optimizacion de rendimiento period-correct (listas de OpenGL 1.x,
-   // la tecnica de la epoca de RenderWare 2): captura la MISMA secuencia
-   // glMaterial/glNormal/glVertex que el modo inmediato, pixel-identica,
-   // compilada una vez y re-ejecutada por instancia. Valida solo dentro
-   // del contexto GL actual — se limpia al crear/destruir cada ventana
-   // (modo ALL crea un contexto por sala).
-   private static final Map<RwxModel, Integer> displayListCache = new HashMap<>();
+   // Display lists por modelo y por luz local (DriverLight.objectKey): los
+   // colores de cada poligono dependen de las luces de la sala llevadas al
+   // espacio del objeto, asi que un mismo modelo girado distinto necesita
+   // otra lista. Optimizacion de rendimiento period-correct (listas de
+   // OpenGL 1.x): captura la MISMA secuencia que el modo inmediato,
+   // compilada una vez. Valida solo dentro del contexto GL actual — se
+   // limpia al crear/destruir cada ventana (modo ALL crea un contexto por
+   // sala).
+   private static final Map<RwxModel, Map<Long, Integer>> displayListCache = new IdentityHashMap<>();
+   /** Normales de RW por modelo (ver modelNormals): no dependen del contexto GL. */
+   private static final Map<RwxModel, float[][]> modelNormalCache = new IdentityHashMap<>();
     private static File baseDir;
     private static int loadedCount = 0;
     private static int missingCount = 0;
@@ -554,8 +558,15 @@ public final class WorldViewer {
       glfwWindowHint(GLFW_VISIBLE, visible ? GLFW_TRUE : GLFW_FALSE);
       glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
+      // -Dfreeworlds.windowSize=AxB: otro tamano (p. ej. el aspecto de la
+      // vista del original, 468x272, para comparar capturas con el puente).
       int width = 1024;
       int height = 768;
+      String size = System.getProperty("freeworlds.windowSize");
+      if (size != null && size.matches("\\d+x\\d+")) {
+         width = Integer.parseInt(size.substring(0, size.indexOf('x')));
+         height = Integer.parseInt(size.substring(size.indexOf('x') + 1));
+      }
       long window = glfwCreateWindow(width, height, "FreeWorlds World Viewer - " + roomName, 0, 0);
       if (window == 0) {
          throw new IllegalStateException("Failed to create GLFW window");
@@ -603,7 +614,7 @@ public final class WorldViewer {
       glEnable(GL_DEPTH_TEST);
       glClearColor(0.10f, 0.10f, 0.14f, 1f);
       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-      GlLighting.init();
+      initDriverLighting();
 
       float angle = 30f;
       // Interior fly camera state (only used with --inside): eye/look
@@ -895,6 +906,7 @@ public final class WorldViewer {
                 float[] dir = norm(new float[]{cx - ex, cy - ey, cz - ez});
                 GlUtil.lookAt(0, 0, 0, dir[0], dir[1], dir[2], 0, 0, 1);
              }
+             roomLights(room);
              drawInfiniteBackground(room);
              glClear(GL_DEPTH_BUFFER_BIT);
           } else {
@@ -975,6 +987,7 @@ public final class WorldViewer {
              glTranslatef(-cx, -cy, -cz);
           }
 
+           roomLights(room); // drawPortals las cambio por las de cada sala lejana
            drawNode(room);
            if (room.environment != null) {
               drawNode(room.environment);
@@ -1442,6 +1455,7 @@ public final class WorldViewer {
        if (ai.tris.isEmpty()) {
           return false;
        }
+       DriverLight.object(objToWorld);
        drawAvatarTris(ai.tris);
        drawnTriangles += ai.tris.size();
        avatarDrawnCount++;
@@ -1452,14 +1466,18 @@ public final class WorldViewer {
     }
 
     /** Triangulos del avatar: color plano por clump o textura del nombre,
-     * 2 luces reales, normal de cara (el .bod no trae normales), ambas
-     * caras (bobinado sin verificar). Mismo criterio que BodViewer. */
+     * iluminados por DriverLight con la normal de cara (el .bod no trae
+     * normales), ambas caras (bobinado sin verificar). ⚠️ Los materiales
+     * de PosableShape son lisos (smooth = true: luz por vertice en los
+     * limbs sin textura); aqui van por cara, porque los triangulos del rig
+     * no conservan que vertices comparte cada limb. */
     private static void drawAvatarTris(List<AvatarRig.Tri> tris) {
        boolean first = true;
        boolean inBegin = false;
        float lr = 0f, lg = 0f, lb = 0f;
        CmpTexture lastTex = null;
        boolean lastAvatarMat = false;
+       RwxMaterial mat = null;
        glDisable(GL_CULL_FACE);
        for (AvatarRig.Tri t : tris) {
           if (first || t.r != lr || t.g != lg || t.b != lb || t.texture != lastTex || t.avatarMaterial != lastAvatarMat) {
@@ -1473,7 +1491,7 @@ public final class WorldViewer {
              } else {
                 glDisable(GL_TEXTURE_2D);
              }
-             GlLighting.applyMaterial(t.avatarMaterial ? avatarNameMaterial(t.r, t.g, t.b) : bodAvatarMaterial(t.r, t.g, t.b));
+             mat = t.avatarMaterial ? avatarNameMaterial(t.r, t.g, t.b) : bodAvatarMaterial(t.r, t.g, t.b);
              lr = t.r;
              lg = t.g;
              lb = t.b;
@@ -1486,8 +1504,9 @@ public final class WorldViewer {
              inBegin = true;
           }
           float[] p = t.p;
-          float[] n = GlLighting.faceNormal(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]);
-          glNormal3f(n[0], n[1], n[2]);
+          float[] n = DriverLight.polygonNormal(new float[][]{{p[0], p[1], p[2]}, {p[3], p[4], p[5]}, {p[6], p[7], p[8]}});
+          driverColour(mat.rwAmbient(), mat.diffuse, mat.specular, t.texture != null, true, mat.colorR, mat.colorG, mat.colorB,
+             mat.opacity, n[0], n[1], n[2]);
           for (int j = 0; j < 3; j++) {
              if (t.texture != null) {
                 glTexCoord2f(t.uv[j * 2], t.uv[j * 2 + 1]);
@@ -1523,6 +1542,7 @@ public final class WorldViewer {
        mat.colorG = g;
        mat.colorB = b;
        mat.ambient = 0.32f;
+       mat.ambientSet = true;
        mat.diffuse = 0.55f;
        mat.specular = 0.0f;
        mat.opacity = 1f;
@@ -1539,6 +1559,7 @@ public final class WorldViewer {
        mat.colorG = g;
        mat.colorB = b;
        mat.ambient = 0.3f;
+       mat.ambientSet = true;
        mat.diffuse = 0.8f;
        mat.specular = 0.1f;
        mat.opacity = 1f;
@@ -1574,6 +1595,12 @@ public final class WorldViewer {
        drawNode(room.infiniteBackground);
     }
 
+    /** Las dos luces de una sala (Room.addRwChildren; el entorno y el fondo
+     * infinito, RoomEnvironment.addLight, llevan las mismas). */
+    private static void roomLights(WNode room) {
+       DriverLight.room(room.lightPosition, room.lightColorRGB == null ? DriverLight.DEFAULT_COLOR : room.lightColorRGB);
+    }
+
     private static void drawNode(WNode n) {
        glPushMatrix();
        float[] parentWorld = drawWorld;
@@ -1591,6 +1618,9 @@ public final class WorldViewer {
        // (visibility propagation is native-side, unverified — never hide a
        // whole subtree on a group's flag).
        boolean visibleLeaf = n.isVisible();
+       if (visibleLeaf && (n.geometryUrl != null || isRect(n) || isRectPatch(n))) {
+          DriverLight.object(drawWorld); // luces de la sala en el espacio de este objeto (el LTM de RW)
+       }
        if (n.geometryUrl != null) {
           if (n.geometryUrl.startsWith("avatar:")) {
              if (visibleLeaf) {
@@ -1628,19 +1658,23 @@ public final class WorldViewer {
        return n.className.endsWith(".RectPatch");
     }
 
-    /** Draws one RectPatch heightfield quad (v1+ with material; v0 is
-     * explicitly invisible in the client and skipped). Corners in local
-     * X/Y with per-corner heights z[0..3] = (0,0),(xDim,0),(xDim,yDim),
-     * (0,yDim) — the only order consistent with a non-twisted grid;
-     * verified flat (all z equal) on the real corpus, where the order is
-     * unobservable. Null material = client default (black). */
+    /** Draws one RectPatch (v1+ with material; v0 is explicitly invisible
+     * in the client and skipped) as RectPatch.createAppearance builds it:
+     * four triangles from each edge to the centre (xDim/2, yDim/2, mean of
+     * the four heights), corners (0,0) z[0], (0,yDim) z[1], (xDim,yDim)
+     * z[2], (xDim,0) z[3], with its tile clamps (1..31) and offset rule.
+     * Before this it was one quad with z[1] and z[3] swapped — invisible on
+     * GroundZero, where every patch is flat. Lit per triangle by
+     * DriverLight and one-sided like every world polygon (see drawRect). */
     private static void drawRectPatch(WNode n) {
        if (n.rpVersion == 0) {
           return; // explicitly invisible: setVisible(false) in restoreState
        }
-       RwxMaterial mat = rectMaterial(n);
-       GlLighting.applyMaterial(mat);
-       glDisable(GL_CULL_FACE);
+       if (!(n.rpXDim > 0f) || !(n.rpYDim > 0f)) {
+          return; // createAppearance draws nothing
+       }
+       WorldSurface sf = worldSurface(n.material);
+       GlLighting.applyCulling(RECT_DOUBLE_SIDED);
        int glTex = resolveRectTexture(n.material != null ? n.material.matTextureUrl : null);
        boolean texEnabled = false;
        if (glTex != 0) {
@@ -1648,28 +1682,185 @@ public final class WorldViewer {
           glBindTexture(GL_TEXTURE_2D, glTex);
           texEnabled = true;
        }
-       float u0 = n.rpXTileOff, v0 = n.rpYTileOff;
-       float u1 = u0 + n.rpXTile, v1 = v0 + n.rpYTile;
-       float[][] corners = {
-          {0, 0, n.rpZ[0]}, {n.rpXDim, 0, n.rpZ[1]},
-          {n.rpXDim, n.rpYDim, n.rpZ[2]}, {0, n.rpYDim, n.rpZ[3]}};
-       float[][] uvs = {{u0, v0}, {u1, v0}, {u1, v1}, {u0, v1}};
-       float[] ex = xformDir(n.rpXDim, 0, n.rpZ[1] - n.rpZ[0]);
-       float[] ey = xformDir(0, n.rpYDim, n.rpZ[3] - n.rpZ[0]);
-       float[] nn = GlLighting.faceNormal(0, 0, 0, ex[0], ex[1], ex[2], ey[0], ey[1], ey[2]);
-       glBegin(GL_QUADS);
-       glNormal3f(nn[0], nn[1], nn[2]);
-       for (int i = 0; i < 4; i++) {
-          glTexCoord2f(uvs[i][0], uvs[i][1]);
-          glVertex3f(corners[i][0], corners[i][1], corners[i][2]);
+       float xt = n.rpXTile <= 0f ? 1f : Math.min(n.rpXTile, 31f);
+       float yt = n.rpYTile <= 0f ? 1f : Math.min(n.rpYTile, 31f);
+       float xo = n.rpXTileOff < 0f ? 1f - (float) Math.floor(n.rpXTileOff) + n.rpXTileOff : n.rpXTileOff;
+       float yo = n.rpYTileOff < 0f ? 1f - (float) Math.floor(n.rpYTileOff) + n.rpYTileOff : n.rpYTileOff;
+       float[] z = n.rpZ;
+       float[][] corner = {
+          {0f, 0f, z[0], xo, yo},
+          {0f, n.rpYDim, z[1], xo, yo + yt},
+          {n.rpXDim, n.rpYDim, z[2], xo + xt, yo + yt},
+          {n.rpXDim, 0f, z[3], xo + xt, yo}};
+       float[] centre = {n.rpXDim / 2f, n.rpYDim / 2f, (z[0] + z[1] + z[2] + z[3]) / 4f, xo + xt / 2f, yo + yt / 2f};
+       glBegin(GL_TRIANGLES);
+       for (int k = 0; k < 4; k++) {
+          float[][] tri = {corner[k], centre, corner[(k + 1) % 4]};
+          float[] nn = DriverLight.polygonNormal(tri);
+          surfaceColour(sf, texEnabled, nn);
+          for (float[] c : tri) {
+             // v de RW cuenta desde arriba; la textura se sube volteada
+             glTexCoord2f(c[3], 1f - c[4]);
+             glVertex3f(c[0], c[1], c[2]);
+          }
        }
        glEnd();
        if (texEnabled) {
           glDisable(GL_TEXTURE_2D);
        }
        glEnable(GL_CULL_FACE);
-       drawnTriangles += 2;
+       drawnTriangles += 4;
        drawnObjects++;
+    }
+
+    /** Lo que DriverLight necesita de un Material del mundo. */
+    private static final class WorldSurface {
+       float amb, dif, spec, r, g, b, opacity = 1f;
+       boolean litTexture;
+    }
+
+    /**
+     * Un Material del mundo como lo monta el puente (natives.patch,
+     * Material.makeMaterial): color / 256, ambiente, difusa y especular tal
+     * cual, y la textura iluminada salvo en un material plano
+     * "auto-iluminado" (gamma.dll FUN_00417950: ambiente ~0.75 sin difusa
+     * ni especular, el de new Material(URL)/Material(Color)); uno liso
+     * (smoothShading, FUN_00417a10) siempre la ilumina. Sin material: el
+     * de new Material() (todo a cero).
+     */
+    private static WorldSurface worldSurface(WNode m) {
+       WorldSurface s = new WorldSurface();
+       if (m == null) {
+          s.litTexture = true;
+          return s;
+       }
+       s.amb = m.matAmbient;
+       s.dif = m.matDiffuse;
+       s.spec = m.matSpecular;
+       s.opacity = m.matOpacity;
+       s.r = ((m.matColorRGB >> 16) & 0xFF) * 0.00390625f;
+       s.g = ((m.matColorRGB >> 8) & 0xFF) * 0.00390625f;
+       s.b = (m.matColorRGB & 0xFF) * 0.00390625f;
+       s.litTexture = m.matSmooth || !DriverLight.selfLit(s.amb, s.dif, s.spec);
+       return s;
+    }
+
+    /** new Material(URL) (el de AnimateAction): ambiente 0.75, gris 128, plano -> textura sin iluminar. */
+    private static final WorldSurface URL_SURFACE = urlSurface();
+
+    private static WorldSurface urlSurface() {
+       WorldSurface s = new WorldSurface();
+       s.amb = 0.75f;
+       s.r = s.g = s.b = 128 * 0.00390625f;
+       s.litTexture = !DriverLight.selfLit(s.amb, s.dif, s.spec);
+       return s;
+    }
+
+    private static void surfaceColour(WorldSurface s, boolean textured, float[] n) {
+       driverColour(s.amb, s.dif, s.spec, textured, s.litTexture, s.r, s.g, s.b, s.opacity, n[0], n[1], n[2]);
+    }
+
+    /** Una celda de Surface.addSubPolys (MaterialTiles.rectCells) con su textura y el color de DriverLight. */
+    private static void drawRectCell(float[] c, int glTex, WorldSurface sf) {
+       if (glTex != 0) {
+          glEnable(GL_TEXTURE_2D);
+          glBindTexture(GL_TEXTURE_2D, glTex);
+       }
+       surfaceColour(sf, glTex != 0, RECT_NORMAL);
+       // v de RW cuenta desde la fila de arriba; la textura se sube
+       // volteada (uploadTexture), asi que t de GL = 1 - v.
+       glBegin(GL_QUADS);
+       glTexCoord2f(c[4], 1f - c[6]);
+       glVertex3f(c[0], 0f, c[2]);
+       glTexCoord2f(c[5], 1f - c[6]);
+       glVertex3f(c[1], 0f, c[2]);
+       glTexCoord2f(c[5], 1f - c[7]);
+       glVertex3f(c[1], 0f, c[3]);
+       glTexCoord2f(c[4], 1f - c[7]);
+       glVertex3f(c[0], 0f, c[3]);
+       glEnd();
+       if (glTex != 0) {
+          glDisable(GL_TEXTURE_2D);
+       }
+       drawnTriangles += 2;
+    }
+
+    /** El Billboard de un Rect (su Sharer lleva los atributos), o null. */
+    private static WNode billboardOf(WNode n) {
+       if (n.sharer == null || n.sharer.attributes == null) {
+          return null;
+       }
+       for (WNode a : n.sharer.attributes) {
+          if (a != null && a.className.endsWith(".Billboard")) {
+             return a;
+          }
+       }
+       return null;
+    }
+
+    /** Billboard._defTextureURL: IniFile.override() "defaultAd", por defecto adworlds.cmp (en home:). */
+    private static final String DEFAULT_AD = System.getProperty("freeworlds.defaultAd", "adworlds.cmp");
+
+    /**
+     * Rect con Billboard (un anuncio): Billboard.assignMaterial le pone
+     * new Material(URL(defaultAd), max(1, xSurface/128), max(1, ySurface/128))
+     * y parte el Rect en esas celdas (Surface.addSubPolys). Cada subtextura
+     * es el fichero ENTERO (Material.syncBackgroundLoad ->
+     * TextureDecoder.decode(subURL, fichero base)); el control de IE que la
+     * sustituiria por el anuncio de la red no existe, asi que cada celda
+     * lleva el logo completo, como en el original bajo el puente. El
+     * material es el de Material(URL, h, v): ambiente 0.75 sin difusa ->
+     * textura sin iluminar. El material guardado en el .world (una
+     * ScapePicTexture de c:/internalgdk/ del autor) no se usa.
+     */
+    private static void drawBillboard(WNode n, WNode bb) {
+       int hRes = Math.max(1, bb.billboardX / 128), vRes = Math.max(1, bb.billboardY / 128);
+       String[] why = new String[1];
+       int glTex = rectTextureId(DEFAULT_AD, 0, 1, false, why);
+       GlLighting.applyCulling(RECT_DOUBLE_SIDED);
+       for (float[] c : MaterialTiles.rectCells(n.rectU, n.rectV, n.rectUOff, n.rectVOff, n.flags, hRes, vRes)) {
+          drawRectCell(c, glTex, URL_SURFACE);
+       }
+       glEnable(GL_CULL_FACE);
+       drawnObjects++;
+    }
+
+    /** Normal de poligono de un Rect en su espacio: (0,-1,0) para (0,0,0) (1,0,0) (1,0,1) (0,0,1). */
+    private static final float[] RECT_NORMAL = DriverLight.polygonNormal(new float[][]{
+       {0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}});
+
+    /**
+     * Surface.uvOutOfRange como lo traduce el puente: con "Flip Alternate
+     * U/V" (flags 0x80000 / 0x100000) o con alguna UV de Rect.addRwChildren
+     * fuera de [0, 32], el original parte el Rect en celdas
+     * (Surface.addSubPolys) en vez de dibujar un solo poligono.
+     */
+    private static boolean rectUvOutOfRange(WNode n, float[][] uv) {
+       if ((n.flags & 0x100000) != 0 || (n.flags & 0x80000) != 0) {
+          return true;
+       }
+       for (float[] t : uv) {
+          if (t[0] < 0f || !(t[0] <= 32f) || t[1] < 0f || !(t[1] <= 32f)) {
+             return true;
+          }
+       }
+       return false;
+    }
+
+    /** UVs de RW de las esquinas de un Rect (Rect.addRwChildren): uOff*u y vOff*v modulo 2, v contada desde arriba. */
+    private static float[][] rectUvs(WNode n) {
+       float u = n.rectU, v = n.rectV;
+       float uo = n.rectUOff;
+       if (uo != 0f) {
+          uo *= u;
+          uo = (float) (uo - 2.0 * Math.floor(uo / 2.0F));
+       }
+       float vo = n.rectVOff;
+       if (vo != 0f) {
+          vo *= v;
+          vo = (float) (vo - 2.0 * Math.floor(vo / 2.0F));
+       }
+       return new float[][]{{uo, v + vo}, {u + uo, v + vo}, {u + uo, vo}, {uo, vo}};
     }
 
     /** Dispara los StartupSensor de la sala (TextureActions) e informa de
@@ -1704,43 +1895,31 @@ public final class WorldViewer {
      * Surface.addSubPolys, cada una con su textura (MaterialTiles): asi se
      * ven los .mov de GroundZero, cuyos frames son esas celdas. */
     private static void drawRect(WNode n) {
+       WNode billboard = billboardOf(n);
+       if (billboard != null) {
+          drawBillboard(n, billboard);
+          return;
+       }
        String override = textureActions == null ? null : textureActions.materialOverride.get(n);
        String url = override != null ? override : (n.material != null ? n.material.matTextureUrl : null);
-       RwxMaterial mat = override != null ? urlMaterial(override) : rectMaterial(n);
-       GlLighting.applyMaterial(mat);
+       WorldSurface sf = override != null ? URL_SURFACE : worldSurface(n.material);
        GlLighting.applyCulling(RECT_DOUBLE_SIDED);
-       // World-space normal: read back the real composed modelview (parent
-       // chain x node matrix, already current) and transform the two local
-       // edges through its linear part - exact with no matrix threading.
-       float[] ex = xformDir(1, 0, 0);
-       float[] ez = xformDir(0, 0, 1);
-       float[] nn = GlLighting.faceNormal(0, 0, 0, ex[0], ex[1], ex[2], ez[0], ez[1], ez[2]);
+       if (url == null && override == null && n.material != null && n.material.matPicUrl != null) {
+          // Textura como objeto ScapePicTexture (no como URL de Material):
+          // un solo fichero, sin reparto h/v.
+          url = n.material.matPicUrl;
+       }
        MaterialTiles tiles = url == null ? null : MaterialTiles.of(url.trim());
-       if (tiles != null && tiles.hiRes()) {
+       float[][] uv = rectUvs(n);
+       boolean hiRes = tiles != null && tiles.hiRes();
+       if (hiRes || (url != null && rectUvOutOfRange(n, uv))) {
+          // Surface.addSubPolys: una celda por repeticion de la textura (y
+          // por subtextura en un material hi-res), con el espejado alterno.
           int[] ids = resolveRectTextures(url);
-          for (float[] c : MaterialTiles.rectCells(n.rectU, n.rectV, n.rectUOff, n.rectVOff, n.flags, tiles.hRes, tiles.vRes)) {
-             int glTex = ids[(int) c[8]];
-             if (glTex != 0) {
-                glEnable(GL_TEXTURE_2D);
-                glBindTexture(GL_TEXTURE_2D, glTex);
-             }
-             // v de RW cuenta desde la fila de arriba; la textura se sube
-             // volteada (uploadTexture), asi que t de GL = 1 - v.
-             glBegin(GL_QUADS);
-             glNormal3f(nn[0], nn[1], nn[2]);
-             glTexCoord2f(c[4], 1f - c[6]);
-             glVertex3f(c[0], 0f, c[2]);
-             glTexCoord2f(c[5], 1f - c[6]);
-             glVertex3f(c[1], 0f, c[2]);
-             glTexCoord2f(c[5], 1f - c[7]);
-             glVertex3f(c[1], 0f, c[3]);
-             glTexCoord2f(c[4], 1f - c[7]);
-             glVertex3f(c[0], 0f, c[3]);
-             glEnd();
-             if (glTex != 0) {
-                glDisable(GL_TEXTURE_2D);
-             }
-             drawnTriangles += 2;
+          int hRes = hiRes ? tiles.hRes : 1, vRes = hiRes ? tiles.vRes : 1;
+          for (float[] c : MaterialTiles.rectCells(n.rectU, n.rectV, n.rectUOff, n.rectVOff, n.flags, hRes, vRes)) {
+             int cell = (int) c[8];
+             drawRectCell(c, cell < ids.length ? ids[cell] : 0, sf);
           }
           glEnable(GL_CULL_FACE);
           drawnObjects++;
@@ -1753,13 +1932,12 @@ public final class WorldViewer {
           glBindTexture(GL_TEXTURE_2D, glTex);
           texEnabled = true;
        }
-       float u0 = n.rectUOff, v0 = n.rectVOff;
-       float u1 = u0 + n.rectU, v1 = v0 + n.rectV;
-       float[][] uvs = {{u0, v0}, {u1, v0}, {u1, v1}, {u0, v1}};
+       // Un solo poligono con las UV de Rect.addRwChildren (el driver repite
+       // la textura dentro de [0, 32], como GL_REPEAT); t de GL = 1 - v.
+       surfaceColour(sf, texEnabled, RECT_NORMAL);
        glBegin(GL_QUADS);
-       glNormal3f(nn[0], nn[1], nn[2]);
        for (int i = 0; i < 4; i++) {
-          glTexCoord2f(uvs[i][0], uvs[i][1]);
+          glTexCoord2f(uv[i][0], 1f - uv[i][1]);
           glVertex3f(RECT_CORNERS[i][0], RECT_CORNERS[i][1], RECT_CORNERS[i][2]);
        }
        glEnd();
@@ -1770,19 +1948,6 @@ public final class WorldViewer {
        glEnable(GL_CULL_FACE);
        drawnTriangles += 2;
        drawnObjects++;
-    }
-
-    /** Transforms a local direction by the current modelview's linear part
-     * (read back exactly as GL holds it - parent chain x node matrix). */
-    private static float[] xformDir(float x, float y, float z) {
-       try (MemoryStack stack = MemoryStack.stackPush()) {
-          FloatBuffer mv = stack.mallocFloat(16);
-          glGetFloatv(GL_MODELVIEW_MATRIX, mv);
-          return new float[]{
-             mv.get(0) * x + mv.get(4) * y + mv.get(8) * z,
-             mv.get(1) * x + mv.get(5) * y + mv.get(9) * z,
-             mv.get(2) * x + mv.get(6) * y + mv.get(10) * z};
-       }
     }
 
    private static RwxModel loadModel(String url) {
@@ -1839,24 +2004,160 @@ public final class WorldViewer {
    }
 
     private static void drawModel(RwxModel model) {
-       Integer list = displayListCache.get(model);
-       if (list != null) {
-          glCallList(list);
-          return;
+       Map<Long, Integer> lists = displayListCache.computeIfAbsent(model, k -> new HashMap<>());
+       long key = DriverLight.objectKey();
+       Integer list = lists.get(key);
+       if (list == null) {
+          if (lists.size() >= 32) {
+             // un objeto que no para de girar: se empieza de nuevo en vez de crecer
+             for (int id : lists.values()) {
+                glDeleteLists(id, 1);
+             }
+             lists.clear();
+          }
+          list = glGenLists(1);
+          glNewList(list, GL_COMPILE);
+          emitModelImmediate(model);
+          glEndList();
+          lists.put(key, list);
        }
-       int id = glGenLists(1);
-       glNewList(id, GL_COMPILE);
-       emitModelImmediate(model);
-       glEndList();
-       displayListCache.put(model, id);
-       glCallList(id);
+       glCallList(list);
     }
 
-     /** Secuencia inmediata original (glMaterial/glNormal/glVertex/glTexCoord por triangulo) — unica fuente de verdad visual; la display list solo la captura. */
+    /** GL para DriverLight: sin luces de GL; el color de cada poligono o
+     * vertice como color primario y el termino hacia el blanco de la
+     * rampa como color secundario, sumado despues de la textura
+     * (GL_COLOR_SUM, GL 1.4); mezcla alfa para Opacity como antes. */
+    private static void initDriverLighting() {
+       glDisable(GL_LIGHTING);
+       glShadeModel(GL_SMOOTH);
+       glEnable(GL14.GL_COLOR_SUM);
+       glEnable(GL_BLEND);
+       glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+       glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    }
+
+    private static final float[] litI = new float[3];
+    private static final float[] litP = new float[3];
+    private static final float[] litS = new float[3];
+    private static final float[] litC = new float[3];
+
+    /**
+     * Color de un poligono (o de un vertice, con su normal) segun el driver
+     * del original (DriverLight). Con textura: sin iluminar la textura tal
+     * cual; iluminada, texel * P + S de la rampa. Sin textura: el color
+     * exacto de la rampa. La normal va en el espacio del objeto (el de
+     * DriverLight.object).
+     */
+    private static void driverColour(float amb, float dif, float spec, boolean textured, boolean litTexture,
+          float r, float g, float b, float opacity, float nx, float ny, float nz) {
+       if (textured && !litTexture) {
+          glColor4f(1f, 1f, 1f, opacity);
+          GL14.glSecondaryColor3f(0f, 0f, 0f);
+          return;
+       }
+       DriverLight.intensity(amb, dif, spec, nx, ny, nz, litI);
+       if (textured) {
+          DriverLight.rampFactors(litI, litP, litS);
+          glColor4f(litP[0], litP[1], litP[2], opacity);
+          GL14.glSecondaryColor3f(litS[0], litS[1], litS[2]);
+       } else {
+          DriverLight.rampColor(r, g, b, litI, litC);
+          glColor4f(litC[0], litC[1], litC[2], opacity);
+          GL14.glSecondaryColor3f(0f, 0f, 0f);
+       }
+    }
+
+    /**
+     * Normales de RenderWare de un modelo: [0] la del poligono de cada
+     * triangulo (RWL21 0x10001100: suma de los productos vectoriales del
+     * abanico, igual a la suma de los triangulos de cualquier
+     * triangulacion, normalizada) y [1] la de cada vertice para LightSampling
+     * Vertex (0x10041df0: suma SIN pesos de las normales de los poligonos
+     * que comparten el vertice del script, normalizada; si se anula, la del
+     * primero; la Normal del script manda).
+     */
+    private static float[][] modelNormals(RwxModel model) {
+       float[][] cached = modelNormalCache.get(model);
+       if (cached != null) {
+          return cached;
+       }
+       int nt = model.triangles.size();
+       Map<Integer, float[]> polySum = new HashMap<>();
+       for (int i = 0; i < nt; i++) {
+          int[] t = model.triangles.get(i);
+          RwxVector3 a = model.vertices.get(t[0]), b = model.vertices.get(t[1]), c = model.vertices.get(t[2]);
+          float ax = b.x - a.x, ay = b.y - a.y, az = b.z - a.z;
+          float bx = c.x - a.x, by = c.y - a.y, bz = c.z - a.z;
+          float[] s = polySum.computeIfAbsent(model.trianglePolygons.get(i), k -> new float[3]);
+          s[0] += ay * bz - az * by;
+          s[1] += az * bx - ax * bz;
+          s[2] += ax * by - ay * bx;
+       }
+       for (float[] s : polySum.values()) {
+          float len = (float) Math.sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]);
+          if (len > 0f) {
+             s[0] /= len;
+             s[1] /= len;
+             s[2] /= len;
+          }
+       }
+       float[] tri = new float[nt * 3];
+       Map<Integer, float[]> vSum = new HashMap<>();
+       Map<Integer, float[]> vFirst = new HashMap<>();
+       java.util.Set<Long> counted = new java.util.HashSet<>();
+       for (int i = 0; i < nt; i++) {
+          int poly = model.trianglePolygons.get(i);
+          float[] pn = polySum.get(poly);
+          tri[i * 3] = pn[0];
+          tri[i * 3 + 1] = pn[1];
+          tri[i * 3 + 2] = pn[2];
+          for (int vi : model.triangles.get(i)) {
+             int key = model.vertexKeys.get(vi);
+             if (key >= 0 && counted.add(((long) key << 32) | (poly & 0xFFFFFFFFL))) {
+                float[] s = vSum.computeIfAbsent(key, k -> new float[3]);
+                s[0] += pn[0];
+                s[1] += pn[1];
+                s[2] += pn[2];
+                vFirst.putIfAbsent(key, pn);
+             }
+          }
+       }
+       int nv = model.vertices.size();
+       float[] vert = new float[nv * 3];
+       for (int i = 0; i < nt; i++) {
+          float[] pn = polySum.get(model.trianglePolygons.get(i));
+          for (int vi : model.triangles.get(i)) {
+             float[] set = model.vertexNormals.get(vi);
+             float[] n = set;
+             if (n == null) {
+                int key = model.vertexKeys.get(vi);
+                float[] s = key >= 0 ? vSum.get(key) : null;
+                if (s == null) {
+                   n = pn;
+                } else {
+                   float len = (float) Math.sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]);
+                   n = len > 0f ? new float[]{s[0] / len, s[1] / len, s[2] / len} : vFirst.get(key);
+                }
+             }
+             vert[vi * 3] = n[0];
+             vert[vi * 3 + 1] = n[1];
+             vert[vi * 3 + 2] = n[2];
+          }
+       }
+       float[][] out = {tri, vert};
+       modelNormalCache.put(model, out);
+       return out;
+    }
+
+     /** Secuencia inmediata (color de DriverLight/glTexCoord/glVertex por triangulo) — unica fuente de verdad visual; la display list solo la captura. Los colores son los del driver con las luces de DriverLight.object en ese momento. */
     private static void emitModelImmediate(RwxModel model) {
        RwxMaterial lastMat = null;
       boolean inBegin = false;
       boolean texEnabled = false;
+      boolean textured = false;
+      float[][] normals = modelNormals(model);
+      float[] triN = normals[0], vertN = normals[1];
       for (int i = 0; i < model.triangles.size(); i++) {
          RwxMaterial mat = model.triangleMaterials.get(i);
          if (mat != lastMat) {
@@ -1864,7 +2165,6 @@ public final class WorldViewer {
                glEnd();
                inBegin = false;
             }
-            GlLighting.applyMaterial(mat);
             GlLighting.applyCulling(mat.doubleSided);
             int glTex = resolveTexture(mat);
             if (glTex != 0) {
@@ -1877,6 +2177,7 @@ public final class WorldViewer {
                glDisable(GL_TEXTURE_2D);
                texEnabled = false;
             }
+            textured = glTex != 0;
             lastMat = mat;
          }
          if (!inBegin) {
@@ -1884,20 +2185,25 @@ public final class WorldViewer {
             inBegin = true;
          }
          int[] t = model.triangles.get(i);
-         RwxVector3 a = model.vertices.get(t[0]);
-         RwxVector3 b = model.vertices.get(t[1]);
-         RwxVector3 c = model.vertices.get(t[2]);
-         float[] n = GlLighting.faceNormal(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
-         glNormal3f(n[0], n[1], n[2]);
-         float[] uva = model.uvs.get(t[0]);
-         float[] uvb = model.uvs.get(t[1]);
-         float[] uvc = model.uvs.get(t[2]);
-         glTexCoord2f(uva[0], uva[1]);
-         glVertex3f(a.x, a.y, a.z);
-         glTexCoord2f(uvb[0], uvb[1]);
-         glVertex3f(b.x, b.y, b.z);
-         glTexCoord2f(uvc[0], uvc[1]);
-         glVertex3f(c.x, c.y, c.z);
+         // El driver ilumina por vertice solo un poligono sin textura de un
+         // material LightSampling Vertex (bridge NativeCamera.drawClump).
+         boolean vertexLit = mat.lightSampling == 2 && mat.textureName == null;
+         float amb = mat.rwAmbient();
+         if (!vertexLit) {
+            driverColour(amb, mat.diffuse, mat.specular, textured, mat.rwLit(), mat.colorR, mat.colorG, mat.colorB,
+               mat.opacity, triN[i * 3], triN[i * 3 + 1], triN[i * 3 + 2]);
+         }
+         for (int j = 0; j < 3; j++) {
+            int vi = t[j];
+            if (vertexLit) {
+               driverColour(amb, mat.diffuse, mat.specular, false, true, mat.colorR, mat.colorG, mat.colorB,
+                  mat.opacity, vertN[vi * 3], vertN[vi * 3 + 1], vertN[vi * 3 + 2]);
+            }
+            RwxVector3 v = model.vertices.get(vi);
+            float[] uv = model.uvs.get(vi);
+            glTexCoord2f(uv[0], uv[1]);
+            glVertex3f(v.x, v.y, v.z);
+         }
       }
       if (inBegin) {
          glEnd();
@@ -1906,48 +2212,6 @@ public final class WorldViewer {
          glDisable(GL_TEXTURE_2D);
       }
    }
-
-    /**
-     * Builds the GL material for one Rect surface from its real parsed
-     * fields (see WorldRestorer.readMaterial): file color + ambient /
-     * diffuse / specular / opacity scalars, texture URL when present.
-     * Rect materials have no TextureModes/Lit concept, so the parsed
-     * scalars apply directly (Lit-equivalent); textured ones get the
-     * white base like RWX textured materials (see RwxMaterial).
-     */
-    private static RwxMaterial rectMaterial(WNode n) {
-       RwxMaterial mat = new RwxMaterial();
-       WNode m = n.material;
-       if (m == null) {
-          return mat; // no material in-stream: AW default surface, black base
-       }
-       mat.colorR = ((m.matColorRGB >> 16) & 0xFF) / 255f;
-       mat.colorG = ((m.matColorRGB >> 8) & 0xFF) / 255f;
-       mat.colorB = (m.matColorRGB & 0xFF) / 255f;
-       mat.ambient = m.matAmbient;
-       mat.diffuse = m.matDiffuse;
-       mat.specular = m.matSpecular;
-       mat.opacity = m.matOpacity;
-       if (m.matTextureUrl != null) {
-          mat.textureName = m.matTextureUrl.trim(); // non-null = textured (white base)
-       }
-       return mat;
-    }
-
-    /** new Material(URL) del original (Material.java: Material(URL) ->
-     * Material(Color null, URL) -> Material(Color(128,128,128)) ->
-     * ambient 0.75, diffuse 0, specular 0, opacidad 1), que es lo que
-     * AnimateAction pone en su dueno por cada nombre de su lista. */
-    private static RwxMaterial urlMaterial(String url) {
-       RwxMaterial mat = new RwxMaterial();
-       mat.colorR = mat.colorG = mat.colorB = 128 / 255f;
-       mat.ambient = 0.75f;
-       mat.diffuse = 0f;
-       mat.specular = 0f;
-       mat.opacity = 1f;
-       mat.textureName = url.trim();
-       return mat;
-    }
 
     /** Textura 0 de un material de Rect/RectPatch (ver resolveRectTextures). */
     private static int resolveRectTexture(String url) {
@@ -2008,6 +2272,9 @@ public final class WorldViewer {
        }
        dirs.add(new File(baseDir, "dtex"));
        dirs.add(new File(baseDir, "tex"));
+       if (baseDir.getParentFile() != null) {
+          dirs.add(baseDir.getParentFile()); // home: (la instalacion), p. ej. adworlds.cmp de los Billboard
+       }
        for (File dir : dirs) {
           File f = findIgnoreCase(dir, file);
           if (f == null) {
@@ -2064,7 +2331,7 @@ public final class WorldViewer {
      * Resolves a material's real "Texture" reference to a real GL texture id,
      * decoded through net.freeworlds.cmp.CmpTexture - or 0 if it can't be
     * decoded (falls back to the material's own real flat color, applied
-    * just above by GlLighting.applyMaterial - never an invented texture).
+    * just above by driverColour - never an invented texture).
     * Cached per name so repeat materials (e.g. many objects sharing
     * "grnd1.cmp") don't re-decode. Every call is accounted for in
     * texturesResolved/texturesUnresolved for the session's coverage report,
@@ -2459,8 +2726,12 @@ public final class WorldViewer {
     // --- Portales vistos a traves (Portal.prerender del original) ---
     /** -Dfreeworlds.portals=false los apaga (huecos del color de fondo, como antes). */
     private static final boolean PORTALS = !"false".equals(System.getProperty("freeworlds.portals"));
-    /** El original para en rwDepth > 10; aqui 3 niveles bastan para GroundZero. */
-    private static final int PORTAL_MAX_DEPTH = 3;
+    /** Niveles de portal como el original: Portal.rwPrerender (gamma.dll
+     * 0x0041ba30) sigue mientras DAT_00489624 (rwDepth) <= 10, o sea 11
+     * niveles. Con 3 no se veia Reception al fondo de AvatarEnter (esta 4
+     * portales mas alla: IconViewRoom1d, IconViewRoom1, IconViewRoom1Enter).
+     * -Dfreeworlds.portalDepth=N para medir. */
+    private static final int PORTAL_MAX_DEPTH = Integer.getInteger("freeworlds.portalDepth", 11);
     private static final Map<WNode, List<Object[]>> roomPortals = new IdentityHashMap<>();
     /** -Dfreeworlds.portalTrace=true: una linea por portal dibujado (camara transformada, rectangulo). */
     private static final boolean PORTAL_TRACE = Boolean.getBoolean("freeworlds.portalTrace");
@@ -2638,6 +2909,7 @@ public final class WorldViewer {
              glMatrixMode(GL_MODELVIEW);
              glLoadIdentity();
              GlUtil.lookAt(0, 0, 0, c2[0] - e2[0], c2[1] - e2[1], c2[2] - e2[2], u2[0], u2[1], u2[2]);
+             roomLights(farRoom);
              drawInfiniteBackground(farRoom);
              glClear(GL_DEPTH_BUFFER_BIT);
           }
@@ -2652,6 +2924,7 @@ public final class WorldViewer {
           glMatrixMode(GL_MODELVIEW);
           glLoadIdentity();
           GlUtil.lookAt(e2[0], e2[1], e2[2], c2[0], c2[1], c2[2], u2[0], u2[1], u2[2]);
+          roomLights(farRoom);
           drawNode(farRoom);
           if (farRoom.environment != null) {
              drawNode(farRoom.environment);

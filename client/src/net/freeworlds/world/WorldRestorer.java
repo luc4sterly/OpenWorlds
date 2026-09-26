@@ -489,7 +489,7 @@ public final class WorldRestorer {
             node.handlers = restoreVectorMaybeNull();
             node.actions = restoreVectorMaybeNull();
             restore();
-            restoreMaybeNull(); // sharer
+            node.sharer = restoreMaybeNull(); // sharer
             break;
          case 5:
          case 6:
@@ -501,7 +501,7 @@ public final class WorldRestorer {
             node.handlers = restoreVectorMaybeNull();
             node.actions = restoreVectorMaybeNull();
             restoreMaybeNull(); // bumpCalc
-            restoreMaybeNull(); // sharer
+            node.sharer = restoreMaybeNull(); // sharer
             if (v == 6) {
                restoreString();
             }
@@ -512,8 +512,8 @@ public final class WorldRestorer {
             contents = restoreVectorMaybeNull();
             node.handlers = restoreVectorMaybeNull();
             node.actions = restoreVectorMaybeNull();
-            restoreMaybeNull();
-            restoreMaybeNull();
+            restoreMaybeNull(); // bumpCalc
+            node.sharer = restoreMaybeNull(); // sharer
             restoreString(); // tooltip
             break;
          case 10:
@@ -529,7 +529,7 @@ public final class WorldRestorer {
             trace("after actions");
             restoreMaybeNull();
             trace("after bumpCalc");
-            restoreMaybeNull();
+            node.sharer = restoreMaybeNull();
             trace("after sharer");
             restoreString();
             trace("after tooltip");
@@ -979,7 +979,10 @@ public final class WorldRestorer {
             node.matSpecular = restoreFloat();
             node.matOpacity = restoreFloat();
             node.matColorRGB = packRGB(restoreInt(), restoreInt(), restoreInt());
-            restoreMaybeNull(); // Texture object (v0 state is empty - no name in-stream)
+            WNode tex0 = restoreMaybeNull(); // Texture object
+            if (tex0 != null) {
+               node.matPicUrl = tex0.picUrl;
+            }
             break;
          case 2:
          case 3:
@@ -990,8 +993,8 @@ public final class WorldRestorer {
             node.matSpecular = restoreFloat();
             node.matOpacity = restoreFloat();
             if (v > 3) {
-               restoreBoolean();
-               restoreBoolean();
+               node.matSmooth = restoreBoolean(); // smooth
+               restoreBoolean(); // filter
             }
             node.matColorRGB = packRGB(restoreInt(), restoreInt(), restoreInt());
             node.matTextureUrl = restoreString(); // URL.restore: raw string form
@@ -999,7 +1002,10 @@ public final class WorldRestorer {
                restoreBoolean();
             }
             if (node.matTextureUrl == null) {
-               restoreMaybeNull();
+               WNode tex = restoreMaybeNull(); // Texture object (Material.restoreState: var2)
+               if (tex != null) {
+                  node.matPicUrl = tex.picUrl;
+               }
             }
             break;
          default:
@@ -1029,7 +1035,7 @@ public final class WorldRestorer {
          restore(); // movie
          restoreInt(); // movieFrame
       } else {
-         restoreString(); // urlName
+         node.picUrl = restoreString(); // urlName: makeTexture(urlName, urlName)
       }
    }
 
@@ -1054,11 +1060,11 @@ public final class WorldRestorer {
             break;
          case 1:
             node.name = restoreString();
-            restoreVector();
+            node.attributes = restoreVector();
             break;
          case 2:
             readSuperRoot(node);
-            restoreVector();
+            node.attributes = restoreVector();
             break;
          default:
             throw new IOException("unknown Sharer version " + v);
@@ -1244,10 +1250,10 @@ public final class WorldRestorer {
          restoreBoolean();
       }
       if (v >= 2) {
-         restoreInt();
-         restoreInt();
-         restoreInt();
-         restoreBoolean();
+         node.billboardX = restoreInt(); // _xSurface
+         node.billboardY = restoreInt(); // _ySurface
+         restoreInt(); // _refresh
+         restoreBoolean(); // _passClicks
       }
       if (v >= 3) {
          restoreBoolean(); // isAdBanner

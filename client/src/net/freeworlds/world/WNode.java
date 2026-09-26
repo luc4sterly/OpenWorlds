@@ -63,9 +63,29 @@ public final class WNode {
      * texture URL string when the stream carried one (Material v2+; v0/v1
      * reference a Texture object with no name in-stream, so stays null). */
     public float matAmbient, matDiffuse, matSpecular, matOpacity = 1f;
+    /** Material.smooth (Material v4+; false before, as the field initialiser):
+     * the bridge's makeMaterial turns it into smoothShading (light sampling
+     * 2, texture lit) instead of flatShading (self-lit test). */
+    public boolean matSmooth;
     public int matColorRGB = 0xFFFFFF;
     public int matVersion = -1;
     public String matTextureUrl;
+    /** ScapePicTexture._urlName (only on ScapePicTexture nodes): the file the
+     * texture object was made from (makeTexture(urlName, urlName)). */
+    public String picUrl;
+    /** WObject._sharer (WObject v4+): the Sharer holding the object's
+     * attributes, e.g. the Billboard that replaces a Rect's material. */
+    public WNode sharer;
+    /** Sharer's attribute vector (Sharer v1+). */
+    public List<WNode> attributes;
+    /** Billboard._xSurface / _ySurface (v2+; 468 x 60 before, the field
+     * initialisers): Billboard.assignMaterial splits the Rect into
+     * max(1, x/128) x max(1, y/128) cells. */
+    public int billboardX = 468, billboardY = 60;
+    /** Material with a Texture OBJECT instead of a URL (the stream's
+     * restoreMaybeNull after the null URL): that texture's picUrl. It is a
+     * single texture file, not a Material URL with h/v tiling. */
+    public String matPicUrl;
     /** Rect UV extent/offset (u/v/uOff/vOff from Rect.restoreState; defaults
      * match the decompiled field initializers u=v=1). The live spin/scale is
      * already inside matrix — only UVs need storing. */

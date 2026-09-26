@@ -101,6 +101,7 @@ final class HudText {
       glPushAttrib(GL_ALL_ATTRIB_BITS);
       glDisable(GL_DEPTH_TEST);
       glDisable(GL_LIGHTING);
+      glDisable(org.lwjgl.opengl.GL14.GL_COLOR_SUM); // the 3D pass adds DriverLight's secondary colour
       glDisable(GL_CULL_FACE);
       glDisable(GL_FOG);
       glEnable(GL_BLEND);
