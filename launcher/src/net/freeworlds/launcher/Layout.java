@@ -1,0 +1,162 @@
+package net.freeworlds.launcher;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * Where everything lives, for the three ways FreeWorlds is run:
+ *
+ * <ul>
+ * <li>app image of jpackage: the jars and {@code game/} next to each other
+ *     in the image's {@code app/} directory;</li>
+ * <li>portable zip: {@code FreeWorlds/lib/*.jar} and {@code FreeWorlds/game/};</li>
+ * <li>repository checkout ({@code tools/build-dist.sh --dev} or an IDE): the
+ *     game data is the repo's {@code assets/}.</li>
+ * </ul>
+ *
+ * {@code game/} mirrors the repo's {@code assets/}: {@code assets/WorldsPlayer}
+ * (the 2004 install, read-only template) and
+ * {@code assets/gammatutorial-samples/base-avatars} (the viewer looks for it
+ * at {@code <world dir>/../../assets/gammatutorial-samples/base-avatars}).
+ * -Dfreeworlds.game=DIR (a directory with {@code assets/} inside) and
+ * -Dfreeworlds.data=DIR override the lookups.
+ */
+final class Layout {
+   final File libDir;
+   final File gameRoot;
+   final File template;
+   final File baseAvatars;
+   final File dataDir;
+   final File workDir;
+   final File logDir;
+   final File settingsFile;
+
+   private Layout(File libDir, File gameRoot, File dataDir) {
+      this.libDir = libDir;
+      this.gameRoot = gameRoot;
+      this.template = new File(gameRoot, "assets/WorldsPlayer");
+      this.baseAvatars = new File(gameRoot, "assets/gammatutorial-samples/base-avatars");
+      this.dataDir = dataDir;
+      this.workDir = new File(dataDir, "worldsplayer");
+      this.logDir = new File(dataDir, "logs");
+      this.settingsFile = new File(dataDir, "launcher.properties");
+   }
+
+   static Layout detect() throws IOException {
+      File lib = codeDir();
+      File game = null;
+      String forced = System.getProperty("freeworlds.game");
+      if (forced != null) {
+         game = new File(forced);
+      } else {
+         File[] candidates = {
+            new File(lib, "game"),
+            new File(lib.getParentFile(), "game"),
+            lib.getParentFile(),                       // repo: build/dist-dev/lib -> ...
+            lib.getParentFile().getParentFile(),
+            lib.getParentFile().getParentFile() == null ? null : lib.getParentFile().getParentFile().getParentFile(),
+         };
+         for (File c : candidates) {
+            if (c != null && new File(c, "assets/WorldsPlayer/worlds.ini").isFile()) {
+               game = c;
+               break;
+            }
+         }
+      }
+      if (game == null || !new File(game, "assets/WorldsPlayer").isDirectory()) {
+         throw new IOException("no encuentro los datos del juego (game/assets/WorldsPlayer) junto a " + lib
+            + "; usa -Dfreeworlds.game=DIR");
+      }
+      return new Layout(lib.getCanonicalFile(), game.getCanonicalFile(), dataDir());
+   }
+
+   /** Directory of the launcher's jar (or class directory). */
+   private static File codeDir() throws IOException {
+      try {
+         File f = new File(Launcher.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+         return f.isFile() ? f.getParentFile() : f;
+      } catch (URISyntaxException | SecurityException | NullPointerException e) {
+         throw new IOException("no se puede saber donde esta el lanzador: " + e);
+      }
+   }
+
+   static boolean isWindows() {
+      return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows");
+   }
+
+   static boolean isMac() {
+      return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("mac");
+   }
+
+   private static File dataDir() {
+      String forced = System.getProperty("freeworlds.data", System.getenv("FREEWORLDS_DATA"));
+      if (forced != null && !forced.isEmpty()) {
+         return new File(forced);
+      }
+      String home = System.getProperty("user.home");
+      if (isWindows()) {
+         String local = System.getenv("LOCALAPPDATA");
+         return new File(local != null ? local : home, "FreeWorlds");
+      }
+      if (isMac()) {
+         return new File(home, "Library/Application Support/FreeWorlds");
+      }
+      String xdg = System.getenv("XDG_DATA_HOME");
+      return new File(xdg != null && !xdg.isEmpty() ? xdg : home + "/.local/share", "freeworlds");
+   }
+
+   File jar(String name) {
+      return new File(libDir, name);
+   }
+
+   /** The LWJGL jars (all platforms' natives are fine on the class path: LWJGL picks its own). */
+   String lwjglClassPath() {
+      File dir = new File(libDir, "lwjgl");
+      List<String> out = new ArrayList<>();
+      File[] jars = dir.listFiles((d, n) -> n.endsWith(".jar"));
+      if (jars != null) {
+         java.util.Arrays.sort(jars);
+         for (File j : jars) {
+            out.add(j.getPath());
+         }
+      }
+      return String.join(File.pathSeparator, out);
+   }
+
+   /** The java launcher of the running runtime (jpackage images keep bin/java, see build-dist.sh). */
+   static String javaExecutable() {
+      File home = new File(System.getProperty("java.home"));
+      File exe = new File(home, isWindows() ? "bin/java.exe" : "bin/java");
+      return exe.isFile() ? exe.getPath() : "java";
+   }
+
+   File groundZeroWorld() {
+      return new File(template, "GroundZero/groundzero.world");
+   }
+
+   static String version() {
+      Package p = Launcher.class.getPackage();
+      String v = p == null ? null : p.getImplementationVersion();
+      return v == null ? "dev" : v;
+   }
+
+   static void deleteTree(Path p) throws IOException {
+      if (!Files.exists(p)) {
+         return;
+      }
+      try (java.util.stream.Stream<Path> s = Files.walk(p)) {
+         List<Path> all = new ArrayList<>();
+         s.forEach(all::add);
+         java.util.Collections.reverse(all);
+         for (Path q : all) {
+            Files.deleteIfExists(q);
+         }
+      }
+   }
+}

@@ -85,3 +85,6 @@ Icon?
 
 # build del cliente original con puente portable (build_gamma.sh)
 editor/.build-gamma/
+
+# build/dist + app nativa de tools/build-dist.sh (y sus clases/LWJGL descargados)
+/build/

@@ -1,0 +1,193 @@
+# Build, tests y paquetes de FreeWorlds en cada push.
+#
+# - build (Linux): compila el cliente original con el puente, el motor nuevo y
+#   el lanzador; pasa tools/run-checks.sh y tools/verify-corpus.sh; arranca el
+#   cliente original empaquetado bajo Xvfb (prueba de humo: tiene que dibujar);
+#   deja el paquete portable (.zip, necesita Java 17+) y la app de Linux con
+#   su propio Java (.tar.gz).
+# - package: la app con Java incluido para macOS (Intel y Apple Silicon) y
+#   Windows, desde el mismo build.
+# - release: con un tag v* (git tag v0.2.0 && git push --tags) publica todo en
+#   una release de GitHub.
+#
+# Los paquetes de cada ejecucion quedan en la pagina del run (Artifacts).
+name: build
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LWJGL_VERSION: "3.4.3"
+
+jobs:
+  build:
+    name: Linux - compilar, probar y empaquetar
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # git describe / rev-list para la version
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Paquetes del sistema
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q xvfb patch zip
+
+      - name: Cache de LWJGL (Maven Central da 429 si se le pide deprisa)
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/lwjgl
+            tools/lwjgl
+          key: lwjgl-${{ env.LWJGL_VERSION }}-all-v1
+
+      - name: Version
+        id: v
+        run: |
+          echo "version=$(git describe --tags --always)" >> "$GITHUB_OUTPUT"
+
+      - name: Paquete portable + app de Linux
+        env:
+          FREEWORLDS_VERSION: ${{ steps.v.outputs.version }}
+        run: tools/build-dist.sh --app-image
+
+      - name: LWJGL para los checks (los mismos jars del paquete)
+        run: |
+          mkdir -p tools/lwjgl
+          cp build/lwjgl/*.jar tools/lwjgl/
+
+      - name: Checks unitarios (client/test + bridge/test)
+        run: xvfb-run -a -s "-screen 0 1280x1024x24" tools/run-checks.sh
+
+      - name: Corpus (RWX, .world, .seq, .bod, .cmp, .mov, avatares)
+        run: |
+          (cd tools/rwx-harness && npm ci --no-audit --no-fund)
+          tools/verify-corpus.sh --no-checks
+
+      - name: Prueba de humo - el cliente original empaquetado dibuja
+        env:
+          FREEWORLDS_DATA: ${{ runner.temp }}/freeworlds-data
+        run: xvfb-run -a -s "-screen 0 1280x1024x24" build/app/FreeWorlds/bin/FreeWorlds --smoke 120
+
+      - name: Registro de la prueba de humo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-log
+          path: ${{ runner.temp }}/freeworlds-data/logs
+          if-no-files-found: ignore
+
+      - name: Subir el paquete portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreeWorlds-${{ steps.v.outputs.version }}-portable
+          path: build/FreeWorlds-*-portable.zip
+          compression-level: 0
+
+      - name: Subir la app de Linux
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreeWorlds-${{ steps.v.outputs.version }}-linux-x64
+          path: build/FreeWorlds-*-linux-x64.tar.gz
+          compression-level: 0
+
+      - name: Arbol del paquete para los demas sistemas
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-tree
+          path: build/dist
+          retention-days: 3
+
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+
+  package:
+    name: App ${{ matrix.name }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Intel
+            os: macos-15-intel
+          - name: macOS Apple Silicon
+            os: macos-15
+          - name: Windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-tree
+          path: build/dist
+
+      - name: jlink + jpackage
+        env:
+          FREEWORLDS_VERSION: ${{ needs.build.outputs.version }}
+        run: tools/build-dist.sh --package-only
+
+      - name: Prueba rapida del lanzador empaquetado
+        run: |
+          if [ -d build/app/FreeWorlds.app ]; then
+            build/app/FreeWorlds.app/Contents/MacOS/FreeWorlds --version
+            build/app/FreeWorlds.app/Contents/MacOS/FreeWorlds --paths
+          else
+            build/app/FreeWorlds/FreeWorlds.exe --version || true
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FreeWorlds-${{ needs.build.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            build/FreeWorlds-*.zip
+            !build/FreeWorlds-*-portable.zip
+          compression-level: 0
+
+  release:
+    name: Release (tags v*)
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, package]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: FreeWorlds-*
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
