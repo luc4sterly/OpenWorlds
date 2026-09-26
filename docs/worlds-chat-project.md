@@ -3756,3 +3756,111 @@ cortes por límite de uso se retomaron desde el último commit de cada rama.
 Queda y por qué, en `docs/roadmap.md` (§1b) y en
 `editor/worldsplayer_source_editor-main/bridge/README.md` (Pendiente de
 verificar).
+
+### 🟢 Paquete con lanzador, CI de GitHub y el motor revisado: menús, lag, portales (2026-09-26)
+
+Petición del usuario: "no hay menús, va súper lag, errores visuales";
+revisar las partes críticas (el motor), builds de GitHub empaquetadas que
+no dependan de los scripts de arranque, y aprovisionar la máquina. Primera
+sesión en un contenedor **Linux x64** (Claude Code en la web): el cliente
+original bajo el puente corre sin Wine, con Xvfb para la ventana.
+
+**Puente (cliente original de 2004):**
+- **Menús que no salían.** El panel de botones (Help, Options, Teleport,
+  Quit, mapa del universo…) se pinta con `ImageCanvas.loadLocalImage` →
+  `Toolkit.getImage("u:/…/rtpanel.gif")`: la ruta sale del parche de `URL`
+  (unidad sintética `u:` y minúsculas), y fuera de Windows ese fichero no
+  existe. `HostPath.of` quita la unidad y resuelve sin distinguir
+  mayúsculas; `bridge/host_paths.py` lo aplica a las 151 aperturas de
+  fichero y `Toolkit.getImage` de 50 clases (solo en la copia de build).
+  De paso se corrige lo que decía el README del puente: el error de
+  `redir.txt` no era del original (su `Gamma.Log` no lo tiene), era esto.
+- **Ventana negra al arrancar.** `Std.initSyncTime` abría un `Socket` sin
+  timeout a `time.worlds.net:37` en el primer frame (lo pide
+  `BlackBox.postrender`), en el hilo de render. La base sale ahora del reloj
+  del sistema con la misma resta del bytecode (`ldc2_w -1141367296l; lsub`,
+  el `100*365*86400` desbordado del original) y el servidor, si respondiera,
+  la corrige desde un hilo con timeouts de 2 s.
+- **Fuentes.** El `lib/font.properties` del JRE 1.4 instalado resolvía
+  `dialog`/`sansserif` a Arial, `serif` a Times New Roman y
+  `monospaced`/`dialoginput` a Courier New. Con las del JDK moderno la barra
+  de estado cortaba "Use arrow keys" en "Jse arrow keys". `NativeUiFonts`
+  (+ `bridge/ui_fonts.py`, 72 `new Font` en 49 clases y la fuente por
+  defecto de `GammaFrame`) usa esas o las de métricas iguales (Liberation).
+- **Lag.** El rasterizador del driver ahora graba los triángulos de la
+  pasada de clumps y los dibuja por franjas horizontales en varios hilos;
+  cada franja recorre la lista entera, así que cada píxel recibe las mismas
+  escrituras en el mismo orden. Además: recorte sin asignaciones, spans que
+  solo interpolan lo que usa el camino del píxel y volcado 565→RGB por
+  tabla. Medido: 13,5 → 9,4 ms con 1 hilo y 4,7 ms con 4 (1172×848); el
+  cliente real pasa de ~25 a ~53 fps a 1172×848 y de 72 a ~90 a 468×272.
+  **`RasterGoldenCheck`** (nuevo): 56 formas `.rwx` reales de GroundZero con
+  sus texturas y quads que fuerzan cada camino (textura iluminada, Gouraud,
+  plano, translúcido, doble cara), 18 vistas en 3 tamaños; el CRC es
+  idéntico al del motor anterior con 1, 2, 4 y 8 hilos.
+
+**Motor nuevo (`WorldViewer --play`):**
+- **Aparecer y mirar como el original.** `WorldRestorer` leía y tiraba
+  `Room.defaultPosition/defaultOrientationAxis/defaultOrientation`; ahora se
+  guardan y el spawn hace lo que `TeleportAction` (`moveTo(pos).spin(eje,
+  giro)`; el piloto mira a +Y con giro 0, rumbo = 90 + s·giro para el eje
+  (0,0,s)). Medido en el puente: AvatarEnter (261 sobre −Z) mira a
+  (−0,97, −0,15) y el `RestartAt` de Reception (125 sobre −Z) a
+  (0,81, −0,56). Antes todas las salas aparecían en el punto de Reception
+  (fuera de la sala) y Reception miraba al kiosko (−148, puesto a mano).
+- **Cámara.** La del modo con que arranca el original, `HoloPilot`
+  `CAM_MODE_BEHIND`: 140 detrás, −10° (en el puente: 137,9 en horizontal y
+  +24,3 = 140·cos 10 / 140·sin 10) y acercándose si hay un muro (la cámara
+  del original es *bumpable*). Antes, 220 sin colisión.
+- **Portales que se ven.** Traducido del pase de portal del original
+  (`Camera.rwRenderRoom` → `Room.prerender` → `Portal.rwPrerender`): portal
+  en estado 2, visible (flags bit 0), de cara a la cámara (fórmula de
+  0x0041b3b0), rectángulo en pantalla, cámara movida por `_p2pxform`, sala
+  lejana dibujada antes que la propia y **sin borrar el color** (el portal
+  anidado ReceptionView1 → ReceptionView2 deja ver el panorama). Las
+  cámaras de ChatHall, ChatElevator, DcnEnter, ReceptionView1 y
+  ReceptionView2 salen iguales al decimal que en el puente. Profundidad 3
+  (el original llega a 10). Sin espejos todavía (flags bit 2).
+- **`Rect` de una cara**, como el driver: se descarta la cara de atrás si
+  el material no tiene `MaterialModes` double (`!front && (modes & 0x80) ==
+  0`), y los materiales del mundo no lo ponen. Dibujados a doble cara, el
+  edificio de ReceptionView1 visto por detrás tapaba el paisaje y había
+  letreros espejados.
+- **Menú de pausa y HUD** (ESC: Continuar, Ir a otra sala —las 25, por el
+  mismo camino que cruzar un portal—, FPS, Ayuda, Salir), con un atlas de
+  texto de Java2D en modo headless (sin ventana AWT que pelee con GLFW en
+  macOS).
+
+**Paquete y CI:**
+- `launcher/` es el punto de entrada del paquete y sustituye a
+  `run_gamma.sh`/`run-game.sh`/`local-upgrade-server.py` para jugar:
+  ventana con menú (cliente original con mundo, servidor y usuario; motor
+  nuevo con sala; hilos de dibujo; FPS; registro en vivo), menú de terminal
+  (`--tui`, o solo si no hay pantalla) y CLI (`--original`, `--viewer`,
+  `--server`, `--smoke`…). Copia persistente de la instalación en la
+  carpeta de datos del usuario (se conserva el `worlds.ini` con amigos y
+  contraseña), servidor de actualización local en Java y cada cliente en
+  su propia JVM con el Java del paquete.
+- `tools/build-dist.sh`: paquete portable (.zip, Java 17+) y, con
+  `--app-image`, la app con Java incluido (jlink + jpackage): `.app`
+  firmada ad hoc en macOS, carpeta con `FreeWorlds.exe` en Windows,
+  `.tar.gz` en Linux. `tools/fetch-lwjgl.sh` baja LWJGL con SHA-1 y
+  reintentos (Maven Central da 429 si se le pide deprisa).
+- `.github/workflows/build.yml`: en cada push compila, pasa `run-checks`
+  (38/38) y `verify-corpus` completo, arranca el original empaquetado bajo
+  Xvfb (tiene que imprimir cámara y fps: ha dibujado) y sube el portable y
+  las apps de Linux, macOS Intel, macOS Apple Silicon y Windows; con un tag
+  `v*` publica una release. Primer fallo: jpackage en macOS exige que la
+  versión empiece por ≥ 1 (se usa `1.0.<commits>`).
+- Aprovisionamiento: `tools/setup-linux.sh` (idempotente: paquetes, JDK,
+  LWJGL, arnés RWX, compila los dos clientes) y el hook `SessionStart` de
+  `.claude/` para las sesiones en la web (15 s en caliente, ~50 s en frío).
+
+**Encontrado y sin arreglar desde aquí:** `cachedir/cache.index` nunca
+entró en este historial de git (se dejó de versionar el 2026-09-09 como
+"bookkeeping" y no está en ningún commit ni en ningún zip del repo). Sin
+él, `Cache.initLoad` ("Flushing cache index.") **borra** los 207 ficheros
+cacheados de la copia de trabajo (medido en el paquete: quedan 31, los que
+se vuelven a bajar del servidor local), así que en un clon limpio, en la
+CI y en los paquetes los avatares cacheados de 2004 salen sin textura. La
+única copia está en el Mac del usuario; ya no está en `.gitignore`.

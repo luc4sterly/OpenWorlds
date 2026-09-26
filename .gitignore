@@ -65,7 +65,8 @@ GammaDocs.zip
 # assets used as verified test corpus, see docs/rwg-bod-format-reference.md)
 # stays versioned; only this bookkeeping is excluded.
 assets/WorldsPlayer/cachedir/*.LOG
-assets/WorldsPlayer/cachedir/cache.index
+# cache.index NO se ignora: sin el, el cliente original no encuentra los
+# avatares cacheados (ver CLAUDE.md, "Abierto ahora mismo" 0)
 assets/WorldsPlayer/cachedir/*.lst
 
 __pycache__/

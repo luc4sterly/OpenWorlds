@@ -109,6 +109,41 @@ Decisiones que te tocan:
 - Corregir o no el fallo del original en `setDIBPixelInts`.
 - El lenguaje del motor final para la fase 5.
 
+## 1c. Sesión de empaquetado (2026-09-26)
+
+Encargo: menús que no salían, lag, fallos visuales, revisar el motor,
+builds empaquetadas en GitHub (sin depender de los scripts de arranque) y
+aprovisionar la máquina. Hecho en un contenedor Linux x64 de Claude Code
+en la web, sin Wine: el cliente original bajo el puente corre igual que en
+el Mac (xvfb para la ventana). Verificado al cerrar: `verify-corpus.sh` sin
+fallos y `run-checks.sh` 38/38.
+
+| Frente | Estado | Evidencia / lo que queda |
+|---|---|---|
+| Menús del original fuera de Windows | ✅ | el panel de botones (Help, Options, Teleport, Quit, mapa…) salía negro en macOS y Linux: el cliente abre rutas `u:/…` en minúsculas (parche de `URL`) con `Toolkit.getImage`/`java.io.File`, que solo existen en Windows. `HostPath` + `bridge/host_paths.py` las resuelven en la copia de build (151 aperturas en 50 clases; `source/` intacto). También arregla la lectura de `redir.txt` |
+| Ventana negra al arrancar | ✅ | `Std.initSyncTime` abría un `Socket` sin timeout a time.worlds.net:37 dentro del hilo de render (negro hasta el timeout de TCP). Ahora la base sale del reloj local con la misma resta del bytecode (`ldc2_w -1141367296l; lsub`) y el servidor se consulta en otro hilo con 2 s de timeout |
+| Fuentes | ✅ | las del JRE 1.4 (`font.properties`: Arial, Times New Roman, Courier New) o sus sustitutos métricos (Liberation); arregla textos cortados ("Jse arrow keys") |
+| Lag del rasterizador del puente | ✅ | lista de triángulos diferida + franjas en varios hilos con el mismo orden de escritura por píxel. 1172×848: 13,5 → 4,7 ms (4 hilos); el cliente pasa de ~25 a ~53 fps. `RasterGoldenCheck`: 18 vistas con CRC idéntico al motor anterior |
+| Motor nuevo: aparecer y mirar | ✅ | `defaultPosition`/orientación de cada Room (lo que usa `TeleportAction`); Reception por su `RestartAt`. Comparado con las trazas de cámara del puente |
+| Motor nuevo: cámara | ✅ | BEHIND del `HoloPilot` (140 detrás, −10°) con choque contra paredes: ya no atraviesa edificios |
+| Motor nuevo: portales | 🟢 | se ve la sala de al lado a través del portal, con el algoritmo de `Camera.rwRenderRoom`/`Portal.rwPrerender` (cara hacia la cámara 0x0041b3b0, rectángulo en pantalla, `_p2pxform`, sin borrar color, profundidad ≤ 3 frente a 10 del original). Cámaras de ChatHall y ReceptionView1 iguales al decimal que en el puente. **Faltan los espejos** (flag bit 2) |
+| Motor nuevo: `Rect` de una cara | ✅ | regla del driver `!front && (modes & 0x80) == 0` → descartado; los edificios ya no tapan el paisaje de los portales |
+| Motor nuevo: menú y HUD | ✅ | ESC: Continuar / Ir a otra sala (las 25) / FPS / Ayuda / Salir |
+| Paquete | ✅ | `launcher/` (ventana, menú de terminal `--tui`, CLI) + `tools/build-dist.sh`: portable (.zip, Java 17+) y app con Java incluido (jlink + jpackage). Copia de la instalación en la carpeta de datos del usuario; servidor de actualización local en Java |
+| CI | ✅ Linux / 🟡 macOS y Windows | cada push: checks, corpus, prueba de humo del original empaquetado bajo Xvfb (tiene que dibujar), apps de Linux, macOS Intel, macOS Apple Silicon y Windows; con un tag `v*`, release. La prueba de humo de macOS/Windows es aún `continue-on-error` |
+| Aprovisionamiento | ✅ | `tools/setup-linux.sh` (idempotente) y el hook `SessionStart` de la web |
+
+Lo nuevo que queda:
+- **`cache.index`** no estaba versionado (`.gitignore`): sin él, el clon
+  limpio, la CI y los paquetes no encuentran los avatares cacheados de
+  2004. Solo está en tu Mac: `git add -f assets/WorldsPlayer/cachedir/cache.index`.
+- Probar las apps en máquinas reales (Gatekeeper con firma ad hoc,
+  SmartScreen en Windows) y quitar el `continue-on-error` del humo cuando
+  pase en los tres sistemas.
+- Motor nuevo: portales espejo, la rampa de iluminación del driver (se ve
+  más oscuro que el original) y el avatar del piloto (el original usa el de
+  `worlds.ini`).
+
 ## 2. Hitos
 
 Tamaños: **S** ≈ 1 sesión · **M** ≈ 2–4 sesiones · **L** = más.
@@ -242,12 +277,18 @@ Hay 41 ficheros con nativos fuera del puente. `FastDataInput`, `IniFile` y
 
 ### H6 — Portabilidad, fase 5 (L)
 
-- [ ] Linux: correr A en la máquina Linux sin Wine. Debería bastar con el
-      JDK; ⚠️ VERIFICAR lo que haya específico de macOS en
-      `build_gamma.sh`/`run_gamma.sh`.
+- [x] Linux: A corre en Linux x64 sin Wine (contenedor de la web y CI,
+      con Xvfb; §1c). Lo específico de macOS era de rutas (`HostPath`) y
+      fuentes (`NativeUiFonts`), no de `build_gamma.sh`. B también corre
+      (LWJGL con los natives de Linux).
 - [ ] OpenBSD: A con el OpenJDK de ports (⚠️ VERIFICAR versión y AWT). B
       depende de LWJGL (⚠️ VERIFICAR si soporta OpenBSD oficialmente).
-- [ ] macOS Apple Silicon: JDK arm64 para A y LWJGL arm64 para B.
+- [~] macOS Apple Silicon: la CI genera la app arm64 (Java arm64 del
+      runner `macos-15` + LWJGL `natives-macos-arm64`); ⚠️ VERIFICAR en una
+      máquina real.
+- [~] Windows: la CI genera la app x64 (carpeta con `FreeWorlds.exe`); el
+      puente no hace nada con las rutas en Windows (`HostPath`). ⚠️
+      VERIFICAR en una máquina real.
 - [ ] PSVita: exige un motor nativo (C + SDL2/vitaGL, ⚠️ VERIFICAR). Hay que
       decidirlo antes de empezar (sección 1).
 
@@ -262,6 +303,10 @@ Hay 41 ficheros con nativos fuera del puente. `FastDataInput`, `IniFile` y
    `cfemaleb`, `cfemaleba`, `cfemalec`, `cfc`, `fga`, `fja` y `mga`. Y el
    vestuario perdido: 196 de 210 texturas y 116 de 141 `.bod`. Bastaría con
    dejarlos en `assets/gammatutorial-samples/base-avatars/`.
+6. Subir `assets/WorldsPlayer/cachedir/cache.index` desde tu Mac (§1c): no
+   hay otra copia en el repo ni en la CI.
+7. Probar las apps de la CI (artefactos de cada ejecución en GitHub
+   Actions) en tu Mac Intel y, si puedes, en Windows y un Mac ARM.
 
 ## 4. Menores y aparcados
 

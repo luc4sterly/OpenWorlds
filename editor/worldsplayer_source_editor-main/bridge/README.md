@@ -10,6 +10,11 @@ direcciones de evidencia están en los comentarios de cada método.
 
 ## Uso
 
+Para jugar, el paquete (`tools/build-dist.sh` o los artefactos de la CI):
+su lanzador prepara una copia de la instalación en la carpeta de datos del
+usuario, levanta el servidor local de actualización y arranca `Gamma` con
+el Java del paquete (ver `launcher/`). Para desarrollar y diagnosticar:
+
 ```bash
 editor/worldsplayer_source_editor-main/build_gamma.sh
 ```
@@ -19,7 +24,9 @@ editor/worldsplayer_source_editor-main/run_gamma.sh home:GroundZero/groundzero.w
 ```
 
 `build_gamma.sh` copia `source/` (pristino) a `editor/.build-gamma/`
-(ignorado por git), aplica `apply_mock.sh` (stubs + este puente) y compila
+(ignorado por git), aplica `apply_mock.sh` (stubs + este puente), las
+adaptaciones de plataforma de `build_gamma.sh` (caché de 2004, `Std.initSyncTime`,
+`host_paths.py` y `ui_fonts.py`, ver abajo) y compila
 con `javac --release 8` (~900 clases, incluidos los decodificadores `.cmp`,
 `.rwg` y `.bod`/`.seq` de `client/`). Tras `natives.patch` se aplican los
 `natives-<subsistema>.patch` por orden de nombre (animator, media, system,
@@ -96,10 +103,47 @@ textura".
   APPRACTR (`hub.rs:246`, comentado).
 - El cliente escribe su `Gamma.Log` de 2004 con `FREEWORLDS_GAMMA_LOG=1`,
   con el informe de `SystemInfo.Record`.
-- `tools/run-checks.sh`: 37/37; sin excepciones nuevas en 50 s de
-  GroundZero (las que salen, `redir.txt`, `WorldScriptGroundZero` y
-  `NoWebControlException` de los carteles, son el camino del propio
-  cliente, y las dos primeras también están en el `Gamma.Log` de 2004).
+- `tools/run-checks.sh`: 38/38 (con `RasterGoldenCheck`); las excepciones
+  que salen en GroundZero (`WorldScriptGroundZero` y
+  `NoWebControlException` de los carteles) son el camino del propio
+  cliente. Corrección del 2026-09-26: el error de `redir.txt` que salía
+  aquí **no** era del original (su `Gamma.Log` no lo tiene): era la ruta
+  `u:/...` en minúsculas, arreglada con `HostPath`.
+
+### Añadido el 2026-09-26 (sesión de empaquetado)
+
+- **Menús de la ventana visibles.** `ImageCanvas.loadLocalImage` hacía
+  `Toolkit.getImage("u:/.../rtpanel.gif")`: en Windows valía, aquí el
+  fichero no existe y los `ImageButtons` (Help, Options, WorldsMail,
+  Teleport, Actions, VIP, Quit, Universe Map...), el mapa y la lista de
+  amigos salían negros. `HostPath.of` (con `host_paths.py`, 151 llamadas en
+  50 clases del código pristino) quita la unidad sintética y resuelve sin
+  mayúsculas en cada `new File/FileInputStream/.../ZipFile` y
+  `Toolkit.getImage`. En Windows no hace nada.
+- **Sin bloqueo al arrancar.** El primer `Std.getSynchronizedTime()` (lo
+  pide `BlackBox.postrender` en cada frame) abría un `Socket` sin timeout
+  a `time.worlds.net:37` dentro del hilo de render: ventana negra hasta el
+  timeout de TCP (75 s en macOS). La base sale ahora del reloj del sistema
+  con la misma resta del bytecode (`ldc2_w -1141367296l; lsub`: el
+  `100*365*86400` desbordado del original, origen 1999-12-08) y el
+  servidor, si respondiera, la corrige desde otro hilo con timeouts de 2 s.
+- **Fuentes con las métricas de 2004** (`NativeUiFonts`, `ui_fonts.py`):
+  el `font.properties` del JRE 1.4 de la instalación resolvía `dialog` y
+  `sansserif` a Arial; un JDK moderno usa DejaVu/Lucida, más anchas, y la
+  barra de estado decía "Jse arrow keys". Se usa Arial si está (macOS,
+  Windows) o una de métricas iguales (Liberation/Arimo en Linux).
+  `-Dfreeworlds.modernFonts=true` vuelve a las del JDK.
+- **Rasterizador por franjas** (`NativeCamera.rasterize`): la pasada de
+  clumps graba los triángulos (en el orden del driver) y se dibujan por
+  bandas horizontales en `-Dfreeworlds.rasterThreads` hilos (por defecto
+  los procesadores, máximo 8). Cada banda recorre toda la lista y un
+  triángulo solo escribe sus filas, así que cada píxel recibe las mismas
+  escrituras en el mismo orden: `RasterGoldenCheck` compara el CRC de 18
+  vistas de una escena de 56 formas reales con el motor anterior (idéntico
+  con 1, 2, 4 y 8 hilos). Además: recorte sin asignaciones, spans que solo
+  interpolan lo que usa el camino del píxel y volcado a pantalla por tabla
+  565→RGB (el `drawImage` de la imagen 565 iba por el bucle genérico de
+  Java2D). GroundZero a 1172×848: 25 → ~53 fps; a 468×272: 72 → ~90.
 
 Red: `run_gamma.sh` levanta `tools/local-upgrade-server.py` y apunta
 `upgradeServer` de la copia temporal a `127.0.0.1` (el host original ya no
@@ -130,6 +174,8 @@ Julie, Roxanne y Simon (`docs/worlds-chat-project.md`, 2026-09-18).
 | `NET/worlds/core/NativeMedia*.java`, `ImaAdpcmWav.java`, `natives-media.patch` | Sonido: `PlaySound` y `waveOutSetVolume` de `WavSoundPlayer` (0x00420120..0x00420200; 65535.0f en 0x4711f8), MCI waveaudio/sequencer de `MCISoundPlayer` (0x0041f780..0x0041fe40), ASF sin `playfile.exe` (0x0041f670), flags `disableWav/MIDI/ASF` (0x00420260/0x00420030); salida por javax.sound y WAV IMA ADPCM. DirectShow y CD por su camino de fallo (0x0043f180..0x0043f450, 0x004153e0..0x00415ea0). IE embebido (`nativeInit` → false), `WebBrowser`/`IWebBrowserApp` (IOException), DDE, `TextureSurface`; `launchViaRegistry`/`sendURL` registran la URL |
 | `natives-text.patch` | `StringTexture.makeStringTexture` → `NativeTextures.makeStringTexture` |
 | `NET/worlds/core/NativeAssert.java` | Aserción nativa `FUN_00402800`: mismo mensaje y `exit(41)` (sin el MessageBox modal) |
+| `NET/worlds/core/HostPath.java`, `host_paths.py` | Plataforma: rutas `u:/...` del cliente a ficheros reales en cada apertura de fichero y `Toolkit.getImage` |
+| `NET/worlds/core/NativeUiFonts.java`, `ui_fonts.py` | Plataforma: `new Font(...)` y la fuente por defecto de `GammaFrame` con las fuentes del `font.properties` de 2004 (o de métricas iguales) |
 | `natives.patch` | Cuerpos de los stubs de `Transform`, `Point3Temp`, `WObject`, `Surface`, `Room`, `RoomEnvironment`, `Material`, `Camera` (`renderScene` 0x00415190 y el pase de sala 0x00414aa0), `Texture`, `FileTexture`, `ScapePicTexture`, `ScapePicMovie`, `EventQueue`, `Window`, `ActiveX`, y los de `Std` (reloj, `instanceOf`, `byteArraysEqual`, `getenv`, `exit(42)`, versión 1900 y cadenas de build literales de gamma.dll); `NativeMock` con log acotado y `localFile`; `Archive` abre ficheros y `content.zip` a través de `localFile` (la unidad sintética `u:` del parche de `URL`); `PolledDialog` usa `isDisplayable()` en lugar de `getPeer()` (eliminado tras Java 8; un barrido por reflexión de las 934 llamadas al JDK no encuentra más casos); y la corrección de `Room` de abajo |
 
 ## Error de decompilación encontrado
