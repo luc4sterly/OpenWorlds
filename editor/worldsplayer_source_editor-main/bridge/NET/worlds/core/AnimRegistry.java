@@ -5,29 +5,29 @@ import java.util.List;
 import java.util.TreeMap;
 
 /**
- * Registro de animacion de avatares (avatars.dat) de gamma.dll: el objeto
- * de 0xf8 bytes que devuelve FUN_0042c7f0 (singleton DAT_0049ff24).
+ * Avatar animation registry (avatars.dat) of gamma.dll: the 0xf8-byte
+ * object that FUN_0042c7f0 returns (singleton DAT_0049ff24).
  *
  * <pre>
- * +0x04/+0x08  vector de tipos de avatar (0x4c bytes cada uno)
- * +0x0c/+0x58/+0xa4  tres tipos especiales vacios (indices 0xfb/0xfc/0xfd)
- * +0xf0        ultimo token leido
+ * +0x04/+0x08  vector of avatar types (0x4c bytes each)
+ * +0x0c/+0x58/+0xa4  three empty special types (indices 0xfb/0xfc/0xfd)
+ * +0xf0        last token read
  * </pre>
  *
- * Cada tipo (FUN_0042ba20) guarda un mapa de atributos (name, geometry...)
- * en +0x00, los implicitos (claves +0x10, secuencias +0x1c), los
- * explicitos (claves +0x28, secuencias +0x34) y los bloques
- * beginchangeimp (+0x40). Las claves de accion se guardan en minusculas
- * (FUN_004280b0); los valores y los atributos tal cual.
+ * Each type (FUN_0042ba20) keeps a map of attributes (name, geometry...)
+ * at +0x00, the implicit entries (keys +0x10, sequences +0x1c), the
+ * explicit entries (keys +0x28, sequences +0x34) and the beginchangeimp
+ * blocks (+0x40). Action keys are stored in lower case
+ * (FUN_004280b0); values and attributes as they are.
  *
- * El texto lo parte un escaner generado por flex (FUN_0042a4c0) cuyas
- * tablas se copian aqui del binario; las reglas que resultan de ellas
- * estan en docs/seq-animation-reference.md.
+ * The text is split by a flex-generated scanner (FUN_0042a4c0) whose
+ * tables are copied here from the binary; the rules that result from them
+ * are in docs/seq-animation-reference.md.
  */
 public final class AnimRegistry {
-   /** Un bloque beginchangeimp...endchangeimp (0x11c bytes, FUN_0042bdc0). */
+   /** A beginchangeimp...endchangeimp block (0x11c bytes, FUN_0042bdc0). */
    public static final class ChangeImp {
-      /** El explicito al que sigue el bloque (+0x00, FUN_0042be60). */
+      /** The explicit entry that the block follows (+0x00, FUN_0042be60). */
       public final String name;
       /** +0x104 (FUN_0042be70). */
       public final List<String> keys = new ArrayList<String>();
@@ -39,9 +39,9 @@ public final class AnimRegistry {
       }
    }
 
-   /** Un tipo de avatar: el registro de 0x4c bytes (FUN_0042ba20). */
+   /** An avatar type: the 0x4c-byte record (FUN_0042ba20). */
    public static final class AvatarType {
-      /** Mapa ordenado por strcmp (FUN_0042e0e0 inserta, FUN_0042bf40 busca). */
+      /** Map ordered by strcmp (FUN_0042e0e0 inserts, FUN_0042bf40 looks up). */
       final TreeMap<String, String> attrs = new TreeMap<String, String>();
       /** +0x10 (FUN_0042bd20). */
       public final List<String> impKeys = new ArrayList<String>();
@@ -54,13 +54,13 @@ public final class AnimRegistry {
       /** +0x40. */
       public final List<ChangeImp> changeImps = new ArrayList<ChangeImp>();
 
-      /** FUN_0042bcb0: el valor del atributo o "" si no esta. */
+      /** FUN_0042bcb0: the attribute's value or "" if it is not there. */
       public String attr(String key) {
          String v = this.attrs.get(key);
          return v == null ? "" : v;
       }
 
-      /** FUN_0042bd60: el primer bloque changeimp de ese explicito (strcmp) o null. */
+      /** FUN_0042bd60: the first changeimp block of that explicit entry (strcmp) or null. */
       public ChangeImp changeImp(String expName) {
          for (ChangeImp c : this.changeImps) {
             if (c.name.equals(expName)) {
@@ -71,7 +71,7 @@ public final class AnimRegistry {
       }
    }
 
-   /** Error de sintaxis: lo que FUN_0042c6a0 + FUN_00451670 lanzan (throw de C++). */
+   /** Syntax error: what FUN_0042c6a0 + FUN_00451670 throw (a C++ throw). */
    public static final class ParseError extends RuntimeException {
       private static final long serialVersionUID = 1L;
       public final int line;
@@ -93,7 +93,7 @@ public final class AnimRegistry {
       return INSTANCE;
    }
 
-   /** FUN_0042ca50: borra los tipos (los tres especiales se quedan). */
+   /** FUN_0042ca50: deletes the types (the three special ones stay). */
    public synchronized void clear() {
       this.types.clear();
    }
@@ -102,7 +102,7 @@ public final class AnimRegistry {
       return this.types.size();
    }
 
-   /** FUN_0042ca00: 0xfb/0xfc/0xfd son los tipos especiales; fuera de rango -> null. */
+   /** FUN_0042ca00: 0xfb/0xfc/0xfd are the special types; out of range -> null. */
    public synchronized AvatarType type(int idx) {
       if (idx == 0xfb) {
          return this.special[0];
@@ -117,10 +117,10 @@ public final class AnimRegistry {
    }
 
    /**
-    * FUN_0042c8a0: indice del primer tipo cuyo atributo "name"
-    * (DAT_004748f0) es igual sin distinguir mayusculas (FUN_00427450 ->
-    * FUN_004508c0, tabla tolower DAT_00482818); -1 si no hay o el nombre
-    * es vacio.
+    * FUN_0042c8a0: index of the first type whose "name" attribute
+    * (DAT_004748f0) is equal ignoring case (FUN_00427450 ->
+    * FUN_004508c0, tolower table DAT_00482818); -1 if there is none or
+    * the name is empty.
     */
    public synchronized int nameIndex(String name) {
       if (name == null || name.isEmpty()) {
@@ -136,10 +136,10 @@ public final class AnimRegistry {
    }
 
    /**
-    * FUN_0042cb90: la primera linea (FUN_0041f300 = getline de hasta 32
-    * caracteres hasta '\n') elige la gramatica: "# animation registry
-    * version 0.2" (FUN_0042d840) o "... 0.3" (FUN_0042cda0); otra cosa es
-    * "unrecognized cookie". Los tipos anadidos antes de un error se quedan.
+    * FUN_0042cb90: the first line (FUN_0041f300 = getline of up to 32
+    * characters up to '\n') chooses the grammar: "# animation registry
+    * version 0.2" (FUN_0042d840) or "... 0.3" (FUN_0042cda0); anything else
+    * is "unrecognized cookie". Types added before an error stay.
     */
    public synchronized void load(byte[] text, String path) {
       this.path = path;
@@ -176,7 +176,7 @@ public final class AnimRegistry {
 
    // ------------------------------------------------------------- v0.3
 
-   /** FUN_0042cda0: version 3, luego bloques avatar hasta el fin (-1). */
+   /** FUN_0042cda0: version 3, then avatar blocks until the end (-1). */
    private void parseV03(Lexer lx) {
       int t = lx.next();
       if (t != Lexer.VERSION) {
@@ -201,7 +201,7 @@ public final class AnimRegistry {
       }
    }
 
-   /** FUN_0042cfc0: atributos, beginimp y beginexp hasta endavatar. */
+   /** FUN_0042cfc0: attributes, beginimp and beginexp up to endavatar. */
    private void avatarV03(Lexer lx, AvatarType a) {
       int t = lx.next();
       while (t != Lexer.ENDAVATAR) {
@@ -221,7 +221,7 @@ public final class AnimRegistry {
       }
    }
 
-   /** FUN_0042d3e0: pares clave=secuencia hasta endimp; clave vacia = "invalid action name". */
+   /** FUN_0042d3e0: key=sequence pairs up to endimp; empty key = "invalid action name". */
    private void impV03(Lexer lx, AvatarType a) {
       int t = lx.next();
       while (t != Lexer.ENDIMP) {
@@ -240,7 +240,7 @@ public final class AnimRegistry {
       }
    }
 
-   /** FUN_0042d640: pares hasta endexp; beginchangeimp se cuelga del ultimo explicito leido. */
+   /** FUN_0042d640: pairs up to endexp; beginchangeimp hangs off the last explicit entry read. */
    private void expV03(Lexer lx, AvatarType a) {
       String last = "";
       int t = lx.next();
@@ -262,7 +262,7 @@ public final class AnimRegistry {
       }
    }
 
-   /** FUN_0042d0c0: pares hasta endchangeimp, claves en minusculas. */
+   /** FUN_0042d0c0: pairs up to endchangeimp, keys in lower case. */
    private void changeImpV03(Lexer lx, AvatarType a, String name) {
       ChangeImp c = new ChangeImp(name);
       int t = lx.next();
@@ -283,10 +283,11 @@ public final class AnimRegistry {
    // ------------------------------------------------------------- v0.2
 
    /**
-    * FUN_0042d840: primero el tipo fijo "cy" (FUN_0042ca70: name=cy,
-    * geometry=cy.rwx), luego "avatar NOMBRE clave=valor... endavatar" con
-    * tres implicitos (walk, wait, endwait) y un explicito (wave) fijos.
-    * ⚠️ Sin ejemplar en el corpus: todos los avatars.dat son version 0.3.
+    * FUN_0042d840: first the fixed type "cy" (FUN_0042ca70: name=cy,
+    * geometry=cy.rwx), then "avatar NAME key=value... endavatar" with
+    * three fixed implicit entries (walk, wait, endwait) and one fixed
+    * explicit entry (wave). ⚠️ No sample in the corpus: all avatars.dat
+    * files are version 0.3.
     */
    private void parseV02(Lexer lx) {
       AvatarType cy = new AvatarType();
@@ -353,14 +354,14 @@ public final class AnimRegistry {
       }
    }
 
-   // ------------------------------------------------------------- utilidades
+   // ------------------------------------------------------------- utilities
 
-   /** La clase String de gamma.dll (FUN_00427410) guarda como mucho 255 caracteres. */
+   /** The String class of gamma.dll (FUN_00427410) keeps at most 255 characters. */
    static String str(String s) {
       return s.length() > 0xff ? s.substring(0, 0xff) : s;
    }
 
-   /** FUN_004280b0: solo A-Z pasan a minusculas (bit 0x80 de la tabla DAT_00482718). */
+   /** FUN_004280b0: only A-Z become lower case (bit 0x80 of the table DAT_00482718). */
    static String lower(String s) {
       StringBuilder b = new StringBuilder(s.length());
       for (int i = 0; i < s.length(); i++) {
@@ -370,7 +371,7 @@ public final class AnimRegistry {
       return b.toString();
    }
 
-   /** FUN_004508c0: comparacion por la tabla tolower DAT_00482818 (0xff se compara como -1). */
+   /** FUN_004508c0: comparison through the tolower table DAT_00482818 (0xff compares as -1). */
    static int stricmp(String a, String b) {
       int n = Math.max(a.length(), b.length()) + 1;
       for (int i = 0; i < n; i++) {
@@ -392,15 +393,15 @@ public final class AnimRegistry {
    }
 
    /**
-    * El escaner flex de gamma.dll (FUN_0042a4c0, vtable 0x4744c4 +0x14),
-    * con sus tablas tal cual: yy_acclist DAT_004738d8, yy_accept
-    * DAT_0047399c, yy_ec 0x473a30 (int), yy_meta DAT_00473e30 (int),
-    * yy_base DAT_00473e98, yy_def DAT_00473f30, yy_nxt DAT_00473fc8,
-    * yy_chk DAT_004740b4; estado inicial 1, base de atasco 0x5b, estados
-    * &gt; 0x48 usan yy_meta. Acciones: 1 y 14 se saltan (comentario # hasta
-    * fin de linea, blancos), 2 '=', 3..11 palabras clave, 12 un digito (fija
-    * DAT_0049fe04 = atoi), 13 identificador (texto en DAT_0049eeb8), 15
-    * cualquier otro caracter (token 0), 17 fin de buffer.
+    * The flex scanner of gamma.dll (FUN_0042a4c0, vtable 0x4744c4 +0x14),
+    * with its tables as they are: yy_acclist DAT_004738d8, yy_accept
+    * DAT_0047399c, yy_ec 0x473a30 (int), yy_meta DAT_00473e30 (int), yy_base
+    * DAT_00473e98, yy_def DAT_00473f30, yy_nxt DAT_00473fc8, yy_chk
+    * DAT_004740b4; initial state 1, jam base 0x5b, states &gt; 0x48 use
+    * yy_meta. Actions: 1 and 14 are skipped (# comment up to end of line,
+    * blanks), 2 '=', 3..11 keywords, 12 a digit (sets DAT_0049fe04 = atoi),
+    * 13 identifier (text in DAT_0049eeb8), 15 any other character (token 0),
+    * 17 end of buffer.
     */
    static final class Lexer {
       static final int EOF = -1;
@@ -473,13 +474,13 @@ public final class AnimRegistry {
          72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 0,
       };
 
-      /** Texto con los dos NUL de fin de buffer de flex. */
+      /** Text with the two end-of-buffer NULs of flex. */
       private final byte[] buf;
       private final int end;
       private int pos;
-      /** param_1[3]: lineas, contando los '\n' del texto de cada accion. */
+      /** param_1[3]: lines, counting the '\n' in the text of each action. */
       int line = 1;
-      /** DAT_0049eeb8 (hasta 0x3ff caracteres). */
+      /** DAT_0049eeb8 (up to 0x3ff characters). */
       String text = "";
       /** DAT_0049fe04. */
       int version;
@@ -491,7 +492,7 @@ public final class AnimRegistry {
          this.pos = start;
       }
 
-      /** Un paso de yy_match + yy_find_action desde pos; devuelve {accion, fin}. */
+      /** One step of yy_match + yy_find_action from pos; returns {action, end}. */
       private int[] match(int from, boolean atEnd) {
          int st = 1;
          int[] stack = new int[this.buf.length - from + 2];
@@ -513,7 +514,7 @@ public final class AnimRegistry {
             } while (BASE[st] != 0x5b);
          } else {
             // EOB_ACT_LAST_MATCH (FUN_0042aa90 == 2): yy_get_previous_state
-            // sobre el texto que queda, sin el NUL de fin de buffer.
+            // over the text that is left, without the end-of-buffer NUL.
             while (cp < this.end) {
                int c = EC[this.buf[cp] & 0xFF];
                while (CHK[BASE[st] + c] != st) {
@@ -537,7 +538,7 @@ public final class AnimRegistry {
          return new int[]{ACCLIST[lp], cp};
       }
 
-      /** yylex: el siguiente token (codigos 0x101..0x10c, 0 o -1). */
+      /** yylex: the next token (codes 0x101..0x10c, 0 or -1). */
       int next() {
          boolean atEnd = false;
          while (true) {
@@ -604,12 +605,13 @@ public final class AnimRegistry {
                   this.text = t;
                   return 0;
                case 16:
-                  // ECHO: el original lo escribe por la salida del escaner.
+                  // ECHO: the original writes it to the scanner's output.
                   this.pos = e;
                   continue;
                case 17:
-                  // Fin de buffer: si quedaba texto sin casar se vuelve a
-                  // casar sin el NUL (ultimo token); si no, fin de fichero.
+                  // End of buffer: if there was unmatched text left it is
+                  // matched again without the NUL (last token); otherwise,
+                  // end of file.
                   if (e - this.pos <= 1 || atEnd) {
                      this.pos = this.end;
                      return EOF;
@@ -626,7 +628,7 @@ public final class AnimRegistry {
          return new ParseError("token inesperado 0x" + Integer.toHexString(tok) + " '" + this.text + "'", this.line);
       }
 
-      /** atoi de la CRT (FUN_00454250): digitos decimales. */
+      /** The CRT's atoi (FUN_00454250): decimal digits. */
       private static int atoi(String s) {
          int v = 0;
          for (int i = 0; i < s.length(); i++) {

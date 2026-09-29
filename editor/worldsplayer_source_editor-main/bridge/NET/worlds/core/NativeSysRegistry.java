@@ -18,49 +18,50 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * {@code NET.worlds.core.RegKey}: el registro de Windows de gamma.dll
- * (0x00402360-0x00402770) sobre un almacén portable.
+ * {@code NET.worlds.core.RegKey}: gamma.dll's Windows registry
+ * (0x00402360-0x00402770) on top of a portable store.
  *
- * <p>Lo que es de gamma.dll se traduce tal cual:
+ * <p>What belongs to gamma.dll is translated as it is:
  * <ul>
  * <li>{@code getReservedKey} (0x004023f0): 0..3 -> 0x80000000..0x80000003
- *     (HKCR, HKCU, HKLM, HKU); otro valor lanza
- *     {@code RegKeyNotFoundException("Key not found: 0")}. El %d de
- *     "Key not found: %d" (0x0046d2ac) es un {@code push 0} literal
- *     (0x00402436), no el argumento.</li>
- * <li>{@code openKey} (0x004026d0): KEY_READ 0x20019, o 0x2001f
- *     (lectura + escritura) si {@code modo & 1}; si falla, la misma
- *     excepción con el código de error Win32 ({@code push ebx} con el
- *     LSTATUS, 0x00402737).</li>
- * <li>{@code createKey} (0x00402770): RegCreateKeyExA con KEY_ALL_ACCESS
- *     0xf003f; si falla, igual que openKey.</li>
- * <li>{@code getStringValue} (0x00402470): búfer de 0x400 bytes; solo
- *     REG_SZ (1) o REG_EXPAND_SZ (2) ({@code tipo - 1 < 2}), sin expandir;
- *     cualquier otro caso, {@code null}.</li>
- * <li>{@code setStringValue} (0x00402510): tipo 2 si {@code expand}, si no 1;
- *     se guardan strlen + 1 bytes; devuelve {@code (char) LSTATUS == 0}.</li>
- * <li>{@code getIntValue} (0x004025c0): solo REG_DWORD (4) de 4 bytes; si no,
- *     0. {@code setIntValue} (0x00402640): REG_DWORD.</li>
- * <li>{@code close} (0x004026a0): RegCloseKey, sin mirar el resultado.</li>
+ *     (HKCR, HKCU, HKLM, HKU); any other value throws
+ *     {@code RegKeyNotFoundException("Key not found: 0")}. The %d of "Key not
+ *     found: %d" (0x0046d2ac) is a literal {@code push 0} (0x00402436), not
+ *     the argument.</li>
+ * <li>{@code openKey} (0x004026d0): KEY_READ 0x20019, or 0x2001f (read +
+ *     write) if {@code mode & 1}; if it fails, the same exception with the
+ *     Win32 error code ({@code push ebx} with the LSTATUS, 0x00402737).</li>
+ * <li>{@code createKey} (0x00402770): RegCreateKeyExA with KEY_ALL_ACCESS
+ *     0xf003f; if it fails, the same as openKey.</li>
+ * <li>{@code getStringValue} (0x00402470): 0x400-byte buffer; only REG_SZ (1)
+ *     or REG_EXPAND_SZ (2) ({@code type - 1 < 2}), not expanded; any other
+ *     case, {@code null}.</li>
+ * <li>{@code setStringValue} (0x00402510): type 2 if {@code expand},
+ *     otherwise 1; strlen + 1 bytes are stored; returns
+ *     {@code (char) LSTATUS == 0}.</li>
+ * <li>{@code getIntValue} (0x004025c0): only a 4-byte REG_DWORD (4);
+ *     otherwise 0. {@code setIntValue} (0x00402640): REG_DWORD.</li>
+ * <li>{@code close} (0x004026a0): RegCloseKey, without looking at the
+ *     result.</li>
  * </ul>
  *
- * <p>Lo que es de Win32 (advapi32) se sustituye: el registro es un árbol de
- * claves con nombres sin distinguir mayúsculas (conservando las que se
- * escribieron), valores con tipo, y asas numéricas con su derecho de
- * escritura; los códigos de error que el cliente puede ver son los de
- * advapi32 (2 = ERROR_FILE_NOT_FOUND para una clave que no existe, 5 =
- * ERROR_ACCESS_DENIED al escribir por un asa abierta solo para lectura, 6 =
- * ERROR_INVALID_HANDLE, 234 = ERROR_MORE_DATA si el valor no cabe en el
- * búfer). El árbol se guarda entero, en formato REGEDIT4 (el de
- * {@code regedit /e}) y UTF-8, en {@code openworlds-registry.reg} del
- * directorio de trabajo (o en la propiedad {@code openworlds.registry}) tras
- * cada cambio. Un fallo al escribir el fichero no hace fallar la llamada:
- * Windows tampoco vuelca la colmena en RegSetValueEx (eso es RegFlushKey).
- * Equivale para el cliente porque sus dos usos (NetUpdate: InstallDir tras
- * una actualización; IClassFactory.register: el manejador del protocolo
- * {@code world:}) solo leen lo que ellos u otro programa escribieron antes.
- * Las cuatro raíces son árboles independientes (en Windows HKCR mezcla
- * HKLM\SOFTWARE\Classes y HKCU\SOFTWARE\Classes, y HKCU cuelga de HKU).
+ * <p>What belongs to Win32 (advapi32) is replaced: the registry is a tree of
+ * keys with case-insensitive names (keeping the case they were written with),
+ * typed values, and numeric handles with their write right; the error codes
+ * the client can see are those of advapi32 (2 = ERROR_FILE_NOT_FOUND for a
+ * key that does not exist, 5 = ERROR_ACCESS_DENIED when writing through a
+ * handle opened read-only, 6 = ERROR_INVALID_HANDLE, 234 = ERROR_MORE_DATA if
+ * the value does not fit in the buffer). The whole tree is saved, in REGEDIT4
+ * format (that of {@code regedit /e}) and UTF-8, in
+ * {@code openworlds-registry.reg} in the working directory (or in the
+ * property {@code openworlds.registry}) after every change. A failure to
+ * write the file does not make the call fail: Windows does not flush the hive
+ * in RegSetValueEx either (that is RegFlushKey). This is equivalent for the
+ * client because its two uses (NetUpdate: InstallDir after an update;
+ * IClassFactory.register: the handler of the {@code world:} protocol) only
+ * read what they or another program wrote earlier. The four roots are
+ * independent trees (on Windows HKCR merges HKLM\SOFTWARE\Classes and
+ * HKCU\SOFTWARE\Classes, and HKCU hangs off HKU).
  */
 public final class NativeSysRegistry {
    static final int ERROR_FILE_NOT_FOUND = 2;
@@ -69,7 +70,7 @@ public final class NativeSysRegistry {
    static final int REG_SZ = 1;
    static final int REG_EXPAND_SZ = 2;
    static final int REG_DWORD = 4;
-   /** Búfer de getStringValue (local_418[1024], 0x00402470). */
+   /** getStringValue buffer (local_418[1024], 0x00402470). */
    static final int STRING_BUFFER = 0x400;
    static final int HKEY_BASE = 0x80000000;
    static final String[] ROOT_NAMES = {"HKEY_CLASSES_ROOT", "HKEY_CURRENT_USER", "HKEY_LOCAL_MACHINE", "HKEY_USERS"};
@@ -142,9 +143,10 @@ public final class NativeSysRegistry {
    }
 
    /**
-    * createKey (0x00402770): RegCreateKeyExA crea las claves intermedias que
-    * falten y devuelve un asa con KEY_ALL_ACCESS. Java no declara la
-    * excepción; JNI la deja pendiente igual (NativeSysJni).
+    * createKey (0x00402770): RegCreateKeyExA creates the intermediate keys
+    * that are missing and returns a handle with KEY_ALL_ACCESS. Java does
+    * not declare the exception; JNI leaves it pending all the same
+    * (NativeSysJni).
     */
    public static synchronized int createKey(int parent, String sub) {
       load();
@@ -154,10 +156,11 @@ public final class NativeSysRegistry {
       }
       Key k = walk(p.key, sub);
       if (k == null) {
-         // ⚠️ VERIFICAR: se supone que crear una subclave exige
-         // KEY_CREATE_SUB_KEY en el asa padre (no la tiene la de KEY_READ
-         // 0x20019) y que abrir una ya existente no; ningún llamador del
-         // cliente crea bajo un asa de solo lectura.
+         // ⚠️ VERIFY: it is assumed that creating a subkey requires
+         // KEY_CREATE_SUB_KEY on the parent handle (the KEY_READ one,
+         // 0x20019, does not have it) and that opening an existing one
+         // does not; no caller of the client creates under a read-only
+         // handle.
          if (!p.write) {
             throw NativeSysJni.throwNew(notFound(ERROR_ACCESS_DENIED));
          }
@@ -186,8 +189,9 @@ public final class NativeSysRegistry {
       if (v == null || (v.type != REG_SZ && v.type != REG_EXPAND_SZ)) {
          return null;
       }
-      // ERROR_MORE_DATA: strlen + 1 (en el UTF-8 modificado de
-      // GetStringUTFChars con el que se escribió) no cabe en 0x400 bytes
+      // ERROR_MORE_DATA: strlen + 1 (in the modified UTF-8 of
+      // GetStringUTFChars with which it was written) does not fit in
+      // 0x400 bytes
       return mutf8Length(v.str) + 1 > STRING_BUFFER ? null : v.str;
    }
 
@@ -223,19 +227,19 @@ public final class NativeSysRegistry {
       return true;
    }
 
-   /** close (0x004026a0): las raíces predefinidas siguen valiendo tras cerrarlas. */
+   /** close (0x004026a0): the predefined roots stay valid after being closed. */
    public static synchronized void close(int h) {
       handles.remove(h);
    }
 
-   /** Vuelve a leer el almacén desde el disco, como un proceso nuevo (para las comprobaciones). */
+   /** Re-reads the store from disk, as a new process would (for the checks). */
    static synchronized void reload() {
       loaded = false;
       handles.clear();
       load();
    }
 
-   /** Ruta del almacén. */
+   /** Path of the store. */
    static File storeFile() {
       String p = System.getProperty("openworlds.registry");
       return p != null ? new File(p) : new File(System.getProperty("user.dir"), "openworlds-registry.reg");
@@ -267,7 +271,7 @@ public final class NativeSysRegistry {
       return p == null ? null : p.key.values.get(fold(name == null ? "" : name));
    }
 
-   /** Sobrescribir un valor conserva el nombre con que se creó (solo cambian tipo y datos). */
+   /** Overwriting a value keeps the name it was created with (only type and data change). */
    private static void put(Key k, Value v) {
       Value old = k.values.get(fold(v.name));
       k.values.put(fold(v.name), old == null ? v : new Value(old.name, v.type, v.str, v.dword));
@@ -279,10 +283,11 @@ public final class NativeSysRegistry {
    }
 
    /**
-    * Componentes de una subclave. "" o null es la propia clave (RegOpenKeyEx
-    * devuelve un asa nueva a la misma). ⚠️ VERIFICAR: un componente vacío
-    * ("a\\\\b", barra inicial o final) se rechaza como clave inexistente; no
-    * está comprobado qué código da advapi32 ni lo usa ningún llamador.
+    * Components of a subkey. "" or null is the key itself (RegOpenKeyEx
+    * returns a new handle to the same one). ⚠️ VERIFY: an empty component
+    * ("a\\\\b", leading or trailing slash) is rejected as a non-existent
+    * key; it has not been checked what code advapi32 gives, and no caller
+    * uses it.
     */
    private static String[] split(String sub) {
       if (sub == null || sub.isEmpty()) {
@@ -407,7 +412,7 @@ public final class NativeSysRegistry {
       }
    }
 
-   /** Cadena entre comillas de REGEDIT4 desde pos[0] ({@code \\} y {@code \"}); deja pos[0] tras la comilla final. */
+   /** REGEDIT4 quoted string from pos[0] ({@code \\} and {@code \"}); leaves pos[0] after the closing quote. */
    private static String quoted(String s, int[] pos) {
       StringBuilder b = new StringBuilder();
       int i = pos[0] + 1;

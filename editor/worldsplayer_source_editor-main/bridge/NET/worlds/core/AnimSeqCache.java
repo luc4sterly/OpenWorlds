@@ -7,37 +7,37 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Las secuencias .seq cargadas por el motor de animacion de gamma.dll:
+ * The .seq sequences loaded by gamma.dll's animation engine:
  *
  * <ul>
- * <li>los ids de joint (FUN_004296f0, registro global que empieza en
- *     DAT_00473890 = 3; FUN_004298b0 da a los tags 1..30 los ids 3..32);</li>
- * <li>el objeto secuencia (FUN_004380f0, 0x254 bytes): los datos del .seq
- *     (client/.../bod/SeqParser, el mismo cargador FUN_00436d50) mas los
- *     pares (pista, id) ordenados por id;</li>
- * <li>la cache por nombre (FUN_0042fc50, entradas de 0x110 bytes ordenadas
- *     por clave "./avatars\\NOMBRE.seq" con cuenta de referencias) y las
- *     peticiones a Java PendingCacheDrone.downloadSeqFile (FUN_00430330 ->
- *     FUN_0044be10) con su respuesta notifySeqLoaded (0x0044bda0);</li>
- * <li>las cuentas por tipo de avatar de addtype/deltype (FUN_0042b100).</li>
+ * <li>the joint ids (FUN_004296f0, a global registry that starts at
+ *     DAT_00473890 = 3; FUN_004298b0 gives tags 1..30 the ids 3..32);</li>
+ * <li>the sequence object (FUN_004380f0, 0x254 bytes): the .seq data
+ *     (client/.../bod/SeqParser, the same loader FUN_00436d50) plus the
+ *     (track, id) pairs sorted by id;</li>
+ * <li>the cache by name (FUN_0042fc50, 0x110-byte entries sorted by key
+ *     "./avatars\\NAME.seq" with a reference count) and the requests to Java
+ *     PendingCacheDrone.downloadSeqFile (FUN_00430330 -> FUN_0044be10) with
+ *     its answer notifySeqLoaded (0x0044bda0);</li>
+ * <li>the counts per avatar type of addtype/deltype (FUN_0042b100).</li>
  * </ul>
  */
 public final class AnimSeqCache {
    private AnimSeqCache() {
    }
 
-   // ------------------------------------------------------------- ids de joint
+   // ------------------------------------------------------------- joint ids
 
-   /** Registro nombre -&gt; id (DAT_0049ff68, entradas de 0x108 bytes). */
+   /** Registry name -&gt; id (DAT_0049ff68, 0x108-byte entries). */
    private static final Map<String, Integer> jointIds = new HashMap<String, Integer>();
-   /** DAT_00473890: siguiente id libre (1 y 2 son la raiz). */
+   /** DAT_00473890: next free id (1 and 2 are the root). */
    private static int nextJointId = 3;
    /** DAT_0049f96c/f970: tag -&gt; id; [0] = DAT_004738a0 = 0. */
    private static final List<Integer> tagIds = new ArrayList<Integer>();
 
    /**
-    * Tabla de gamma.dll de nombres por tag (punteros en 0x474618 + 8*tag,
-    * cadenas desde 0x474514), la que registra FUN_004298b0.
+    * gamma.dll's table of names by tag (pointers at 0x474618 + 8*tag,
+    * strings from 0x474514), the one that FUN_004298b0 registers.
     */
    public static final String[] TAG_NAMES = {
       null, "pelvis", "back", "neck", "head", "rtsternum", "rtshoulder",
@@ -47,7 +47,7 @@ public final class AnimSeqCache {
       "tail3", "tail4", "obj", "obj2", "obj3",
    };
 
-   /** FUN_004296f0: id del nombre (strcmp exacto); si es nuevo, el siguiente. */
+   /** FUN_004296f0: id of the name (exact strcmp); if it is new, the next one. */
    static synchronized int jointId(String name) {
       String n = AnimRegistry.str(name);
       Integer id = jointIds.get(n);
@@ -58,7 +58,7 @@ public final class AnimSeqCache {
       return id;
    }
 
-   /** FUN_004298b0 (desde init): una sola vez (guarda DAT_0049fa80). */
+   /** FUN_004298b0 (from init): only once (guard: DAT_0049fa80). */
    static synchronized void registerTags() {
       if (!tagIds.isEmpty()) {
          return;
@@ -69,19 +69,19 @@ public final class AnimSeqCache {
       }
    }
 
-   /** FUN_00429880: id del tag si 0 &lt; tag &lt; cuenta; si no, 0. */
+   /** FUN_00429880: id of the tag if 0 &lt; tag &lt; count; otherwise 0. */
    static synchronized int tagId(int tag) {
       return tag > 0 && tag < tagIds.size() ? tagIds.get(tag) : 0;
    }
 
-   // ------------------------------------------------------------- secuencia
+   // ------------------------------------------------------------- sequence
 
-   /** El objeto secuencia de FUN_004380f0. */
+   /** The sequence object of FUN_004380f0. */
    public static final class Sequence {
       public final net.openworlds.bod.SeqParser.SeqData data;
-      /** Las pistas de joint en el orden del fichero (+0x220). */
+      /** The joint tracks in file order (+0x220). */
       final List<net.openworlds.bod.SeqParser.Track> tracks = new ArrayList<net.openworlds.bod.SeqParser.Track>();
-      /** Pares (pista, id) ordenados por id (FUN_00438800 / FUN_00439210). */
+      /** (track, id) pairs sorted by id (FUN_00438800 / FUN_00439210). */
       final int[][] pairs;
 
       public Sequence(net.openworlds.bod.SeqParser.SeqData data) {
@@ -99,19 +99,20 @@ public final class AnimSeqCache {
          this.pairs = p.toArray(new int[0][]);
       }
 
-      /** +0x228: duracion en keys (short). */
+      /** +0x228: duration in keys (short). */
       public short duration() {
          return (short) this.data.duration;
       }
 
       /**
-       * FUN_00438300: la pose en el key t. Si hay mas de 2 pistas extra, la
-       * traslacion de raiz son sus escalares 0..2 y, con mas de 3, la
-       * rotacion de raiz el cuaternion 3. Si hay alguna extra se anaden las
-       * entradas 1 (rotacion, x e y negadas con FUN_004290c0) y 2 (traslacion,
-       * z negada por DAT_00475fec = -1 si keepZ, a 0 si no). Luego cada pista
-       * de joint: 0x10 -&gt; tipo 6 con x e y negadas; otra -&gt; su escalar,
-       * tipo 3 si el tamano es 4 y 0 si no.
+       * FUN_00438300: the pose at key t. If there are more than 2 extra
+       * tracks, the root translation is their scalars 0..2 and, with more than
+       * 3, the root rotation is quaternion 3. If there is any extra one,
+       * entries 1 (rotation, x and y negated with FUN_004290c0) and 2
+       * (translation, z negated by DAT_00475fec = -1 if keepZ, set to 0
+       * otherwise) are added. Then each joint track: 0x10 -&gt; type 6 with x
+       * and y negated; another -&gt; its scalar, type 3 if the size is 4 and 0
+       * otherwise.
        */
       public AnimPose pose(short t, boolean keepZ) {
          List<AnimPose.Entry> out = new ArrayList<AnimPose.Entry>();
@@ -154,12 +155,12 @@ public final class AnimSeqCache {
 
    // ------------------------------------------------------------- cache
 
-   /** Como se piden los .seq a Java: PendingCacheDrone.downloadSeqFile(nombre, sync, objeto). */
+   /** How the .seq files are requested from Java: PendingCacheDrone.downloadSeqFile(name, sync, object). */
    public interface Requester {
       void request(String file, boolean sync, int handle);
    }
 
-   /** Como se lee el fichero que notifica Java (FUN_00403fc0 -&gt; Archive.readBinaryFile). */
+   /** How the file that Java notifies is read (FUN_00403fc0 -&gt; Archive.readBinaryFile). */
    public interface Reader {
       byte[] read(String path);
    }
@@ -176,16 +177,16 @@ public final class AnimSeqCache {
       }
    };
 
-   /** Entrada de la cache (0x110 bytes): clave, cuenta (+0x104) y secuencia (+0x108). */
+   /** Cache entry (0x110 bytes): key, count (+0x104) and sequence (+0x108). */
    private static final class CacheEntry {
       int refs;
       Sequence seq;
    }
 
    /**
-    * El objeto de ruta de FUN_004303a0 (0x1004 bytes): el nombre, la clave
-    * "./avatars\\NOMBRE.seq" (+0x800) y su cuenta (+0x1000). Su direccion
-    * es el int que viaja por Java; aqui un handle.
+    * The path object of FUN_004303a0 (0x1004 bytes): the name, the key
+    * "./avatars\\NAME.seq" (+0x800) and its count (+0x1000). Its address
+    * is the int that travels through Java; here, a handle.
     */
    private static final class PathObj {
       final String name;
@@ -209,7 +210,7 @@ public final class AnimSeqCache {
       return h;
    }
 
-   /** FUN_00430490 / FUN_004304a0: la cuenta del objeto de ruta; a 0 se libera. */
+   /** FUN_00430490 / FUN_004304a0: the path object's count; at 0 it is freed. */
    private static synchronized void release(int h) {
       PathObj p = handles.get(h);
       if (p != null && --p.refs == 0) {
@@ -218,10 +219,10 @@ public final class AnimSeqCache {
    }
 
    /**
-    * FUN_00430330: pide NOMBRE.seq a Java (sprintf "%s%s" DAT_00474d10 con
-    * ".seq" DAT_004754f0) pasandole el objeto de ruta, cuya cuenta sube
-    * (FUN_0044be10). Sin el cerrojo: Java puede notificar en este mismo
-    * hilo (sync) o en el del BackgroundLoader.
+    * FUN_00430330: asks Java for NAME.seq (sprintf "%s%s" DAT_00474d10
+    * with ".seq" DAT_004754f0) passing it the path object, whose count is
+    * raised (FUN_0044be10). Without holding the lock: Java may notify on
+    * this same thread (sync) or on the BackgroundLoader's.
     */
    private static void request(PathObj p, int h, boolean sync) {
       synchronized (AnimSeqCache.class) {
@@ -231,9 +232,10 @@ public final class AnimSeqCache {
    }
 
    /**
-    * FUN_0042ffd0 (desde addtype): si la clave ya esta, sube su cuenta y
-    * pide el fichero en asincrono; si no, la inserta con cuenta 1 y sin
-    * secuencia, sin pedir nada (se pedira al usarla, FUN_0042fc90).
+    * FUN_0042ffd0 (from addtype): if the key is already there, raises
+    * its count and requests the file asynchronously; if not, inserts it
+    * with count 1 and no sequence, requesting nothing (it will be
+    * requested when it is used, FUN_0042fc90).
     */
    static void addRef(String name) {
       if (name == null || name.isEmpty()) {
@@ -261,7 +263,7 @@ public final class AnimSeqCache {
       release(h);
    }
 
-   /** FUN_004301c0 (desde deltype): baja la cuenta y a 0 borra la entrada (FUN_004309d0). */
+   /** FUN_004301c0 (from deltype): lowers the count and at 0 deletes the entry (FUN_004309d0). */
    static synchronized void releaseRef(String name) {
       if (name == null || name.isEmpty()) {
          return;
@@ -274,9 +276,9 @@ public final class AnimSeqCache {
    }
 
    /**
-    * FUN_0042fc90: la secuencia de ese nombre; si la entrada existe pero aun
-    * no tiene secuencia, la pide en sincrono y la vuelve a leer. Un nombre
-    * que no registro ningun addtype da null (no se pide).
+    * FUN_0042fc90: the sequence of that name; if the entry exists but does
+    * not have a sequence yet, requests it synchronously and reads it again.
+    * A name that no addtype registered gives null (it is not requested).
     */
    static Sequence get(String name) {
       PathObj p = new PathObj(name);
@@ -302,10 +304,10 @@ public final class AnimSeqCache {
 
    /**
     * PendingCacheDrone.notifySeqLoaded (0x0044bda0 -&gt; FUN_004307f0 +
-    * FUN_004304e0): lee el fichero, lo analiza y lo guarda en la entrada
-    * de la clave del objeto de ruta si sigue en la cache; luego suelta el
-    * objeto. ⚠️ VERIFICAR: un .seq que no se puede analizar se descarta
-    * aqui; el camino de error de FUN_00436d50 no esta traducido.
+    * FUN_004304e0): reads the file, parses it and stores it in the entry
+    * of the path object's key if it is still in the cache; then releases
+    * the object. ⚠️ VERIFY: a .seq that cannot be parsed is discarded
+    * here; the error path of FUN_00436d50 is not translated.
     */
    public static void notifySeqLoaded(int handle, String path) {
       PathObj p;
@@ -338,28 +340,29 @@ public final class AnimSeqCache {
       release(handle);
    }
 
-   /** Para las comprobaciones: cuenta de la entrada o -1. */
+   /** For the checks: the entry's count or -1. */
    public static synchronized int refs(String name) {
       CacheEntry e = cache.get(new PathObj(name).key);
       return e == null ? -1 : e.refs;
    }
 
-   /** Para las comprobaciones: ¿esta cargada? */
+   /** For the checks: is it loaded? */
    public static synchronized boolean loaded(String name) {
       CacheEntry e = cache.get(new PathObj(name).key);
       return e != null && e.seq != null;
    }
 
-   // ------------------------------------------------------------- tipos
+   // ------------------------------------------------------------- types
 
-   /** DAT_0049ff28 (FUN_0042b100): cuenta por tipo de avatar. */
+   /** DAT_0049ff28 (FUN_0042b100): count per avatar type. */
    private static final Map<Integer, Integer> typeRefs = new HashMap<Integer, Integer>();
 
    /**
-    * FUN_0042b160 (DroneAnimator.addtype 0x00416430): la primera vez que se
-    * anade un tipo registra en la cache las secuencias de sus implicitos y
-    * de sus explicitos (FUN_0042bd30 y FUN_0042bd50). Las que solo salen en
-    * bloques changeimp no se registran, y por eso nunca se cargan.
+    * FUN_0042b160 (DroneAnimator.addtype 0x00416430): the first time a type
+    * is added it registers in the cache the sequences of its implicit and
+    * explicit entries (FUN_0042bd30 and FUN_0042bd50). The ones that only
+    * appear in changeimp blocks are not registered, and so they are never
+    * loaded.
     */
    public static void addType(int type) {
       int before;
@@ -383,7 +386,7 @@ public final class AnimSeqCache {
       }
    }
 
-   /** FUN_0042b280 (DroneAnimator.deltype 0x00416450): a 0 suelta sus secuencias. */
+   /** FUN_0042b280 (DroneAnimator.deltype 0x00416450): at 0 it releases its sequences. */
    public static void delType(int type) {
       synchronized (AnimSeqCache.class) {
          Integer c = typeRefs.get(type);

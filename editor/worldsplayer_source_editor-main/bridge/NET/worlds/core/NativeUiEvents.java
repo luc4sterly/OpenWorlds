@@ -26,48 +26,51 @@ import java.awt.event.MouseEvent;
 import java.util.EventListener;
 
 /**
- * ADAPTACION DE PLATAFORMA, no logica del cliente: devuelve a los
- * {@link TextComponent} del cliente de 1996 los eventos del modelo 1.0
- * ({@code handleEvent}/{@code keyDown}/{@code action}/{@code gotFocus})
- * que el JDK moderno deja de generarles. No hay nada de gamma.dll aqui.
+ * PLATFORM ADAPTATION, not client logic: gives the 1996 client's
+ * {@link TextComponent}s back the 1.0-model events
+ * ({@code handleEvent}/{@code keyDown}/{@code action}/{@code gotFocus}) that
+ * the modern JDK no longer generates for them. There is nothing of gamma.dll
+ * here.
  *
- * <p>Por que hace falta (medido con JDK 25 en macOS, 2026-09-23): el peer
- * ligero de texto ({@code sun.lwawt.LWTextComponentPeer.initializeImpl})
- * se registra a si mismo con {@code addInputMethodListener} en el
- * {@code TextField}/{@code TextArea} al crearse. Registrar cualquier listener
- * pone {@code Component.newEventsOnly = true}, y entonces
- * {@code Component.dispatchEventImpl} (bytecode 488-504) solo llama a
- * {@code processEvent} y se salta la conversion
- * {@code AWTEvent.convertToOld()} + {@code postEvent} (bytecode 543-664).
- * Resultado: Intro en la linea de chat no llega a {@code DuplexPart.action},
- * ni Intro en la contrasena, ni Esc/Ctrl+letra de
- * {@code FocusPreservingTextField.handleEvent}. Sondeo de todos los
- * componentes AWT tras {@code addNotify}: solo {@code TextField} y
- * {@code TextArea} traen un listener puesto por el peer
+ * <p>Why it is needed (measured with JDK 25 on macOS, 2026-09-23): the
+ * lightweight text peer
+ * ({@code sun.lwawt.LWTextComponentPeer.initializeImpl}) registers itself
+ * with {@code addInputMethodListener} on the
+ * {@code TextField}/{@code TextArea} when it is created. Registering any
+ * listener sets {@code Component.newEventsOnly = true}, and then
+ * {@code Component.dispatchEventImpl} (bytecode 488-504) only calls
+ * {@code processEvent} and skips the {@code AWTEvent.convertToOld()} +
+ * {@code postEvent} conversion (bytecode 543-664). Result: Enter in the chat
+ * line does not reach {@code DuplexPart.action}, nor does Enter in the
+ * password field, nor Esc/Ctrl+letter of
+ * {@code FocusPreservingTextField.handleEvent}. Probe of all AWT components
+ * after {@code addNotify}: only {@code TextField} and {@code TextArea} come
+ * with a listener installed by the peer
  * ({@code LWTextFieldPeer}/{@code LWTextAreaPeer}); {@code Button},
  * {@code Checkbox}, {@code Choice}, {@code List}, {@code Label},
- * {@code Scrollbar}, {@code Canvas} y {@code Panel} no traen ninguno.
+ * {@code Scrollbar}, {@code Canvas} and {@code Panel} come with none.
  *
- * <p>El arreglo: a esos componentes (y solo si todos sus listeners son del
- * peer, es decir, si el cliente no pidio eventos nuevos por su cuenta) se
- * les registra {@link #ADAPTER}, que hace en {@code processEvent} lo mismo
- * que el JDK haria en ese punto del despacho si {@code newEventsOnly} fuera
- * falso: convertir con las reglas de {@code AWTEvent.convertToOld}
- * (desensamblada del {@code java.desktop} de este JDK con javap), llamar a
- * {@code postEvent} y reflejar de vuelta el consumo y los cambios de
- * {@code key}/{@code modifiers}. El orden se conserva: el
- * {@code KeyboardFocusManager} (Tab) y los metodos de entrada ya han
- * actuado, y el peer ve la tecla despues (en
- * {@code DefaultKeyboardFocusManager.postProcessKeyEvent}), solo si no se
- * consumio. En un {@code TextComponent} el modelo 1.0 nunca recibe raton
- * ({@code postsOldMouseEvents()} es falso fuera de {@code Canvas}/
- * {@code Container}), asi que el adaptador cubre teclas, foco y accion.
+ * <p>The fix: those components (and only if all their listeners are the
+ * peer's, that is, if the client did not ask for new events on its own) get
+ * {@link #ADAPTER} registered, which does in {@code processEvent} the same as
+ * the JDK would do at that point of the dispatch if {@code newEventsOnly}
+ * were false: convert with the rules of {@code AWTEvent.convertToOld}
+ * (disassembled with javap from this JDK's {@code java.desktop}), call
+ * {@code postEvent} and reflect back the consumption and the changes to
+ * {@code key}/{@code modifiers}. The order is preserved: the
+ * {@code KeyboardFocusManager} (Tab) and the input methods have already
+ * acted, and the peer sees the key afterwards (in
+ * {@code DefaultKeyboardFocusManager.postProcessKeyEvent}), only if it was
+ * not consumed. On a {@code TextComponent} the 1.0 model never receives the
+ * mouse ({@code postsOldMouseEvents()} is false outside
+ * {@code Canvas}/{@code Container}), so the adapter covers keys, focus and
+ * action.
  */
 public final class NativeUiEvents {
    private NativeUiEvents() {
    }
 
-   /** Event.java: tabla actionKeyCodes (VK -> constante publica Event.HOME...). */
+   /** Event.java: actionKeyCodes table (VK -> public constant Event.HOME...). */
    private static final int[][] ACTION_KEYS = {
       {KeyEvent.VK_HOME, Event.HOME}, {KeyEvent.VK_END, Event.END},
       {KeyEvent.VK_PAGE_UP, Event.PGUP}, {KeyEvent.VK_PAGE_DOWN, Event.PGDN},
@@ -81,7 +84,7 @@ public final class NativeUiEvents {
       {KeyEvent.VK_CAPS_LOCK, Event.CAPS_LOCK}, {KeyEvent.VK_NUM_LOCK, Event.NUM_LOCK},
       {KeyEvent.VK_PAUSE, Event.PAUSE}, {KeyEvent.VK_INSERT, Event.INSERT}};
 
-   /** Event.getOldEventKey: la constante de la tecla de accion, si no el caracter. */
+   /** Event.getOldEventKey: the action key's constant, otherwise the character. */
    static int oldEventKey(KeyEvent e) {
       int code = e.getKeyCode();
       for (int[] p : ACTION_KEYS) {
@@ -92,7 +95,7 @@ public final class NativeUiEvents {
       return e.getKeyChar();
    }
 
-   /** Event.getKeyEventChar: CHAR_UNDEFINED para las teclas de accion. */
+   /** Event.getKeyEventChar: CHAR_UNDEFINED for action keys. */
    static char keyEventChar(Event e) {
       for (int[] p : ACTION_KEYS) {
          if (p[1] == e.key) {
@@ -103,9 +106,9 @@ public final class NativeUiEvents {
    }
 
    /**
-    * AWTEvent.convertToOld para KEY_PRESSED/KEY_RELEASED (401/402): KEY_ACTION
-    * (403/404) si es tecla de accion; null para Mayus/Ctrl/Alt; sin el bit
-    * BUTTON1_MASK (16) en los modificadores.
+    * AWTEvent.convertToOld for KEY_PRESSED/KEY_RELEASED (401/402): KEY_ACTION
+    * (403/404) if it is an action key; null for Shift/Ctrl/Alt; without the
+    * BUTTON1_MASK bit (16) in the modifiers.
     */
    static Event convertKey(KeyEvent ke) {
       int id = ke.getID();
@@ -122,7 +125,7 @@ public final class NativeUiEvents {
       return new Event(ke.getSource(), ke.getWhen(), id, 0, 0, oldEventKey(ke), ke.getModifiers() & ~InputEvent.BUTTON1_MASK);
    }
 
-   /** AWTEvent.convertToOld para ACTION_PERFORMED: la etiqueta si es Button/MenuItem, si no el comando. */
+   /** AWTEvent.convertToOld for ACTION_PERFORMED: the label if it is a Button/MenuItem, otherwise the command. */
    static Event convertAction(ActionEvent ae) {
       Object src = ae.getSource();
       String cmd;
@@ -137,9 +140,9 @@ public final class NativeUiEvents {
    }
 
    /**
-    * Component.dispatchEventImpl 553-664: postEvent y, si el Event 1.0 queda
-    * consumido (Event.consume solo marca los ids 401-404), consumir el
-    * nuevo; en las teclas, reflejar un cambio de key/modifiers.
+    * Component.dispatchEventImpl 553-664: postEvent and, if the 1.0 Event
+    * ends up consumed (Event.consume only marks ids 401-404), consume the
+    * new one; for keys, reflect a change of key/modifiers.
     */
    static void deliver(AWTEvent e, Event old) {
       if (old == null || !(e.getSource() instanceof Component)) {
@@ -168,7 +171,7 @@ public final class NativeUiEvents {
       ke.setModifiers(modifiers);
    }
 
-   /** El listener que sustituye a la conversion 1.0 que el JDK se salta. */
+   /** The listener that replaces the 1.0 conversion the JDK skips. */
    static final Adapter ADAPTER = new Adapter();
 
    static final class Adapter implements KeyListener, FocusListener, ActionListener {
@@ -181,7 +184,7 @@ public final class NativeUiEvents {
       }
 
       public void keyTyped(KeyEvent e) {
-         // convertToOld no tiene caso para KEY_TYPED (400): el modelo 1.0 no lo ve
+         // convertToOld has no case for KEY_TYPED (400): the 1.0 model does not see it
       }
 
       public void focusGained(FocusEvent e) {
@@ -199,7 +202,7 @@ public final class NativeUiEvents {
 
    private static Class<?> peerClass;
 
-   /** ¿Es el propio peer? (java.awt.peer no se exporta: se compara por Class.isInstance). */
+   /** Is it the peer itself? (java.awt.peer is not exported: it is compared through Class.isInstance). */
    private static boolean isPeer(Object l) {
       if (peerClass == null) {
          try {
@@ -212,9 +215,10 @@ public final class NativeUiEvents {
    }
 
    /**
-    * Cuenta los listeners: devuelve -1 si hay alguno que no es del peer ni
-    * el adaptador (el cliente pidio eventos nuevos: el JDK original tampoco
-    * le daria los 1.0), o el numero de listeners del peer.
+    * Counts the listeners: returns -1 if there is any that is neither the
+    * peer's nor the adapter (the client asked for new events: the original
+    * JDK would not give it the 1.0 ones either), or the number of the
+    * peer's listeners.
     */
    private static int peerListeners(Component c) {
       java.util.List<EventListener> all = new java.util.ArrayList<EventListener>();
@@ -255,7 +259,7 @@ public final class NativeUiEvents {
       return false;
    }
 
-   /** Pone el adaptador si el peer dejo al componente sin modelo 1.0. */
+   /** Installs the adapter if the peer left the component without the 1.0 model. */
    static synchronized boolean maybeAdapt(Component c) {
       if (!(c instanceof TextComponent) || !c.isDisplayable() || adapted(c)) {
          return false;
@@ -287,9 +291,10 @@ public final class NativeUiEvents {
    private static boolean installed;
 
    /**
-    * Engancha el adaptador a cada TextComponent en cuanto se crea su peer
-    * (HierarchyEvent DISPLAYABILITY_CHANGED, que Component.addNotify emite
-    * despues de crear el peer) y a los que ya lo tuvieran. Idempotente.
+    * Hooks the adapter onto each TextComponent as soon as its peer is
+    * created (HierarchyEvent DISPLAYABILITY_CHANGED, which
+    * Component.addNotify emits after creating the peer) and onto those
+    * that already had one. Idempotent.
     */
    public static synchronized void install() {
       if (installed) {
@@ -311,17 +316,18 @@ public final class NativeUiEvents {
    }
 
    /**
-    * Diagnostico del arnes, desactivado por defecto:
-    * {@code -Dopenworlds.typeChat=MS:texto[;MS:texto...]} hace lo que haria
-    * una persona con la linea de chat: a los MS ms de mostrarse, un clic en
-    * su centro (MOUSE_PRESSED/RELEASED/CLICKED) y, por cada caracter,
-    * KEY_PRESSED/KEY_TYPED/KEY_RELEASED, terminando con Intro. Los eventos
-    * se encolan en la cola de sistema de AWT, igual que los del peer, asi
-    * que pasan por el KeyboardFocusManager, el peer (que inserta el texto)
-    * y este adaptador; nadie llama a action() a mano. java.awt.Robot no
-    * sirve en esta maquina (sin permiso de accesibilidad: las teclas no
-    * llegan). La linea de chat se localiza por el campo estatico
-    * FocusPreservingTextField.chatLine (reflexion: solo el arnes lo lee).
+    * Harness diagnostic, disabled by default:
+    * {@code -Dopenworlds.typeChat=MS:text[;MS:text...]} does what a person
+    * would do with the chat line: MS ms after it is shown, a click on its
+    * centre (MOUSE_PRESSED/RELEASED/CLICKED) and, for each character,
+    * KEY_PRESSED/KEY_TYPED/KEY_RELEASED, ending with Enter. The events are
+    * queued on AWT's system queue, just like the peer's, so they go through
+    * the KeyboardFocusManager, the peer (which inserts the text) and this
+    * adapter; nobody calls action() by hand. java.awt.Robot is of no use on
+    * this machine (no accessibility permission: the keys do not arrive).
+    * The chat line is located through the static field
+    * FocusPreservingTextField.chatLine (reflection: only the harness reads
+    * it).
     */
    private static void typeChatScript() {
       typeScript("openworlds.typeChat", "linea de chat", false);
@@ -329,11 +335,11 @@ public final class NativeUiEvents {
    }
 
    /**
-    * El mismo arnes para el LoginWizard:
-    * {@code -Dopenworlds.typePassword=MS:texto} teclea en el primer
-    * TextField visible con eco ({@code setEchoChar}) y pulsa Intro; con
-    * texto vacio solo pulsa Intro (contrasena ya rellena por "Remember
-    * password").
+    * The same harness for the LoginWizard:
+    * {@code -Dopenworlds.typePassword=MS:text} types into the first
+    * visible TextField with echo ({@code setEchoChar}) and presses
+    * Enter; with empty text it only presses Enter (password already
+    * filled in by "Remember password").
     */
    private static void typeScript(final String prop, final String what, final boolean password) {
       final String spec = System.getProperty(prop);
@@ -378,10 +384,10 @@ public final class NativeUiEvents {
    }
 
    /**
-    * "[x]" delante del texto de typePassword: antes, un clic de raton (por la
-    * cola de sistema) en la casilla "Remember password" de la misma ventana,
-    * como haria una persona (el LoginWizard la deja desmarcada si no habia
-    * contrasena guardada: LoginWizard.java:384).
+    * "[x]" in front of typePassword's text: first, a mouse click (through the
+    * system queue) on the "Remember password" checkbox of the same window, as
+    * a person would do (the LoginWizard leaves it unchecked if there was no
+    * saved password: LoginWizard.java:384).
     */
    private static void clickCheckbox(Component field) throws InterruptedException {
       Window w = javax.swing.SwingUtilities.getWindowAncestor(field);
@@ -403,7 +409,7 @@ public final class NativeUiEvents {
       System.err.println("[TYPECHAT] clic en la casilla \"" + box.getLabel() + "\": marcada=" + box.getState());
    }
 
-   /** Clic en el ForwardButton ("Sign In") de la ventana del campo. */
+   /** Click on the ForwardButton ("Sign In") of the field's window. */
    private static void clickForward(Component field) throws InterruptedException {
       Window w = javax.swing.SwingUtilities.getWindowAncestor(field);
       Component b = w == null ? null : findClass(w, "NET.worlds.console.ForwardButton");
@@ -488,11 +494,11 @@ public final class NativeUiEvents {
    }
 
    /**
-    * Una JVM lanzada desde un terminal no es la aplicacion activa de macOS y
-    * entonces no hay dueno del foco (el KeyboardFocusManager tira las
-    * teclas). Una persona la activaria con el raton; el arnes lo pide con
-    * Desktop.requestForeground (API de Java 9: por reflexion, el puente se
-    * compila con --release 8).
+    * A JVM launched from a terminal is not the active macOS application and
+    * then there is no focus owner (the KeyboardFocusManager throws the keys
+    * away). A person would activate it with the mouse; the harness asks for
+    * it with Desktop.requestForeground (a Java 9 API: through reflection,
+    * the bridge is compiled with --release 8).
     */
    private static void requestForeground(Component c) {
       try {
@@ -500,7 +506,7 @@ public final class NativeUiEvents {
          Object desk = d.getMethod("getDesktop").invoke(null);
          d.getMethod("requestForeground", boolean.class).invoke(desk, Boolean.TRUE);
       } catch (Throwable e) {
-         // sin la API: se queda como este
+         // without the API: it stays as it is
       }
       java.awt.Window w = javax.swing.SwingUtilities.getWindowAncestor(c);
       if (w != null) {
@@ -521,8 +527,9 @@ public final class NativeUiEvents {
       Thread.sleep(300);
       Component owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
       if (owner != line) {
-         // el clic de una persona tambien pide el foco al ventanal: si la
-         // ventana no es la activa del sistema, el foco queda pendiente
+         // a person's click also requests focus from the enclosing
+         // window: if the window is not the system's active one, the
+         // focus stays pending
          line.requestFocus();
          Thread.sleep(300);
          owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();

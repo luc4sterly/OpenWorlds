@@ -43,18 +43,17 @@ public final class NativeWindows {
    public static volatile boolean microsoftVMHacks;
 
    /**
-    * Diagnostico (opt-in): -Dopenworlds.dumpWindow=DIR escribe, en los
-    * segundos 12/20/30/40, el arbol de componentes AWT de cada ventana
-    * (clase, nombre, texto y limites) y ademas intenta un PNG con
-    * Component.printAll.
+    * Diagnostic (opt-in): -Dopenworlds.dumpWindow=DIR writes, at seconds
+    * 12/20/30/40, the AWT component tree of each window (class, name, text
+    * and bounds) and also tries a PNG with Component.printAll.
     *
-    * ⚠️ El PNG sale NEGRO en macOS y es esperable: la UI del cliente son
-    * componentes AWT PESADOS (Panel, Canvas, Button), que pinta el peer
-    * nativo, no Java, y printAll no los captura. El arbol de texto si es
-    * fiable y sirve para comprobar la maquetacion (tamanos, solapes,
-    * componentes de tamano cero). El render 3D se ve con
-    * -Dopenworlds.dumpFrames; una captura real de la ventana solo la puede
-    * hacer el sistema operativo.
+    * ⚠️ The PNG comes out BLACK on macOS and that is expected: the
+    * client's UI is made of HEAVYWEIGHT AWT components (Panel, Canvas,
+    * Button), which the native peer paints, not Java, and printAll does
+    * not capture them. The text tree is reliable and serves to check the
+    * layout (sizes, overlaps, zero-size components). The 3D render can be
+    * seen with -Dopenworlds.dumpFrames; a real capture of the window can
+    * only be made by the operating system.
     */
    private static final int[] DUMP_WINDOW_SECONDS = {12, 20, 30, 40};
 
@@ -167,7 +166,7 @@ public final class NativeWindows {
 
    private static int findCalls = 0;
 
-   /** Diagnostico del arnes: que ventanas AWT existen de verdad cuando el cliente busca una. */
+   /** Harness diagnostic: which AWT windows really exist when the client looks for one. */
    private static void dumpWindows(String wanted) {
       findCalls++;
       if (findCalls > 5 && findCalls % 5000 != 0) {

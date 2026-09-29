@@ -44,7 +44,7 @@ public final class NativeShapes {
     * itself is scanned (an Include'd file is not).
     *
     * The CRT text mode turns CR LF into LF before gamma sees the line.
-    * ⚠️ VERIFICAR, not modeled because no corpus script has them: lines of
+    * ⚠️ VERIFY, not modeled because no corpus script has them: lines of
     * 0x3ff bytes or more (what the MSVC getline does at the limit) and a
     * Ctrl-Z inside the file (end of file in CRT text mode).
     */
@@ -386,7 +386,7 @@ public final class NativeShapes {
     * there is none and a file of that name exists in the shape path
     * (FUN_10021270), RwGetNamedTexture;</li>
     * <li>raster != 0: the dictionary, or else a new texture over that RALT
-    * raster. ⚠️ sin muestra real: no .rwg of the corpus has rasters and RAST
+    * raster. ⚠️ no real sample: no .rwg of the corpus has rasters and RAST
     * is not converted here, so that case gives 0 (the CLUM fails).</li>
     * </ul>
     */

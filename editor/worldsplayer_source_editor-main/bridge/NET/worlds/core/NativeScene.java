@@ -636,7 +636,7 @@ public final class NativeScene {
    /**
     * gamma.dll FUN_00419000: RwCreateMaterial (RWL21 1001b340 defaults) then
     * RwSetMaterialTextureModes(DAT_00489574): 2, or 6 when DAT_00489578 is
-    * set (FUN_0041a150). ⚠️ VERIFICAR which applies at run time; 2 here.
+    * set (FUN_0041a150). ⚠️ VERIFY which applies at run time; 2 here.
     */
    public static int createMaterial() {
       Material m = new Material();

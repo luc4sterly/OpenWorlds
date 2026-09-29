@@ -10,19 +10,19 @@ import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.SourceDataLine;
 
 /**
- * Sonido de gamma.dll: {@code WavSoundPlayer} (PlaySound/waveOutSetVolume),
- * {@code MCISoundPlayer} (MCI "waveaudio"/"sequencer") y
- * {@code ASFSoundPlayer} (lanza {@code bin\playfile.exe}). La logica propia
- * del C decompilado (estado global, flags, comparaciones, codigos de modo)
- * se traduce tal cual; lo que en Windows hacia winmm.dll (sacar muestras por
- * la tarjeta, secuenciar MIDI) va por {@code javax.sound.sampled} y
+ * Sound of gamma.dll: {@code WavSoundPlayer} (PlaySound/waveOutSetVolume),
+ * {@code MCISoundPlayer} (MCI "waveaudio"/"sequencer") and
+ * {@code ASFSoundPlayer} (launches {@code bin\playfile.exe}). The decompiled
+ * C's own logic (global state, flags, comparisons, mode codes) is translated
+ * as it is; what winmm.dll did on Windows (sending samples to the sound
+ * card, sequencing MIDI) goes through {@code javax.sound.sampled} and
  * {@code javax.sound.midi}.
  *
- * <p>{@code -Dopenworlds.mute=1}: no se abre ninguna linea de audio ni
- * sintetizador, pero cada sonido "suena" igual en el tiempo (el WAV se
- * consume al ritmo de su frecuencia de muestreo y el MIDI corre en un
- * secuenciador sin receptor), asi que los estados, las duraciones y los
- * bucles del cliente son los mismos que con sonido.
+ * <p>{@code -Dopenworlds.mute=1}: no audio line or synthesizer is opened,
+ * but every sound still "plays" for the same length of time (the WAV is
+ * consumed at the pace of its sampling rate and the MIDI runs in a sequencer
+ * with no receiver), so the client's states, durations and loops are the
+ * same as with sound.
  */
 public final class NativeMediaSound {
    private NativeMediaSound() {
@@ -31,11 +31,11 @@ public final class NativeMediaSound {
    public static final boolean MUTE = "1".equals(System.getProperty("openworlds.mute"))
       || "true".equalsIgnoreCase(System.getProperty("openworlds.mute"));
 
-   // Constructores estaticos de gamma.dll que Ghidra no listo como funcion:
+   // gamma.dll static constructors that Ghidra did not list as a function:
    //   0x00420260: DAT_0049d108 = GetPrivateProfileInt("Gamma","disableWav",0,worlds.ini) != 0
    //   0x00420030: DAT_0049cfe0 = ... "disableMIDI" ... != 0 ; DAT_0049cfe4 = ... "disableASF" ... != 0
-   // (FUN_004010c0 = GetPrivateProfileIntA con la seccion "Gamma" de worlds.ini,
-   // lo mismo que lee IniFile.gamma() del Java).
+   // (FUN_004010c0 = GetPrivateProfileIntA with the "Gamma" section of
+   // worlds.ini, the same thing that IniFile.gamma() of the Java reads).
    static final boolean DISABLE_WAV = iniFlag("disableWav");
    static final boolean DISABLE_MIDI = iniFlag("disableMIDI");
    static final boolean DISABLE_ASF = iniFlag("disableASF");
@@ -53,20 +53,20 @@ public final class NativeMediaSound {
    }
 
    // ------------------------------------------------------------------
-   // Volumen: WavSoundPlayer.nativeVolume (0x00420120)
+   // Volume: WavSoundPlayer.nativeVolume (0x00420120)
    //
    //    local_c = ROUND(65535.0f * right) ; hi = local_c * 0x10000
    //    local_c = ROUND(65535.0f * left)
    //    waveOutSetVolume(0, hi + local_c)
    //
-   // _DAT_004711f8 = 65535.0f (bytes 00 ff 7f 47). ROUND es un fistp de x87 en
-   // el modo por defecto (al par mas cercano), a 64 bits y truncado a 32. El
-   // producto float*float es exacto en la precision extendida de la FPU, asi
-   // que Math.rint sobre el double reproduce el redondeo. La suma se hace en
-   // int (desborda igual que en el binario si right > 1 o es negativo).
-   // waveOutSetVolume: palabra baja = canal izquierdo, alta = derecho,
-   // 0xFFFF = volumen maximo. Es el volumen del DISPOSITIVO 0, global para
-   // todo lo que suene por waveOut, no el de un sonido concreto.
+   // _DAT_004711f8 = 65535.0f (bytes 00 ff 7f 47). ROUND is an x87 fistp in
+   // the default mode (round to nearest even), to 64 bits and truncated to
+   // 32. The float*float product is exact in the FPU's extended precision, so
+   // Math.rint on the double reproduces the rounding. The sum is done in
+   // int (it overflows just as in the binary if right > 1 or is negative).
+   // waveOutSetVolume: low word = left channel, high word = right,
+   // 0xFFFF = maximum volume. It is the volume of DEVICE 0, global for
+   // everything that plays through waveOut, not that of one particular sound.
    // ------------------------------------------------------------------
    public static int waveOutVolumeDword(float left, float right) {
       int hi = (int)(long)Math.rint((double)65535.0F * (double)right) * 0x10000;
@@ -74,15 +74,16 @@ public final class NativeMediaSound {
       return hi + lo;
    }
 
-   /** Ganancia lineal del canal (0 = izquierdo, 1 = derecho) que aplica este puente. */
+   /** Linear gain of the channel (0 = left, 1 = right) that this bridge applies. */
    public static double channelGain(int dword, int channel) {
       int w = channel == 0 ? dword & 0xFFFF : dword >>> 16;
       return w / 65535.0;
    }
 
    /**
-    * Abre un WAV como lo haria Windows: PCM/u-law/a-law por javax.sound; IMA
-    * ADPCM (0x11), que Windows decodificaba por ACM, con {@link ImaAdpcmWav}.
+    * Opens a WAV the way Windows would: PCM/u-law/a-law through javax.sound;
+    * IMA ADPCM (0x11), which Windows decoded through ACM, with
+    * {@link ImaAdpcmWav}.
     */
    static AudioInputStream openAudio(File f) throws Exception {
       if (ImaAdpcmWav.isImaAdpcm(f)) {
@@ -92,7 +93,7 @@ public final class NativeMediaSound {
       return AudioSystem.getAudioInputStream(f);
    }
 
-   /** Volumen actual del dispositivo waveOut 0 (arranca al maximo, como Windows). */
+   /** Current volume of the waveOut device 0 (starts at maximum, as on Windows). */
    private static volatile int waveOutVolume = 0xFFFFFFFF;
 
    public static void wavNativeVolume(float left, float right) {
@@ -106,13 +107,14 @@ public final class NativeMediaSound {
    }
 
    // ------------------------------------------------------------------
-   // PlaySound (winmm): un solo sonido por proceso; cada llamada nueva corta
-   // el que este sonando (incluido uno sincrono de otro hilo, que vuelve).
+   // PlaySound (winmm): a single sound per process; each new call cuts off
+   // the one that is playing (including a synchronous one from another
+   // thread, which returns).
    // ------------------------------------------------------------------
    private static final Object PLAY_LOCK = new Object();
    private static Playback current;
 
-   /** Una reproduccion de PlaySound; tambien la usa la parte "waveaudio" de MCI. */
+   /** One PlaySound playback; the "waveaudio" part of MCI uses it too. */
    public static final class Playback {
       final String name;
       final File file;
@@ -138,7 +140,7 @@ public final class NativeMediaSound {
          return this.finished;
       }
 
-      /** Comprueba que el fichero se puede decodificar y lee su duracion. */
+      /** Checks that the file can be decoded and reads its duration. */
       boolean probe() {
          try {
             AudioInputStream in = openAudio(this.file);
@@ -159,7 +161,7 @@ public final class NativeMediaSound {
          return this.rate > 0.0F && this.frames >= 0L ? this.frames / (double)this.rate : -1.0;
       }
 
-      /** Reproduce hasta el final (o en bucle) o hasta stop(). */
+      /** Plays to the end (or in a loop) or until stop(). */
       void run() {
          SourceDataLine line = null;
 
@@ -247,10 +249,11 @@ public final class NativeMediaSound {
    }
 
    /**
-    * PlaySoundA(name, NULL, flags) con los flags que usa gamma.dll:
-    * SND_FILENAME|SND_NODEFAULT (0x20002) y, si async, SND_ASYNC|SND_LOOP (9).
-    * Devuelve false si el fichero no existe o no se decodifica (SND_NODEFAULT:
-    * sin sonido por defecto). Sincrono: vuelve al acabar o al ser cortado.
+    * PlaySoundA(name, NULL, flags) with the flags gamma.dll uses:
+    * SND_FILENAME|SND_NODEFAULT (0x20002) and, if async, SND_ASYNC|SND_LOOP
+    * (9). Returns false if the file does not exist or cannot be decoded
+    * (SND_NODEFAULT: no default sound). Synchronous: returns when it finishes
+    * or is cut off.
     */
    public static boolean playSound(String name, boolean asyncLoop) {
       File file = NativeMock.localFile(name == null ? "" : name);
@@ -281,7 +284,7 @@ public final class NativeMediaSound {
       return true;
    }
 
-   /** PlaySoundA(name, NULL, SND_PURGE): para las instancias de ese sonido. */
+   /** PlaySoundA(name, NULL, SND_PURGE): stops the instances of that sound. */
    public static void purgeSound(String name) {
       synchronized (PLAY_LOCK) {
          if (current != null && current.name != null && name != null && asciiEqualsIgnoreCase(current.name, name)) {
@@ -291,23 +294,24 @@ public final class NativeMediaSound {
       }
    }
 
-   /** Para pruebas: si hay un PlaySound activo sin terminar. */
+   /** For tests: whether there is an active PlaySound that has not finished. */
    public static boolean playSoundActive() {
       synchronized (PLAY_LOCK) {
          return current != null && !current.finished && !current.stopped;
       }
    }
 
-   // WavSoundPlayer.nativePlay (0x00420190): lee el campo playingSoundFile
-   // (resuelto en nativeInit 0x004200b0) y, si no esta disableWav,
-   // PlaySoundA(fichero, NULL, (loop ? 9 : 0) | 0x20002).
+   // WavSoundPlayer.nativePlay (0x00420190): reads the field
+   // playingSoundFile (resolved in nativeInit 0x004200b0) and, if
+   // disableWav is not set, PlaySoundA(file, NULL, (loop ? 9 : 0) |
+   // 0x20002).
    public static void wavNativePlay(String playingSoundFile, boolean loop) {
       if (!DISABLE_WAV) {
          playSound(playingSoundFile, loop);
       }
    }
 
-   // WavSoundPlayer.nativeStop (0x00420200): PlaySoundA(fichero, NULL, 0x40).
+   // WavSoundPlayer.nativeStop (0x00420200): PlaySoundA(file, NULL, 0x40).
    public static void wavNativeStop(String playingSoundFile) {
       if (!DISABLE_WAV) {
          purgeSound(playingSoundFile);
@@ -318,7 +322,7 @@ public final class NativeMediaSound {
       return s < 0.0 ? "duracion desconocida" : String.format(java.util.Locale.ROOT, "%.2f s", s);
    }
 
-   /** FUN_004508c0: comparacion con la tabla DAT_00482818 (solo A-Z -> a-z). */
+   /** FUN_004508c0: comparison with the table DAT_00482818 (A-Z -> a-z only). */
    public static boolean asciiEqualsIgnoreCase(String a, String b) {
       if (a.length() != b.length()) {
          return false;
@@ -344,11 +348,11 @@ public final class NativeMediaSound {
    }
 
    // ------------------------------------------------------------------
-   // MCI (MCISoundPlayer 0x0041f780..0x0041fe40). Estado global de gamma.dll:
-   //   DAT_0049cfe8  referencia global al MCISoundPlayer dueno del dispositivo
-   //   DAT_0049cfec  MCIDEVICEID abierto (0xffffffff si ninguno)
-   //   DAT_0049cff0  char[256] nombre del fichero abierto
-   //   DAT_0049d0f0  1 si el nombre acaba en ".mid" (sequencer), 0 waveaudio
+   // MCI (MCISoundPlayer 0x0041f780..0x0041fe40). Global state of gamma.dll:
+   //   DAT_0049cfe8  global reference to the MCISoundPlayer that owns the device
+   //   DAT_0049cfec  open MCIDEVICEID (0xffffffff if none)
+   //   DAT_0049cff0  char[256] name of the open file
+   //   DAT_0049d0f0  1 if the name ends in ".mid" (sequencer), 0 waveaudio
    // ------------------------------------------------------------------
    static final int MCI_MODE_NOT_READY = 0x20c;
    static final int MCI_MODE_STOP = 0x20d;
@@ -360,7 +364,7 @@ public final class NativeMediaSound {
    private static String mciOpenName = "";
    private static boolean mciIsMidi;
 
-   /** Un dispositivo MCI abierto: "waveaudio" (javax.sound.sampled) o "sequencer" (javax.sound.midi). */
+   /** An open MCI device: "waveaudio" (javax.sound.sampled) or "sequencer" (javax.sound.midi). */
    interface MciDevice {
       void play() throws Exception;
 
@@ -407,7 +411,7 @@ public final class NativeMediaSound {
       SeqDevice(File file) throws Exception {
          this.file = file;
          Sequence s = MidiSystem.getSequence(file);
-         // Mute: secuenciador sin receptor (mismo reloj, sin sintetizador).
+         // Mute: sequencer with no receiver (same clock, no synthesizer).
          this.seq = MidiSystem.getSequencer(!MUTE);
          this.seq.open();
          this.seq.setSequence(s);
@@ -437,7 +441,7 @@ public final class NativeMediaSound {
       }
    }
 
-   /** MCI_OPEN con MCI_OPEN_TYPE|MCI_OPEN_ELEMENT (0x2200); null y mensaje si falla. */
+   /** MCI_OPEN with MCI_OPEN_TYPE|MCI_OPEN_ELEMENT (0x2200); null and a message if it fails. */
    static MciDevice mciOpen(String type, String element, String[] error) {
       File f = NativeMock.localFile(element);
       if (!f.isFile()) {
@@ -463,7 +467,7 @@ public final class NativeMediaSound {
       }
    }
 
-   /** Impresion de error de gamma.dll: "mci Error: " + texto + "\n" en el ostream global 0x49eda8. */
+   /** gamma.dll's error print: "mci Error: " + text + "\n" on the global ostream 0x49eda8. */
    static void mciError(String text) {
       System.out.println("mci Error: " + text);
    }
@@ -483,7 +487,7 @@ public final class NativeMediaSound {
       mciIsMidi = name.length() > 3 && asciiEqualsIgnoreCase(name.substring(name.length() - 4), ".mid");
       if (mciOwner != null) {
          if (asciiEqualsIgnoreCase(name, mciOpenName)) {
-            // mismo fichero: solo cambia de dueno, no se reinicia
+            // same file: it only changes owner, it is not restarted
             mciOwner = self;
             return true;
          }
@@ -526,8 +530,9 @@ public final class NativeMediaSound {
       }
    }
 
-   // MCISoundPlayer.nativeIsFinished (0x0041fe40): MCI_STATUS_MODE; si no es
-   // STOP (0x20d) ni OPEN (0x212) sigue sonando; si no, cierra y da true.
+   // MCISoundPlayer.nativeIsFinished (0x0041fe40): MCI_STATUS_MODE; if it is
+   // neither STOP (0x20d) nor OPEN (0x212) it is still playing; otherwise it
+   // closes and returns true.
    public static synchronized boolean mciIsFinished(Object self) {
       if (self != mciOwner || mciOwner == null) {
          return true;
@@ -557,12 +562,13 @@ public final class NativeMediaSound {
    }
 
    // ------------------------------------------------------------------
-   // ASFSoundPlayer.nativePlay (0x0041f670): si disableASF devuelve true sin
-   // hacer nada; si no, CreateProcess("<GetFullPathName(bin\playfile.exe)> " +
-   // fichero), espera a que acabe y devuelve true; false si CreateProcess
-   // falla. bin\playfile.exe no esta en la instalacion de 2004
-   // (assets/WorldsPlayer/bin) y un .exe de Windows no se puede lanzar aqui:
-   // es el camino de CreateProcess fallido. ASFThread lo trata poniendo
+   // ASFSoundPlayer.nativePlay (0x0041f670): if disableASF it returns true
+   // without doing anything; otherwise,
+   // CreateProcess("<GetFullPathName(bin\playfile.exe)> " + file), waits for
+   // it to finish and returns true; false if CreateProcess fails.
+   // bin\playfile.exe is not in the 2004 installation
+   // (assets/WorldsPlayer/bin) and a Windows .exe cannot be launched here: it
+   // is the failed-CreateProcess path. ASFThread handles it by setting
    // player.running = 3 (IS_ERROR).
    // ------------------------------------------------------------------
    public static boolean asfNativePlay(String name) {

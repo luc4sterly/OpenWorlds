@@ -1,19 +1,19 @@
 package NET.worlds.core;
 
 /**
- * El grafo de reproduccion del motor de animacion de gamma.dll: los
- * "drivers" que recorren una secuencia y los nodos que los envuelven,
- * mezclan y encadenan. Todos se alcanzan solo por vtable (funciones
- * recuperadas en decompiled-native/gamma_dll, commit 130b4b4).
+ * The playback graph of gamma.dll's animation engine: the "drivers" that
+ * walk a sequence and the nodes that wrap, blend and chain them. All of
+ * them are reached only through the vtable (functions recovered in
+ * decompiled-native/gamma_dll, commit 130b4b4).
  *
  * <pre>
- * driver  [1] duracion  [2] avanzar(cantidad, dt) -&gt; driver o null  [3] pose
- * nodo    [1] avanzar(cantidad, dt) -&gt; nodo o null                 [2] pose
+ * driver  [1] duration  [2] advance(amount, dt) -&gt; driver or null  [3] pose
+ * node    [1] advance(amount, dt) -&gt; node or null                  [2] pose
  * </pre>
  *
- * "cantidad" es la distancia recorrida por el avatar escalada (update) y
- * dt el tiempo real transcurrido; los drivers de tiempo usan dt y los de
- * distancia usan la cantidad.
+ * "amount" is the scaled distance walked by the avatar (update) and dt the
+ * real time elapsed; the time drivers use dt and the distance drivers use
+ * the amount.
  */
 public final class AnimGraph {
    private AnimGraph() {
@@ -35,9 +35,9 @@ public final class AnimGraph {
    }
 
    /**
-    * Driver vacio (vtable 0x47700c, FUN_0043b320): dura {10000 s, 0}
-    * (FUN_0043b360), avanzar lo deja igual (FUN_0043b380) y su pose es una
-    * pose vacia (FUN_0043b3c0 -&gt; FUN_0043bc20).
+    * Empty driver (vtable 0x47700c, FUN_0043b320): lasts {10000 s, 0}
+    * (FUN_0043b360), advancing leaves it as it is (FUN_0043b380) and its
+    * pose is an empty pose (FUN_0043b3c0 -&gt; FUN_0043bc20).
     */
    public static final class EmptyDriver extends Driver {
       public AnimTime duration() {
@@ -53,14 +53,14 @@ public final class AnimGraph {
       }
    }
 
-   /** FUN_0043b5c0 / FUN_0043b590 / FUN_0043b920: (float) duracion * 1/30 pasado a {s, ms}. */
+   /** FUN_0043b5c0 / FUN_0043b590 / FUN_0043b920: (float) duration * 1/30 converted to {s, ms}. */
    static AnimTime durationOf(AnimSeqCache.Sequence seq) {
       return AnimTime.ofSeconds((float) ((double) seq.duration() * (double) INV_KEYS_PER_SECOND));
    }
 
    /**
-    * Driver por tiempo (vtable 0x476fdc, FUN_0043b840): +0x10 modo, +0x14
-    * key actual (short), +0x18 tiempo acumulado {s, ms}.
+    * Time driver (vtable 0x476fdc, FUN_0043b840): +0x10 mode, +0x14
+    * current key (short), +0x18 accumulated time {s, ms}.
     */
    public static final class TimeDriver extends Driver {
       final AnimSeqCache.Sequence seq;
@@ -78,10 +78,10 @@ public final class AnimGraph {
       }
 
       /**
-       * FUN_0043b950: tiempo += dt; key = (short) trunc(segundos * 30) (el
-       * fistp va con la palabra de control en truncar, "orb $0xc"). Si
-       * key &gt; duracion: modo 2 -&gt; key % (duracion + 1) (bucle); modo 1
-       * -&gt; duracion (se queda en el ultimo key); otro -&gt; termina (null).
+       * FUN_0043b950: time += dt; key = (short) trunc(seconds * 30) (the fistp
+       * runs with the control word set to truncate, "orb $0xc"). If key &gt;
+       * duration: mode 2 -&gt; key % (duration + 1) (loop); mode 1 -&gt;
+       * duration (stays at the last key); other -&gt; ends (null).
        */
       public Driver advance(float amount, AnimTime dt) {
          this.elapsed = this.elapsed.plus(dt);
@@ -100,16 +100,16 @@ public final class AnimGraph {
          return this;
       }
 
-      /** FUN_0043baa0: pose con la z de la traslacion de raiz (flag 1). */
+      /** FUN_0043baa0: pose with the z of the root translation (flag 1). */
       public AnimPose pose() {
          return this.seq.pose(this.key, true);
       }
    }
 
    /**
-    * Driver por distancia (vtable 0x476ff4, FUN_0043b490): +0x18 cantidad
-    * acumulada (float, "segundos"), +0x1c duracion en segundos (float) =
-    * (float) duracion * 1/30.
+    * Distance driver (vtable 0x476ff4, FUN_0043b490): +0x18 accumulated
+    * amount (float, "seconds"), +0x1c duration in seconds (float) =
+    * (float) duration * 1/30.
     */
    public static final class DistanceDriver extends Driver {
       final AnimSeqCache.Sequence seq;
@@ -129,11 +129,11 @@ public final class AnimGraph {
       }
 
       /**
-       * FUN_0043b5f0: acc += cantidad (float). Si acc &lt; 0: acc =
-       * (float) fmod(acc, |dur|) + dur (fprem). Si acc &gt; dur: modo 2 -&gt;
-       * 0 si dur == 0 y si no fmod(acc, |dur|); modo 1 -&gt; dur; otro -&gt;
-       * termina. key = (short) trunc(acc * 30.0f). Andar hacia atras (cantidad
-       * negativa) recorre la secuencia al reves.
+       * FUN_0043b5f0: acc += amount (float). If acc &lt; 0: acc = (float)
+       * fmod(acc, |dur|) + dur (fprem). If acc &gt; dur: mode 2 -&gt; 0 if dur
+       * == 0 and otherwise fmod(acc, |dur|); mode 1 -&gt; dur; other -&gt;
+       * ends. key = (short) trunc(acc * 30.0f). Walking backwards (negative
+       * amount) runs the sequence in reverse.
        */
       public Driver advance(float amount, AnimTime dt) {
          this.acc = this.acc + amount;
@@ -155,17 +155,17 @@ public final class AnimGraph {
                this.acc = this.dur;
             }
          }
-         // flds acc; fmuls 30.0f: el producto se queda en el registro x87.
+         // flds acc; fmuls 30.0f: the product stays in the x87 register.
          this.key = (short) AnimTime.fistp(truncate((double) this.acc * (double) KEYS_PER_SECOND));
          return this;
       }
 
-      /** Para las comprobaciones: key actual (+0x14). */
+      /** For the checks: current key (+0x14). */
       public short key() {
          return this.key;
       }
 
-      /** FUN_0043b770: pose sin la z de la traslacion de raiz (flag 0). */
+      /** FUN_0043b770: pose without the z of the root translation (flag 0). */
       public AnimPose pose() {
          return this.seq.pose(this.key, false);
       }
@@ -176,9 +176,9 @@ public final class AnimGraph {
    }
 
    /**
-    * FUN_00437d00: sin nombre o sin secuencia en la cache (FUN_0042fc90) -&gt;
-    * driver vacio; si no, por distancia si arg1 == 0 (FUN_0043b3e0) y por
-    * tiempo si no (FUN_0043b790), con modo arg2.
+    * FUN_00437d00: with no name or no sequence in the cache (FUN_0042fc90)
+    * -&gt; empty driver; otherwise, distance driver if arg1 == 0
+    * (FUN_0043b3e0) and time driver if not (FUN_0043b790), with mode arg2.
     */
    static Driver driver(String name, int arg1, int arg2) {
       if (name == null || name.isEmpty()) {
@@ -191,7 +191,7 @@ public final class AnimGraph {
       return arg1 == 0 ? new DistanceDriver(seq, arg2) : new TimeDriver(seq, arg2);
    }
 
-   // ------------------------------------------------------------- nodos
+   // ------------------------------------------------------------- nodes
 
    public abstract static class Node {
       public abstract Node advance(float amount, AnimTime dt);
@@ -199,7 +199,7 @@ public final class AnimGraph {
       public abstract AnimPose pose();
    }
 
-   /** "pipe" (vtable 0x476e78, FUN_00439990 / FUN_00439a10): un driver en +0xc. */
+   /** "pipe" (vtable 0x476e78, FUN_00439990 / FUN_00439a10): a driver at +0xc. */
    public static final class Pipe extends Node {
       Driver driver;
 
@@ -207,17 +207,17 @@ public final class AnimGraph {
          this.driver = d;
       }
 
-      /** Para las comprobaciones: el driver (+0xc). */
+      /** For the checks: the driver (+0xc). */
       public Driver driver() {
          return this.driver;
       }
 
-      /** FUN_00439880: duracion del driver o {0, 0}. */
+      /** FUN_00439880: duration of the driver or {0, 0}. */
       public AnimTime duration() {
          return this.driver != null ? this.driver.duration() : AnimTime.ZERO;
       }
 
-      /** FUN_00439710: si el driver termina, el pipe tambien (null). */
+      /** FUN_00439710: if the driver ends, the pipe does too (null). */
       public Node advance(float amount, AnimTime dt) {
          if (this.driver != null) {
             this.driver = this.driver.advance(amount, dt);
@@ -225,26 +225,26 @@ public final class AnimGraph {
          return this.driver != null ? this : null;
       }
 
-      /** FUN_004397e0: sin driver, pose nula. */
+      /** FUN_004397e0: with no driver, null pose. */
       public AnimPose pose() {
          return this.driver == null ? null : this.driver.pose();
       }
    }
 
-   /** FUN_004398c0: pipe con el driver vacio (FUN_00437c60). */
+   /** FUN_004398c0: pipe with the empty driver (FUN_00437c60). */
    static Pipe emptyPipe() {
       return new Pipe(new EmptyDriver());
    }
 
-   /** FUN_00439920: pipe con el driver de esa secuencia. */
+   /** FUN_00439920: pipe with the driver of that sequence. */
    static Pipe pipe(String name, int arg1, int arg2) {
       return new Pipe(driver(name, arg1, arg2));
    }
 
    /**
-    * "placeholder" (vtable 0x476e60, FUN_00439db0; la variante 0x476e48 de
-    * FUN_00439ed0 tiene los mismos metodos): un nodo en +0xc que se puede
-    * sacar (FUN_00439c60) y poner (FUN_00439c40). Nunca termina.
+    * "placeholder" (vtable 0x476e60, FUN_00439db0; the variant 0x476e48 of
+    * FUN_00439ed0 has the same methods): a node at +0xc that can be taken
+    * out (FUN_00439c60) and put in (FUN_00439c40). It never ends.
     */
    public static final class Placeholder extends Node {
       Node inner;
@@ -253,7 +253,7 @@ public final class AnimGraph {
          this.inner = inner;
       }
 
-      /** FUN_00439c60: devuelve el nodo y deja el hueco vacio. */
+      /** FUN_00439c60: returns the node and leaves the slot empty. */
       Node take() {
          Node n = this.inner;
          this.inner = null;
@@ -280,8 +280,8 @@ public final class AnimGraph {
    }
 
    /**
-    * Base de dos hijos (vtable 0x476e30, FUN_0043a150): A en +0xc, B en
-    * +0x14, tiempo {s, ms} en +0x18 y duracion en +0x20.
+    * Base of two children (vtable 0x476e30, FUN_0043a150): A at +0xc, B
+    * at +0x14, time {s, ms} at +0x18 and duration at +0x20.
     */
    abstract static class Transition extends Node {
       Node a;
@@ -296,8 +296,8 @@ public final class AnimGraph {
       }
 
       /**
-       * FUN_00439fb0: avanza los dos; si A termina queda B, si B termina
-       * queda A.
+       * FUN_00439fb0: advances both; if A ends B remains, if B ends A
+       * remains.
        */
       Node advanceBoth(float amount, AnimTime dt) {
          if (this.a != null) {
@@ -315,7 +315,7 @@ public final class AnimGraph {
          return this;
       }
 
-      /** tiempo / duracion en segundos, sin recortar. */
+      /** time / duration in seconds, not clamped. */
       double ratio() {
          return this.elapsed.seconds() / this.duration.seconds();
       }
@@ -325,9 +325,9 @@ public final class AnimGraph {
       abstract AnimPose blend(AnimPose pa, AnimPose pb, float r);
 
       /**
-       * FUN_0043a290 / FUN_0043a880 (misma forma): mezcla la pose de A (o
-       * una vacia) con la de B (o una vacia) con el peso de [4]; sin A ni B,
-       * pose vacia.
+       * FUN_0043a290 / FUN_0043a880 (same shape): blends the pose of A (or
+       * an empty one) with that of B (or an empty one) with the weight from
+       * [4]; with neither A nor B, empty pose.
        */
       public AnimPose pose() {
          float r = this.weight();
@@ -342,8 +342,8 @@ public final class AnimGraph {
    }
 
    /**
-    * Cambio de implicito "shiftto" (vtable 0x476e14, FUN_0043a6f0), creado
-    * por FUN_00432d10 con duracion {0 s, 0xfa = 250 ms}.
+    * Change of implicit entry "shiftto" (vtable 0x476e14, FUN_0043a6f0),
+    * created by FUN_00432d10 with duration {0 s, 0xfa = 250 ms}.
     */
    public static final class ShiftTo extends Transition {
       ShiftTo(Node from, Node to, AnimTime duration) {
@@ -351,8 +351,9 @@ public final class AnimGraph {
       }
 
       /**
-       * FUN_0043a1f0: tiempo += dt; al llegar a la duracion el nodo se
-       * sustituye por lo que devuelva B al avanzar; antes avanzan los dos.
+       * FUN_0043a1f0: time += dt; on reaching the duration the node is
+       * replaced by whatever B returns when advanced; before that both
+       * advance.
        */
       public Node advance(float amount, AnimTime dt) {
          this.elapsed = this.elapsed.plus(dt);
@@ -362,7 +363,7 @@ public final class AnimGraph {
          return this.advanceBoth(amount, dt);
       }
 
-      /** FUN_0043a540: clamp(tiempo / duracion, 0, 1) (DAT_004767b4 = 0, DAT_004767b8 = 1). */
+      /** FUN_0043a540: clamp(time / duration, 0, 1) (DAT_004767b4 = 0, DAT_004767b8 = 1). */
       float weight() {
          double f = this.ratio();
          if (f < 0.0 || Double.isNaN(f)) {
@@ -381,8 +382,9 @@ public final class AnimGraph {
    }
 
    /**
-    * Explicito encima del implicito (vtable 0x476df8, FUN_0043ad60),
-    * creado por FUN_00432d10 con la duracion del pipe del explicito.
+    * Explicit entry on top of the implicit one (vtable 0x476df8,
+    * FUN_0043ad60), created by FUN_00432d10 with the duration of the
+    * explicit entry's pipe.
     */
    public static final class Overlay extends Transition {
       Overlay(Node under, Node gesture, AnimTime duration) {
@@ -390,9 +392,9 @@ public final class AnimGraph {
       }
 
       /**
-       * FUN_0043a7e0: tiempo += dt; al llegar a la duracion vuelve a lo que
-       * habia debajo (A avanza y se devuelve); antes avanzan los dos (y si
-       * el pipe del gesto termina antes, tambien queda A).
+       * FUN_0043a7e0: time += dt; on reaching the duration it goes back to
+       * what was underneath (A advances and is returned); before that both
+       * advance (and if the gesture's pipe ends earlier, A remains too).
        */
       public Node advance(float amount, AnimTime dt) {
          this.elapsed = this.elapsed.plus(dt);
@@ -403,10 +405,10 @@ public final class AnimGraph {
       }
 
       /**
-       * FUN_0043ab30: con override.ini [Runtime] NoImpChange = 1, 1; si no,
-       * x = clamp(tiempo / duracion, 0, 1) y peso = clamp(4 * x * (1 - x) * 2,
-       * 0, 1) (DAT_004767f0 = 4, DAT_004767f4 = 2): entra en el primer
-       * 14,6 % del gesto y sale en el ultimo.
+       * FUN_0043ab30: with override.ini [Runtime] NoImpChange = 1, 1;
+       * otherwise, x = clamp(time / duration, 0, 1) and weight = clamp(4 * x *
+       * (1 - x) * 2, 0, 1) (DAT_004767f0 = 4, DAT_004767f4 = 2): it comes in
+       * over the first 14.6 % of the gesture and goes out over the last.
        */
       float weight() {
          if (noImpChange()) {
@@ -433,13 +435,13 @@ public final class AnimGraph {
       }
    }
 
-   /** Para las comprobaciones: fuerza el valor de NoImpChange (null = leer override.ini). */
+   /** For the checks: forces the value of NoImpChange (null = read override.ini). */
    public static volatile Boolean noImpChangeOverride;
 
    /**
     * GetPrivateProfileIntA("Runtime", "NoImpChange", 0, ".\\override.ini")
-    * == 1 (FUN_004330a0, FUN_0043ab30): IniFile.override() es ese mismo
-    * fichero y seccion.
+    * == 1 (FUN_004330a0, FUN_0043ab30): IniFile.override() is that same
+    * file and section.
     */
    static boolean noImpChange() {
       Boolean o = noImpChangeOverride;

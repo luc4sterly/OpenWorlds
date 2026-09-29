@@ -423,7 +423,7 @@ public final class RwxReader {
     * <li>RwGetNamedTexture(name) ({@link NativeTextures#rwGetNamed}); 0 is
     * FALSE, otherwise it goes on the current material.</li>
     * </ul>
-    * ⚠️ VERIFICAR, not translated: the mask (RwReadMaskRaster 0x10026f80 +
+    * ⚠️ VERIFY, not translated: the mask (RwReadMaskRaster 0x10026f80 +
     * RwMaskTexture 0x10019510). No corpus script uses it; the mask is
     * ignored with a warning and the texture set unmasked.
     */

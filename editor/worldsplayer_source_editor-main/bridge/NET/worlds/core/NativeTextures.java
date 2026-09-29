@@ -7,61 +7,62 @@ import java.util.Map;
 import net.openworlds.cmp.CmpFrames;
 
 /**
- * Texturas tal como las crean gamma.dll y RenderWare 2.1 con el driver de
- * software de 16 bits (RWDL6D21) en un escritorio de color real.
+ * Textures as created by gamma.dll and RenderWare 2.1 with the 16-bit
+ * software driver (RWDL6D21) on a true-colour desktop.
  *
- * <p>Tres caminos distintos llegan al diccionario de texturas de RW:
+ * <p>Three different paths lead to RW's texture dictionary:
  * <ul>
- * <li><b>gamma.dll por GDI</b> ({@code .cmp}/{@code .mov}, texto): la imagen
- * se pinta en un DIB y se estira con {@code StretchBlt} sobre un DIB de
- * 128x128 a 16 bits 5-6-5 ({@link #gdiStretchToTexture}); el buffer pasa a
- * un raster de usuario de RW ({@code FUN_004182d0}).</li>
+ * <li><b>gamma.dll through GDI</b> ({@code .cmp}/{@code .mov}, text): the
+ * image is painted into a DIB and stretched with {@code StretchBlt} onto a
+ * 128x128 16-bit 5-6-5 DIB ({@link #gdiStretchToTexture}); the buffer goes
+ * to an RW user raster ({@code FUN_004182d0}).</li>
  * <li><b>RwReadTexture</b> ({@code FileTexture}, {@code .bmp}/{@code .ras}):
- * RWL21 lee el fichero, lo reescala él mismo con un promedio por área y el
- * driver lo convierte a 5-6-5 ({@link #rwReadRaster}).</li>
- * <li><b>RwGetNamedTexture</b> (el mandato {@code Texture} de un
- * {@code .rwx}): busca por nombre base en el diccionario y, si no está, lo
- * lee de la ruta de formas {@code ".;.."} ({@link #rwGetNamed}).</li>
+ * RWL21 reads the file, rescales it itself with an area average and the
+ * driver converts it to 5-6-5 ({@link #rwReadRaster}).</li>
+ * <li><b>RwGetNamedTexture</b> (the {@code Texture} command of a
+ * {@code .rwx}): looks the base name up in the dictionary and, if it is not
+ * there, reads it from the shape path {@code ".;.."}
+ * ({@link #rwGetNamed}).</li>
  * </ul>
  *
- * <p>Los handles comparten la tabla de NativeRw. Cada textura guarda el
- * "texture data" de RW ({@code RwSetTextureData}, +0x20), que gamma.dll usa
- * como cuenta de referencias (FUN_004183e0 / FUN_00418430 / FUN_00418370);
- * las que RW lee por su cuenta lo dejan a 0.
+ * <p>The handles share NativeRw's table. Each texture keeps RW's "texture
+ * data" ({@code RwSetTextureData}, +0x20), which gamma.dll uses as a
+ * reference count (FUN_004183e0 / FUN_00418430 / FUN_00418370); the ones RW
+ * reads on its own leave it at 0.
  *
- * <p>El rasterizador (NativeCamera) muestrea siempre 128x128; un raster RW
- * de 16x16 (imágenes de menos de 64 de ancho, ver {@link Resampler})
- * se guarda replicado 8x8, que da el mismo texel con muestreo al más
- * cercano: floor(128u)/8 == floor(16u).
+ * <p>The rasterizer (NativeCamera) always samples 128x128; a 16x16 RW raster
+ * (images narrower than 64, see {@link Resampler}) is stored replicated 8x8,
+ * which gives the same texel with nearest-neighbour sampling: floor(128u)/8
+ * == floor(16u).
  */
 public final class NativeTextures {
    private NativeTextures() {
    }
 
-   /** FUN_00417910 devuelve 0x80: el lado de toda textura que crea gamma.dll. */
+   /** FUN_00417910 returns 0x80: the side of every texture gamma.dll creates. */
    public static final int SIZE = 128;
 
    /**
-    * Tamaños de raster de textura del driver (RWDL6D21 0x10001174..0x10001197
-    * copia DAT_100790f0 = 0x80 a dispositivo+0x20/+0x24 y DAT_100790f8 = 0x10
-    * a dispositivo+0x2bc/+0x2c0).
+    * Texture raster sizes of the driver (RWDL6D21 0x10001174..0x10001197
+    * copies DAT_100790f0 = 0x80 to device+0x20/+0x24 and DAT_100790f8 = 0x10
+    * to device+0x2bc/+0x2c0).
     */
    static final int DEV_TEX = 0x80;
    static final int DEV_TEX_SMALL = 0x10;
 
    /**
-    * Opciones de RwReadRaster con que lee RW sus texturas (DAT_1005ac04):
-    * 0x15 en el .data de RWL21, 0x14 tras el RwSetTextureDithering(2) que
-    * gamma.dll hace al arrancar (FUN_0041a150 -> 0x100193f0: {@code &= ~3}).
+    * RwReadRaster options with which RW reads its textures (DAT_1005ac04):
+    * 0x15 in RWL21's .data, 0x14 after the RwSetTextureDithering(2) that
+    * gamma.dll does at start-up (FUN_0041a150 -> 0x100193f0: {@code &= ~3}).
     */
    static final int RW_TEXTURE_READ_FLAGS = 0x14;
 
    public static final class Texture {
-      /** 5-6-5, de arriba abajo, SIZE * SIZE. */
+      /** 5-6-5, top-down, SIZE * SIZE. */
       public final short[] pixels;
-      /** Nombre con que está en el diccionario, o null. */
+      /** Name it has in the dictionary, or null. */
       String name;
-      /** RwGetTextureData (+0x20): la cuenta de referencias de gamma.dll. */
+      /** RwGetTextureData (+0x20): gamma.dll's reference count. */
       int data;
       int handle;
 
@@ -71,17 +72,17 @@ public final class NativeTextures {
    }
 
    // ------------------------------------------------------------------
-   // Diccionario de texturas de RW (uno solo: gamma.dll no llama a
-   // RwTextureDictBegin/End). Clave: el nombre plegado como lo compara
-   // FUN_10043f20 (solo a-z pasan a mayúsculas).
+   // RW texture dictionary (a single one: gamma.dll does not call
+   // RwTextureDictBegin/End). Key: the name folded the way FUN_10043f20
+   // compares it (only a-z are converted to upper case).
    // ------------------------------------------------------------------
 
    private static final Map<String, Texture> dict = new HashMap<String, Texture>();
 
-   /** Auditoría (-Dopenworlds.matStats): nombre -> "WxH" de la imagen antes de estirarla. */
+   /** Audit (-Dopenworlds.matStats): name -> "WxH" of the image before stretching it. */
    private static final Map<String, String> source = new java.util.LinkedHashMap<String, String>();
 
-   /** Inventario de lo decodificado, para la auditoría de texturas. */
+   /** Inventory of what was decoded, for the texture audit. */
    public static synchronized void dumpInventory() {
       System.err.println("[RW] texturas en el diccionario: " + dict.size());
       int stretched = 0;
@@ -99,7 +100,7 @@ public final class NativeTextures {
       return o instanceof Texture ? (Texture) o : null;
    }
 
-   /** FUN_10043f20: igualdad de nombres sin distinguir a-z de A-Z (nada más). */
+   /** FUN_10043f20: name equality without distinguishing a-z from A-Z (nothing else). */
    static String rwFold(String s) {
       StringBuilder b = new StringBuilder(s.length());
       for (int i = 0; i < s.length(); i++) {
@@ -110,10 +111,10 @@ public final class NativeTextures {
    }
 
    /**
-    * FUN_10043e80: el nombre con que RW busca una textura. Quita hasta el
-    * último '\\' (DAT_1005a078; '/' no cuenta) o, si no hay ninguno, una
-    * unidad "X:" delante; y la extensión desde el último '.' posterior a ese
-    * punto.
+    * FUN_10043e80: the name RW looks a texture up by. It strips everything
+    * up to the last '\\' (DAT_1005a078; '/' does not count) or, if there is
+    * none, a leading "X:" drive; and the extension from the last '.' after
+    * that point.
     */
    static String rwBaseName(String p) {
       int sep = p.lastIndexOf('\\');
@@ -128,15 +129,15 @@ public final class NativeTextures {
       return p.substring(start, end);
    }
 
-   /** RwFindNamedTexture (0x100183c0): por nombre base, sin leer nada. */
+   /** RwFindNamedTexture (0x100183c0): by base name, without reading anything. */
    static synchronized Texture rwFindNamed(String name) {
       return name == null ? null : dict.get(rwFold(rwBaseName(name)));
    }
 
    /**
-    * RwAddTextureToDict (0x10016890) para una textura que aún no está en
-    * ninguno: si el diccionario ya tiene ese nombre (comparado tal cual, sin
-    * nombre base) es el error 0x69 y la textura se queda fuera.
+    * RwAddTextureToDict (0x10016890) for a texture that is not yet in any
+    * dictionary: if the dictionary already has that name (compared as it is,
+    * not by base name) it is error 0x69 and the texture is left out.
     */
    private static synchronized boolean rwAddToDict(String name, Texture t) {
       String k = rwFold(name);
@@ -148,7 +149,7 @@ public final class NativeTextures {
       return true;
    }
 
-   /** RwDestroyTexture (0x10016b00): la saca del diccionario y la libera. */
+   /** RwDestroyTexture (0x10016b00): takes it out of the dictionary and frees it. */
    private static synchronized void rwDestroy(Texture t) {
       if (t.name != null && dict.get(rwFold(t.name)) == t) {
          dict.remove(rwFold(t.name));
@@ -163,14 +164,15 @@ public final class NativeTextures {
    }
 
    // ------------------------------------------------------------------
-   // gamma.dll: el diccionario con cuenta de referencias
+   // gamma.dll: the dictionary with reference counts
    // ------------------------------------------------------------------
 
    /**
-    * FUN_00421420 / FUN_00421560: todo '\\', ':', '.' y '/' pasa a '|', en
-    * minúsculas con la tabla de FUN_00450890 (DAT_00482818: solo A-Z) y,
-    * con frame &gt; 0, "|" (DAT_00471308) + el número en decimal. Sin '\\',
-    * ':' ni '.', el nombre base de RW (FUN_10043e80) es el nombre entero.
+    * FUN_00421420 / FUN_00421560: every '\\', ':', '.' and '/' becomes '|',
+    * in lower case with the table of FUN_00450890 (DAT_00482818: A-Z only)
+    * and, with frame &gt; 0, "|" (DAT_00471308) + the number in decimal.
+    * Without '\\', ':' or '.', RW's base name (FUN_10043e80) is the whole
+    * name.
     */
    static String dictName(String name, int frame) {
       StringBuilder sb = new StringBuilder(name.length() + 4);
@@ -185,9 +187,9 @@ public final class NativeTextures {
    }
 
    /**
-    * FUN_004183e0: RwFindNamedTexture y sube la cuenta. Una textura con data
-    * 0 es de las que RW leyó por su cuenta: gamma.dll la destruye y
-    * devuelve 0, para leer la suya.
+    * FUN_004183e0: RwFindNamedTexture and raises the count. A texture with
+    * data 0 is one that RW read on its own: gamma.dll destroys it and
+    * returns 0, so as to read its own.
     */
    static synchronized int findNamed(String key) {
       Texture t = rwFindNamed(key);
@@ -202,7 +204,7 @@ public final class NativeTextures {
       return t.handle;
    }
 
-   /** FUN_004182d0: RwCreateUserRaster(128, 128, 16 bpp) + RwCreateTexture, data 1, al diccionario. */
+   /** FUN_004182d0: RwCreateUserRaster(128, 128, 16 bpp) + RwCreateTexture, data 1, into the dictionary. */
    static synchronized int create(String key, short[] pixels, int srcW, int srcH) {
       Texture t = newTexture(pixels);
       t.data = 1;
@@ -213,7 +215,7 @@ public final class NativeTextures {
       return t.handle;
    }
 
-   /** FUN_00418430: RwReadTexture(file), data 1, al diccionario con el nombre de gamma. */
+   /** FUN_00418430: RwReadTexture(file), data 1, into the dictionary under gamma's name. */
    private static synchronized int readTexture(String key, String file) {
       Texture t = rwReadTexture(file);
       if (t == null) {
@@ -226,7 +228,7 @@ public final class NativeTextures {
       return t.handle;
    }
 
-   /** FUN_00418370 (Texture.nativeRelease vía FUN_00421690): baja la cuenta y destruye en la última. */
+   /** FUN_00418370 (Texture.nativeRelease via FUN_00421690): lowers the count and destroys on the last one. */
    public static synchronized void release(int h) {
       Texture t = texture(h);
       if (t == null) {
@@ -239,7 +241,7 @@ public final class NativeTextures {
       }
    }
 
-   /** FUN_00421420(name, file, frame): búsqueda con nombre y, si falta, RwReadTexture (FileTexture). */
+   /** FUN_00421420(name, file, frame): lookup by name and, if it is missing, RwReadTexture (FileTexture). */
    public static int lookupOrRead(String name, String file, int frame) {
       if (name == null) {
          return file == null ? 0 : readTexture(null, file);
@@ -252,7 +254,7 @@ public final class NativeTextures {
       return h;
    }
 
-   /** FUN_00421560(name, frame, pixels): la del diccionario si ya está (y el buffer se tira), si no una nueva. */
+   /** FUN_00421560(name, frame, pixels): the dictionary's one if it is already there (and the buffer is thrown away), otherwise a new one. */
    static int userTexture(String name, int frame, short[] px, int srcW, int srcH) {
       if (name == null) {
          return create(null, px, srcW, srcH);
@@ -263,23 +265,24 @@ public final class NativeTextures {
    }
 
    // ------------------------------------------------------------------
-   // gamma.dll por GDI: FUN_004222b0
+   // gamma.dll through GDI: FUN_004222b0
    // ------------------------------------------------------------------
 
    /**
-    * FUN_004222b0 en pantalla de 16 bits (FUN_00417900 == 2): un DIB destino
-    * de 128x128 (FUN_00422150: 16 bpp, BI_BITFIELDS f800/07e0/001f, de
-    * arriba abajo), {@code SetStretchBltMode(hdc, 3)} y
+    * FUN_004222b0 on a 16-bit screen (FUN_00417900 == 2): a destination DIB of
+    * 128x128 (FUN_00422150: 16 bpp, BI_BITFIELDS f800/07e0/001f, top-down),
+    * {@code SetStretchBltMode(hdc, 3)} and
     * {@code StretchBlt(dst, 0,0,128,128, src, 0,0,w,h, SRCCOPY)} (0x422682 /
-    * 0x422710); después se copian los bits tal cual (FUN_0044df50). La máscara
-    * de transparencia de 0x4228a8.. solo corre con pantalla de 8 bits.
+    * 0x422710); then the bits are copied as they are (FUN_0044df50). The
+    * transparency mask of 0x4228a8.. only runs with an 8-bit screen.
     *
-    * <p>El modo 3 es COLORONCOLOR (STRETCH_DELETESCANS), no HALFTONE (4):
-    * cada píxel destino es UN píxel fuente, sin mezclar colores. Qué píxel
-    * fuente toca a cada destino (la fase del DDA de GDI) está en gdi32, no
-    * en nuestros binarios: ver {@link #gdiSourceIndex}.
+    * <p>Mode 3 is COLORONCOLOR (STRETCH_DELETESCANS), not HALFTONE (4): each
+    * destination pixel is ONE source pixel, with no colour mixing. Which source
+    * pixel each destination pixel takes (the phase of GDI's DDA) is in gdi32, not
+    * in our binaries: see {@link #gdiSourceIndex}.
     *
-    * @param src colores 0xRRGGBB del DIB fuente, w*h, fila a fila de arriba abajo
+    * @param src 0xRRGGBB colours of the source DIB, w*h, row by row, top to
+    * bottom
     */
    static short[] gdiStretchToTexture(int[] src, int w, int h) {
       short[] out = new short[SIZE * SIZE];
@@ -293,37 +296,39 @@ public final class NativeTextures {
    }
 
    /**
-    * Píxel fuente de un píxel destino en COLORONCOLOR: {@code d * s / D}
-    * (redondeo hacia abajo, esquina izquierda del píxel destino). ⚠️
-    * VERIFICAR: es la fase de la reimplementación de ReactOS; la de gdi32 de
-    * Windows no está en gamma.dll ni en RWL21. Otra fase (centro del píxel:
-    * {@code (2d+1)s / 2D}) movería como mucho un píxel fuente en las
-    * columnas/filas donde difieren; TexStretchCheck lo cuantifica.
+    * Source pixel of a destination pixel in COLORONCOLOR: {@code d * s / D}
+    * (rounded down, left corner of the destination pixel). ⚠️ VERIFY: this
+    * is the phase of the ReactOS reimplementation; the one in Windows' gdi32
+    * is not in gamma.dll or RWL21. Another phase (pixel centre:
+    * {@code (2d+1)s / 2D}) would move at most one source pixel in the
+    * columns/rows where they differ; TexStretchCheck quantifies it.
     */
    static int gdiSourceIndex(int d, int dstLen, int srcLen) {
       return (int) ((long) d * srcLen / dstLen);
    }
 
    /**
-    * Color 24 bits del DIB fuente a los bitfields 5-6-5 del destino: se
-    * quedan los bits altos. ⚠️ VERIFICAR: la traducción de color la hace
-    * gdi32 (truncado en ReactOS y Wine; no está en nuestros binarios).
+    * 24-bit colour of the source DIB to the 5-6-5 bitfields of the
+    * destination: the high bits are kept. ⚠️ VERIFY: the colour
+    * translation is done by gdi32 (truncation in ReactOS and Wine; it is
+    * not in our binaries).
     */
    static short gdiTo565(int c) {
       return (short) ((c >> 16 & 0xFF) >> 3 << 11 | (c >> 8 & 0xFF) >> 2 << 5 | (c & 0xFF) >> 3);
    }
 
    /**
-    * FUN_00422b30 + FUN_004222b0 + FUN_00421560: un ScapePic (.cmp / .mov)
-    * en hasta maxFrames texturas. Devuelve {handles[], displayW, displayH} o
-    * null si el fichero no se puede leer. Paleta como la monta FUN_00422b30
-    * para pantalla de 16 bits: las entradas del fichero y el resto blanco
-    * (DAT_004714a8 = ff ff ff); el índice transparente (255 si el bit 2 del
-    * modo) pasa a DAT_0049d1e1 (en .bss, nadie lo escribe: negro, el color
-    * clave) y toda otra entrada con R &lt; 12, G &lt; 6 y B &lt; 12 pasa a
-    * DAT_004714f4 = (8, 8, 8) para no volverse transparente. El DIB fuente
-    * es de 8 bits con esa paleta, ancho redondeado a 4 y alto a 2, y el
-    * StretchBlt toma solo el rectángulo w x h de la imagen.
+    * FUN_00422b30 + FUN_004222b0 + FUN_00421560: a ScapePic (.cmp / .mov)
+    * into up to maxFrames textures. Returns {handles[], displayW, displayH}
+    * or null if the file cannot be read. Palette as FUN_00422b30 builds it
+    * for a 16-bit screen: the file's entries and the rest white
+    * (DAT_004714a8 = ff ff ff); the transparent index (255 if bit 2 of the
+    * mode is set) becomes DAT_0049d1e1 (in .bss, nobody writes it: black,
+    * the colour key) and every other entry with R &lt; 12, G &lt; 6 and B
+    * &lt; 12 becomes DAT_004714f4 = (8, 8, 8) so as not to become
+    * transparent. The source DIB is 8-bit with that palette, width rounded
+    * up to a multiple of 4 and height to a multiple of 2, and the StretchBlt
+    * takes only the w x h rectangle of the image.
     */
    public static Object[] makeScapePic(String name, byte[] file, int maxFrames) {
       ScapePic sp;
@@ -365,11 +370,11 @@ public final class NativeTextures {
    // StringTexture: FUN_00424af0 + FUN_00424870
    // ------------------------------------------------------------------
 
-   /** Tamaño en píxeles del DIB de texto según FUN_00424870 (0x424961..0x4249b5). */
+   /** Size in pixels of the text DIB according to FUN_00424870 (0x424961..0x4249b5). */
    static int[] stringExtent(int cx, int cy) {
       if (cx * cy > 0xfffff) {
-         // 0x424978: cx = cy / 2^20 (division con signo, hacia cero); el aviso
-         // DAT_00471994 va a la consola
+         // 0x424978: cx = cy / 2^20 (signed division, toward zero); the
+         // warning DAT_00471994 goes to the console
          cx = (cy + (cy >> 31 & 0xfffff)) >> 20;
       }
       if (cx == 0 || cy == 0) {
@@ -380,10 +385,10 @@ public final class NativeTextures {
    }
 
    /**
-    * Colores de texto y fondo (COLORREF 0x00BBGGRR) tras los ajustes de
-    * 16 bits de 0x424a53..0x424a77: texto negro -&gt; 0x080808; fondo
-    * 0xfefefe -&gt; 0 (el color clave: fondo transparente); fondo negro -&gt;
-    * 0x080808.
+    * Text and background colours (COLORREF 0x00BBGGRR) after the 16-bit
+    * adjustments of 0x424a53..0x424a77: black text -&gt; 0x080808; background
+    * 0xfefefe -&gt; 0 (the colour key: transparent background); black
+    * background -&gt; 0x080808.
     */
    static int[] stringColors(int fg, int bg) {
       if (fg == 0) {
@@ -397,36 +402,36 @@ public final class NativeTextures {
       return new int[]{fg, bg};
    }
 
-   /** java.awt.Color.getRGB() (0xAARRGGBB) al COLORREF que arma FUN_00424af0 (0x00BBGGRR). */
+   /** java.awt.Color.getRGB() (0xAARRGGBB) to the COLORREF that FUN_00424af0 builds (0x00BBGGRR). */
    static int colorRef(int argb) {
       return (argb >> 8 & 0xFF) << 8 | argb >> 16 & 0xFF | (argb & 0xFF) << 16;
    }
 
-   /** Cara de la fuente: "Kanji..." (strncmp 5, DAT_00471a48) es ＭＳ ゴシック con SHIFTJIS_CHARSET (0x80). */
+   /** Font face: "Kanji..." (strncmp 5, DAT_00471a48) is ＭＳ ゴシック with SHIFTJIS_CHARSET (0x80). */
    static String stringFace(String font) {
       return font != null && font.startsWith("Kanji") ? "MS Gothic" : font;
    }
 
    /**
-    * StringTexture.makeStringTexture (0x00424af0): el texto en un DIB de
-    * 16 bits de exactamente su extensión y estirado a 128x128 por
-    * FUN_004222b0, fuera del diccionario (nombre NULL). Devuelve el handle.
+    * StringTexture.makeStringTexture (0x00424af0): the text in a 16-bit DIB
+    * of exactly its extent and stretched to 128x128 by FUN_004222b0, outside
+    * the dictionary (NULL name). Returns the handle.
     *
-    * <p>FUN_00424870: sin caracteres pinta un " " (DAT_00471958);
+    * <p>FUN_00424870: with no characters it paints a " " (DAT_00471958);
     * {@code CreateFontA(size, 0, 0, 0, 400, 0, 0, 0, charset, 0, 0, 2
-    * (PROOF_QUALITY), 0, cara)} solo si la cara tiene como mucho 32 bytes
-    * (si no, la fuente del sistema y el aviso DAT_0047195c);
-    * GetTextExtentPoint32W da el tamaño; {@code SetTextAlign(0)} (arriba a
-    * la izquierda) y {@code ExtTextOutW(hdc, 0, 0, 0, NULL, ...)} con el
-    * modo de fondo por defecto (OPAQUE), que llena de fondo la caja del
-    * texto, que es todo el DIB.
+    * (PROOF_QUALITY), 0, face)} only if the face name is at most 32 bytes
+    * long (otherwise, the system font and the warning DAT_0047195c);
+    * GetTextExtentPoint32W gives the size; {@code SetTextAlign(0)} (top
+    * left) and {@code ExtTextOutW(hdc, 0, 0, 0, NULL, ...)} with the default
+    * background mode (OPAQUE), which fills the text box with the background
+    * colour, and that box is the whole DIB.
     *
-    * <p>⚠️ VERIFICAR (solo esto): los glifos los rasteriza GDI y aquí
-    * Java2D, sin antialias (PROOF_QUALITY sin suavizado de fuentes) y con la
-    * altura de celda del CreateFont (alto positivo = ascendente +
-    * descendente); la cara puede no existir en esta máquina (Java la
-    * sustituye, como GDI) y el ancho de cada glifo sale de sus métricas, no
-    * de las de GDI.
+    * <p>⚠️ VERIFY (only this): the glyphs are rasterized by GDI and here by
+    * Java2D, without antialiasing (PROOF_QUALITY without font smoothing) and
+    * with the cell height of CreateFont (positive height = ascent +
+    * descent); the face may not exist on this machine (Java substitutes it,
+    * as GDI does) and the width of each glyph comes from its own metrics,
+    * not from GDI's.
     */
    public static int makeStringTexture(char[] chars, int length, String font, int size, int foreArgb, int backArgb) {
       if (length == 0) {
@@ -448,8 +453,8 @@ public final class NativeTextures {
       pg.setFont(f);
       java.awt.FontMetrics fm = pg.getFontMetrics();
       int cx = fm.stringWidth(text);
-      // alto positivo en CreateFont = alto de celda: GetTextExtentPoint32 da
-      // tmHeight, que para una fuente escalable es ese alto
+      // positive height in CreateFont = cell height: GetTextExtentPoint32
+      // gives tmHeight, which for a scalable font is that height
       int cy = size > 0 ? size : fm.getAscent() + fm.getDescent();
       pg.dispose();
       if (cx * cy > 0xfffff) {
@@ -464,8 +469,8 @@ public final class NativeTextures {
       g.setColor(new java.awt.Color(rgbOf(col[1])));
       g.fillRect(0, 0, ext[0], ext[1]);
       g.setColor(new java.awt.Color(rgbOf(col[0])));
-      // el contorno relleno sin antialias: drawString de Java2D en macOS
-      // suaviza los glifos aunque se le pida que no
+      // the filled outline without antialiasing: Java2D's drawString on
+      // macOS smooths the glyphs even when asked not to
       java.awt.font.FontRenderContext frc = new java.awt.font.FontRenderContext(null, false, false);
       g.fill(f.createGlyphVector(frc, text).getOutline(0.0F, fm.getAscent()));
       g.dispose();
@@ -481,7 +486,7 @@ public final class NativeTextures {
       return (colorRef & 0xFF) << 16 | colorRef & 0xFF00 | colorRef >> 16 & 0xFF;
    }
 
-   /** Fuente cuya celda (ascendente + descendente) mide {@code cell} píxeles, como CreateFont con alto positivo. */
+   /** Font whose cell (ascent + descent) measures {@code cell} pixels, like CreateFont with a positive height. */
    private static java.awt.Font cellFont(String face, int cell) {
       java.awt.Font base = new java.awt.Font(face, java.awt.Font.PLAIN, 100);
       java.awt.font.FontRenderContext frc = new java.awt.font.FontRenderContext(null, false, false);
@@ -493,7 +498,7 @@ public final class NativeTextures {
       return base.deriveFont(cell / unit);
    }
 
-   /** FUN_0040b740: Console.println del cliente. */
+   /** FUN_0040b740: the client's Console.println. */
    private static void consolePrintln(String s) {
       try {
          NET.worlds.console.Console.println(s);
@@ -507,19 +512,19 @@ public final class NativeTextures {
    // ------------------------------------------------------------------
 
    /**
-    * Directorio de trabajo del proceso contra el que se resuelve la ruta de
-    * formas ".;.." (RwSetShapePath(DAT_0047061c, 1) en FUN_0041a150). null =
-    * el del proceso (el original corría en el directorio de instalación, como
-    * run_gamma.sh). Las comprobaciones lo cambian.
+    * Working directory of the process against which the shape path ".;.." is
+    * resolved (RwSetShapePath(DAT_0047061c, 1) in FUN_0041a150). null = the
+    * process's own (the original ran in the installation directory, like
+    * run_gamma.sh). The checks change it.
     */
    static File rwCwd;
 
-   /** RwGetShapePath: la ruta de formas que dejó gamma.dll. */
+   /** RwGetShapePath: the shape path that gamma.dll left. */
    static final String RW_SHAPE_PATH = ".;..";
 
    /**
-    * RwReadTexture (0x100178f0): una textura (data 0, fuera del diccionario)
-    * con el raster de FUN_10017b60, o null.
+    * RwReadTexture (0x100178f0): a texture (data 0, outside the dictionary)
+    * with the raster of FUN_10017b60, or null.
     */
    static Texture rwReadTexture(String file) {
       short[] px = rwTextureRaster(file);
@@ -527,13 +532,14 @@ public final class NativeTextures {
    }
 
    /**
-    * RwGetNamedTexture (0x10018900): la del diccionario por nombre base y, si
-    * no está, RwReadNamedTexture (0x100185d0): el raster de FUN_10017b60 (que
-    * busca en la ruta de formas), data 0, al diccionario con el nombre base;
-    * si ese nombre ya estaba, la vieja se destruye y la nueva ocupa su
-    * sitio. Lo que usa el mandato {@code Texture} de un .rwx (0x10014b00):
-    * si devuelve 0 el mandato falla y RwReadShape entero devuelve NULL
-    * (0x100163e0 corta el bucle con cualquier mandato que no devuelva 1).
+    * RwGetNamedTexture (0x10018900): the dictionary's one by base name and,
+    * if it is not there, RwReadNamedTexture (0x100185d0): the raster of
+    * FUN_10017b60 (which searches the shape path), data 0, into the
+    * dictionary under the base name; if that name was already there, the old
+    * one is destroyed and the new one takes its place. What the
+    * {@code Texture} command of a .rwx uses (0x10014b00): if it returns 0 the
+    * command fails and RwReadShape as a whole returns NULL (0x100163e0 breaks
+    * the loop on any command that does not return 1).
     */
    public static synchronized int rwGetNamed(String name) {
       if (name == null) {
@@ -561,21 +567,21 @@ public final class NativeTextures {
    }
 
    /**
-    * Lo que ve NativeCamera al dibujar un material de forma: la búsqueda del
-    * diccionario de RwGetNamedTexture/RwFindNamedTexture, sin leer ficheros
-    * (la lectura de la ruta de formas es de {@link #rwGetNamed}, al leer el
-    * script) y sin tocar la cuenta.
+    * What NativeCamera sees when it draws a shape material: the dictionary
+    * lookup of RwGetNamedTexture/RwFindNamedTexture, without reading files
+    * (reading from the shape path belongs to {@link #rwGetNamed}, when the
+    * script is read) and without touching the count.
     */
    public static Texture find(String name) {
       return rwFindNamed(name);
    }
 
    /**
-    * FUN_10017b60: RwReadRaster(nombre, DAT_1005ac04) y el raster solo vale
-    * si su ancho es el de textura del dispositivo (128, alto múltiplo &gt;= 1)
-    * o el pequeño (16); si no, errores 0x16/0x17. Devuelve el frame 0 (RW
-    * nunca avanza de frame: gamma.dll no importa RwSetTextureFrame ni
-    * RwTextureNextFrame) como 128x128 5-6-5.
+    * FUN_10017b60: RwReadRaster(name, DAT_1005ac04), and the raster is only
+    * valid if its width is the device's texture width (128, height multiple
+    * &gt;= 1) or the small one (16); otherwise, errors 0x16/0x17. It returns
+    * frame 0 (RW never advances the frame: gamma.dll does not import
+    * RwSetTextureFrame or RwTextureNextFrame) as 128x128 5-6-5.
     */
    static short[] rwTextureRaster(String name) {
       RwRaster r = rwReadRaster(name, RW_TEXTURE_READ_FLAGS);
@@ -600,7 +606,7 @@ public final class NativeTextures {
       return out;
    }
 
-   /** Raster de RW (RwRaster): tipo 1 paletizado, 2 máscaras; los campos +0x18.. del C. */
+   /** RW raster (RwRaster): type 1 palettized, 2 masks; the +0x18.. fields of the C struct. */
    static final class RwRaster {
       int type;
       int depth;
@@ -608,18 +614,18 @@ public final class NativeTextures {
       /** +0x18 / +0x1c / +0x20 / +0x28 */
       byte[] data;
       int w, h, stride;
-      /** +0x34: paleta RGB, 3 bytes por entrada (256). */
+      /** +0x34: RGB palette, 3 bytes per entry (256). */
       byte[] palette = new byte[0x300];
-      /** Solo en el raster del dispositivo: 5-6-5 (stride en bytes). */
+      /** Only in the device raster: 5-6-5 (stride in bytes). */
       short[] pixels;
    }
 
    /**
-    * RwReadRaster (0x10026c30) -> FUN_10026cc0(nombre, opciones, 0): lee la
-    * imagen (FUN_10021350) y el driver la convierte al formato del
-    * dispositivo (dispositivo+0x48 = RWDL6D21 0x1000a840 -> FUN_10007a80).
-    * Con las opciones 0x14 no hay máscara (bit 8) ni mipmaps (0x40); el
-    * indicador que pasa al driver es 2 (bit 0x10), que en 16 bits no se usa.
+    * RwReadRaster (0x10026c30) -> FUN_10026cc0(name, options, 0): reads the
+    * image (FUN_10021350) and the driver converts it to the device's format
+    * (device+0x48 = RWDL6D21 0x1000a840 -> FUN_10007a80). With options 0x14
+    * there is no mask (bit 8) or mipmaps (0x40); the flag it passes to the
+    * driver is 2 (bit 0x10), which is not used at 16 bits.
     */
    static RwRaster rwReadRaster(String name, int flags) {
       if ((flags & 0x20) != 0 && (flags & 8) == 0) {
@@ -636,12 +642,13 @@ public final class NativeTextures {
    }
 
    /**
-    * FUN_10021350: busca el fichero (FUN_10009ae0) tal cual y, si no, con
-    * las extensiones .ras, .tex, .env, .bmp, .rle en ese orden (FUN_10043de0
-    * solo añade si el nombre no tiene ya extensión tras el último '\\'), y
-    * decide el formato por la firma, no por la extensión: "BM" -&gt; BMP
-    * (FUN_10021620, opciones (f&amp;4)&gt;&gt;2 | 2), 59 a6 6a 95 -&gt; Sun
-    * raster (FUN_10021da0, (f&amp;4)&gt;&gt;2 | 4). Nada más.
+    * FUN_10021350: looks for the file (FUN_10009ae0) as it is and, failing
+    * that, with the extensions .ras, .tex, .env, .bmp, .rle in that order
+    * (FUN_10043de0 only adds one if the name has no extension after the last
+    * '\\'), and decides the format by the signature, not by the extension:
+    * "BM" -&gt; BMP (FUN_10021620, options (f&amp;4)&gt;&gt;2 | 2), 59 a6 6a
+    * 95 -&gt; Sun raster (FUN_10021da0, (f&amp;4)&gt;&gt;2 | 4). Nothing
+    * else.
     */
    static RwRaster rwReadImage(String name, int flags) {
       if (name == null || (flags & 1) != 0 && (flags & 2) != 0 || (flags & 0xffffff80) != 0) {
@@ -677,7 +684,7 @@ public final class NativeTextures {
       return ok && img.depth != 0 ? img : null;
    }
 
-   /** FUN_10043de0: nombre + extensión, o null si ya tiene una tras el último '\\'. */
+   /** FUN_10043de0: name + extension, or null if it already has one after the last '\\'. */
    static String rwAddExtension(String name, String ext) {
       int sep = name.lastIndexOf('\\');
       int dot = name.lastIndexOf(ext.charAt(0));
@@ -688,10 +695,11 @@ public final class NativeTextures {
    }
 
    /**
-    * FUN_10009ae0: un nombre absoluto (FUN_10043d50: empieza por '\\' o es
-    * "letra:") se prueba tal cual; uno relativo, en cada entrada de la ruta
-    * de formas separada por ';' (sscanf "%[^;]"), como entrada + '\\' +
-    * nombre (FUN_10043db0). Vale el primero que exista y abra (FUN_10043cb0).
+    * FUN_10009ae0: an absolute name (FUN_10043d50: starts with '\\' or is
+    * "letter:") is tried as it is; a relative one, in each entry of the shape
+    * path separated by ';' (sscanf "%[^;]"), as entry + '\\' + name
+    * (FUN_10043db0). The first one that exists and opens is taken
+    * (FUN_10043cb0).
     */
    static File rwFindFile(String name) {
       if (name.isEmpty()) {
@@ -745,12 +753,13 @@ public final class NativeTextures {
    }
 
    /**
-    * FUN_10021620: BMP. Cabecera OS/2 (12) o Windows (40; otras: error
-    * 0x46), 1/4/8/24 bits (32 pasa por la rama de 24 de FUN_10042b80, tal
-    * cual), sin comprimir o RLE8 (compresión 1; RLE4 es error). Paleta de
-    * min(biClrUsed, 2^bits) entradas (o 2^bits si 0). Una imagen de 8 bits
-    * que ya mide lo de una textura del dispositivo no se reescala (opción 1
-    * fuera). Filas de abajo arriba (opción 2) y BGR -&gt; RGB (opción 4).
+    * FUN_10021620: BMP. OS/2 (12) or Windows (40; others: error 0x46)
+    * header, 1/4/8/24 bits (32 goes through the 24-bit branch of
+    * FUN_10042b80, as it is), uncompressed or RLE8 (compression 1; RLE4 is
+    * an error). Palette of min(biClrUsed, 2^bits) entries (or 2^bits if 0).
+    * An 8-bit image that already measures what a device texture does is not
+    * rescaled (option 1 dropped). Rows from bottom to top (option 2) and
+    * BGR -&gt; RGB (option 4).
     */
    static boolean rwReadBmp(byte[] d, RwRaster r, int opt) {
       if (d.length < 18) {
@@ -795,8 +804,8 @@ public final class NativeTextures {
          } else {
             return false;
          }
-         // local_400 son 1024 bytes: más de 256 entradas (16 bits) desborda
-         // la pila en el original; aquí se rechaza
+         // local_400 is 1024 bytes: more than 256 entries (16 bits)
+         // overflows the stack in the original; here it is rejected
          if (colors * entry > 0x400 || p + colors * entry > d.length) {
             return false;
          }
@@ -811,8 +820,8 @@ public final class NativeTextures {
       }
       p = offBits;
       int rowBytes = (w * bits + 7) / 8 + 3 & ~3;
-      // el original reserva (w+7 & ~7)*3 bytes; una fila de 32 bits mas ancha
-      // que eso desborda su buffer (comportamiento indefinido)
+      // the original reserves (w+7 & ~7)*3 bytes; a 32-bit row wider than
+      // that overflows its buffer (undefined behaviour)
       byte[] row = new byte[Math.max((w + 7 & ~7) * 3 + 8, rowBytes)];
       if (bits == 8 && rwNativeTextureSize(w, h)) {
          opt &= ~1;
@@ -873,19 +882,19 @@ public final class NativeTextures {
       return (w << 16 | h) != 0;
    }
 
-   /** Imagen de 8 bits que ya mide lo de una textura del dispositivo (0x100217xx / 0x10021fxx). */
+   /** 8-bit image that already measures what a device texture does (0x100217xx / 0x10021fxx). */
    private static boolean rwNativeTextureSize(int w, int h) {
       return w == DEV_TEX && h / DEV_TEX * DEV_TEX - h == 0
          || DEV_TEX_SMALL != 0 && w == DEV_TEX_SMALL && h / DEV_TEX_SMALL * DEV_TEX_SMALL - h == 0;
    }
 
    /**
-    * FUN_10021da0: Sun raster. Cabecera de 7 enteros big-endian tras la
-    * firma (FUN_10020610); mapa de color 1 (RGB en tres planos) o 2 (cada
-    * byte, gris); sin mapa, 1 bit = negro/blanco y 8 bits = rampa de grises.
-    * Filas alineadas a 16 bits; tipo 2 = RLE por bytes (0x80 n v; 0x80 0 =
-    * un 0x80); tipo 3 = RGB (sin cambio BGR -&gt; RGB); 0 y 1 = BGR; otros
-    * tipos no leen nada (sin profundidad: FUN_10021350 lo descarta).
+    * FUN_10021da0: Sun raster. Header of 7 big-endian integers after the
+    * signature (FUN_10020610); colour map 1 (RGB in three planes) or 2 (each
+    * byte, grey); without a map, 1 bit = black/white and 8 bits = grey ramp.
+    * Rows aligned to 16 bits; type 2 = byte-wise RLE (0x80 n v; 0x80 0 = a
+    * single 0x80); type 3 = RGB (no BGR -&gt; RGB swap); 0 and 1 = BGR;
+    * other types read nothing (no depth: FUN_10021350 discards it).
     */
    static boolean rwReadRas(byte[] d, RwRaster r, int opt) {
       if (d.length < 32) {
@@ -903,7 +912,7 @@ public final class NativeTextures {
             return false;
          }
          int n = mapLen / 3;
-         // local_100 son 256 bytes por plano: más desborda en el original
+         // local_100 is 256 bytes per plane: more overflows in the original
          if (n > 256 || p + mapLen > d.length) {
             return false;
          }
@@ -959,7 +968,7 @@ public final class NativeTextures {
                   v = d[p++] & 0xFF;
                }
             }
-            // el original sigue emitiendo aunque pase de la ultima fila; aqui no
+            // the original keeps emitting even past the last row; here it does not
             for (int k = 0; k <= count && y < h; k++) {
                row[x++] = (byte) v;
                if (x == rowBytes) {
@@ -992,11 +1001,11 @@ public final class NativeTextures {
    }
 
    /**
-    * FUN_10042b80: la primera fila fija el tipo del raster (8 bits
-    * paletizado si no se reescala y la imagen es de 1/4/8 bits; si no, 24
-    * bits RGB) y cada fila se expande en su sitio: a índices de un byte, o a
-    * RGB por la paleta; 24 bits cambia BGR -&gt; RGB con la opción 4; 32 bits
-    * se queda con los bytes 1..3 de cada píxel (y luego el mismo cambio).
+    * FUN_10042b80: the first row fixes the raster type (8-bit palettized if
+    * it is not rescaled and the image is 1/4/8-bit; otherwise 24-bit RGB) and
+    * each row is expanded in place: to one-byte indices, or to RGB through
+    * the palette; 24 bits swaps BGR -&gt; RGB with option 4; 32 bits keeps
+    * bytes 1..3 of each pixel (and then the same swap).
     */
    static void rwExpandRow(byte[] b, int w, int bits, RwRaster r, int opt) {
       if (r.depth == 0) {
@@ -1065,7 +1074,7 @@ public final class NativeTextures {
       }
    }
 
-   /** Solo escribe los bytes 3i..3i+2, que en el recorrido hacia atrás ya no se leen. */
+   /** Only writes bytes 3i..3i+2, which the backward pass no longer reads. */
    private static void putPal(byte[] b, int i, byte[] pal, int ix) {
       b[i * 3] = pal[ix * 3];
       b[i * 3 + 1] = pal[ix * 3 + 1];
@@ -1083,12 +1092,13 @@ public final class NativeTextures {
    }
 
    /**
-    * FUN_10042f30 (RWL21; copia idéntica en RWDL6D21 0x10005f50): recibe las
-    * filas de una en una y, con la opción 1, reescala por promedio de área
-    * en 16.16 a 128 de ancho (o a 16 si la imagen mide menos de 64) y alto
-    * 128 (o 128*k si alto = k*ancho, una tira de frames); sin la opción 1
-    * copia la fila. Opción 2: la fila y se escribe en h-1-y. El estado es el
-    * de DAT_1005b8dc.. y DAT_1005e470.. (uno por imagen aquí).
+    * FUN_10042f30 (RWL21; identical copy in RWDL6D21 0x10005f50): receives
+    * the rows one at a time and, with option 1, rescales by area average in
+    * 16.16 to a width of 128 (or 16 if the image is narrower than 64) and a
+    * height of 128 (or 128*k if height = k*width, a strip of frames);
+    * without option 1 it copies the row. Option 2: row y is written to
+    * h-1-y. The state is that of DAT_1005b8dc.. and DAT_1005e470.. (one per
+    * image here).
     */
    static final class Resampler {
       int[] accR, accG, accB, rowR, rowG, rowB;
@@ -1206,7 +1216,7 @@ public final class NativeTextures {
          outRow++;
       }
 
-      /** FUN_10043bf0: una fila de salida, ((acc+0x80)>>8) * ((norm+0x80)>>8) >> 16, tope 255. */
+      /** FUN_10043bf0: one output row, ((acc+0x80)>>8) * ((norm+0x80)>>8) >> 16, capped at 255. */
       private void put(RwRaster r, int row) {
          if (row < 0 || row >= r.h) {
             return;
@@ -1273,12 +1283,12 @@ public final class NativeTextures {
    }
 
    /**
-    * El raster del dispositivo (RWDL6D21 FUN_10009d40: 16 bits, máscaras
-    * f800/07e0/001f, sin alfa) y la conversión de FUN_10007a80: cada canal
-    * alineado por su bit alto a la máscara destino (se quedan los bits
-    * altos), por la paleta si el raster es de 8 bits; sin máscara de alfa y
-    * sin la opción 8, un resultado 0 pasa a 1 (el bit bajo del azul) para no
-    * caer en el texel 0 transparente.
+    * The device raster (RWDL6D21 FUN_10009d40: 16 bits, masks
+    * f800/07e0/001f, no alpha) and the conversion of FUN_10007a80: each
+    * channel aligned by its high bit to the destination mask (the high bits
+    * are kept), through the palette if the raster is 8-bit; without an alpha
+    * mask and without option 8, a result of 0 becomes 1 (the low bit of
+    * blue) so as not to fall on the transparent texel 0.
     */
    static RwRaster rwDeviceRaster(RwRaster img) {
       if (img.data == null) {
@@ -1314,11 +1324,11 @@ public final class NativeTextures {
       return dev;
    }
 
-   /** FUN_10007a80 para 24 bits (u 8 bits por paleta) -> 5-6-5, negro -> 0x0001. */
+   /** FUN_10007a80 for 24 bits (or 8 bits through the palette) -> 5-6-5, black -> 0x0001. */
    static short rwTo565(int r, int g, int b) {
       int v = (r << 8 & 0xf800) | (g << 3 & 0x7e0) | (b >> 3 & 0x1f);
       if (v == 0) {
-         // ~mascaraAzul + 1 & mascaraAzul: el bit bajo del azul
+         // ~blueMask + 1 & blueMask: the low bit of blue
          v = 1;
       }
       return (short) v;

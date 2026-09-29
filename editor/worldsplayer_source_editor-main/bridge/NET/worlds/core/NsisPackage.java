@@ -46,7 +46,7 @@ import java.util.Map;
  * $LANGUAGE 24, $TEMP 25, $PLUGINSDIR 26, $EXEPATH 27, $EXEFILE 28, then the
  * user's. Windows paths ("$EXEDIR\..\worlds.ini") are taken to the host
  * filesystem with '\' as separator and names matched without case.
- * ⚠️ VERIFICAR: only this subset (Unicode, non-solid zlib) is read; an ANSI,
+ * ⚠️ VERIFY: only this subset (Unicode, non-solid zlib) is read; an ANSI,
  * solid or LZMA/bzip2 installer is refused with an error.
  */
 final class NsisPackage {

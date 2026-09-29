@@ -408,7 +408,7 @@ public final class NativeCamera {
    /**
     * RwSetCameraLookAt: the new view direction, keeping the up vector; the
     * basis is rebuilt as r0 = normalize(up x at), r1 = normalize(at x r0).
-    * ⚠️ VERIFICAR: RWL21's exact reconstruction is not extracted yet.
+    * ⚠️ VERIFY: RWL21's exact reconstruction is not extracted yet.
     */
    public static void setLookAt(int h, float x, float y, float z) {
       Cam c = cam(h);
@@ -432,7 +432,7 @@ public final class NativeCamera {
 
    /**
     * RwSetCameraLookUp: the new up vector, keeping the view direction.
-    * ⚠️ VERIFICAR, como setLookAt.
+    * ⚠️ VERIFY, as with setLookAt.
     */
    public static void setLookUp(int h, float x, float y, float z) {
       Cam c = cam(h);
