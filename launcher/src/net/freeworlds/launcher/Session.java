@@ -109,6 +109,11 @@ final class Session {
    }
 
    private void jvmFlags(List<String> cmd) {
+      if (settings.server.isEmpty()) {
+         // "Un jugador": el cliente contesta "Single-user mode" sin mostrar el
+         // dialogo de "no puedo conectar" (bridge/natives-launcher.patch)
+         cmd.add("-Dfreeworlds.singleUser=true");
+      }
       if (settings.rasterThreads > 0) {
          cmd.add("-Dfreeworlds.rasterThreads=" + settings.rasterThreads);
       }

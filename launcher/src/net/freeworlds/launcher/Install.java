@@ -159,6 +159,7 @@ final class Install {
             }
          }
       }
+      seedWindow(findNoCase(work, "worlds.ini"), log);
       File override = findNoCase(work, "override.ini");
       if (override == null) {
          override = new File(work, "override.ini");
@@ -171,6 +172,42 @@ final class Install {
          log.line("[instalacion] servidor de mundos: worldserver://" + worldServer + (user == null || user.isEmpty() ? "" : " (usuario " + user + ")"));
       } else if (override.isFile()) {
          removeKey(override, "Runtime", "WorldServer");
+      }
+   }
+
+   /**
+    * The game window's first size. GammaFrameState keeps the window in
+    * worlds.ini [Gamma] Window&lt;W&gt;X&lt;H&gt; ("x y width height state", per screen
+    * size of Toolkit.getScreenSize) and without that key opens it at 568x424,
+    * the size of 2004: tiny on today's screens. The first time on each screen
+    * size the launcher writes one two thirds of the screen high, with the same
+    * proportions and centred; from then on the client saves the player's own
+    * (GammaFrameState.saveBorder, when it quits). A bigger window is more
+    * pixels for the software rasterizer, hence not the whole screen.
+    */
+   static void seedWindow(File ini, Log log) {
+      if (ini == null || java.awt.GraphicsEnvironment.isHeadless()) {
+         return;
+      }
+      try {
+         java.awt.Dimension screen = java.awt.Toolkit.getDefaultToolkit().getScreenSize();
+         String key = "Window" + screen.width + "X" + screen.height;
+         if (getKey(ini, "Gamma", key) != null) {
+            return;
+         }
+         int h = screen.height * 2 / 3;
+         int w = h * 568 / 424;
+         if (w > screen.width * 9 / 10) {
+            w = screen.width * 9 / 10;
+            h = w * 424 / 568;
+         }
+         if (w <= 568 || h <= 424) {
+            return; // pantalla pequena: el tamano de 2004 ya cabe justo
+         }
+         setKey(ini, "Gamma", key, (screen.width - w) / 2 + " " + (screen.height - h) / 2 + " " + w + " " + h + " 0");
+         log.line("[instalacion] ventana del juego de " + w + "x" + h + " para la pantalla de " + screen.width + "x" + screen.height);
+      } catch (IOException | RuntimeException | Error e) {
+         // sin pantalla o sin worlds.ini escribible: el cliente usa su 568x424
       }
    }
 

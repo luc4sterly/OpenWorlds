@@ -1,0 +1,22 @@
+Enganches del lanzador (launcher/) con el cliente de 2004: comportamiento
+que solo se activa cuando el lanzador lo pide con una propiedad del sistema.
+Sin ella, el cliente hace exactamente lo de 2004.
+
+diff a/NET/worlds/console/InternetConnectionDialog.java b/NET/worlds/console/InternetConnectionDialog.java
+--- a/NET/worlds/console/InternetConnectionDialog.java
++++ b/NET/worlds/console/InternetConnectionDialog.java
+@@ -32,6 +32,14 @@
+       this.setAlignment(1);
+       this.msg = var2.getMsg().replace('\n', ' ');
+       this.ready();
++      // FreeWorlds: el lanzador ya eligio "Un jugador" (-Dfreeworlds.singleUser=true):
++      // se contesta "Single-user mode" antes de construir el dialogo. Con killed
++      // puesto, PolledDialog.mainCallback no lo muestra y llama a
++      // Galaxy.dialogDone(this, false), lo mismo que el boton.
++      if (Boolean.getBoolean("freeworlds.singleUser")) {
++         System.out.println("[FreeWorlds] un jugador: Single-user mode sin preguntar (" + this.msg + ")");
++         this.done(false);
++      }
+    }
+ 
+    protected boolean done(boolean var1) {

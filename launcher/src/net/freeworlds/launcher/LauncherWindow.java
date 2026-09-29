@@ -382,7 +382,7 @@ final class LauncherWindow {
       }
       switch (mode) {
          case SINGLE:
-            setHint("Sin servidor: el mundo es solo tuyo. Si el juego pregunta por la conexión, elige «Single-user mode».", false);
+            setHint("Sin servidor: el mundo es solo tuyo, y los demás mundos se descargan al visitarlos.", false);
             break;
          case WHIRL:
             setHint(LocalWhirl.available(layout)

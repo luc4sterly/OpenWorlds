@@ -29,8 +29,9 @@ FreeWorlds --help
 
 Cliente original
 ----------------
-  - Sin servidor: al entrar dice que no puede conectar; pulsa "Single-user
-    mode". Se anda con las flechas; los menus son los de 2004.
+  - Un jugador (sin servidor): el lanzador elige por ti el "Single-user
+    mode" del juego y entras directo. Se anda con las flechas; los menus
+    son los de 2004.
   - whirl local: las apps traen whirl (el servidor de Whirlsplash, ver
     server/whirl en el repositorio) y el lanzador lo arranca y lo para con
     el juego. El usuario y una contrasena ya van rellenos: en el juego basta
