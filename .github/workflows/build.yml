@@ -189,10 +189,21 @@ jobs:
         with:
           workspaces: server/whirl
 
+      # En Windows, ntapi 0.3 (de sysinfo 0.23, dependencia de whirl) no
+      # compila desde Rust 1.69: referencias a campos empaquetados sin alinear
+      # pasaron de aviso a error. Sin tocar whirl: un nightly anterior, y
+      # --cap-lints porque whirl_server niega un lint (non_local_definitions)
+      # que ese compilador aun no conoce.
       - name: whirl para esta app
         continue-on-error: true
         working-directory: server/whirl
-        run: cargo build --release --locked
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            rustup toolchain install nightly-2023-01-20 --profile minimal
+            RUSTFLAGS="--cap-lints warn" cargo +nightly-2023-01-20 build --release --locked
+          else
+            cargo build --release --locked
+          fi
 
       - name: jlink + jpackage
         env:

@@ -155,6 +155,22 @@ sitios del código de 2004 que tocan AWT con el monitor de un diálogo
 tomado. **Decisión tuya:** guardar o no en el repo los paquetes de mundo
 del espejo (Bowie son 13 MB; PolyGram, 12,6 MB).
 
+## 1e. Lanzador con la estética del logo, actualizador, releases y whirl local (2026-09-29)
+
+Pedido: el lanzador con la estética del logo, sin lo de los registros, con
+actualización automática; las releases de la CI publicadas en GitHub; y
+arreglar fallos (mundos que no arrancan tras el reinicio, clic en un usuario
+que no hace nada, whirl local que no va) y pulir.
+
+| Frente | Estado | Evidencia / lo que queda |
+|---|---|---|
+| Lanzador | ✅ | la paleta de `tools/icons/make_icons.py`: cielo índigo con estrellas, el planeta low-poly dibujado en vivo (`PlanetView`, la misma icosfera; en reposo es el icono) girando y parado mientras se juega, "Worlds" con el degradado del anillo, botón Jugar con ese degradado, Poppins (OFL) empaquetada. Sin panel de registro, botón Registros ni "FPS en el registro" (los ficheros siguen en `logs/`, los 20 últimos). Lista de mundos con su estado, que se relee al acabar cada partida, y los instalados desde el mapa del universo; servidor en tres opciones; Ajustes aparte |
+| Actualizador | ✅ | `Updater` + `Bootstrap`: la release más nueva con paquete portable, SHA-256 comprobado, instalada en `<datos>/app/<versión>`; al arrancar la app cede el paso a esa versión en la misma JVM, sin reescribirse. Versión rota → `app/bad` y vuelta a la incluida. `UpdaterCheck` (34 comprobaciones contra un GitHub falso). ⚠️ El repositorio es privado: sin token de solo lectura en Ajustes, GitHub contesta 404 y no hay actualizaciones |
+| Releases | ✅ en la CI | cada push a `main` publica `v1.0.<commits>` con los cinco paquetes y `SHA256SUMS.txt`; tags `v*` igual; prerelease a mano desde otra rama (Run workflow). La versión (`launcher/VERSION` + nº de commits) va igual en el tag y en el jar |
+| whirl local | ✅ | `LocalWhirl` arranca el whirl de la app si nada escucha en el puerto, rellena User0 y Password0 (cifrada con el `Console.encode` del puente; whirl no la comprueba: basta "Sign In") y lo para al acabar. La CI lo compila en los cuatro runners y lo mete en las apps (Windows: nightly de 2023, ver `build.yml`); prueba de humo con whirl en Linux |
+| Copia del juego | ✅ | `Install.prepare` con manifiesto: una versión nueva (o la plantilla en otra ruta, App Translocation de macOS) ya no pisa lo que cambió el cliente o gdkup (deshacía GroundZero 37 → 40). `InstallCheck` |
+| Pulido | ✅ parcial | "Un jugador" sin el diálogo de "no puedo conectar" (`bridge/natives-launcher.patch`, solo con `-Dfreeworlds.singleUser`); ventana del juego a dos tercios de la pantalla la primera vez (antes 568×424) |
+
 ## 2. Hitos
 
 Tamaños: **S** ≈ 1 sesión · **M** ≈ 2–4 sesiones · **L** = más.
@@ -300,8 +316,14 @@ Hay 41 ficheros con nativos fuera del puente. `FastDataInput`, `IniFile` y
    dejarlos en `assets/gammatutorial-samples/base-avatars/`.
 6. Subir `assets/WorldsPlayer/cachedir/cache.index` desde tu Mac (§1c): no
    hay otra copia en el repo ni en la CI.
-7. Probar las apps de la CI (artefactos de cada ejecución en GitHub
-   Actions) en tu Mac Intel y, si puedes, en Windows y un Mac ARM.
+7. Probar las apps en tu Mac Intel y, si puedes, en Windows y un Mac ARM:
+   desde que esta rama llegue a `main`, en la página de Releases.
+8. **Actualizaciones con el repositorio privado:** el actualizador pregunta
+   a la API de GitHub, que a un lanzador sin credenciales le contesta 404.
+   O el repositorio pasa a público, o en cada máquina se pone en Ajustes un
+   token «fine-grained» de solo lectura (Contents: Read) sobre este repo.
+9. Fusionar la rama en `main` para que salga la primera release (la CI
+   publica en cada push a `main`).
 
 ## 4. Menores y aparcados
 

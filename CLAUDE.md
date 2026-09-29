@@ -50,8 +50,9 @@ solo si necesitas la evidencia cruda de un hallazgo concreto.
 
 ```
 formats/src/net/freeworlds/   lectores verificados que usa el puente: bod/ (.bod y .seq), rwg/, cmp/ (.cmp y .mov)
-launcher/src/net/freeworlds/launcher/   lanzador del paquete (ventana, menú de terminal, CLI): arranca el cliente original
-.github/workflows/build.yml   CI: build + checks + corpus + prueba de humo; apps macOS/Windows/Linux; release con tags v*
+launcher/src/net/freeworlds/launcher/   lanzador del paquete (ventana con la estética del logo, menú de terminal, CLI): arranca el cliente original, whirl local y se actualiza solo
+launcher/test/                 checks del lanzador (actualizador, copia de la instalación)
+.github/workflows/build.yml   CI: build + checks + corpus + pruebas de humo; apps macOS/Windows/Linux con whirl; release en cada push a main
 .claude/hooks/session-start.sh   aprovisiona cada sesión de Claude Code en la web (llama a tools/setup-linux.sh)
 editor/worldsplayer_source_editor-main/   herramienta de Whirlsplash: decompila/edita/recompila el .jar original
   source/                      722 .java decompilados (Vineflower), NET.worlds.* — pristino, no tocar
@@ -89,7 +90,8 @@ real siempre fue `assets/worlds.jar` (ex `GAMMACLS.ZIP`).
 | Cliente original bajo puente portable (macOS, Linux; Windows en CI) | 🟢 dibuja y se usa | GroundZero con el rasterizador del driver RWDL6D21, **por franjas en varios hilos e idéntico al píxel** (`RasterGoldenCheck`; 1172×848: 25 → ~53 fps); producto de matrices afín como RWL21 (antes lo que cuelga de un `WObject` caía en el origen de la sala) y material de las partes `.bod` del binario (0.32/0.55/0, liso: las estatuas ya tienen sombreado); menús de la ventana visibles (rutas `u:/` resueltas por `HostPath`), fuentes con métricas de Arial como el JRE de 2004, sin bloqueo al arrancar (time.worlds.net); UI, sonido, sistema y COM traducidos; chat con Intro; reloj a saltos de `GetTickCount` (girar ya no va a cámara lenta); cierre de diálogos sin el bloqueo de X11 (`AwtCompat`). Falta el BSP de escena (documentado en ASM) |
 | Red / protocolo | 🟢 ~75% | guest real contra `worlds.worlio.com`; en local contra `server/whirl`: login, misma sala y chat entre dos clientes originales. No se ven (whirl no manda APPRACTR). Falta una cuenta registrada para el primario |
 | UI (chat, amigos, mapa, menús) | 🟢 en el original | la UI AWT de 2004 corre bajo el puente y se probó entera (`docs/pruebas-juego.md`): Help/Options/WorldsMail/WorldsMark/Teleport/Actions/VIP, amigos, chat, correo, mapa del universo, menú contextual, cursores |
-| Paquete y CI | ✅ | `tools/build-dist.sh`: portable (.zip, Java 17+) y app con su Java (jlink + jpackage) para macOS Intel/ARM, Windows y Linux; lanzador con ventana, menú de terminal y CLI. `.github/workflows/build.yml` lo hace en cada push |
+| Paquete y CI | ✅ | `tools/build-dist.sh`: portable (.zip, Java 17+) y app con su Java (jlink + jpackage) y su whirl para macOS Intel/ARM, Windows y Linux. `.github/workflows/build.yml` lo hace en cada push y **cada push a main publica una release** (`v1.0.<commits>`, paquetes + `SHA256SUMS.txt`) |
+| Lanzador | ✅ | con la estética del logo (planeta en vivo, Poppins OFL), sin panel de registro; servidor "un jugador" (entra sin el diálogo de conexión), "whirl local" (arranca el whirl de la app y rellena el login) u otro; **se actualiza solo** desde las releases (`Updater`/`Bootstrap`, versión nueva en `<datos>/app/`; ⚠️ con el repo privado necesita un token de solo lectura en Ajustes). La copia del juego no pierde lo que cambia el cliente al actualizar (manifiesto en `Install.prepare`). Detalle: `docs/roadmap.md` §1e |
 | Porteo OpenBSD / PSVita | ⬜ 0% | fase 5. Ojo: el cliente original es Java con UI AWT, y en la PSVita no hay Java |
 
 Estado detallado del puente, con lo pendiente: `editor/worldsplayer_source_editor-main/bridge/README.md`.
@@ -148,13 +150,13 @@ el script sigue para el diagnóstico con `JAVA_OPTS`.
 
 | Script/dir | Para qué |
 |---|---|
-| `build-dist.sh` | paquete portable y, con `--app-image`, la app nativa con su Java (jlink + jpackage) de este sistema; lo usa la CI |
+| `build-dist.sh` | paquete portable y, con `--app-image`, la app nativa con su Java (jlink + jpackage) y el whirl de este sistema (`server/whirl/target/release`); versión `<launcher/VERSION>.<commits>`; lo usa la CI |
 | `setup-linux.sh`, `setup-macos.sh` | aprovisionar Linux/la nube (el primero lo llama el hook de sesión) o un Mac: JDK, paquetes, compilar `formats/` y el puente |
 | `dist-README.txt`, `icons/` | README que va dentro del paquete; icono propio, no el de Worlds.com: un planeta low-poly con anillo (`icons/make_icons.py` lo dibuja en SVG y saca el PNG, el ICO, el ICNS y el del lanzador) |
 | `native_mapper.py` | cruza métodos `native` del Java decompilado contra los exports reales de las DLLs |
 | `jni_mock.py` + `gamma-dll-debug-harness/` | bridge JNI mock con logging, para arrancar el cliente sin renderer completo |
 | `verify-corpus.sh` | regresión en un comando: compila `formats/` y reejecuta `.seq` 231, `.bod` 51, `.cmp` 159 y `.mov` 52 sobre el corpus real, luego `run-checks.sh`; sale ≠0 si algo cambia |
-| `run-checks.sh` | ejecuta todos los `*Check.java` de `formats/test/**` y `bridge/test/` (reconstruye el puente si su build es vieja); 38 hoy (5 + 33), incluidos `RasterGoldenCheck` (CRC de 18 vistas del rasterizador), `MatrixAffineCheck`, `GdkUpCheck` (instala `assets/packages/`) y `UiDisposeCheck` (necesita pantalla: la CI lo pasa bajo `xvfb-run`) |
+| `run-checks.sh` | ejecuta todos los `*Check.java` de `formats/test/**`, `bridge/test/` y `launcher/test/` (reconstruye el puente si su build es vieja); 40 hoy (5 + 33 + 2), incluidos `RasterGoldenCheck` (CRC de 18 vistas del rasterizador), `MatrixAffineCheck`, `GdkUpCheck` (instala `assets/packages/`) y `UiDisposeCheck` (necesita pantalla: la CI lo pasa bajo `xvfb-run`) |
 | `progress-panel.py` | cuenta marcas ⚠️/VERIFICAR/TODO/FIXME por módulo y fichero → `docs/progress.md` |
 | `run-whirl.sh`, `net-probe/run-whirl-duo.sh` | whirl local (solo 127.0.0.1) y la prueba de dos clientes originales contra él (`docs/net-local-whirl.md`) |
 | `net-probe/` | sondas de red reales contra servidores Worlio (handshake, login guest) |

@@ -484,7 +484,8 @@ final class LauncherWindow {
       fillWorlds();
       if (failure != null) {
          gameStatus.setForeground(Theme.ERROR);
-         gameStatus.setText("No se pudo arrancar el juego: " + failure);
+         gameStatus.setText("No se pudo arrancar el juego");
+         setHint(failure, true);
       } else if (stoppedByUser) {
          gameStatus.setForeground(Theme.MUTED);
          gameStatus.setText("Juego detenido");
@@ -500,6 +501,8 @@ final class LauncherWindow {
 
    private void setRunning(boolean on) {
       busy = on;
+      // con el juego abierto, un Intro perdido en el lanzador no debe pararlo
+      frame.getRootPane().setDefaultButton(on ? null : play);
       play.setText(on ? "Detener" : "Jugar");
       play.setIcon(new Ui.Glyph(on ? Ui.Glyph.Kind.STOP : Ui.Glyph.Kind.PLAY, 15));
       play.setKind(on ? Ui.Pill.Kind.QUIET : Ui.Pill.Kind.PRIMARY);
