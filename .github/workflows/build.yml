@@ -1,16 +1,21 @@
-# Build, tests y paquetes de FreeWorlds en cada push.
+# Build, tests, paquetes y releases de FreeWorlds.
 #
 # - build (Linux): compila el cliente original con el puente (y los lectores
-#   de formats/) y el lanzador; pasa tools/run-checks.sh y
-#   tools/verify-corpus.sh; arranca el cliente original empaquetado bajo Xvfb
-#   (prueba de humo: tiene que dibujar); deja el paquete portable (.zip,
-#   necesita Java 17+) y la app de Linux con su propio Java (.tar.gz).
-# - package: la app con Java incluido para macOS (Intel y Apple Silicon) y
-#   Windows, desde el mismo build.
-# - release: con un tag v* (git tag v0.2.0 && git push --tags) publica todo en
-#   una release de GitHub.
+#   de formats/), el lanzador y whirl (server/whirl, para "whirl local"); pasa
+#   tools/run-checks.sh y tools/verify-corpus.sh; arranca el cliente original
+#   empaquetado bajo Xvfb, solo y con el whirl de la app (prueba de humo: tiene
+#   que dibujar); deja el paquete portable (.zip, necesita Java 17+) y la app
+#   de Linux con su propio Java (.tar.gz).
+# - package: la app con Java y whirl incluidos para macOS (Intel y Apple
+#   Silicon) y Windows, desde el mismo build.
+# - release: cada push a main (la rama por defecto) publica una release en
+#   GitHub, tag v1.0.<commits>, con todos los paquetes y SHA256SUMS.txt; el
+#   actualizador del lanzador (Updater) la encuentra ahi. Un tag v* subido a
+#   mano tambien se publica. Desde otra rama: Actions > build > Run workflow
+#   > "prerelease" publica una version de prueba (v1.0.<commits>-pre.<run>)
+#   que solo reciben quienes marcan "versiones de prueba" en Ajustes.
 #
-# Los paquetes de cada ejecucion quedan en la pagina del run (Artifacts).
+# Los paquetes de cada ejecucion quedan ademas en la pagina del run (Artifacts).
 name: build
 
 on:
@@ -19,20 +24,33 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      prerelease:
+        description: "Publicar esta ejecucion como version de prueba (prerelease) en Releases"
+        type: boolean
+        default: false
 
+# En main no se cancela una ejecucion a medias: podria estar publicando.
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+env:
+  # whirl (Rust, toolchain fijado en server/whirl/rust-toolchain.toml): sin el
+  # LTO "fat" de su perfil release, que triplica el tiempo de la CI
+  CARGO_PROFILE_RELEASE_LTO: "false"
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+  CARGO_TERM_COLOR: never
 
 jobs:
   build:
     name: Linux - compilar, probar y empaquetar
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # git describe / rev-list para la version
+          fetch-depth: 0  # rev-list --count para la version
 
       - uses: actions/setup-java@v4
         with:
@@ -44,19 +62,46 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q xvfb patch zip
 
+      # 1.0.<commits> (base en launcher/VERSION); con un tag v*, el del tag; en
+      # una prerelease a mano, 1.0.<commits>-pre.<run>. Es la version que el
+      # actualizador compara, asi que va igual en el tag y dentro del jar.
       - name: Version
         id: v
         run: |
-          echo "version=$(git describe --tags --always)" >> "$GITHUB_OUTPUT"
-          echo "numeric=1.0.$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
+          base="$(tr -d ' \r\n' < launcher/VERSION)"
+          count="$(git rev-list --count HEAD)"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          elif [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "${{ inputs.prerelease }}" = true ]; then
+            version="$base.$count-pre.$GITHUB_RUN_NUMBER"
+          else
+            version="$base.$count"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "numeric=${version%%-*}" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "FreeWorlds $version ($(git rev-parse --short HEAD))"
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server/whirl
+
+      # Si whirl no compila, la app sale sin el (el lanzador lo dice) y la
+      # prueba de humo con whirl falla: se ve en el resumen sin tumbar el resto.
+      - name: whirl para la app de Linux
+        id: whirl
+        continue-on-error: true
+        working-directory: server/whirl
+        run: cargo build --release --locked
 
       - name: Paquete portable + app de Linux
         env:
           FREEWORLDS_VERSION: ${{ steps.v.outputs.version }}
           FREEWORLDS_NUMERIC_VERSION: ${{ steps.v.outputs.numeric }}
+          FREEWORLDS_COMMIT: ${{ steps.v.outputs.commit }}
         run: tools/build-dist.sh --app-image
 
-      - name: Checks unitarios (formats/test + bridge/test)
+      - name: Checks unitarios (formats/test + bridge/test + launcher/test)
         run: xvfb-run -a -s "-screen 0 1280x1024x24" tools/run-checks.sh
 
       - name: Corpus (.seq, .bod, .cmp, .mov)
@@ -67,12 +112,20 @@ jobs:
           FREEWORLDS_DATA: ${{ runner.temp }}/freeworlds-data
         run: xvfb-run -a -s "-screen 0 1280x1024x24" build/app/FreeWorlds/bin/FreeWorlds --smoke 120
 
-      - name: Registro de la prueba de humo
+      - name: Prueba de humo - whirl local (el de la app) y el cliente conectado
+        if: steps.whirl.outcome == 'success'
+        env:
+          FREEWORLDS_DATA: ${{ runner.temp }}/freeworlds-data-whirl
+        run: xvfb-run -a -s "-screen 0 1280x1024x24" build/app/FreeWorlds/bin/FreeWorlds --smoke 120 --server 127.0.0.1:6650
+
+      - name: Registros de las pruebas de humo
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-log
-          path: ${{ runner.temp }}/freeworlds-data/logs
+          path: |
+            ${{ runner.temp }}/freeworlds-data/logs
+            ${{ runner.temp }}/freeworlds-data-whirl/logs
           if-no-files-found: ignore
 
       - name: Subir el paquete portable
@@ -99,6 +152,7 @@ jobs:
     outputs:
       version: ${{ steps.v.outputs.version }}
       numeric: ${{ steps.v.outputs.numeric }}
+      commit: ${{ steps.v.outputs.commit }}
 
   package:
     name: App ${{ matrix.name }}
@@ -114,7 +168,7 @@ jobs:
           - name: Windows
             os: windows-latest
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash
@@ -131,10 +185,20 @@ jobs:
           name: dist-tree
           path: build/dist
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server/whirl
+
+      - name: whirl para esta app
+        continue-on-error: true
+        working-directory: server/whirl
+        run: cargo build --release --locked
+
       - name: jlink + jpackage
         env:
           FREEWORLDS_VERSION: ${{ needs.build.outputs.version }}
           FREEWORLDS_NUMERIC_VERSION: ${{ needs.build.outputs.numeric }}
+          FREEWORLDS_COMMIT: ${{ needs.build.outputs.commit }}
         run: tools/build-dist.sh --package-only
 
       - name: Prueba rapida del lanzador empaquetado
@@ -181,9 +245,12 @@ jobs:
           compression-level: 0
 
   release:
-    name: Release (tags v*)
-    if: startsWith(github.ref, 'refs/tags/v')
+    name: Release en GitHub
     needs: [build, package]
+    if: >-
+      (github.event_name == 'push' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        || startsWith(github.ref, 'refs/tags/v')))
+      || (github.event_name == 'workflow_dispatch' && inputs.prerelease)
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -194,8 +261,43 @@ jobs:
           pattern: FreeWorlds-*
           merge-multiple: true
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/*
-          generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
+      - name: Publicar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+          COMMIT: ${{ needs.build.outputs.commit }}
+        run: |
+          set -euo pipefail
+          cd artifacts
+          ls -la
+          sha256sum FreeWorlds-* > SHA256SUMS.txt
+          PRE=""
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG="$GITHUB_REF_NAME"
+            TARGET=""
+          else
+            TAG="v$VERSION"
+            TARGET="--target $GITHUB_SHA"
+          fi
+          [[ "$VERSION" == *-* ]] && PRE="--prerelease"
+          cat > notes.md <<EOF
+          FreeWorlds $VERSION (commit \`$COMMIT\`): el cliente original de Worlds Chat (2004) con el puente portable.
+
+          | Sistema | Paquete |
+          |---|---|
+          | macOS Apple Silicon | \`FreeWorlds-$VERSION-macos-arm64.zip\` |
+          | macOS Intel | \`FreeWorlds-$VERSION-macos-x64.zip\` |
+          | Windows | \`FreeWorlds-$VERSION-windows-x64.zip\` |
+          | Linux | \`FreeWorlds-$VERSION-linux-x64.tar.gz\` |
+          | Cualquier sistema con Java 17+ | \`FreeWorlds-$VERSION-portable.zip\` |
+
+          Las apps llevan su propio Java y whirl para jugar en "whirl local". El lanzador se actualiza solo desde aqui (Ajustes > Actualizaciones). macOS: la app no esta firmada por Apple; la primera vez, "Abrir igualmente" en Privacidad y seguridad, o \`xattr -dr com.apple.quarantine FreeWorlds.app\`.
+          EOF
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "La release $TAG ya existe: se reponen sus paquetes"
+            gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber FreeWorlds-* SHA256SUMS.txt
+          else
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" $TARGET \
+              --title "FreeWorlds ${TAG#v}" --notes-file notes.md --generate-notes $PRE \
+              FreeWorlds-* SHA256SUMS.txt
+          fi

@@ -178,12 +178,15 @@ public final class Launcher {
    /**
     * CI smoke test: the original client must reach the point where the
     * bridge blits camera frames ("[RW] camara ..." diagnostics and fps lines)
-    * within the given time; then it is stopped.
+    * within the given time; then it is stopped. With a world server on this
+    * machine (--server 127.0.0.1:6650) the bundled whirl must also be up.
     */
    static int smoke(Layout layout, Settings settings, int seconds) throws IOException, InterruptedException {
       Session s = new Session(layout, settings);
       final boolean[] drew = {false};
       final boolean[] fps = {false};
+      final boolean needWhirl = LocalWhirl.isLocal(settings.server);
+      final boolean[] whirl = {false};
       s.log.listen(line -> {
          System.out.println(line);
          if (line.startsWith("[RW] camara ")) {
@@ -191,6 +194,9 @@ public final class Launcher {
          }
          if (line.startsWith("[RW] fps ")) {
             fps[0] = true;
+         }
+         if (line.startsWith("[whirl] listo") || line.startsWith("[whirl] ya hay un servidor escuchando")) {
+            whirl[0] = true;
          }
       });
       s.start();
@@ -201,8 +207,10 @@ public final class Launcher {
       boolean alive = s.isRunning();
       s.stop();
       s.waitFor();
-      System.out.println("[smoke] dibuja=" + drew[0] + " fps=" + fps[0] + " seguia vivo=" + alive + " registro=" + s.log.path);
-      return drew[0] && fps[0] ? 0 : 1;
+      boolean ok = drew[0] && fps[0] && (!needWhirl || whirl[0]);
+      System.out.println("[smoke] dibuja=" + drew[0] + " fps=" + fps[0] + (needWhirl ? " whirl=" + whirl[0] : "")
+         + " seguia vivo=" + alive + " registro=" + s.log.path);
+      return ok ? 0 : 1;
    }
 
    static void printPaths(Layout l) {

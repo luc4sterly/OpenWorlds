@@ -23,19 +23,22 @@ Como se arranca
            FreeWorlds.command (macOS), FreeWorlds.bat (Windows),
            FreeWorlds.sh (Linux)
 
-Se abre un menu: elige el mundo y pulsa "Jugar". Sin pantalla, o con
---tui, el menu sale en la terminal. Todas las opciones: FreeWorlds --help
+Se abre el lanzador: elige el mundo y el servidor y pulsa "Jugar". Sin
+pantalla, o con --tui, el menu sale en la terminal. Todas las opciones:
+FreeWorlds --help
 
 Cliente original
 ----------------
   - Sin servidor: al entrar dice que no puede conectar; pulsa "Single-user
     mode". Se anda con las flechas; los menus son los de 2004.
-  - Con servidor: en el lanzador elige "whirl local" u "Otro servidor" y un
-    usuario (por ejemplo un whirl en 127.0.0.1:6650, ver server/whirl en el
-    repositorio).
+  - whirl local: las apps traen whirl (el servidor de Whirlsplash, ver
+    server/whirl en el repositorio) y el lanzador lo arranca y lo para con
+    el juego. El usuario y una contrasena ya van rellenos: en el juego basta
+    con pulsar "Sign In" (whirl no comprueba contrasenas). Con el paquete
+    portable hace falta un whirl propio escuchando en 127.0.0.1:6650.
+  - Otro servidor: escribelo como host:puerto y pon tu nombre.
   - Tu copia de la instalacion (worlds.ini con amigos, contrasena recordada,
-    etc.) y los registros de cada sesion estan en la carpeta de datos
-    (boton "Carpeta de datos"):
+    etc.) esta en la carpeta de datos (boton "Carpeta de datos"):
        macOS:   ~/Library/Application Support/FreeWorlds
        Windows: %LOCALAPPDATA%\FreeWorlds
        Linux:   ~/.local/share/freeworlds
@@ -48,9 +51,19 @@ Cliente original
     actualizaciones de los mundos instalados. Sin red, o con la opcion
     "Contenido" desmarcada (--no-mirror), solo hay GroundZero.
   - Ventana grande = mas pixeles que dibujar por software: el puente usa
-    varios hilos (opcion "Hilos de dibujo", 0 = automatico).
+    varios hilos (Ajustes > "Hilos de dibujo", Auto por defecto).
+
+Actualizaciones
+---------------
+  El lanzador busca al abrirse una version nueva en las releases de GitHub
+  del proyecto, la descarga comprobando su SHA-256 y la usa al reiniciar
+  (boton "Reiniciar y actualizar"). Se guarda en la carpeta de datos (app/),
+  sin tocar la app instalada. Ajustes > Actualizaciones: desactivarlo,
+  recibir versiones de prueba o, mientras el repositorio sea privado, poner
+  un token de GitHub de solo lectura. A mano: FreeWorlds --update.
 
 Problemas
 ---------
-  Adjunta el registro de la sesion (boton "Registros") al avisar de un
-  fallo. Proyecto: docs/worlds-chat-project.md en el repositorio.
+  Al avisar de un fallo adjunta el ultimo fichero de logs/ de la carpeta de
+  datos (se guardan las 20 ultimas sesiones). Proyecto:
+  docs/worlds-chat-project.md en el repositorio.

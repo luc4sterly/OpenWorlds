@@ -20,6 +20,10 @@ import java.util.List;
  * (NET.worlds.core.GdkUp) on the install copy and, as gdkup does with
  * "run.exe world:restart", starts the client again, with the same local
  * upgrade server and log.
+ *
+ * <p>With a world server on this machine ("whirl local") the session also
+ * starts whirl if nothing listens there yet, and stops it at the end
+ * ({@link LocalWhirl}); the restarts after an update keep it.
  */
 final class Session {
    private final Layout layout;
@@ -28,6 +32,7 @@ final class Session {
    private Process process;
    private Thread pump;
    private UpgradeServer upgrade;
+   private LocalWhirl whirl;
    private volatile boolean stopping;
 
    Session(Layout layout, Settings settings) {
@@ -36,8 +41,21 @@ final class Session {
       this.log = new Log(layout.logDir, "worldsplayer");
    }
 
-   /** Prepares and starts the game; returns at once. */
+   /**
+    * Prepares and starts the game; returns at once. If a step fails, what
+    * was already running (upgrade server, whirl) is stopped again.
+    */
    synchronized void start() throws IOException {
+      try {
+         prepareAndLaunch();
+      } catch (IOException | RuntimeException e) {
+         log.line("[lanzador] no se pudo arrancar el juego: " + (e.getMessage() == null ? e : e.getMessage()));
+         finish(-1);
+         throw e;
+      }
+   }
+
+   private void prepareAndLaunch() throws IOException {
       Install.prepare(layout, log);
       String mirror = settings.mirror ? Install.mirrorOf(layout) : null;
       upgrade = new UpgradeServer(layout.template, layout.baseAvatars, mirror, new File(layout.dataDir, "mirror"), log);
@@ -45,7 +63,9 @@ final class Session {
       log.line("[lanzador] servidor local de actualizaciones en http://127.0.0.1:" + upgrade.port() + "/3DCDup"
          + (mirror == null ? " (sin espejo)" : ", lo que falte se pide a " + mirror));
       Install.configure(layout, upgrade.port(), settings.server, settings.user, settings.keepGammaLog, log);
-      log.line("[lanzador] FreeWorlds " + Layout.version() + ", java " + System.getProperty("java.version")
+      whirl = LocalWhirl.startIfNeeded(layout, settings.server, log);
+      LocalWhirl.prefillLogin(layout, settings.server, settings.user, log);
+      log.line("[lanzador] FreeWorlds " + Layout.versionLong() + ", java " + System.getProperty("java.version")
          + " (" + System.getProperty("os.name") + " " + System.getProperty("os.arch") + ")");
       launch(settings.world);
    }
@@ -193,6 +213,10 @@ final class Session {
       if (upgrade != null) {
          upgrade.stop();
          upgrade = null;
+      }
+      if (whirl != null) {
+         whirl.stop();
+         whirl = null;
       }
       log.line("[lanzador] el juego termino con codigo " + code);
       log.close();

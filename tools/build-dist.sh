@@ -151,6 +151,22 @@ if [ "$APP_IMAGE" = 1 ]; then
    mkdir -p "$STAGE"
    cp "$LIB"/*.jar "$STAGE/"
    cp -R "$DIST/game" "$STAGE/game"
+   # whirl (server/whirl, de terceros) de ESTE sistema, para "whirl local":
+   # LocalWhirl lo busca en app/whirl/. No va en el .zip portable, que es
+   # comun a todos los sistemas; sin binario la app sale sin el (y lo dice).
+   WHIRL_EXE=whirl
+   [ "$OS" = windows ] && WHIRL_EXE=whirl.exe
+   WHIRL_SRC="${FREEWORLDS_WHIRL_BIN:-$ROOT/server/whirl/target/release/$WHIRL_EXE}"
+   if [ -f "$WHIRL_SRC" ]; then
+      mkdir -p "$STAGE/whirl"
+      cp "$WHIRL_SRC" "$STAGE/whirl/$WHIRL_EXE"
+      chmod +x "$STAGE/whirl/$WHIRL_EXE"
+      # Apple Silicon no ejecuta nada sin firma: ad hoc, como la app
+      [ "$OS" = macos ] && { codesign --force --sign - "$STAGE/whirl/$WHIRL_EXE" || echo "[dist] AVISO: codesign de whirl fallo"; }
+      echo "[dist] whirl incluido: $WHIRL_SRC"
+   else
+      echo "[dist] AVISO: sin whirl compilado en $WHIRL_SRC: la app no traera \"whirl local\" (cargo build --release en server/whirl)"
+   fi
 
    # Java propio: jlink SIN --strip-native-commands (el lanzador arranca
    # cada juego con bin/java de este mismo runtime)
