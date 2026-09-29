@@ -12,6 +12,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,12 +22,17 @@ import java.util.regex.Pattern;
  * the remembered login and the settings between sessions).
  *
  * <ul>
- * <li>first run, or a new FreeWorlds version: every template file is copied
- *     except the user's worlds.ini once it exists;</li>
  * <li>every run: files missing from the copy are restored and cachedir/ is
  *     taken again from the template (an orphan cache.open from an unclean
  *     exit makes the client throw the whole index away, as run_gamma.sh
  *     already noted);</li>
+ * <li>a template file that changed (a new FreeWorlds version) replaces the
+ *     copy's only if the copy is still as the launcher left it: the
+ *     manifest ({@value #MANIFEST}) keeps, per file, the template's and the
+ *     copy's size and date when it was copied. A file the client or gdkup
+ *     changed since (an upgraded GroundZero, worlds.dst, a world's files) is
+ *     marked as the game's and never overwritten again; the user's
+ *     worlds.ini is not even compared;</li>
  * <li>worlds.ini/worlds.dst point upgradeServer at the local server of this
  *     session and LogFile is emptied so the client's output reaches the
  *     launcher's log (FREEWORLDS_GAMMA_LOG kept it in run_gamma.sh);</li>
@@ -39,7 +45,11 @@ import java.util.regex.Pattern;
  * in the client reads them once the bridge replaces gamma.dll.
  */
 final class Install {
+   /** Version and template of the last preparation (for diagnosis only). */
    private static final String MARKER = ".freeworlds-version";
+   static final String MANIFEST = ".freeworlds-manifest";
+   /** Manifest mark of a file the game changed: it is never overwritten again. */
+   private static final String GAME = "juego";
 
    private Install() {
    }
@@ -48,13 +58,17 @@ final class Install {
       Path src = l.template.toPath();
       Path dst = l.workDir.toPath();
       Files.createDirectories(dst);
-      Path marker = dst.resolve(MARKER);
-      String version = Layout.version() + " " + src.toRealPath();
-      boolean refresh = !Files.isRegularFile(marker)
-         || !new String(Files.readAllBytes(marker), StandardCharsets.UTF_8).equals(version);
       boolean firstRun = !Files.isRegularFile(dst.resolve("worlds.ini"));
+      Properties manifest = new Properties();
+      Path manifestFile = dst.resolve(MANIFEST);
+      if (Files.isRegularFile(manifestFile)) {
+         try (java.io.InputStream in = Files.newInputStream(manifestFile)) {
+            manifest.load(in);
+         }
+      }
       Layout.deleteTree(dst.resolve("cachedir"));
       int[] copied = {0};
+      int[] kept = {0};
       Files.walkFileTree(src, new SimpleFileVisitor<Path>() {
          @Override
          public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
@@ -71,19 +85,66 @@ final class Install {
 
          @Override
          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            String rel = src.relativize(file).toString().replace(File.separatorChar, '/');
             Path to = dst.resolve(src.relativize(file).toString());
-            boolean userState = to.getParent().equals(dst) && to.getFileName().toString().equalsIgnoreCase("worlds.ini") && !firstRun;
-            if (!Files.exists(to) || refresh && !userState) {
-               Files.copy(file, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
-               copied[0]++;
+            String template = stamp(attrs.size(), attrs.lastModifiedTime().toMillis());
+            if (!Files.exists(to)) {
+               copy(file, to, rel, template);
+               return FileVisitResult.CONTINUE;
+            }
+            if (!firstRun && rel.equalsIgnoreCase("worlds.ini")) {
+               return FileVisitResult.CONTINUE;
+            }
+            String copy = stamp(Files.size(to), Files.getLastModifiedTime(to).toMillis());
+            String entry = manifest.getProperty(rel);
+            if (entry == null) {
+               // copia de un lanzador anterior al manifiesto: si es igual a la
+               // plantilla se apunta; si no, no se sabe quien la cambio y se respeta
+               if (copy.equals(template)) {
+                  manifest.setProperty(rel, template + "|" + copy);
+               } else {
+                  manifest.setProperty(rel, GAME + "|" + copy);
+                  kept[0]++;
+               }
+               return FileVisitResult.CONTINUE;
+            }
+            int bar = entry.indexOf('|');
+            String wasTemplate = bar < 0 ? entry : entry.substring(0, bar);
+            String wasCopy = bar < 0 ? entry : entry.substring(bar + 1);
+            if (wasTemplate.equals(GAME)) {
+               return FileVisitResult.CONTINUE;
+            }
+            if (!copy.equals(wasCopy)) {
+               // la cambio el cliente o gdkup: desde ahora es suya
+               manifest.setProperty(rel, GAME + "|" + copy);
+               kept[0]++;
+            } else if (!template.equals(wasTemplate)) {
+               copy(file, to, rel, template); // plantilla nueva y copia intacta
             }
             return FileVisitResult.CONTINUE;
          }
+
+         private void copy(Path file, Path to, String rel, String template) throws IOException {
+            Files.copy(file, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+            manifest.setProperty(rel, template + "|" + stamp(Files.size(to), Files.getLastModifiedTime(to).toMillis()));
+            copied[0]++;
+         }
       });
-      Files.write(marker, version.getBytes(StandardCharsets.UTF_8));
-      if (copied[0] > 0) {
-         log.line("[instalacion] " + copied[0] + " ficheros copiados a " + dst + (firstRun ? " (primera vez)" : ""));
+      Path tmp = dst.resolve(MANIFEST + ".tmp");
+      try (java.io.OutputStream out = Files.newOutputStream(tmp)) {
+         manifest.store(out, "FreeWorlds: tamano:fecha de la plantilla|de la copia al copiarla (Install.prepare)");
       }
+      Files.move(tmp, manifestFile, StandardCopyOption.REPLACE_EXISTING);
+      Files.write(dst.resolve(MARKER), (Layout.versionLong() + " " + src.toRealPath()).getBytes(StandardCharsets.UTF_8));
+      int restored = copied[0];
+      if (restored > 0 || kept[0] > 0) {
+         log.line("[instalacion] " + restored + " ficheros copiados a " + dst + (firstRun ? " (primera vez)" : "")
+            + (kept[0] > 0 ? "; " + kept[0] + " cambiados por el juego se respetan desde ahora" : ""));
+      }
+   }
+
+   private static String stamp(long size, long millis) {
+      return size + ":" + millis;
    }
 
    /** Points the copy at this session's local upgrade server and world server choice. */

@@ -37,7 +37,7 @@ final class Layout {
    final File logDir;
    final File settingsFile;
 
-   private Layout(File libDir, File gameRoot, File dataDir) {
+   Layout(File libDir, File gameRoot, File dataDir) {
       this.libDir = libDir;
       this.gameRoot = gameRoot;
       this.template = new File(gameRoot, "assets/WorldsPlayer");
