@@ -1,0 +1,16 @@
+Diferencias de Java (no de gamma.dll) que rompen el cliente de 2004 en un
+Java de hoy; el como y el porque, en NET/worlds/core/JavaCompat.java.
+
+diff a/NET/worlds/network/WorldServer.java b/NET/worlds/network/WorldServer.java
+--- a/NET/worlds/network/WorldServer.java
++++ b/NET/worlds/network/WorldServer.java
+@@ -1006,7 +1006,8 @@
+ 
+       if (this._reader != null) {
+          if (this._reader.isAlive()) {
+-            this._reader.stop();
++            // Thread.stop() solo lanza desde Java 20: ver JavaCompat.stopThread
++            NET.worlds.core.JavaCompat.stopThread(this._reader);
+          }
+ 
+          this._reader = null;
