@@ -110,6 +110,44 @@ BWDecade, BWArt, BWAvatar, Bowie, 13 MB) y Chaos.
    fuera de `/3DCDup/`. Ahora da 404, y con `--mirror` pide al espejo lo que
    falte, como el lanzador. `run_gamma.sh` lo usa y aplica `gdkup.pending`.
 
+## Fallos arreglados el 2026-09-29 (lanzador nuevo)
+
+Informados por el usuario al jugar con el paquete, reproducidos y probados
+en Linux (Xvfb, `xdotool`, espejo activado):
+
+8. **"Los mundos se descargan y cuando le das a jugar después del reinicio
+   no va".** Con un mundo de la lista del lanzador aún sin instalar, el
+   cliente no puede cargarlo, cae en GroundZero y ofrece la descarga desde
+   allí. Tras instalarla, gdkup reinicia con `run.exe world:restart`
+   (`NetUpdate.getRestartCmd`), que `TeleportAction.toURLString` resuelve a
+   `[Gamma] RestartAt`: donde estaba el piloto al salir
+   (`Gamma.RecordPosition`), es decir GroundZero, no el mundo elegido. Ahora
+   la sesión del lanzador recuerda el mundo pedido y, si la actualización
+   acaba de instalarlo, reinicia en él (`Session.restartWith`). Probado con
+   Meteor: Jugar → GroundZero ofrece Meteor → descarga → "Restart and
+   Upgrade" → el juego vuelve directamente en Meteor.
+9. **"Si le das click a un usuario no hace nada".** El clic izquierdo en el
+   avatar de otro usuario (`Drone.handle(MouseDownEvent)`) abre su menú
+   (añadir a amigos, susurrar, silenciar, acciones) con
+   `droneMenu.show(console.getRender(), x, y)`, y ese menú cuelga de la lista
+   de amigos, un `Canvas` ajeno al lienzo de render. El Java 1.4.2 de 2004
+   lo mostraba; desde Java 6 lanza "origin not in parent's hierarchy" (bug
+   del JDK 6278745). `AwtCompat.showPopup` lo abre desde su padre en el mismo
+   punto (`PopupShowCheck`). ⚠️ Queda por ver si el paso de picking da con
+   los avatares holograma (`HoloDrone`, casi todos): un agente lo investiga.
+10. **Soltar un servidor de mundos** (`WorldServer.cleanup`) se cortaba con
+    `Thread.stop()`, que desde Java 20 solo lanza: ni se cerraba el socket
+    ni terminaba el desenganche. `JavaCompat.stopThread` (`JavaCompatCheck`).
+11. **"El whirl en local no va".** El lanzador ofrecía "whirl local" pero
+    nada lo arrancaba y el paquete no lo traía. Ahora las apps llevan whirl
+    (la CI lo compila en los cuatro sistemas) y `LocalWhirl` lo arranca, lo
+    para al acabar y deja el login relleno (basta "Sign In").
+12. **"Un jugador" preguntaba por la conexión** ("unable to connect to Worlds
+    servers... Single-user mode"): el lanzador pasa
+    `-Dfreeworlds.singleUser=true` y el diálogo contesta solo
+    (`bridge/natives-launcher.patch`). Y la ventana del juego ya no abre a
+    568×424 la primera vez: dos tercios de la pantalla.
+
 ## Abierto
 
 - `Hologram.setActiveSide` imprime "Error ... side 1 of 1" en bucle en
@@ -124,5 +162,7 @@ BWDecade, BWArt, BWAvatar, Bowie, 13 MB) y Chaos.
   aplican. `GdkUp` los da por terminados y sigue.
 - El chat de voz (`sfmain.exe`, SpeakFreely con GSM) está decompilado pero
   no traducido.
-- Varios usuarios: no se volvió a probar en esta sesión. La prueba anterior,
-  con dos clientes contra `server/whirl`, está en `docs/net-local-whirl.md`.
+- Varios usuarios: con whirl local, dos clientes siguen sin verse (whirl no
+  manda `APPRACTR`, `docs/net-local-whirl.md`).
+- Al arrancar GroundZero con el espejo activado, el portal de Avatar Gallery
+  ofrece descargarla enseguida: es lo que hace el original sin ese mundo.
