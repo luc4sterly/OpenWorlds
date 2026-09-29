@@ -15,7 +15,10 @@
 #                                       ya hecho (lo usa la CI en macOS y Windows)
 #   --no-zip                            sin el .zip portable
 #
-# Variables: FREEWORLDS_VERSION (por defecto git describe), JAVA_HOME.
+# Variables: FREEWORLDS_VERSION (por defecto <launcher/VERSION>.<commits>, p. ej.
+# 1.0.150: es la que compara el actualizador automatico con las releases),
+# FREEWORLDS_COMMIT, FREEWORLDS_UPDATE_REPO (owner/nombre de las releases; por
+# defecto $GITHUB_REPOSITORY o luc4sterly/OpenWorlds), JAVA_HOME.
 # Salida de ejemplo en la CI: .github/workflows/build.yml.
 set -euo pipefail
 
@@ -53,10 +56,19 @@ if [ "${JV%%.*}" -lt 17 ]; then
    echo "[dist] hace falta JDK 17 o mas nuevo"; exit 2
 fi
 
-VERSION="${FREEWORLDS_VERSION:-$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null || echo dev)}"
-# jpackage solo acepta numeros y en macOS el primero tiene que ser >= 1:
-# 1.0.<commits> salvo que se de uno (la CI lo calcula con el historial entero)
-NUMVER="${FREEWORLDS_NUMERIC_VERSION:-1.0.$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 0)}"
+# Version <base>.<commits>: la base (1.0) en launcher/VERSION, el numero de
+# commits de la historia (la CI la trae entera). Crece con cada commit de main,
+# asi que el actualizador puede comparar versiones; jpackage solo acepta
+# numeros y en macOS el primero tiene que ser >= 1.
+BASE="$(tr -d ' \r\n' < "$ROOT/launcher/VERSION" 2>/dev/null || echo 1.0)"
+NUMVER="${FREEWORLDS_NUMERIC_VERSION:-$BASE.$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 0)}"
+VERSION="${FREEWORLDS_VERSION:-$NUMVER}"
+COMMIT="${FREEWORLDS_COMMIT:-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo desconocido)}"
+if [ -z "${FREEWORLDS_COMMIT:-}" ] && ! git -C "$ROOT" diff --quiet HEAD 2>/dev/null; then
+   COMMIT="$COMMIT-dirty"
+fi
+UPDATE_REPO="${FREEWORLDS_UPDATE_REPO:-${GITHUB_REPOSITORY:-luc4sterly/OpenWorlds}}"
+echo "[dist] version $VERSION ($COMMIT), releases de $UPDATE_REPO"
 OUT="$ROOT/build"
 DIST="$OUT/dist/FreeWorlds"
 LIB="$DIST/lib"
@@ -74,7 +86,8 @@ if [ "$BUILD" = 1 ]; then
    find "$ROOT/launcher/src" -name '*.java' > "$OUT/launcher-sources.txt"
    "$JDK/bin/javac" --release 17 -nowarn -encoding UTF-8 -d "$OUT/classes/launcher" @"$OUT/launcher-sources.txt"
    cp -R "$ROOT/launcher/resources/." "$OUT/classes/launcher/"
-   printf 'Main-Class: net.freeworlds.launcher.Launcher\nImplementation-Title: FreeWorlds\nImplementation-Version: %s\n' "$VERSION" > "$OUT/manifest-launcher.txt"
+   printf 'Main-Class: net.freeworlds.launcher.Launcher\nImplementation-Title: FreeWorlds\nImplementation-Version: %s\nFreeWorlds-Commit: %s\nFreeWorlds-Update-Repo: %s\n' \
+      "$VERSION" "$COMMIT" "$UPDATE_REPO" > "$OUT/manifest-launcher.txt"
    "$JDK/bin/jar" cfm "$LIB/freeworlds-launcher.jar" "$OUT/manifest-launcher.txt" -C "$OUT/classes/launcher" .
 
    echo "[dist] datos del juego"

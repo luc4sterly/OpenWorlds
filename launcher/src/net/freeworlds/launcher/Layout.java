@@ -78,12 +78,53 @@ final class Layout {
 
    /** Directory of the launcher's jar (or class directory). */
    private static File codeDir() throws IOException {
-      try {
-         File f = new File(Launcher.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-         return f.isFile() ? f.getParentFile() : f;
-      } catch (URISyntaxException | SecurityException | NullPointerException e) {
-         throw new IOException("no se puede saber donde esta el lanzador: " + e);
+      File f = codeSource();
+      if (f == null) {
+         throw new IOException("no se puede saber donde esta el lanzador");
       }
+      return f.isFile() ? f.getParentFile() : f;
+   }
+
+   /** {@link #codeDir()}, or null if it cannot be known. */
+   static File codeDirOrNull() {
+      try {
+         return codeDir();
+      } catch (IOException e) {
+         return null;
+      }
+   }
+
+   /** The launcher's jar (or class directory), or null. */
+   private static File codeSource() {
+      try {
+         return new File(Launcher.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+      } catch (URISyntaxException | SecurityException | NullPointerException | IllegalArgumentException e) {
+         return null;
+      }
+   }
+
+   private static java.util.jar.Attributes manifest;
+
+   /**
+    * A main attribute of the launcher jar's manifest (build-dist.sh writes
+    * FreeWorlds-Commit and FreeWorlds-Update-Repo there), or null. Read from
+    * the jar itself: the class path of the app has more than one manifest.
+    */
+   static synchronized String manifestAttribute(String name) {
+      if (manifest == null) {
+         manifest = new java.util.jar.Attributes();
+         File jar = codeSource();
+         if (jar != null && jar.isFile()) {
+            try (java.util.jar.JarFile j = new java.util.jar.JarFile(jar)) {
+               if (j.getManifest() != null) {
+                  manifest = j.getManifest().getMainAttributes();
+               }
+            } catch (IOException e) {
+               // sin manifiesto: version de desarrollo
+            }
+         }
+      }
+      return manifest.getValue(name);
    }
 
    static boolean isWindows() {
@@ -94,7 +135,8 @@ final class Layout {
       return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("mac");
    }
 
-   private static File dataDir() {
+   /** The user's data folder: the install copy, the settings, the logs and the downloaded updates. */
+   static File dataDir() {
       String forced = System.getProperty("freeworlds.data", System.getenv("FREEWORLDS_DATA"));
       if (forced != null && !forced.isEmpty()) {
          return new File(forced);
@@ -126,6 +168,12 @@ final class Layout {
       Package p = Launcher.class.getPackage();
       String v = p == null ? null : p.getImplementationVersion();
       return v == null ? "dev" : v;
+   }
+
+   /** Version and commit, for the window and the logs ("1.0.150 (65a3e83)"). */
+   static String versionLong() {
+      String c = manifestAttribute("FreeWorlds-Commit");
+      return version() + (c == null || c.isEmpty() ? "" : " (" + c + ")");
    }
 
    static void deleteTree(Path p) throws IOException {

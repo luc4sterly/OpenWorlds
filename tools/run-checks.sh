@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # run-checks.sh — runner de comprobaciones unitarias del hito H0 de
 # docs/roadmap.md: compila y ejecuta todos los *Check.java que haya bajo
-# formats/test/** (classpath de las clases de formats/) y bajo
+# formats/test/** (classpath de las clases de formats/), bajo
 # editor/worldsplayer_source_editor-main/bridge/test/ (classpath
-# editor/.build-gamma/out). Contrato (COMUN.md): un *Check es una clase con
-# `main` que sale con codigo 0 si pasa, != 0 si falla.
+# editor/.build-gamma/out) y bajo launcher/test/** (el lanzador compilado).
+# Contrato (COMUN.md): un *Check es una clase con `main` que sale con codigo 0
+# si pasa, != 0 si falla.
 #
 # Uso:
 #   tools/run-checks.sh [--no-bridge] [--formats-build DIR]
@@ -195,6 +196,42 @@ else
          fi
       done < "$BRIDGE_CHECKS"
    fi
+fi
+echo
+
+# ---------------------------------------------------------------------
+# launcher/test/**/*Check.java (classpath: launcher/src compilado + sus recursos)
+# ---------------------------------------------------------------------
+LAUNCHER_CHECKS="$WORK/launcher-checks.txt"
+if [ -d "$ROOT/launcher/test" ]; then
+   find "$ROOT/launcher/test" -name "*Check.java" 2>/dev/null | sort > "$LAUNCHER_CHECKS" || true
+else
+   : > "$LAUNCHER_CHECKS"
+fi
+N_LAUNCHER_CHECKS=$(wc -l < "$LAUNCHER_CHECKS" | tr -d ' ')
+echo "--- launcher: $N_LAUNCHER_CHECKS *Check.java en launcher/test ---"
+if [ "$N_LAUNCHER_CHECKS" -gt 0 ]; then
+   LAUNCHER_BUILD="$WORK/launcher-out"
+   mkdir -p "$LAUNCHER_BUILD"
+   find "$ROOT/launcher/src" "$ROOT/launcher/test" -name "*.java" > "$WORK/launcher-sources.txt"
+   javac --release 17 -nowarn -encoding UTF-8 -d "$LAUNCHER_BUILD" @"$WORK/launcher-sources.txt"
+   cp -R "$ROOT/launcher/resources/." "$LAUNCHER_BUILD/"
+   while IFS= read -r f; do
+      CLS="$(class_name_for_java_file "$f")"
+      REL="${f#"$ROOT"/}"
+      set +e
+      java $JMEM -cp "$LAUNCHER_BUILD" "$CLS" > "$WORK/last.txt" 2>&1
+      RC=$?
+      set -e
+      if [ "$RC" -eq 0 ]; then
+         echo "  PASA  $REL"
+         report "launcher" "$CLS" "PASA" "exit 0"
+      else
+         echo "  FALLA $REL (exit $RC)"
+         sed 's/^/    /' "$WORK/last.txt"
+         report "launcher" "$CLS" "FALLA" "exit $RC"
+      fi
+   done < "$LAUNCHER_CHECKS"
 fi
 echo
 

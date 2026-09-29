@@ -11,8 +11,14 @@ import java.util.Date;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
-/** One session's log: a file under the data dir plus whoever listens (terminal or window). */
+/**
+ * One session's log: a file under the data dir plus whoever listens (the
+ * terminal). The window no longer shows it; the files stay for bug reports
+ * and the CI, and only the last {@link #KEEP} of each kind are kept.
+ */
 final class Log {
+   static final int KEEP = 20;
+
    private final PrintWriter file;
    final File path;
    private final CopyOnWriteArrayList<Consumer<String>> listeners = new CopyOnWriteArrayList<>();
@@ -24,11 +30,24 @@ final class Log {
          dir.mkdirs();
          p = new File(dir, name + "-" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".log");
          w = new PrintWriter(new OutputStreamWriter(new FileOutputStream(p), StandardCharsets.UTF_8), true);
+         prune(dir, name);
       } catch (IOException e) {
          System.err.println("[log] no se puede escribir el registro en " + dir + ": " + e);
       }
       this.file = w;
       this.path = p;
+   }
+
+   /** Deletes all but the newest KEEP logs "name-*.log" (the names sort by date). */
+   private static void prune(File dir, String name) {
+      String[] all = dir.list((d, n) -> n.startsWith(name + "-") && n.endsWith(".log"));
+      if (all == null || all.length <= KEEP) {
+         return;
+      }
+      java.util.Arrays.sort(all);
+      for (int i = 0; i < all.length - KEEP; i++) {
+         new File(dir, all[i]).delete();
+      }
    }
 
    void listen(Consumer<String> l) {

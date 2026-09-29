@@ -254,23 +254,42 @@ final class Install {
       Files.write(ini.toPath(), sb.toString().getBytes(StandardCharsets.ISO_8859_1));
    }
 
-   /** The .world files of the copy, as the client's home: URLs (GroundZero first). */
+   /** A place the launcher offers: a name, the client's home: URL and whether the copy already has it. */
+   static final class World {
+      final String name;
+      final String url;
+      final boolean installed;
+
+      World(String name, String url, boolean installed) {
+         this.name = name;
+         this.url = url;
+         this.installed = installed;
+      }
+   }
+
    /**
-    * Worlds to offer, {label, home: URL}: GroundZero, the other .world files
-    * at the top of the install, and the places of GroundZero's map
-    * (GroundZero/groundzero-map.inf: "x y w h Name -URL" after the count),
-    * which the client downloads from the upgrade server the first time.
+    * Worlds to offer: GroundZero, the other .world files at the top of the
+    * install, the places of GroundZero's map (GroundZero/groundzero-map.inf:
+    * "x y w h Name -URL" after the count), which the client downloads from the
+    * upgrade server the first time, and the worlds installed later from the
+    * universe map or Teleport ([InstalledWorlds] of the copy's worlds.ini),
+    * one entry per .world file of their folder.
     */
-   static List<String[]> worlds(Layout l) {
-      List<String[]> out = new ArrayList<>();
-      out.add(new String[]{"GroundZero", "home:GroundZero/groundzero.world"});
+   static List<World> worlds(Layout l) {
+      List<World> out = new ArrayList<>();
+      java.util.Set<String> folders = new java.util.HashSet<>();
+      out.add(new World("GroundZero", "home:GroundZero/groundzero.world", true));
+      folders.add("groundzero");
       File[] top = l.template.listFiles();
       if (top != null) {
          java.util.Arrays.sort(top);
          for (File f : top) {
             String n = f.getName();
-            if (f.isFile() && n.toLowerCase(Locale.ROOT).endsWith(".world") && !n.equalsIgnoreCase("ad.world")) {
-               out.add(new String[]{n.substring(0, n.length() - 6), "home:" + n});
+            // ad.world es el marco de anuncios y NewWorld.world la plantilla
+            // vacia del editor (Shaper, y el ultimo recurso de TeleportAction)
+            if (f.isFile() && n.toLowerCase(Locale.ROOT).endsWith(".world") && !n.equalsIgnoreCase("ad.world")
+               && !n.equalsIgnoreCase("NewWorld.world")) {
+               out.add(new World(n.substring(0, n.length() - 6), "home:" + n, true));
             }
          }
       }
@@ -284,15 +303,60 @@ final class Install {
                   String url = f[5].substring(1);
                   String pkg = url.substring(5).replaceFirst("^/", "");
                   pkg = pkg.contains("/") ? pkg.substring(0, pkg.indexOf('/')) : pkg;
-                  boolean installed = new File(new File(l.workDir, pkg), "ver.txt").isFile()
-                     || new File(new File(l.template, pkg), "ver.txt").isFile();
-                  out.add(new String[]{f[4].replace('_', ' ') + (installed ? "" : "  (se descarga la primera vez)"), url});
+                  folders.add(pkg.toLowerCase(Locale.ROOT));
+                  out.add(new World(f[4].replace('_', ' '), url, installed(l, pkg)));
                }
             }
          } catch (IOException e) {
             // sin mapa: solo los mundos de la instalacion
          }
       }
+      File ini = findNoCase(l.workDir, "worlds.ini");
+      if (ini != null) {
+         try {
+            int max = parseInt(getKey(ini, "InstalledWorlds", "MaxInstalledWorlds"));
+            // algun instalador apunta su mundo sin subir MaxInstalledWorlds
+            // (Chaos14, docs/pruebas-juego.md): se miran unos cuantos de mas
+            for (int i = 0; i <= Math.max(max, 0) + 8; i++) {
+               String pkg = getKey(ini, "InstalledWorlds", "InstalledWorld" + i);
+               if (pkg == null || pkg.isEmpty() || !folders.add(pkg.toLowerCase(Locale.ROOT))) {
+                  continue;
+               }
+               File dir = findNoCase(l.workDir, pkg);
+               File[] ws = dir == null ? null : dir.listFiles((d, n) -> n.toLowerCase(Locale.ROOT).endsWith(".world"));
+               if (ws == null || ws.length == 0) {
+                  continue;
+               }
+               java.util.Arrays.sort(ws);
+               for (File w : ws) {
+                  String base = w.getName().substring(0, w.getName().length() - 6);
+                  out.add(new World(ws.length == 1 ? dir.getName() : dir.getName() + " · " + base,
+                     "home:" + dir.getName() + "/" + w.getName(), true));
+               }
+            }
+         } catch (IOException e) {
+            // worlds.ini ilegible: la lista se queda con lo de arriba
+         }
+      }
       return out;
+   }
+
+   /** A world package is installed when its folder (any case) has its ver.txt, in the copy or in the template. */
+   static boolean installed(Layout l, String pkg) {
+      for (File base : new File[]{l.workDir, l.template}) {
+         File dir = findNoCase(base, pkg);
+         if (dir != null && dir.isDirectory() && findNoCase(dir, "ver.txt") != null) {
+            return true;
+         }
+      }
+      return false;
+   }
+
+   private static int parseInt(String s) {
+      try {
+         return s == null ? 0 : Integer.parseInt(s.trim());
+      } catch (NumberFormatException e) {
+         return 0;
+      }
    }
 }

@@ -2,7 +2,6 @@ package net.freeworlds.launcher;
 
 import java.awt.GraphicsEnvironment;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -19,15 +18,28 @@ import java.nio.charset.StandardCharsets;
  *   FreeWorlds --offline            no world server (single-user)
  *   FreeWorlds --threads N --fps    raster threads of the bridge / frame rate in the log
  *   FreeWorlds --no-mirror | --mirror   do not / do ask us1.worlds.net for what the install lacks
+ *   FreeWorlds --update             look for a newer FreeWorlds on GitHub and install it now
+ *   FreeWorlds --no-update          neither use a downloaded version nor look for one (this run)
  *   FreeWorlds --smoke SECONDS      CI: run --original for that long and fail unless it drew frames
  *   FreeWorlds --paths | --version | --help
  * </pre>
+ *
+ * Before anything else, {@link Bootstrap} hands the start to a newer version
+ * downloaded by the {@link Updater}, if there is one.
  */
 public final class Launcher {
    private Launcher() {
    }
 
    public static void main(String[] args) throws Exception {
+      if (Bootstrap.handOff(args, false)) {
+         return;
+      }
+      // texto suavizado en las etiquetas de Swing tambien en un X11 sin
+      // escritorio; y el proxy del sistema para las consultas a GitHub
+      defaultProperty("awt.useSystemAAFontSettings", "on");
+      defaultProperty("swing.aatext", "true");
+      defaultProperty("java.net.useSystemProxies", "true");
       Layout layout;
       try {
          layout = Layout.detect();
@@ -40,6 +52,7 @@ public final class Launcher {
       String modeArg = null;
       int smoke = 0;
       boolean save = false;
+      boolean update = false;
       for (int i = 0; i < args.length; i++) {
          String a = args[i];
          String next = i + 1 < args.length && !args[i + 1].startsWith("--") ? args[i + 1] : null;
@@ -89,7 +102,14 @@ public final class Launcher {
                settings.mirror = a.equals("--mirror");
                save = true;
                break;
+            case "--update":
+               update = true;
+               break;
+            case "--no-update":
+               System.setProperty("freeworlds.noUpdate", "true");
+               break;
             case "--smoke":
+               System.setProperty("freeworlds.noUpdate", "true");
                mode = "original";
                smoke = Integer.parseInt(next == null ? "30" : next);
                settings.showFps = true;
@@ -116,6 +136,9 @@ public final class Launcher {
       if (save) {
          settings.save(layout.settingsFile);
       }
+      if (update) {
+         System.exit(Updater.runFromCli(layout, settings));
+      }
       if (mode == null) {
          mode = GraphicsEnvironment.isHeadless() ? "tui" : "gui";
       }
@@ -133,7 +156,7 @@ public final class Launcher {
             if (GraphicsEnvironment.isHeadless()) {
                new TextMenu(layout, settings).run();
             } else {
-               LauncherWindow.open(layout, settings);
+               LauncherWindow.open(layout, settings, args);
             }
       }
    }
@@ -146,7 +169,9 @@ public final class Launcher {
       }
       Runtime.getRuntime().addShutdownHook(new Thread(s::stop));
       s.start();
-      System.out.println("[lanzador] registro: " + s.log.path);
+      if (echo) {
+         System.out.println("[lanzador] registro: " + s.log.path);
+      }
       return s.waitFor();
    }
 
@@ -201,8 +226,16 @@ public final class Launcher {
          + "  --threads N               hilos del rasterizador del puente (0 = automatico)\n"
          + "  --fps                     fotogramas por segundo en el registro\n"
          + "  --no-mirror | --mirror    no pedir / pedir a us1.worlds.net los mundos y avatares que falten\n"
+         + "  --update                  buscar una version nueva en GitHub e instalarla ya\n"
+         + "  --no-update               ni usar una version descargada ni buscarla (en esta ejecucion)\n"
          + "  --smoke SEGUNDOS          prueba de humo para CI (falla si el original no dibuja)\n"
          + "  --paths | --version | --help");
+   }
+
+   private static void defaultProperty(String key, String value) {
+      if (System.getProperty(key) == null) {
+         System.setProperty(key, value);
+      }
    }
 
    static void fatal(String msg) {
@@ -229,6 +262,17 @@ public final class Launcher {
       }
 
       void run() throws IOException, InterruptedException {
+         Updater updater = new Updater(layout, settings);
+         if (settings.autoUpdate) {
+            boolean[] told = {false};
+            updater.addListener(s -> {
+               if (s.phase == Updater.Phase.READY && !told[0]) {
+                  told[0] = true;
+                  System.out.println("[actualizacion] " + Updater.describe(s));
+               }
+            });
+            updater.checkInBackground(false);
+         }
          while (true) {
             System.out.println();
             System.out.println("=== FreeWorlds " + Layout.version() + " ===");
@@ -237,9 +281,10 @@ public final class Launcher {
             System.out.println(" 3) Servidor de mundos: " + (settings.server.isEmpty() ? "sin conexion (un jugador)" : settings.server
                + (settings.user.isEmpty() ? "" : " como " + settings.user)));
             System.out.println(" 4) Opciones: hilos de dibujo " + (settings.rasterThreads == 0 ? "auto" : settings.rasterThreads)
-               + ", fps en el registro " + (settings.showFps ? "si" : "no")
-               + ", descargar lo que falte " + (settings.mirror ? "si" : "no"));
-            System.out.println(" 5) Rutas (datos, registros)");
+               + ", descargar lo que falte " + (settings.mirror ? "si" : "no")
+               + ", actualizaciones " + (settings.autoUpdate ? "automaticas" : "a mano"));
+            System.out.println(" 5) Buscar actualizaciones ahora");
+            System.out.println(" 6) Rutas");
             System.out.println(" 0) Salir");
             String c = ask("Opcion");
             if (c == null || c.equals("0") || c.equalsIgnoreCase("q")) {
@@ -260,6 +305,9 @@ public final class Launcher {
                   options();
                   break;
                case "5":
+                  Updater.runFromCli(layout, settings);
+                  break;
+               case "6":
                   printPaths(layout);
                   break;
                default:
@@ -309,13 +357,13 @@ public final class Launcher {
                System.out.println("No es un numero");
             }
          }
-         String f = ask("Fotogramas por segundo en el registro (s/n, ahora " + (settings.showFps ? "s" : "n") + ")");
-         if (f != null && !f.isEmpty()) {
-            settings.showFps = f.trim().toLowerCase().startsWith("s") || f.trim().toLowerCase().startsWith("y");
-         }
          String m = ask("Descargar de us1.worlds.net los mundos y avatares que falten (s/n, ahora " + (settings.mirror ? "s" : "n") + ")");
          if (m != null && !m.isEmpty()) {
             settings.mirror = m.trim().toLowerCase().startsWith("s") || m.trim().toLowerCase().startsWith("y");
+         }
+         String u = ask("Buscar actualizaciones al abrir (s/n, ahora " + (settings.autoUpdate ? "s" : "n") + ")");
+         if (u != null && !u.isEmpty()) {
+            settings.autoUpdate = u.trim().toLowerCase().startsWith("s") || u.trim().toLowerCase().startsWith("y");
          }
          settings.save(layout.settingsFile);
       }
@@ -339,7 +387,4 @@ public final class Launcher {
       return dot > 0 ? n.substring(0, dot) : n;
    }
 
-   static File logDir(Layout l) {
-      return l.logDir;
-   }
 }
