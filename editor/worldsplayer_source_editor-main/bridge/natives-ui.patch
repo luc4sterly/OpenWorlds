@@ -288,3 +288,17 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
        return 0;
     }
  
+diff a/NET/worlds/console/FriendsListPart.java b/NET/worlds/console/FriendsListPart.java
+--- a/NET/worlds/console/FriendsListPart.java
++++ b/NET/worlds/console/FriendsListPart.java
+@@ -769,7 +769,9 @@
+             }
+          }
+ 
+-         this.droneMenu.show(this.console.getRender(), var2.x, var2.y);
++         // AwtCompat.showPopup: en Java >= 6 este show lanza "origin not in
++         // parent's hierarchy" (el menu cuelga de la lista de amigos)
++         NET.worlds.core.AwtCompat.showPopup(this.droneMenu, this.console.getRender(), var2.x, var2.y);
+       }
+    }
+ 

@@ -116,4 +116,55 @@ public final class AwtCompat {
          throw new RuntimeException(t);
       }
    }
+
+   /**
+    * PopupMenu.show(origin, x, y) as the Java of 2004 (1.4.2) did it for a
+    * menu whose parent is neither the origin nor a Container holding it: it
+    * showed the menu at (x, y) of the origin. Since Java 6 that throws
+    * IllegalArgumentException "origin not in parent's hierarchy" (JDK bug
+    * 6278745, "Exception was not thrown if compParent was not equal to origin
+    * and was not Container"). FriendsListPart.instanceDroneClick does exactly
+    * that: the menu of another user's avatar (add to friends, whisper,
+    * actions...) is added to the friends list, a QuantizedCanvas, and shown
+    * on the render canvas where the avatar was clicked; today the click on a
+    * user did nothing.
+    *
+    * <p>Here the menu is shown from its parent at the same place on the
+    * screen: (x, y) of the origin, translated; if the origin is not on the
+    * screen, at the pointer, as NativeUiMenu.show does for TrackPopupMenu. On
+    * the event thread, like NativeUiMenu.
+    */
+   public static void showPopup(final java.awt.PopupMenu menu, final Component origin, final int x, final int y) {
+      EventQueue.invokeLater(new Runnable() {
+         public void run() {
+            showPopupNow(menu, origin, x, y);
+         }
+      });
+   }
+
+   /** {@link #showPopup} on the calling (event) thread; returns where the menu went, in its parent, or null. */
+   static java.awt.Point showPopupNow(java.awt.PopupMenu menu, Component origin, int x, int y) {
+      java.awt.MenuContainer mc = menu.getParent();
+      Component parent = mc instanceof Component ? (Component) mc : null;
+      if (parent == null || parent == origin
+         || parent instanceof java.awt.Container && ((java.awt.Container) parent).isAncestorOf(origin)) {
+         menu.show(origin, x, y);
+         return new java.awt.Point(x, y);
+      }
+      if (!parent.isShowing()) {
+         System.err.println("[AWT] menu sin mostrar: su padre " + parent.getClass().getName() + " no esta en pantalla");
+         return null;
+      }
+      java.awt.Point p = parent.getLocationOnScreen();
+      java.awt.Point at;
+      if (origin != null && origin.isShowing()) {
+         java.awt.Point o = origin.getLocationOnScreen();
+         at = new java.awt.Point(o.x + x, o.y + y);
+      } else {
+         at = java.awt.MouseInfo.getPointerInfo().getLocation();
+      }
+      java.awt.Point in = new java.awt.Point(at.x - p.x, at.y - p.y);
+      menu.show(parent, in.x, in.y);
+      return in;
+   }
 }
