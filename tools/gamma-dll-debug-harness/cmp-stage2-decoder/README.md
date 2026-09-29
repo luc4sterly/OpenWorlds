@@ -423,10 +423,10 @@ Xvfb/`import` (window at fixed coords, 1:1 pixels).
   (`test4b.bmp`↔`test4b.cmp` is genuine self-made ground truth.)
 
 **Pipeline connection (this round's close-out criterion)** (the Java
-package now lives in `formats/src/net/freeworlds/cmp/`; `RwxParser`,
+package now lives in `formats/src/net/openworlds/cmp/`; `RwxParser`,
 `RwxModel` and `RwxViewer` were removed with the new engine on 2026-09-26
 and remain in git history):
-`client/src/net/freeworlds/cmp/` (`CmpStage2` port of this directory's
+`client/src/net/openworlds/cmp/` (`CmpStage2` port of this directory's
 verified decoder + `CmpTexture` loader), `assets/cmp-verified/sball/`
 (`.cmp` + 5 Stage-2 streams trimmed to exact verified consumption —
 sball A 1940/2048, ctrl/fill 593/640, lit 997/1024, bits 516/576 —

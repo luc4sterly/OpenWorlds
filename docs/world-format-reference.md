@@ -20,7 +20,7 @@ diferencia, la fuente de evidencia más fiable de todo el proyecto: el
 propio código que escribe y lee el formato está ahí, completo.
 
 **Implementado y verificado end-to-end** (con el lector del motor nuevo,
-`client/src/net/freeworlds/world/WorldRestorer.java`, hoy en el historial
+`client/src/net/openworlds/world/WorldRestorer.java`, hoy en el historial
 de git): parsea `assets/GROUNDZERO/GROUNDZERO.WORLD` (un
 archivo real de 205.759 bytes) **completo, sin errores, hasta el
 marcador `END PERSISTER`** — 25 salas reales, 578 nodos en el grafo de
@@ -165,7 +165,7 @@ se modela.
 
 ## Conexión con el motor de renderizado: `WorldViewer.java`
 
-`client/src/net/freeworlds/render/WorldViewer.java` carga un `.world`
+`client/src/net/openworlds/render/WorldViewer.java` carga un `.world`
 real, resuelve cada URL de geometría contra archivos reales en disco
 (relativos al directorio del propio `.world`, con búsqueda insensible a
 mayúsculas porque las URLs del archivo no siempre coinciden con el

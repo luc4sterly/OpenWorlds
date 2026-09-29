@@ -37,13 +37,13 @@ public final class NativeInput {
     * SmoothDriver zeroes a velocity under minFB_vel / minLR_vel after each
     * frame, and with a 1 ms clock at the bridge's hundreds of frames per
     * second the push of one frame never gets past them (turning dropped to
-    * about 1 degree a second instead of about 100). -Dfreeworlds.tickMs
+    * about 1 degree a second instead of about 100). -Dopenworlds.tickMs
     * changes the step (0 = one millisecond).
     */
    private static final long TICK_NANOS = tickNanos();
 
    private static long tickNanos() {
-      String s = System.getProperty("freeworlds.tickMs");
+      String s = System.getProperty("openworlds.tickMs");
       try {
          double ms = s == null ? 15.625 : Double.parseDouble(s);
          return ms <= 0 ? 1000000L : Math.round(ms * 1000000.0);
@@ -552,16 +552,16 @@ public final class NativeInput {
       }
    }
    /**
-    * Harness diagnostic, off by default: -Dfreeworlds.scriptKeys=START_MS:KEYCODE:HOLD_MS[,...]
+    * Harness diagnostic, off by default: -Dopenworlds.scriptKeys=START_MS:KEYCODE:HOLD_MS[,...]
     * dispatches synthetic AWT key presses/releases to the render canvas so the
     * input path can be exercised without a person at the keyboard.
     */
    private static void scriptedKeys(final Component c) {
-      final String spec = System.getProperty("freeworlds.scriptKeys");
+      final String spec = System.getProperty("openworlds.scriptKeys");
       if (spec == null) {
          return;
       }
-      Thread t = new Thread("freeworlds-scriptKeys") {
+      Thread t = new Thread("openworlds-scriptKeys") {
          public void run() {
             long t0 = System.currentTimeMillis();
             for (String item : spec.split(",")) {

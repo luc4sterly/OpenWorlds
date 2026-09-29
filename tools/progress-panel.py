@@ -119,15 +119,15 @@ def collect_targets():
             targets.append((str(rel), module_of(rel), is_patch))
 
     def formats_src_module(rel):
-        # formats/src/net/freeworlds/<pkg>/Archivo.java -> "formats/src/<pkg>"
+        # formats/src/net/openworlds/<pkg>/Archivo.java -> "formats/src/<pkg>"
         parts = rel.parts
-        if len(parts) >= 5 and parts[:4] == ("formats", "src", "net", "freeworlds"):
+        if len(parts) >= 5 and parts[:4] == ("formats", "src", "net", "openworlds"):
             return "formats/src/" + parts[4]
         return "formats/src/(raiz)"
 
     def formats_test_module(rel):
         parts = rel.parts
-        if len(parts) >= 5 and parts[:4] == ("formats", "test", "net", "freeworlds"):
+        if len(parts) >= 5 and parts[:4] == ("formats", "test", "net", "openworlds"):
             return "formats/test/" + parts[4]
         return "formats/test/(raiz)"
 

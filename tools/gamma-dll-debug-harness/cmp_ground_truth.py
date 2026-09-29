@@ -41,7 +41,7 @@ import subprocess
 import sys
 import time
 
-CMPVIEW_EXE = "/home/lucas/FreeWorlds/tools/gdk-sdk/cmpview.exe"
+CMPVIEW_EXE = "/home/lucas/OpenWorlds/tools/gdk-sdk/cmpview.exe"
 MENU_Y = 51  # confirmed fixed offset, see module docstring
 
 

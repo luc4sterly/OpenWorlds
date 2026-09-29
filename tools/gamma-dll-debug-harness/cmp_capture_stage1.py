@@ -23,7 +23,7 @@ import sys
 import time
 import textwrap
 
-REPO_ROOT = "/home/lucas/FreeWorlds"
+REPO_ROOT = "/home/lucas/OpenWorlds"
 HARNESS_SRC = f"{REPO_ROOT}/tools/gamma-dll-debug-harness/NET/worlds/console/ScapePicImage.java"
 HARNESS_OUT = f"{REPO_ROOT}/tools/gamma-dll-debug-harness/.harness_out"
 
@@ -172,9 +172,9 @@ def main():
     with open(script_path, "w") as f:
         f.write(gdb_script)
 
-    win_harness_path = HARNESS_OUT.replace("/home/lucas/FreeWorlds", r"Z:\home\lucas\FreeWorlds").replace("/", "\\")
+    win_harness_path = HARNESS_OUT.replace("/home/lucas/OpenWorlds", r"Z:\home\lucas\OpenWorlds").replace("/", "\\")
     cmd = (
-        f"winedbg --gdb 'Z:\\home\\lucas\\FreeWorlds\\assets\\WorldsPlayer\\bin\\java.exe' "
+        f"winedbg --gdb 'Z:\\home\\lucas\\OpenWorlds\\assets\\WorldsPlayer\\bin\\java.exe' "
         f"-cp '{win_harness_path}' NET.worlds.console.ScapePicImage 'C:\\_capture_target.cmp' "
         f"< {script_path!r} > {outdir}/_run.log 2>&1"
     )

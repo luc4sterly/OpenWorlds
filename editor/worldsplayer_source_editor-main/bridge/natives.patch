@@ -1267,7 +1267,7 @@ diff a/NET/worlds/scape/ScapePicMovie.java b/NET/worlds/scape/ScapePicMovie.java
 +      }
 +      int total;
 +      try {
-+         total = net.freeworlds.cmp.CmpStage1.frameTable(data).length;
++         total = net.openworlds.cmp.CmpStage1.frameTable(data).length;
 +      } catch (java.io.IOException e) {
 +         total = 0;
 +      }

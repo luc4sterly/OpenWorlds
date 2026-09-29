@@ -18,13 +18,13 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 WORKDIR="${1:-}"
 if [ -z "$WORKDIR" ]; then
-   WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/freeworlds-net-gamma-main.XXXXXX")"
+   WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/openworlds-net-gamma-main.XXXXXX")"
 fi
 mkdir -p "$WORKDIR"
 TIMEOUT="${2:-60}"
 echo "== workdir: $WORKDIR (timeout ${TIMEOUT}s) =="
 
-MAIN_CHECKOUT_JDK="/Users/lucas/Developer/FreeWorlds/tools/jdk/Contents/Home/bin"
+MAIN_CHECKOUT_JDK="/Users/lucas/Developer/OpenWorlds/tools/jdk/Contents/Home/bin"
 if [ -x "$REPO_ROOT/tools/jdk/Contents/Home/bin/javac" ]; then
    JAVAC="$REPO_ROOT/tools/jdk/Contents/Home/bin/javac"
    JAVA="$REPO_ROOT/tools/jdk/Contents/Home/bin/java"

@@ -50,7 +50,7 @@ wine assets/WorldsPlayer/bin/java.exe \
 `gamma.dll` is found via the default DLL search path (same directory as
 `java.exe`) - no need to set `java.library.path` if you run the bundled
 `java.exe` in place. Wine's `Z:` drive maps to host `/` by default, so a
-host path can be passed directly as `Z:\home\lucas\FreeWorlds\...`.
+host path can be passed directly as `Z:\home\lucas\OpenWorlds\...`.
 
 **Stale-process gotcha**: a killed/timed-out Wine process leaves
 `wineserver` (and `winedevice.exe` helpers) running in the background,

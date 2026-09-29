@@ -90,7 +90,7 @@ Figuras vistas: `SeqBed-Aura`, `pose53_a/b`, `male`, `slim`, `breaker`
   salida de `SeqExtractMain`.
 - `axelwait.seq` es byte-idéntico a `axelendwave.seq` (causa sin verificar).
 
-Reproducir: `java -cp formats/out net.freeworlds.bod.SeqExtractMain -q
+Reproducir: `java -cp formats/out net.openworlds.bod.SeqExtractMain -q
 assets/gammatutorial-samples/base-avatars/*.seq assets/WorldsPlayer/cachedir/*.seq`.
 
 ## 3. Registro `avatars.dat` / `45.dat` (texto, `# animation registry version 0.3`)
@@ -133,7 +133,7 @@ confirmado en `docs/native-methods-map.md:231-246`) hace el resto.
   **lineal por componentes + normalización** (nlerp: `FUN_004271c0` +
   `FUN_00426f40`, normaliza solo si |q|²>1e-5), no slerp; escalares y
   vectores lineales. Sin keys → identidad. Sin bucle en el muestreo.
-  Traducido en `formats/src/net/freeworlds/bod/SeqSampler.java`.
+  Traducido en `formats/src/net/openworlds/bod/SeqSampler.java`.
 - **Cuaternión**: objeto (vptr, w, x, y, z). Identidad `FUN_00428f10` =
   (1,0,0,0); eje-ángulo `FUN_00428f40` guarda `cos(a/2)` en +4; producto de
   Hamilton `FUN_004272c0`; a matriz `FUN_00427040` (4×4 fila-mayor,
@@ -417,5 +417,5 @@ suelo).
 
 `SeqSampler.keyTime` (en `formats/`) trunca como los drivers (`fistp` en
 chop, 0x43b9c0). El motor nuevo llegó a tener una copia de toda esta regla
-(`client/src/net/freeworlds/avatar/`, 2026-09-25); se quitó con él el
+(`client/src/net/openworlds/avatar/`, 2026-09-25); se quitó con él el
 2026-09-26 y está en el historial de git hasta el commit `8cd795d`.

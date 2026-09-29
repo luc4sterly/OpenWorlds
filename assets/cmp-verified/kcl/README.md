@@ -21,4 +21,4 @@ que el primer fotograma empieza en 34 + 1 190 + 160 = 1 384. Los 8 grupos
 son contiguos, el último acaba en 42 099 (el tamaño del fichero) y cada uno
 consume exactamente sus flujos.
 
-Lo comprueba `formats/test/net/freeworlds/cmp/CmpGroupsCheck.java`.
+Lo comprueba `formats/test/net/openworlds/cmp/CmpGroupsCheck.java`.

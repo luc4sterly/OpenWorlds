@@ -52,8 +52,8 @@ import java.util.Map;
  * ERROR_ACCESS_DENIED al escribir por un asa abierta solo para lectura, 6 =
  * ERROR_INVALID_HANDLE, 234 = ERROR_MORE_DATA si el valor no cabe en el
  * búfer). El árbol se guarda entero, en formato REGEDIT4 (el de
- * {@code regedit /e}) y UTF-8, en {@code freeworlds-registry.reg} del
- * directorio de trabajo (o en la propiedad {@code freeworlds.registry}) tras
+ * {@code regedit /e}) y UTF-8, en {@code openworlds-registry.reg} del
+ * directorio de trabajo (o en la propiedad {@code openworlds.registry}) tras
  * cada cambio. Un fallo al escribir el fichero no hace fallar la llamada:
  * Windows tampoco vuelca la colmena en RegSetValueEx (eso es RegFlushKey).
  * Equivale para el cliente porque sus dos usos (NetUpdate: InstallDir tras
@@ -237,8 +237,8 @@ public final class NativeSysRegistry {
 
    /** Ruta del almacén. */
    static File storeFile() {
-      String p = System.getProperty("freeworlds.registry");
-      return p != null ? new File(p) : new File(System.getProperty("user.dir"), "freeworlds-registry.reg");
+      String p = System.getProperty("openworlds.registry");
+      return p != null ? new File(p) : new File(System.getProperty("user.dir"), "openworlds-registry.reg");
    }
 
    // ---------------------------------------------------------- internals
@@ -346,7 +346,7 @@ public final class NativeSysRegistry {
             }
          }
       } catch (IOException | RuntimeException e) {
-         System.err.println("freeworlds: registro " + f + " ilegible desde la línea que falla: " + e);
+         System.err.println("openworlds: registro " + f + " ilegible desde la línea que falla: " + e);
       }
    }
 
@@ -438,7 +438,7 @@ public final class NativeSysRegistry {
       } catch (IOException e) {
          if (!warned) {
             warned = true;
-            System.err.println("freeworlds: no se puede escribir el registro en " + f + ": " + e);
+            System.err.println("openworlds: no se puede escribir el registro en " + f + ": " + e);
          }
       }
    }

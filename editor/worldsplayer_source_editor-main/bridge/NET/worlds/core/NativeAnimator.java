@@ -359,7 +359,7 @@ public final class NativeAnimator {
       }
       float[] q = quat.clone();
       AnimPose.normalize(q);
-      NativeScene.transformClumpJoint(c, net.freeworlds.bod.SeqSampler.quatToMatrix(q), NativeRw.REPLACE);
+      NativeScene.transformClumpJoint(c, net.openworlds.bod.SeqSampler.quatToMatrix(q), NativeRw.REPLACE);
    }
 
    /**

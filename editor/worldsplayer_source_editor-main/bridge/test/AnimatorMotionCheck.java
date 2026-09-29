@@ -112,14 +112,14 @@ public class AnimatorMotionCheck {
       NativeAnimator.update(rep, 0, fig, 2000, 1.0F, false);
       AnimGraph.DistanceDriver dd = (AnimGraph.DistanceDriver) ((AnimGraph.Pipe) an.implicitNode()).driver();
       eq(dd.key(), (short) 30, "100 unidades hacia delante -> key 30");
-      net.freeworlds.bod.SeqParser.SeqData walk = net.freeworlds.bod.SeqParser.parseFile(new File(dir, "axelwalk.seq").getPath());
-      float[] q = net.freeworlds.bod.SeqSampler.sample(walk.joints.get("rtknee"), (short) 30);
+      net.openworlds.bod.SeqParser.SeqData walk = net.openworlds.bod.SeqParser.parseFile(new File(dir, "axelwalk.seq").getPath());
+      float[] q = net.openworlds.bod.SeqSampler.sample(walk.joints.get("rtknee"), (short) 30);
       float[] e = {q[0], -q[1], -q[2], q[3]};
       float n = (float) Math.sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2] + e[3] * e[3]);
       for (int k = 0; k < 4; k++) {
          e[k] /= n;
       }
-      float[] want = net.freeworlds.bod.SeqSampler.quatToMatrix(e);
+      float[] want = net.openworlds.bod.SeqSampler.quatToMatrix(e);
       float[] got = ltm(knee);
       double err = 0;
       for (int k = 0; k < 16; k++) {
@@ -127,8 +127,8 @@ public class AnimatorMotionCheck {
       }
       near(err, 0, 1e-5, "joint del tag 16 (rtknee) = matriz del cuaternion del key 30");
       // Traslacion de raiz: extras 0,1 del .seq x 0.1 x diagonal (1); z = 0 en el walk (flag 0).
-      float rx = net.freeworlds.bod.SeqSampler.sample(walk.extras.get(0), (short) 30)[0];
-      float ry = net.freeworlds.bod.SeqSampler.sample(walk.extras.get(1), (short) 30)[0];
+      float rx = net.openworlds.bod.SeqSampler.sample(walk.extras.get(0), (short) 30)[0];
+      float ry = net.openworlds.bod.SeqSampler.sample(walk.extras.get(1), (short) 30)[0];
       float[] mp = new float[16];
       NativeScene.getClumpMatrix(pelvis, mp);
       near(mp[12], 0.1f * rx, 1e-5, "traslacion de raiz x (x 0.1)");

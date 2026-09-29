@@ -478,7 +478,7 @@ está genuinamente contenido a estos 3 sitios.
 "unidad" falsa de un solo carácter (`u:`, de "Unix") cuando `user.dir` no
 tiene ya forma de ruta Windows — `normalizeCurrentDir()` en `URL.java`,
 reaplicado automáticamente por `apply_mock.sh`. Con esto,
-`/home/lucas/FreeWorlds/...` se convierte en `u:/home/lucas/FreeWorlds/...`,
+`/home/lucas/OpenWorlds/...` se convierte en `u:/home/lucas/OpenWorlds/...`,
 que cumple exactamente la misma forma `<1 char>:/...` que el código ya
 espera en los 3 sitios — cero cambios en la lógica de parseo. **No afecta
 Windows real**: si `user.dir` ya tiene pinta de ruta Windows, la función
@@ -622,7 +622,7 @@ Sesión larga y autónoma. Resultado: **118/118 archivos `.rwx` reales del
 proyecto parsean idéntico** (posición de vértices/triángulos) a
 `three-rwx-loader` (la referencia JS), y hay una ventana LWJGL pintando esa
 geometría en pantalla de verdad (evidencia en `docs/renders/`, no solo "no
-crashea"). Todo el trabajo nuevo vive en `client/src/net/freeworlds/`
+crashea"). Todo el trabajo nuevo vive en `client/src/net/openworlds/`
 (paquete nuevo, deliberadamente separado de `NET.worlds.*` que es el
 código decompilado original) y `tools/rwx-harness/`.
 
@@ -707,7 +707,7 @@ en modo wireframe y la corrección de normales inválidas de
 veces) y están **verificados como no-ops reales** (tampoco los reconoce
 `three-rwx-loader`).
 
-**Renderizador (fase 2)**: `client/src/net/freeworlds/render/RwxViewer.java`
+**Renderizador (fase 2)**: `client/src/net/openworlds/render/RwxViewer.java`
 — ventana LWJGL/GLFW, pipeline de función fija (`glBegin`/`glVertex`, sin
 shaders/VBOs todavía), color plano por triángulo desde el material
 parseado (sin texturas ni luz), cámara que encuadra automáticamente según
@@ -824,7 +824,7 @@ de nuevo), y los 4 archivos de corpus binario real que sí hacían falta
 pequeñas y revisables (parser / renderer+capturas / docs+corpus) — ver
 `git log` para el detalle exacto en vez de duplicarlo aquí.
 
-**Lo verificado e implementado** (`client/src/net/freeworlds/rwg/`,
+**Lo verificado e implementado** (`client/src/net/openworlds/rwg/`,
 `docs/rwg-bod-format-reference.md`): contenedor de chunks
 `[tag ASCII][longitud big-endian=tamaño de payload][payload]` verificado
 byte-exacto contra los 2 archivos reales; estructura `CLUM`→`ATOM`→
@@ -1026,7 +1026,7 @@ hace falta tocar nada nativo.
   (el "guts" nativo de RenderWare), reutilizando directamente la
   infraestructura de matrices ya existente de RWX.
 - **Parser implementado y verificado end-to-end**
-  (`client/src/net/freeworlds/world/WorldRestorer.java`): parsea el
+  (`client/src/net/openworlds/world/WorldRestorer.java`): parsea el
   archivo real completo, sin errores, hasta el marcador real
   `END PERSISTER` — 25 salas, 578 nodos, 103 objetos con geometría real
   (50 archivos `.rwx`/`.rwg` únicos, todos verificados contra archivos
@@ -1038,7 +1038,7 @@ hace falta tocar nada nativo.
   superclase; y la cadena de herencia de `SendURLAction`/`DialogAction`
   invertida.
 - **Conectado al motor de renderizado**
-  (`client/src/net/freeworlds/render/WorldViewer.java`): carga una sala
+  (`client/src/net/openworlds/render/WorldViewer.java`): carga una sala
   real, resuelve las URLs de geometría contra archivos reales en disco,
   y dibuja el árbol completo con el pipeline de iluminación/materiales
   ya existente. **Hallazgo real crítico**: la matriz de 16 floats leída
@@ -1507,7 +1507,7 @@ cambios visuales — cada paso verificado píxel a píxel contra capturas
 previas, no solo "compila y no revienta".
 
 **Avance 1 — `GlUtil` + `WorldViewer` multi-sala**
-(`client/src/net/freeworlds/render/GlUtil.java`, nuevo):
+(`client/src/net/openworlds/render/GlUtil.java`, nuevo):
 - `perspective`/`lookAt`/`saveScreenshot` estaban duplicados byte a byte
   en los 4 viewers — extraídos a `GlUtil` (el `lookAt`/`perspective` son
   los reemplazos de GLU ya documentados, misma fórmula textbook).
@@ -1837,7 +1837,7 @@ código Perl **oficial** de Worlds Inc. para la herramienta `rwxtobod`
 que shippeaban, copyright 1995-1999, con la especificación completa del
 formato binario `.bod` en sus comentarios Y la lógica de codificación
 real. `docs/bod-format-reference.md` y
-`client/src/net/freeworlds/bod/BodParser.java` son una traducción
+`client/src/net/openworlds/bod/BodParser.java` son una traducción
 directa y cuidadosa de ese codificador real a su inverso (un decoder) —
 no una suposición, no inferido de bytes. `RWXTOBOD.PL` queda guardado en
 `tools/gdk-sdk/RWXTOBOD.PL` para referencia/atribución.
@@ -1864,7 +1864,7 @@ Encontrado trazando a mano los bits crudos de un archivo real
 para descartar errores de transcripción), corregido, y reverificado.
 
 **Verificación — 51/51 archivos reales, sin inventar nada**:
-`client/src/net/freeworlds/bod/BodExtractMain.java` corre contra
+`client/src/net/openworlds/bod/BodExtractMain.java` corre contra
 **26 archivos reales de `assets/WorldsPlayer/cachedir/`** (avatares
 reales descargados de un servidor vivo en una sesión anterior) más
 **25 archivos base oficiales nuevos** encontrados esta sesión dentro del
@@ -1979,7 +1979,7 @@ transforms a los placeholders del padre — cita literal de
 origen). Sin resolver placeholders, las 1498 vértices colapsarían en un
 punto.
 
-**Implementado** (`client/src/net/freeworlds/render/BodViewer.java`,
+**Implementado** (`client/src/net/openworlds/render/BodViewer.java`,
 sigue al pie de la letra `RwgViewer`/`RwxViewer`: misma ventana X11,
 `GlUtil`, `GlLighting` con las 2 luces reales, `--screenshot/
 --wireframe/--unlit/--angle`): raíz = la parte no referenciada por
@@ -2280,7 +2280,7 @@ lento que hacerlo directo.
 >    Falta que **dibuje**: `Camera.renderScene` y las texturas nativas
 >    siguen siendo stubs. Los hilos `Cache`/`NetUpdate` no bloquean nada.
 > 5. **Texturas de avatar**: el lenguaje de nombre ya está decodificado
->    (`net.freeworlds.avatar`, 146/148 avatares limpios), pero **solo se
+>    (`net.openworlds.avatar`, 146/148 avatares limpios), pero **solo se
 >    conservan 14 de las 210 texturas y 25 de los 141 `.bod`** que
 >    referencian: la mayoría del vestuario no está en el corpus. Ya se
 >    aplican en `BodViewer --avatar` (subimagen 0); faltan las subimágenes
@@ -2382,7 +2382,7 @@ de `rustwood.cmp` (todas las orientaciones ≤0.06 — el emparejamiento
 por nombre era falso, no un problema del decoder).
 
 **Cierre del criterio de la sesión: pipeline conectado y probado por
-píxel** — `client/src/net/freeworlds/cmp/` (`CmpStage2` porteado +
+píxel** — `client/src/net/openworlds/cmp/` (`CmpStage2` porteado +
 `CmpTexture`), `assets/cmp-verified/sball/` (streams recortados al
 consumo verificado + paleta), UVs en `RwxParser`/`RwxModel`,
 `RwxViewer --texture <dir>/<base> --camera top|front`. Render de
@@ -2474,7 +2474,7 @@ real de cada material contra `assets/WorldsPlayer/GroundZero/
 content.zip` (zip real de la instalación de 2001, ya versionado, 159
 `.cmp` reales bajo `tex/*.cmp`, misma convención de directorio que los
 `.rwx` de geometría ya extraídos), decodificando vía
-`net.freeworlds.cmp.CmpTexture` con fallback honesto a color plano
+`net.openworlds.cmp.CmpTexture` con fallback honesto a color plano
 (nunca una textura inventada) cuando la decodificación falla — contado
 y reportado por nombre y razón real, no descartado en silencio.
 `GL_NEAREST`, no `GL_LINEAR` (corregido también en la demo de
@@ -2685,7 +2685,7 @@ Hasta esta sesión `WorldViewer` solo sabía crear ventanas OCULTAS
 servía para verificación batch, pero ningún humano había visto nunca
 una sala `.world` real en una ventana abierta.
 
-**Cambio** (`client/src/net/freeworlds/render/WorldViewer.java`):
+**Cambio** (`client/src/net/openworlds/render/WorldViewer.java`):
 flag `--window` — ventana visible e interactiva (auto-rotación lenta,
 ESC o botón de cierre para salir). Combinable con `--screenshot`
 (guarda el frame 0 por `glReadPixels` y deja la ventana abierta).
@@ -2697,7 +2697,7 @@ exit). Compilación limpia (`javac`, mismo classpath LWJGL).
 javac -cp "tools/lwjgl/*" -d client/out $(find client/src -name "*.java")
 # ventana interactiva, sala Reception (la de referencia de las sesiones anteriores)
 DISPLAY=:100 java -cp "client/out:tools/lwjgl/*" \
-  net.freeworlds.render.WorldViewer \
+  net.openworlds.render.WorldViewer \
   assets/WorldsPlayer/GroundZero/groundzero.world Reception --window
 # con captura del primer frame + ventana abierta
 ... Reception --window --screenshot /tmp/reception.png
@@ -2757,7 +2757,7 @@ mirando al centro. `--inside` implica `--window` (salvo con
 
 ```
 DISPLAY=:100 java -cp "client/out:tools/lwjgl/*" \
-  net.freeworlds.render.WorldViewer \
+  net.openworlds.render.WorldViewer \
   assets/WorldsPlayer/GroundZero/groundzero.world LizCave --inside
 ```
 
@@ -3104,8 +3104,8 @@ menu. Ahora:
   salir (queda anotado su PID en el log). Verificado en `:100`: ventana
   con "presented frame 0", GL error 0, proceso matable limpio.
 - `tools/install-launcher.sh`: compila si hace falta, sonda sin ventana y
-  escribe `~/.local/share/applications/freeworlds.desktop` (rutas
-  absolutas, `desktop-file-validate` OK) para buscar "FreeWorlds" en el
+  escribe `~/.local/share/applications/openworlds.desktop` (rutas
+  absolutas, `desktop-file-validate` OK) para buscar "OpenWorlds" en el
   menu y jugar con doble clic.
 
 **Bug real encontrado por el camino**: `--list-rooms` solo se reconocia
@@ -3266,7 +3266,7 @@ chat, logo), Reception 3D con RenderWare real (suelo texturizado con
 reflejos, muros, colinas, kiosko) y avatar real. Dialogo "Retry /
 Single-user mode" (sin red de upgrade: esperado, honesto).
 `tools/run-original.sh` (nuevo) automatiza todo: copia privada a
-`~/.freeworlds-client` (el original escribe logs/caches en su CWD y no
+`~/.openworlds-client` (el original escribe logs/caches en su CWD y no
 debe ensuciar el repo), prefijo+fuentes+Xvfb si hace falta.
 Captura: `docs/renders/original_client_reception.png`.
 
@@ -3594,7 +3594,7 @@ lo que pedía (avatares, tablas, scripts) iba a `upgradeServer=http://us1.worlds
   (el cliente pide `pengo.mov` y el fichero es `PENGO.mov`). Lo demás, 404
   inmediato. `run_gamma.sh` lo arranca en un puerto libre, reescribe
   `upgradeServer` en la copia temporal de `worlds.ini/dst` y lo mata al salir
-  (`FREEWORLDS_NO_LOCAL_SERVER=1` lo desactiva).
+  (`OPENWORLDS_NO_LOCAL_SERVER=1` lo desactiva).
 - `build_gamma.sh` parchea (solo en la copia de build, `source/` sigue pristino)
   `Cache` y `CacheEntry.load`: el `cache.index` de 2004 guarda rutas de Windows
   (`C:\DOCUME~1\…\cachedir\5u.mov`) y `CACHE_DIR` usaba `\`; en macOS el índice
@@ -3680,7 +3680,7 @@ hoja de puerta (`Rect24cya` de `WObjTemDrA1..4`, `IconViewRoom1Enter`) con
 material gris 150 sin textura **en los datos del mundo**, y se queda fija
 en coordenadas de mundo (12,125,125) mientras la cámara se mueve.
 
-**Nuevo diagnóstico** `-Dfreeworlds.dumpWindow=DIR`: vuelca el árbol de
+**Nuevo diagnóstico** `-Dopenworlds.dumpWindow=DIR`: vuelca el árbol de
 componentes AWT de la ventana entera. Sin él no había forma de revisar la
 UI (esta máquina no tiene permiso de captura de pantalla de macOS, y el
 PNG por `printAll` sale negro porque la UI son componentes AWT pesados que
@@ -3749,7 +3749,7 @@ cortes por límite de uso se retomaron desde el último commit de cada rama.
   Intro; `Console.encrypt/decrypt`, cursores, menú contextual…), sistema/COM
   (`RegKey` portable, `SystemInfo`, `VehicleShape`) y sonido/web (WAV/MIDI
   con el volumen del binario, IMA ADPCM, IE/DirectShow/CD por su camino de
-  fallo, URLs solo por clic y con `-Dfreeworlds.openUrls=1`).
+  fallo, URLs solo por clic y con `-Dopenworlds.openUrls=1`).
 - Mock de `IniFile` sin distinguir mayúsculas y persistente, como kernel32:
   el cliente escribe su `Gamma.Log` y "Remember password" persiste.
 
@@ -3843,7 +3843,7 @@ original bajo el puente corre sin Wine, con Xvfb para la ventana.
   su propia JVM con el Java del paquete.
 - `tools/build-dist.sh`: paquete portable (.zip, Java 17+) y, con
   `--app-image`, la app con Java incluido (jlink + jpackage): `.app`
-  firmada ad hoc en macOS, carpeta con `FreeWorlds.exe` en Windows,
+  firmada ad hoc en macOS, carpeta con `OpenWorlds.exe` en Windows,
   `.tar.gz` en Linux. `tools/fetch-lwjgl.sh` baja LWJGL con SHA-1 y
   reintentos (Maven Central da 429 si se le pide deprisa).
 - `.github/workflows/build.yml`: en cada push compila, pasa `run-checks`
@@ -3870,7 +3870,7 @@ CI y en los paquetes los avatares cacheados de 2004 salen sin textura. La
 
 **Segunda parte del mismo día — el motor nuevo alcanza al original en color
 y el puente pierde un fallo de matrices.** Con la cámara del visor igual a
-la del puente al decimal y el mismo aspecto (`-Dfreeworlds.windowSize=468x272`),
+la del puente al decimal y el mismo aspecto (`-Dopenworlds.windowSize=468x272`),
 se compararon capturas columna a columna y con mapas de diferencias:
 
 - **Luz del motor nuevo.** Estaba muy oscuro por tres cosas: las luces de GL
@@ -3897,7 +3897,7 @@ se compararon capturas columna a columna y con mapas de diferencias:
 - **Fallo del puente: producto de matrices.** El soporte con cuerdas del
   Auditorium y la puerta en iris de IconViewRoom1Enter salían en el visor y
   no en el puente. Un volcado nuevo del árbol de clumps
-  (`-Dfreeworlds.dumpScene`) mostró `WObject2` en (0,1000,0) y su hijo
+  (`-Dopenworlds.dumpScene`) mostró `WObject2` en (0,1000,0) y su hijo
   `ShapeStand` en (0,0,0): la cuarta columna de los `Transform` del `.world`
   trae datos internos de RW (0x03ddff04, 0x02890088 leídos como float,
   `m[15] = 2e-37`) y el puente multiplicaba 4×4, mientras que
@@ -3956,7 +3956,7 @@ lanzador los ofrecía a la par ("Jugar" / "Explorar").
   `MaterialTilesCheck`, `PortalLinkCheck`, `TextureActionsCheck`).
 - Del lanzador: "Explorar", las opciones 3-4 del menú de terminal
   (explorar sala / elegir sala), `--viewer`, la sala de los ajustes y el
-  `freeworlds-client.jar` del paquete.
+  `openworlds-client.jar` del paquete.
 - `tools/run-game.sh`, `install-launcher.sh`, `fetch-lwjgl.sh` y
   `rwx-harness/`; LWJGL y node de la CI, de `build-dist.sh` y del
   aprovisionamiento; `docs/render-pipeline-reference.md`,
@@ -4054,8 +4054,8 @@ icosfera de 80 caras con sombreado plano, como el 3D de RenderWare (una
 luz, un color por cara), con continentes y un anillo que pasa por detrás y
 por delante, sobre un azulejo de cielo nocturno.
 
-`tools/icons/make_icons.py` lo dibuja en SVG (`freeworlds.svg`, y
-`freeworlds-small.svg` sin estrellas y con el anillo más grueso para
+`tools/icons/make_icons.py` lo dibuja en SVG (`openworlds.svg`, y
+`openworlds-small.svg` sin estrellas y con el anillo más grueso para
 16-32 px) y saca con Chrome sin interfaz y Pillow el PNG de 1024, el ICO
 (16-256), el ICNS (16-1024) y el icono de la ventana del lanzador. Chrome
 sin interfaz recorta las ventanas pequeñas, así que todo se dibuja a 1024

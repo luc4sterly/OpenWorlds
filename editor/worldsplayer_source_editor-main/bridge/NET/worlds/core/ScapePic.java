@@ -1,13 +1,13 @@
 package NET.worlds.core;
 
 import java.io.IOException;
-import net.freeworlds.cmp.CmpFrames;
+import net.openworlds.cmp.CmpFrames;
 
 /**
  * gamma.dll's ScapePic header fields (FUN_00442750) around the frame
  * decoder: display size u16@20 / u16@22 (0 = image size), transparent
  * index 255 when mode bit 2 is set (param[6]). Pixels come from
- * formats/src/net/freeworlds/cmp (CmpFrames), the verified translation of
+ * formats/src/net/openworlds/cmp (CmpFrames), the verified translation of
  * gamma.dll's decoder.
  */
 public final class ScapePic {

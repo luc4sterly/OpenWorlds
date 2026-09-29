@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Genera el icono de FreeWorlds: un planeta low-poly con anillo.
+"""Genera el icono de OpenWorlds: un planeta low-poly con anillo.
 
 El planeta es una icosfera de 80 caras con sombreado plano, como el 3D de
 RenderWare 2.1 (una luz, una cara un color), con continentes y un anillo que
 pasa por detras y por delante. Salidas en tools/icons/:
 
-- freeworlds.svg        el dibujo a 1024x1024 (con estrellas)
-- freeworlds-small.svg  la variante para 16-32 px (sin estrellas, anillo mas grueso)
-- freeworlds.png        1024x1024 (app de Linux, y fuente de las demas)
-- freeworlds.ico        16, 24, 32, 48, 64, 128 y 256 (Windows)
-- freeworlds.icns       16 a 1024 (macOS)
-- launcher/resources/net/freeworlds/launcher/icon.png  256x256 (ventana del lanzador)
+- openworlds.svg        el dibujo a 1024x1024 (con estrellas)
+- openworlds-small.svg  la variante para 16-32 px (sin estrellas, anillo mas grueso)
+- openworlds.png        1024x1024 (app de Linux, y fuente de las demas)
+- openworlds.ico        16, 24, 32, 48, 64, 128 y 256 (Windows)
+- openworlds.icns       16 a 1024 (macOS)
+- launcher/resources/net/openworlds/launcher/icon.png  256x256 (ventana del lanzador)
 
 Uso: python3 tools/icons/make_icons.py [--chrome RUTA]
 Necesita Pillow y un Chrome/Chromium sin interfaz para pasar el SVG a PNG a
@@ -177,9 +177,9 @@ def main():
     a = ap.parse_args()
     from PIL import Image
     chrome = find_chrome(a.chrome)
-    with open(os.path.join(HERE, "freeworlds.svg"), "w") as f:
+    with open(os.path.join(HERE, "openworlds.svg"), "w") as f:
         f.write(planet_svg())
-    with open(os.path.join(HERE, "freeworlds-small.svg"), "w") as f:
+    with open(os.path.join(HERE, "openworlds-small.svg"), "w") as f:
         f.write(planet_svg(small=True))
     tmp = tempfile.mkdtemp(prefix="fw-icons-")
     try:
@@ -198,16 +198,16 @@ def main():
         for s in (48, 64, 128, 256, 512):
             imgs[s] = big_im.resize((s, s), Image.LANCZOS)
         imgs[1024] = big_im
-        imgs[1024].save(os.path.join(HERE, "freeworlds.png"), optimize=True)
-        imgs[256].save(os.path.join(REPO, "launcher", "resources", "net", "freeworlds", "launcher", "icon.png"), optimize=True)
+        imgs[1024].save(os.path.join(HERE, "openworlds.png"), optimize=True)
+        imgs[256].save(os.path.join(REPO, "launcher", "resources", "net", "openworlds", "launcher", "icon.png"), optimize=True)
         ico_sizes = [16, 24, 32, 48, 64, 128, 256]
-        imgs[256].save(os.path.join(HERE, "freeworlds.ico"), sizes=[(s, s) for s in ico_sizes],
+        imgs[256].save(os.path.join(HERE, "openworlds.ico"), sizes=[(s, s) for s in ico_sizes],
                        append_images=[imgs[s] for s in ico_sizes if s != 256])
-        imgs[1024].save(os.path.join(HERE, "freeworlds.icns"),
+        imgs[1024].save(os.path.join(HERE, "openworlds.icns"),
                         append_images=[imgs[s] for s in (16, 32, 64, 128, 256, 512)])
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    print("make_icons: freeworlds.svg/-small.svg/.png/.ico/.icns y el icono del lanzador")
+    print("make_icons: openworlds.svg/-small.svg/.png/.ico/.icns y el icono del lanzador")
 
 
 if __name__ == "__main__":

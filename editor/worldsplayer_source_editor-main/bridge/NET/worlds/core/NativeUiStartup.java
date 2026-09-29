@@ -26,7 +26,7 @@ import java.nio.file.Files;
  * remonte con otro numero. ⚠️ No es el mismo numero que tuviera ese disco
  * en Windows: una contrasena guardada en un worlds.ini de 2004 no se
  * descifra aqui salvo que se de su serie con
- * {@code -Dfreeworlds.volumeSerial=0xXXXXXXXX}. Si el sistema no tiene la
+ * {@code -Dopenworlds.volumeSerial=0xXXXXXXXX}. Si el sistema no tiene la
  * vista "unix" el valor se queda en 0 (el de .bss) con un aviso.
  *
  * <p><b>Instancia unica.</b> El original crea el semaforo con nombre
@@ -67,7 +67,7 @@ public final class NativeUiStartup {
 
    /** Startup.computeVolumeInfo (0x00409e80). */
    public static void computeVolumeInfo(String root) {
-      String forced = System.getProperty("freeworlds.volumeSerial");
+      String forced = System.getProperty("openworlds.volumeSerial");
       if (forced != null) {
          volumeSerial = (int) Long.parseLong(forced.replaceFirst("^0[xX]", ""), 16);
          return;
@@ -110,7 +110,7 @@ public final class NativeUiStartup {
       } catch (IOException e) {
          cwd = System.getProperty("user.dir");
       }
-      File d = new File(System.getProperty("java.io.tmpdir"), "freeworlds-startup-" + Integer.toHexString(cwd.hashCode()));
+      File d = new File(System.getProperty("java.io.tmpdir"), "openworlds-startup-" + Integer.toHexString(cwd.hashCode()));
       d.mkdirs();
       return d;
    }
@@ -206,7 +206,7 @@ public final class NativeUiStartup {
          System.err.println("RegSetValue() failed: " + e);
          return 0;
       }
-      Thread t = new Thread("freeworlds-WM_COPYDATA") {
+      Thread t = new Thread("openworlds-WM_COPYDATA") {
          public void run() {
             while (true) {
                try {

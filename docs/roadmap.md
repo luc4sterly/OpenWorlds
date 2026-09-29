@@ -1,4 +1,4 @@
-# Hoja de ruta — FreeWorlds
+# Hoja de ruta — OpenWorlds
 
 Preparada el 2026-09-22 a partir del árbol real en `89d4548`, más el diff
 sin commitear de `NativeCamera`/`NativeTextures`. Lo que no se ha podido
@@ -21,7 +21,7 @@ comprobar en esta revisión va marcado ⚠️ VERIFICAR.
    de `avatars.dat`). O sea, el abierto nº 1 ("qué secuencia elige el
    cliente") se resuelve **traduciendo esos nativos**, no deduciéndolo.
 3. **"UI 0 %" solo vale para el cliente propio.** Bajo el puente, la UI AWT
-   del original ya se monta: `-Dfreeworlds.dumpWindow` muestra
+   del original ya se monta: `-Dopenworlds.dumpWindow` muestra
    `FriendsListPart`, `MapPart`, chat de 280×100 y campo de entrada. Lo que
    falta ahí son nativos concretos (tabla de H5) y un servidor con el que
    hablar.
@@ -36,8 +36,8 @@ comprobar en esta revisión va marcado ⚠️ VERIFICAR.
    `lightID` nunca se asigna en el Java decompilado. La luz de sala va por
    `Room.addLight`/`setLightPosition`, que sí están traducidos.
 6. **Hay trabajo sin commitear:** la auditoría de texturas
-   (`-Dfreeworlds.matStats` vuelca ahora el inventario del diccionario y
-   las texturas que no son de 128×128; `-Dfreeworlds.fps` da el % de píxeles
+   (`-Dopenworlds.matStats` vuelca ahora el inventario del diccionario y
+   las texturas que no son de 128×128; `-Dopenworlds.fps` da el % de píxeles
    con textura). Está ligada al ⚠️ `StretchBlt(HALFTONE)` del puente.
 7. **No hay runner de regresión.** Las cifras ✅ (118 / 25-578-103 / 231 /
    51 / 159 / 52) se volvieron a ejecutar a mano en la auditoría del
@@ -51,7 +51,7 @@ comprobar en esta revisión va marcado ⚠️ VERIFICAR.
 Hasta el 2026-09-26 convivían dos clientes: **A**, el original de 2004 con
 el puente (`editor/worldsplayer_source_editor-main/bridge/`: los nativos
 traducidos del C decompilado, rasterizador por software en Java puro), y
-**B**, una reimplementación aparte (`client/src/net/freeworlds/`: parsers
+**B**, una reimplementación aparte (`client/src/net/openworlds/`: parsers
 propios más LWJGL con OpenGL de función fija). Esta hoja de ruta
 recomendaba A como línea principal y B como destino del porteo.
 
@@ -169,7 +169,7 @@ que no hace nada, whirl local que no va) y pulir.
 | Releases | ✅ en la CI | cada push a `main` publica `v1.0.<commits>` con los cinco paquetes y `SHA256SUMS.txt`; tags `v*` igual; prerelease a mano desde otra rama (Run workflow). La versión (`launcher/VERSION` + nº de commits) va igual en el tag y en el jar |
 | whirl local | ✅ | `LocalWhirl` arranca el whirl de la app si nada escucha en el puerto, rellena User0 y Password0 (cifrada con el `Console.encode` del puente; whirl no la comprueba: basta "Sign In") y lo para al acabar. La CI lo compila en los cuatro runners y lo mete en las apps (Windows: nightly de 2023, ver `build.yml`); prueba de humo con whirl en Linux |
 | Copia del juego | ✅ | `Install.prepare` con manifiesto: una versión nueva (o la plantilla en otra ruta, App Translocation de macOS) ya no pisa lo que cambió el cliente o gdkup (deshacía GroundZero 37 → 40). `InstallCheck` |
-| Pulido | ✅ parcial | "Un jugador" sin el diálogo de "no puedo conectar" (`bridge/natives-launcher.patch`, solo con `-Dfreeworlds.singleUser`); ventana del juego a dos tercios de la pantalla la primera vez (antes 568×424) |
+| Pulido | ✅ parcial | "Un jugador" sin el diálogo de "no puedo conectar" (`bridge/natives-launcher.patch`, solo con `-Dopenworlds.singleUser`); ventana del juego a dos tercios de la pantalla la primera vez (antes 568×424) |
 
 ## 2. Hitos
 
@@ -224,10 +224,10 @@ verificar":
 
 - [ ] Reproducir el fallo visual que reportaste. Hace falta una **captura**,
       o dar permiso de Grabación de pantalla al terminal/java, o pillar el
-      momento con `-Dfreeworlds.dumpRange`.
+      momento con `-Dopenworlds.dumpRange`.
 - [ ] **Referencia de píxel.** Capturar Reception y GroundZero con el
       original bajo Wine en la máquina Linux/WSL2 (`tools/run-original.sh`),
-      desde la misma posición de cámara (`-Dfreeworlds.fps` ya imprime
+      desde la misma posición de cámara (`-Dopenworlds.fps` ya imprime
       posición y dirección), y compararlas con el puente. Sin esto, "fiel"
       es opinión.
 - [x] Orden de dibujo: sustituir el z-buffer global por el recorrido BSP
@@ -296,7 +296,7 @@ Hay 41 ficheros con nativos fuera del puente. `FastDataInput`, `IniFile` y
 - [~] macOS Apple Silicon: la CI genera la app arm64 (Java arm64 del
       runner `macos-15`); ⚠️ VERIFICAR en una
       máquina real.
-- [~] Windows: la CI genera la app x64 (carpeta con `FreeWorlds.exe`); el
+- [~] Windows: la CI genera la app x64 (carpeta con `OpenWorlds.exe`); el
       puente no hace nada con las rutas en Windows (`HostPath`). ⚠️
       VERIFICAR en una máquina real.
 - [ ] PSVita: exige un motor nativo (C + SDL2/vitaGL, ⚠️ VERIFICAR). Hay que

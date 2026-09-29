@@ -31,8 +31,8 @@ public final class AnimAnimator {
    /** Mezcla de cambio de implicito: {0 s, 0xfa ms} (FUN_00432d10). */
    static final AnimTime SHIFT_TIME = new AnimTime(0, 250);
 
-   /** Diagnostico: -Dfreeworlds.animLog=1 traza cada cambio de implicito y cada explicito. */
-   static final boolean LOG = "1".equals(System.getProperty("freeworlds.animLog")) || Boolean.getBoolean("freeworlds.animLog");
+   /** Diagnostico: -Dopenworlds.animLog=1 traza cada cambio de implicito y cada explicito. */
+   static final boolean LOG = "1".equals(System.getProperty("openworlds.animLog")) || Boolean.getBoolean("openworlds.animLog");
 
    final AnimMotion motion;
    final boolean active = true;
@@ -218,7 +218,7 @@ public final class AnimAnimator {
       if (clump1 != 0) {
          float[] q = this.motion.quat.clone();
          AnimPose.normalize(q);
-         float[] m = net.freeworlds.bod.SeqSampler.quatToMatrix(q);
+         float[] m = net.openworlds.bod.SeqSampler.quatToMatrix(q);
          m[12] = this.motion.pos[0];
          m[13] = this.motion.pos[1];
          m[14] = this.motion.pos[2];

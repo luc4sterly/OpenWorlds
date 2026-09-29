@@ -19,30 +19,30 @@ import java.awt.event.ActionEvent;
  * directamente el Event 1.0 ACTION_EVENT de Intro, porque en el JDK 25 de
  * macOS la conversion no ocurre en los TextField (ver chat()).
  *
- * - FREEWORLDS_LOGIN=contrasena: cuando aparece el LoginWizard (pantalla
+ * - OPENWORLDS_LOGIN=contrasena: cuando aparece el LoginWizard (pantalla
  *   HAVE_USERS, la de "Sign-In"), escribe la contrasena en el campo con eco
  *   '*' (knownPassword), el nombre en typedUsername si esta vacio
- *   (FREEWORLDS_USER), desmarca "Remember password" y pulsa el ForwardButton.
+ *   (OPENWORLDS_USER), desmarca "Remember password" y pulsa el ForwardButton.
  *   Desmarcarlo evita Console.encode -> Console.encrypt (nativo de gamma.dll
  *   aun sin traducir en el puente: con el mock devuelve null y
  *   LoginWizard.setConnected moriria en encode(null.toCharArray())). Solo
  *   para servidores locales de prueba: whirl no comprueba la contrasena.
- * - FREEWORLDS_CHAT=MS:texto[;MS:texto...] (o -Dfreeworlds.chatScript, sin
+ * - OPENWORLDS_CHAT=MS:texto[;MS:texto...] (o -Dopenworlds.chatScript, sin
  *   espacios: run_gamma.sh parte JAVA_OPTS por espacios): a MS milisegundos de
- *   cerrarse el LoginWizard (o del arranque, sin FREEWORLDS_LOGIN) escribe el
+ *   cerrarse el LoginWizard (o del arranque, sin OPENWORLDS_LOGIN) escribe el
  *   texto en la linea de chat (FocusPreservingTextField de ChatPart) y la
  *   "envia" (Intro).
- * - -Dfreeworlds.dumpChat=MS[,MS...]: vuelca a stdout el contenido del area de
+ * - -Dopenworlds.dumpChat=MS[,MS...]: vuelca a stdout el contenido del area de
  *   chat (TextArea de ClassicSharedTextArea) en esos instantes, con el prefijo
  *   [CHAT].
- * - -Dfreeworlds.dumpDrones=MS[,MS...]: lista los Drone (avatares de otros)
+ * - -Dopenworlds.dumpDrones=MS[,MS...]: lista los Drone (avatares de otros)
  *   de todas las salas cargadas, con su sala y posicion, prefijo [DRONES].
  */
 public class LoginDriver {
    private static final long T0 = System.currentTimeMillis();
 
    public static void main(String[] args) throws Exception {
-      Thread t = new Thread("freeworlds-loginDriver") {
+      Thread t = new Thread("openworlds-loginDriver") {
          public void run() {
             try {
                drive();
@@ -61,13 +61,13 @@ public class LoginDriver {
    }
 
    private static void drive() throws InterruptedException {
-      String password = System.getenv("FREEWORLDS_LOGIN");
-      String user = System.getenv("FREEWORLDS_USER");
-      String chat = System.getenv("FREEWORLDS_CHAT");
+      String password = System.getenv("OPENWORLDS_LOGIN");
+      String user = System.getenv("OPENWORLDS_USER");
+      String chat = System.getenv("OPENWORLDS_CHAT");
       if (chat == null) {
-         chat = System.getProperty("freeworlds.chatScript", "");
+         chat = System.getProperty("openworlds.chatScript", "");
       }
-      String dump = System.getProperty("freeworlds.dumpChat", "");
+      String dump = System.getProperty("openworlds.dumpChat", "");
       java.util.TreeMap<Long, String> events = new java.util.TreeMap<Long, String>();
       long seq = 0;
       for (String item : dump.split(",")) {
@@ -75,7 +75,7 @@ public class LoginDriver {
             events.put(Long.parseLong(item.trim()) * 1000 + seq++, "dump:");
          }
       }
-      String drones = System.getProperty("freeworlds.dumpDrones", "");
+      String drones = System.getProperty("openworlds.dumpDrones", "");
       for (String item : drones.split(",")) {
          if (item.trim().length() > 0) {
             events.put(Long.parseLong(item.trim()) * 1000 + seq++, "drones:");

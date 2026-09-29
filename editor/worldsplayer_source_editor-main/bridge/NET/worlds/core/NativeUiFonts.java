@@ -72,7 +72,7 @@ public final class NativeUiFonts {
          return null;
       }
       String[] subs = SUBSTITUTES.get(name.trim().toLowerCase(Locale.ROOT));
-      if (subs == null || Boolean.getBoolean("freeworlds.modernFonts")) {
+      if (subs == null || Boolean.getBoolean("openworlds.modernFonts")) {
          return name;
       }
       Set<String> have = installed();

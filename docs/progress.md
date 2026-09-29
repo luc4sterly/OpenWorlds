@@ -52,12 +52,12 @@ Generado por `tools/progress-panel.py` (hito H0, `docs/roadmap.md`). Cuenta apar
 | `editor/worldsplayer_source_editor-main/bridge/NET/worlds/core/WisePackage.java` | 1 | 1 | 0 | 0 | 2 |
 | `editor/worldsplayer_source_editor-main/bridge/README.md` | 3 | 0 | 0 | 0 | 3 |
 | `editor/worldsplayer_source_editor-main/bridge/test/TexStringCheck.java` | 1 | 0 | 0 | 0 | 1 |
-| `formats/src/net/freeworlds/cmp/CmpStage2.java` | 1 | 1 | 0 | 0 | 2 |
-| `formats/src/net/freeworlds/rwg/RwgAtom.java` | 3 | 2 | 0 | 0 | 5 |
-| `formats/src/net/freeworlds/rwg/RwgParser.java` | 2 | 0 | 0 | 0 | 2 |
-| `formats/src/net/freeworlds/rwg/RwgPolygon.java` | 1 | 1 | 0 | 0 | 2 |
-| `formats/src/net/freeworlds/rwg/RwgRaster.java` | 1 | 0 | 0 | 0 | 1 |
-| `formats/src/net/freeworlds/rwg/RwgVertex.java` | 1 | 1 | 0 | 0 | 2 |
+| `formats/src/net/openworlds/cmp/CmpStage2.java` | 1 | 1 | 0 | 0 | 2 |
+| `formats/src/net/openworlds/rwg/RwgAtom.java` | 3 | 2 | 0 | 0 | 5 |
+| `formats/src/net/openworlds/rwg/RwgParser.java` | 2 | 0 | 0 | 0 | 2 |
+| `formats/src/net/openworlds/rwg/RwgPolygon.java` | 1 | 1 | 0 | 0 | 2 |
+| `formats/src/net/openworlds/rwg/RwgRaster.java` | 1 | 0 | 0 | 0 | 1 |
+| `formats/src/net/openworlds/rwg/RwgVertex.java` | 1 | 1 | 0 | 0 | 2 |
 | `tools/jni_mock.py` | 1 | 0 | 0 | 0 | 1 |
 | `tools/native_mapper.py` | 2 | 0 | 0 | 0 | 2 |
 

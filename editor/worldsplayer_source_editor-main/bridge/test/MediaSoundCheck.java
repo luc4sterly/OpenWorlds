@@ -8,7 +8,7 @@ import javax.sound.midi.ShortMessage;
 import javax.sound.midi.Track;
 
 /**
- * Sonido de gamma.dll (NativeMediaSound), con -Dfreeworlds.mute=1 (no suena
+ * Sonido de gamma.dll (NativeMediaSound), con -Dopenworlds.mute=1 (no suena
  * nada; los tiempos y estados son los reales). Casos calculados a mano:
  *  - waveOutSetVolume (0x00420120): ROUND(65535*x) al par, der<<16 + izq en int.
  *  - PlaySound (0x00420190/0x00420200): sincrono dura lo que el WAV, bucle
@@ -47,7 +47,7 @@ public class MediaSoundCheck {
    }
 
    public static void main(String[] args) throws Exception {
-      System.setProperty("freeworlds.mute", "1");
+      System.setProperty("openworlds.mute", "1");
       check(NativeMediaSound.MUTE, "mute activo en la prueba");
 
       // --- volumen ---

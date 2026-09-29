@@ -4,7 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import net.freeworlds.cmp.CmpFrames;
+import net.openworlds.cmp.CmpFrames;
 
 /**
  * Texturas tal como las crean gamma.dll y RenderWare 2.1 con el driver de
@@ -78,7 +78,7 @@ public final class NativeTextures {
 
    private static final Map<String, Texture> dict = new HashMap<String, Texture>();
 
-   /** Auditoría (-Dfreeworlds.matStats): nombre -> "WxH" de la imagen antes de estirarla. */
+   /** Auditoría (-Dopenworlds.matStats): nombre -> "WxH" de la imagen antes de estirarla. */
    private static final Map<String, String> source = new java.util.LinkedHashMap<String, String>();
 
    /** Inventario de lo decodificado, para la auditoría de texturas. */

@@ -39,15 +39,15 @@ public class UiStartupCheck {
          System.out.println("  segunda instancia: synchronizeStartup = " + r + " en " + (System.currentTimeMillis() - t0) + " ms");
          System.exit(r ? 1 : 0);
       }
-      File dir = new File(System.getProperty("java.io.tmpdir"), "freeworlds-UiStartupCheck-" + System.nanoTime()).getCanonicalFile();
+      File dir = new File(System.getProperty("java.io.tmpdir"), "openworlds-UiStartupCheck-" + System.nanoTime()).getCanonicalFile();
       dir.mkdirs();
       System.setProperty("user.dir", dir.getPath());
 
-      System.setProperty("freeworlds.volumeSerial", "0x1A2B3C4D");
+      System.setProperty("openworlds.volumeSerial", "0x1A2B3C4D");
       check(NativeUiStartup.volumeInfo() == 0, "getVolumeInfo antes de computeVolumeInfo = 0 (DAT_0049fa6c en .bss)");
       NativeUiStartup.computeVolumeInfo(null);
       check(NativeUiStartup.volumeInfo() == 0x1A2B3C4D, "serie forzada 0x1A2B3C4D");
-      System.clearProperty("freeworlds.volumeSerial");
+      System.clearProperty("openworlds.volumeSerial");
       NativeUiStartup.computeVolumeInfo(null);
       System.out.println("  serie del volumen de " + dir + " (unix:dev) = 0x" + Integer.toHexString(NativeUiStartup.volumeInfo()));
 

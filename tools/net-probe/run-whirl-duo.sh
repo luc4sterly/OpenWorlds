@@ -5,7 +5,7 @@
 #
 # Uso: tools/net-probe/run-whirl-duo.sh DIR_SALIDA
 #   DIR_SALIDA/srv          whirl (Config.toml, whirl.log) via tools/run-whirl.sh
-#   DIR_SALIDA/cliA, cliB   directorios de trabajo de cada cliente (FREEWORLDS_GAMMA_DIR)
+#   DIR_SALIDA/cliA, cliB   directorios de trabajo de cada cliente (OPENWORLDS_GAMMA_DIR)
 #   DIR_SALIDA/runA.log, runB.log   consola de cada cliente (netdebug 1253)
 #   (los intentos fallidos quedan como runX.intentoN.log)
 # Secuencia: arranca B y espera a que tenga sesion en el hub (SESSINIT del
@@ -50,12 +50,12 @@ trap '"$REPO/tools/run-whirl.sh" --stop "$OUT/srv" >/dev/null; kill_client "$OUT
 
 start_client() { # nombre usuario opciones-java guion-de-chat
    (
-      export FREEWORLDS_GAMMA_DIR="$OUT/cli$1"
-      export FREEWORLDS_SERVER=127.0.0.1:6650
-      export FREEWORLDS_USER="$2"
-      export FREEWORLDS_LOGIN=fwtest1
-      export FREEWORLDS_NETDEBUG=1253
-      export FREEWORLDS_CHAT="$4"
+      export OPENWORLDS_GAMMA_DIR="$OUT/cli$1"
+      export OPENWORLDS_SERVER=127.0.0.1:6650
+      export OPENWORLDS_USER="$2"
+      export OPENWORLDS_LOGIN=fwtest1
+      export OPENWORLDS_NETDEBUG=1253
+      export OPENWORLDS_CHAT="$4"
       export JAVA_OPTS="-Xmx512m $3"
       exec "$RUN" "$WORLD" > "$OUT/run$1.log" 2>&1
    ) &
@@ -93,8 +93,8 @@ DUMPS=""
 for s in 30 40 50 60 70 80 90 100 110 120 130 140 150 160 170 180; do DUMPS="$DUMPS,${s}000"; done
 SCRIPT="$CHAT_MS:$TEXT"
 [ -n "$SPAWN" ] && SCRIPT="$SCRIPT;$((CHAT_MS + 5000)):$SPAWN"
-client_up B FWTestB "-Dfreeworlds.dumpChat=${DUMPS#,} -Dfreeworlds.dumpDrones=${DUMPS#,} ${DUO_EXTRA_B:-}" ""
-client_up A FWTestA "-Dfreeworlds.dumpDrones=${DUMPS#,} ${DUO_EXTRA_A:-}" "$SCRIPT"
+client_up B FWTestB "-Dopenworlds.dumpChat=${DUMPS#,} -Dopenworlds.dumpDrones=${DUMPS#,} ${DUO_EXTRA_B:-}" ""
+client_up A FWTestA "-Dopenworlds.dumpDrones=${DUMPS#,} ${DUO_EXTRA_A:-}" "$SCRIPT"
 sleep $((CHAT_MS / 1000 + 5 + TAIL))
 kill_client "$OUT/cliA"
 kill_client "$OUT/cliB"

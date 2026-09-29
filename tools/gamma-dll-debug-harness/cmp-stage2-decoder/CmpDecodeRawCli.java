@@ -1,11 +1,11 @@
-import net.freeworlds.cmp.CmpTexture;
+import net.openworlds.cmp.CmpTexture;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 
 /**
- * CLI wrapper around net.freeworlds.cmp.CmpTexture.loadRaw (the real Stage 1
+ * CLI wrapper around net.openworlds.cmp.CmpTexture.loadRaw (the real Stage 1
  * decoder, CmpStage1 - no pre-captured streams, no hand-written palette.txt,
  * works against ANY real .cmp file) - for the corpus-wide coverage harness
  * (docs/cmp-stage1-coverage.md / cmp_stage1_coverage.py). Writes a top-down

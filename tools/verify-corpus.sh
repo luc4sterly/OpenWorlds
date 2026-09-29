@@ -12,7 +12,7 @@
 #                     assets/WorldsPlayer/cachedir y
 #                     assets/gammatutorial-samples/base-avatars.
 #   .bod 51/51        BodExtractMain, mismos dos directorios, *.bod.
-#   .cmp 159/159      [formats/test] CmpMovCorpusCheck (net.freeworlds.corpus):
+#   .cmp 159/159      [formats/test] CmpMovCorpusCheck (net.openworlds.corpus):
 #   .mov 52/52        no existia ningun *Main que decodificara el corpus
 #                     agregado (CmpStage2 solo compara un fichero de
 #                     evidencia capturada a mano). Extrae tex/*.cmp y
@@ -77,7 +77,7 @@ BUILD="$(mktemp -d "${TMPDIR:-/tmp}/fw-verify-corpus.XXXXXX")"
 cleanup() { rm -rf "$BUILD"; }
 trap cleanup EXIT
 
-echo "=== FreeWorlds verify-corpus $(date +%Y-%m-%dT%H:%M:%S%z) ==="
+echo "=== OpenWorlds verify-corpus $(date +%Y-%m-%dT%H:%M:%S%z) ==="
 echo "root: $ROOT"
 echo "build temporal: $BUILD"
 echo
@@ -123,7 +123,7 @@ find "$ROOT/assets/WorldsPlayer/cachedir" "$ROOT/assets/gammatutorial-samples/ba
 SEQ_TOTAL=$(wc -l < "$SEQ_LIST" | tr -d ' ')
 if [ "$SEQ_TOTAL" -gt 0 ]; then
    set +e
-   xargs -n 10000 java $JMEM -cp "$BUILD" net.freeworlds.bod.SeqExtractMain -q < "$SEQ_LIST" > "$CAP" 2>&1
+   xargs -n 10000 java $JMEM -cp "$BUILD" net.openworlds.bod.SeqExtractMain -q < "$SEQ_LIST" > "$CAP" 2>&1
    CAP_RC=$?
    set -e
    SEQ_LINE="$(grep -E '/ [0-9]+ files fully consumed' "$CAP" | tail -n 1)"
@@ -147,7 +147,7 @@ find "$ROOT/assets/WorldsPlayer/cachedir" "$ROOT/assets/gammatutorial-samples/ba
 BOD_TOTAL=$(wc -l < "$BOD_LIST" | tr -d ' ')
 if [ "$BOD_TOTAL" -gt 0 ]; then
    set +e
-   xargs -n 10000 java $JMEM -cp "$BUILD" net.freeworlds.bod.BodExtractMain < "$BOD_LIST" > "$CAP" 2>&1
+   xargs -n 10000 java $JMEM -cp "$BUILD" net.openworlds.bod.BodExtractMain < "$BOD_LIST" > "$CAP" 2>&1
    CAP_RC=$?
    set -e
    BOD_LINE="$(grep -E '/ [0-9]+ files fully consumed' "$CAP" | tail -n 1)"
@@ -168,7 +168,7 @@ fi
 # ---------------------------------------------------------------------
 CONTENT_ZIP="$ROOT/assets/WorldsPlayer/GroundZero/content.zip"
 if [ -f "$CONTENT_ZIP" ]; then
-   capture java $JMEM -cp "$BUILD" net.freeworlds.corpus.CmpMovCorpusCheck "$CONTENT_ZIP"
+   capture java $JMEM -cp "$BUILD" net.openworlds.corpus.CmpMovCorpusCheck "$CONTENT_ZIP"
    CMP_LINE="$(grep -E '^CMP ' "$CAP" || true)"
    MOV_LINE="$(grep -E '^MOV ' "$CAP" || true)"
    if [ "$CAP_RC" -eq 0 ]; then

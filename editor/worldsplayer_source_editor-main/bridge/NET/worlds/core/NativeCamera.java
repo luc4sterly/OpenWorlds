@@ -225,7 +225,7 @@ public final class NativeCamera {
          + " canvas=" + (comp instanceof java.awt.Canvas) + owner);
    }
 
-   /** -Dfreeworlds.fps: frames shown per second on the main camera. */
+   /** -Dopenworlds.fps: frames shown per second on the main camera. */
    private static long fpsMark;
    private static int fpsCount;
    private static long framePaint;
@@ -236,7 +236,7 @@ public final class NativeCamera {
    static long frameTexPixels;
 
    private static void fps(Cam c) {
-      if (System.getProperty("freeworlds.fps") == null || c.width != mainWidth) {
+      if (System.getProperty("openworlds.fps") == null || c.width != mainWidth) {
          framePixels = 0L;
          frameTexPixels = 0L;
          return;
@@ -274,11 +274,11 @@ public final class NativeCamera {
    private static final java.util.Map<String, Integer> shownBySize = new java.util.HashMap<String, Integer>();
 
    /**
-    * Harness diagnostic: -Dfreeworlds.dumpFrames=DIR saves frames 1, 10, 100, 1000... of each
-    * camera as PNG, or with -Dfreeworlds.dumpSeconds=S1,S2,... the first frame after each second mark.
+    * Harness diagnostic: -Dopenworlds.dumpFrames=DIR saves frames 1, 10, 100, 1000... of each
+    * camera as PNG, or with -Dopenworlds.dumpSeconds=S1,S2,... the first frame after each second mark.
     */
    private static void dumpFrame(Cam c) {
-      String dir = System.getProperty("freeworlds.dumpFrames");
+      String dir = System.getProperty("openworlds.dumpFrames");
       if (dir == null) {
          return;
       }
@@ -286,7 +286,7 @@ public final class NativeCamera {
       Integer prev = shownBySize.get(key);
       int shown = prev == null ? 1 : prev + 1;
       shownBySize.put(key, shown);
-      String range = System.getProperty("freeworlds.dumpRange");
+      String range = System.getProperty("openworlds.dumpRange");
       if (range != null) {
          long elapsed = (System.nanoTime() - DUMP_T0) / 1000000000L;
          String[] f = range.split(":");
@@ -300,7 +300,7 @@ public final class NativeCamera {
          }
          return;
       }
-      String secs = System.getProperty("freeworlds.dumpSeconds");
+      String secs = System.getProperty("openworlds.dumpSeconds");
       if (secs != null) {
          long elapsed = (System.nanoTime() - DUMP_T0) / 1000000000L;
          String done = key + "@";
@@ -583,14 +583,14 @@ public final class NativeCamera {
       NativeRw.invert(c.ltm, inv);
       float[] p = NativeRw.transformPoint(inv, ltm[12], ltm[13], ltm[14]);
       Object d = NativeScene.getClumpData(clump);
-      if (System.getProperty("freeworlds.traceInCamSpace") != null && inCamTraced.add(d)) {
+      if (System.getProperty("openworlds.traceInCamSpace") != null && inCamTraced.add(d)) {
          System.err.println("[RW] inCamSpace " + (d == null ? "-" : d.getClass().getSimpleName() + ":" + d)
             + " -> (" + p[0] + "," + p[1] + "," + p[2] + ")");
       }
       return p;
    }
 
-   /** -Dfreeworlds.traceInCamSpace: first point got by each object. */
+   /** -Dopenworlds.traceInCamSpace: first point got by each object. */
    private static final java.util.Set<Object> inCamTraced = java.util.Collections.synchronizedSet(new java.util.HashSet<Object>());
 
    private static float[] toCamera(Cam c, float wx, float wy, float wz) {
@@ -910,7 +910,7 @@ public final class NativeCamera {
       p.c = c;
       p.z = zbuffer(c);
       java.util.Arrays.fill(p.z, 0.0F);
-      if (System.getProperty("freeworlds.matStats") != null && c.width == mainWidth) {
+      if (System.getProperty("openworlds.matStats") != null && c.width == mainWidth) {
          p.matPixels = new java.util.HashMap<String, int[]>();
       }
       probeHit = null;
@@ -927,16 +927,16 @@ public final class NativeCamera {
             }
          }
       }
-      if (System.getProperty("freeworlds.centrePixel") != null && p.centre != null
+      if (System.getProperty("openworlds.centrePixel") != null && p.centre != null
             && c.width == mainWidth && (System.nanoTime() - DUMP_T0) / 1000000000L >= 25
             && centreShown++ % 300 == 0) {
          System.err.println("[RW] centro de la vista: " + p.centre);
       }
-      if (System.getProperty("freeworlds.countPolys") != null && c.width == mainWidth) {
+      if (System.getProperty("openworlds.countPolys") != null && c.width == mainWidth) {
          long sec = (System.nanoTime() - DUMP_T0) / 1000000000L;
          String key = sec + "s escena " + scene + " z=" + zFlag;
          synchronized (counted) {
-            if (sec >= Long.parseLong(System.getProperty("freeworlds.countPolys")) && counted.add(key)) {
+            if (sec >= Long.parseLong(System.getProperty("openworlds.countPolys")) && counted.add(key)) {
                System.err.println("[RW] pasada " + key + ": " + p.clumps + " clumps, " + p.polys + " poligonos, " + p.drawn + " dibujados, "
                   + p.texPixels + " px con textura, " + p.flatPixels + " px planos, "
                   + degenerateVertexNormals + " normales de vertice degeneradas (caida a la primera cara)");
@@ -945,8 +945,8 @@ public final class NativeCamera {
       }
    }
 
-   /** -Dfreeworlds.dumpScene=SEC: the clump tree of every scene drawn by the main camera, once, from SEC seconds. */
-   private static final String DUMP_SCENE = System.getProperty("freeworlds.dumpScene");
+   /** -Dopenworlds.dumpScene=SEC: the clump tree of every scene drawn by the main camera, once, from SEC seconds. */
+   private static final String DUMP_SCENE = System.getProperty("openworlds.dumpScene");
    private static final java.util.Set<Integer> scenesDumped = new java.util.HashSet<Integer>();
 
    private static void dumpScene(int scene, Cam c) {
@@ -981,7 +981,7 @@ public final class NativeCamera {
       b.append(describeData(k.data)).append(" estado=").append(k.state)
          .append(" vert=").append(k.verts.size()).append(" pol=").append(k.polys.size())
          .append(String.format(" en (%.0f,%.0f,%.0f)", ltm[12], ltm[13], ltm[14]));
-      if (System.getProperty("freeworlds.dumpSceneMatrices") != null) {
+      if (System.getProperty("openworlds.dumpSceneMatrices") != null) {
          b.append(" modeling=").append(java.util.Arrays.toString(k.modeling)).append(" joint=").append(java.util.Arrays.toString(k.joint));
       }
       b.append('\n');
@@ -1572,7 +1572,7 @@ public final class NativeCamera {
    }
 
    /**
-    * -Dfreeworlds.rasterThreads=N: threads that draw the bands of a pass
+    * -Dopenworlds.rasterThreads=N: threads that draw the bands of a pass
     * (default: the processors, at most 8; 1 = everything on the render
     * thread, as before).
     */
@@ -1583,12 +1583,12 @@ public final class NativeCamera {
 
    private static int rasterThreads() {
       int n = Math.min(8, Runtime.getRuntime().availableProcessors());
-      String v = System.getProperty("freeworlds.rasterThreads");
+      String v = System.getProperty("openworlds.rasterThreads");
       if (v != null) {
          try {
             n = Integer.parseInt(v.trim());
          } catch (NumberFormatException e) {
-            System.err.println("[RW] freeworlds.rasterThreads no es un numero: " + v);
+            System.err.println("[RW] openworlds.rasterThreads no es un numero: " + v);
          }
       }
       return Math.max(1, Math.min(64, n));
@@ -1602,7 +1602,7 @@ public final class NativeCamera {
          final java.util.concurrent.atomic.AtomicInteger id = new java.util.concurrent.atomic.AtomicInteger();
          pool = java.util.concurrent.Executors.newFixedThreadPool(RASTER_THREADS - 1, new java.util.concurrent.ThreadFactory() {
             public Thread newThread(Runnable r) {
-               Thread t = new Thread(r, "freeworlds-raster-" + id.incrementAndGet());
+               Thread t = new Thread(r, "openworlds-raster-" + id.incrementAndGet());
                t.setDaemon(true);
                return t;
             }
@@ -2841,7 +2841,7 @@ public final class NativeCamera {
       }
    }
 
-   /** Material + owner of a polygon, for -Dfreeworlds.matStats. */
+   /** Material + owner of a polygon, for -Dopenworlds.matStats. */
    private static String describe(NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k) {
       StringBuilder b = new StringBuilder();
       if (mat == null) {
@@ -2869,11 +2869,11 @@ public final class NativeCamera {
       return b.toString();
    }
 
-   /** -Dfreeworlds.probePixel=X,Y: which material/object ends up owning that pixel. */
+   /** -Dopenworlds.probePixel=X,Y: which material/object ends up owning that pixel. */
    private static final int probeX;
    private static final int probeY;
    static {
-      String v = System.getProperty("freeworlds.probePixel");
+      String v = System.getProperty("openworlds.probePixel");
       if (v == null) {
          probeX = -1;
          probeY = -1;
@@ -2887,7 +2887,7 @@ public final class NativeCamera {
 
    private static final java.util.Set<String> matStatsShown = new java.util.HashSet<String>();
 
-   /** -Dfreeworlds.matStats=SEC: pixels drawn per material/object, once per second from SEC. */
+   /** -Dopenworlds.matStats=SEC: pixels drawn per material/object, once per second from SEC. */
    private static void matStats(Pass p, int scene) {
       if (p.matPixels == null) {
          return;
@@ -2895,10 +2895,10 @@ public final class NativeCamera {
       long sec = (System.nanoTime() - DUMP_T0) / 1000000000L;
       String key = sec + "/" + scene;
       synchronized (matStatsShown) {
-         if (sec >= Long.parseLong(System.getProperty("freeworlds.matStats")) && matStatsShown.add("inv" + sec)) {
+         if (sec >= Long.parseLong(System.getProperty("openworlds.matStats")) && matStatsShown.add("inv" + sec)) {
             NativeTextures.dumpInventory();
          }
-         if (sec < Long.parseLong(System.getProperty("freeworlds.matStats")) || !matStatsShown.add(key)) {
+         if (sec < Long.parseLong(System.getProperty("openworlds.matStats")) || !matStatsShown.add(key)) {
             return;
          }
       }

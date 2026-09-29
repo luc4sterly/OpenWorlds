@@ -13,7 +13,7 @@ import java.lang.reflect.Method;
 /**
  * Web embebida sin IE/DDE y la decision abrir/registrar de las URLs.
  * Nunca abre un navegador: el proceso corre con java.awt.headless=true
- * (Desktop no soportado) y sin -Dfreeworlds.openUrls salvo en el hijo, que
+ * (Desktop no soportado) y sin -Dopenworlds.openUrls salvo en el hijo, que
  * tampoco tiene origen de usuario. Casos a mano:
  *  - decide(flag, usuario): solo (1,1) abre.
  *  - origen de usuario por pila: dialogDone / DefaultConsole.action si;
@@ -54,7 +54,7 @@ public class MediaWebCheck {
       System.setProperty("java.awt.headless", "true");
 
       if (args.length > 0 && args[0].equals("hijo")) {
-         // -Dfreeworlds.openUrls=1 pero sin origen de usuario: solo registra.
+         // -Dopenworlds.openUrls=1 pero sin origen de usuario: solo registra.
          boolean r = launch("http://example.invalid/hijo");
          int g = NET.worlds.scape.sendURL.get("http://example.invalid/bump");
          System.out.println("HIJO " + NativeMediaUrl.OPEN_URLS + " " + r + " " + g);
@@ -79,7 +79,7 @@ public class MediaWebCheck {
       check(!NativeMediaUrl.isUserOrigin(Thread.currentThread().getStackTrace()), "la pila de esta prueba no lo es");
 
       // --- sin flag nunca se abre ---
-      check(!NativeMediaUrl.OPEN_URLS, "freeworlds.openUrls no puesto en la prueba");
+      check(!NativeMediaUrl.OPEN_URLS, "openworlds.openUrls no puesto en la prueba");
       NativeMediaUrl.setPendingUserOrigin(true);
       check(!launch("http://example.invalid/menu"), "launchViaRegistry sin flag -> false aunque venga del usuario");
       check(NET.worlds.scape.sendURL.get("http://example.invalid/x") == 0, "sendURL.get sin flag -> 0");
@@ -88,7 +88,7 @@ public class MediaWebCheck {
 
       // --- con flag y sin usuario, en otro proceso ---
       String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
-      Process p = new ProcessBuilder(java, "-Xmx128m", "-Djava.awt.headless=true", "-Dfreeworlds.openUrls=1", "-cp", System.getProperty("java.class.path"), "MediaWebCheck", "hijo")
+      Process p = new ProcessBuilder(java, "-Xmx128m", "-Djava.awt.headless=true", "-Dopenworlds.openUrls=1", "-cp", System.getProperty("java.class.path"), "MediaWebCheck", "hijo")
          .redirectErrorStream(true)
          .start();
       BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));

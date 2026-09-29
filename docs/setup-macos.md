@@ -1,7 +1,7 @@
 # Desarrollo en macOS
 
-Guía para seguir el desarrollo de FreeWorlds en un Mac (Intel o Apple Silicon).
-El repo ya está subido a Codeberg: `git@codeberg.org:JoseAntonio/FreeWorlds.git`.
+Guía para seguir el desarrollo de OpenWorlds en un Mac (Intel o Apple Silicon).
+El repo ya está subido a Codeberg: `git@codeberg.org:JoseAntonio/OpenWorlds.git`.
 
 **Sin Homebrew**: Homebrew ya no soporta Macs Intel, así que el setup no lo
 usa. El JDK se descarga portable dentro del repo, en un directorio
@@ -10,11 +10,11 @@ gitignored, sin `sudo`.
 ## 1. Clonar
 
 ```bash
-git clone git@codeberg.org:JoseAntonio/FreeWorlds.git
-cd FreeWorlds
+git clone git@codeberg.org:JoseAntonio/OpenWorlds.git
+cd OpenWorlds
 ```
 
-> HTTPS alternativo: `https://codeberg.org/JoseAntonio/FreeWorlds.git`
+> HTTPS alternativo: `https://codeberg.org/JoseAntonio/OpenWorlds.git`
 
 ## 2. Setup automático
 
@@ -38,12 +38,12 @@ Hace, en orden (idempotente):
 Para jugar, el paquete con el lanzador:
 
 ```bash
-tools/build-dist.sh                              # build/dist/FreeWorlds (+ .zip portable)
-open build/dist/FreeWorlds/FreeWorlds.command    # o doble clic en Finder
-tools/build-dist.sh --app-image                  # además FreeWorlds.app con su propio Java
+tools/build-dist.sh                              # build/dist/OpenWorlds (+ .zip portable)
+open build/dist/OpenWorlds/OpenWorlds.command    # o doble clic en Finder
+tools/build-dist.sh --app-image                  # además OpenWorlds.app con su propio Java
 ```
 
-O el de cada push en GitHub (Artifacts de la CI; `FreeWorlds-<ver>-macOS-X64`
+O el de cada push en GitHub (Artifacts de la CI; `OpenWorlds-<ver>-macOS-X64`
 en un Mac Intel).
 
 Para diagnóstico, el cliente original directo (admite `JAVA_OPTS`, ver
@@ -60,12 +60,12 @@ tools/run-checks.sh      # los *Check de formats/test y bridge/test
 tools/verify-corpus.sh   # .seq 231, .bod 51, .cmp 159, .mov 52 y luego run-checks
 
 # .seq: parsea todo el corpus y resume version/joints/extras
-java -cp formats/out net.freeworlds.bod.SeqExtractMain -q \
+java -cp formats/out net.openworlds.bod.SeqExtractMain -q \
   assets/gammatutorial-samples/base-avatars/*.seq assets/WorldsPlayer/cachedir/*.seq
 
 # .bod / .rwg: resumen estructural
-java -cp formats/out net.freeworlds.bod.BodExtractMain  assets/gammatutorial-samples/base-avatars/*.bod
-java -cp formats/out net.freeworlds.rwg.RwgExtractMain  assets/gammatutorial-samples/cube.rwg
+java -cp formats/out net.openworlds.bod.BodExtractMain  assets/gammatutorial-samples/base-avatars/*.bod
+java -cp formats/out net.openworlds.rwg.RwgExtractMain  assets/gammatutorial-samples/cube.rwg
 ```
 
 Notas macOS:

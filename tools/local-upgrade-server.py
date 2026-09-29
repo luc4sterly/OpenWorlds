@@ -71,7 +71,7 @@ class Mirror:
             if os.path.isfile(dest):
                 return dest
             req = urllib.request.Request(self.url + urllib.parse.quote(rel),
-                                         headers={"User-Agent": "FreeWorlds-diagnostico"})
+                                         headers={"User-Agent": "OpenWorlds-diagnostico"})
             try:
                 with urllib.request.urlopen(req, timeout=30) as r:
                     data = r.read()

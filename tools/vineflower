@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-exec java -jar "/home/lucas/FreeWorlds/tools/vineflower.jar" "$@"
+exec java -jar "/home/lucas/OpenWorlds/tools/vineflower.jar" "$@"

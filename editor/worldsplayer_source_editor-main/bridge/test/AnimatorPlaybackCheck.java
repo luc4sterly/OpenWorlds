@@ -101,8 +101,8 @@ public class AnimatorPlaybackCheck {
       eq(p.entries.size(), 4, "axelwave mueve 4 joints (back, lfshoulder, lfelbow, lfwrist)");
       eq(p.entries.get(0).key, 4, "back = tag 2 -> id 4 (FUN_004298b0: tag + 2)");
       eq(p.entries.get(3).key, 15, "lfwrist = tag 13 -> id 15");
-      net.freeworlds.bod.SeqParser.SeqData wave = net.freeworlds.bod.SeqParser.parseFile(new File(dir, "axelwave.seq").getPath());
-      float[] q = net.freeworlds.bod.SeqSampler.sample(wave.joints.get("lfshoulder"), (short) 30);
+      net.openworlds.bod.SeqParser.SeqData wave = net.openworlds.bod.SeqParser.parseFile(new File(dir, "axelwave.seq").getPath());
+      float[] q = net.openworlds.bod.SeqSampler.sample(wave.joints.get("lfshoulder"), (short) 30);
       float[] e = {q[0], -q[1], -q[2], q[3]};
       if (e[0] < 0) {
          for (int k = 0; k < 4; k++) {
@@ -123,10 +123,10 @@ public class AnimatorPlaybackCheck {
       check(an.implicitNode() instanceof AnimGraph.ShiftTo, "cambio de implicito = shiftto");
       an.step(0f, new AnimTime(0, 100));
       AnimPose mid = an.pose();
-      net.freeworlds.bod.SeqParser.SeqData wait = net.freeworlds.bod.SeqParser.parseFile(new File(dir, "axelwait.seq").getPath());
+      net.openworlds.bod.SeqParser.SeqData wait = net.openworlds.bod.SeqParser.parseFile(new File(dir, "axelwait.seq").getPath());
       // A 100 ms: peso 100/250 = 0.4 entre la pose vacia (identidad) y la
       // de axelwait en el key trunc(0.1 * 30) = 3.
-      float[] w3 = net.freeworlds.bod.SeqSampler.sample(wait.joints.get("head"), (short) 3);
+      float[] w3 = net.openworlds.bod.SeqSampler.sample(wait.joints.get("head"), (short) 3);
       float[] b = {w3[0], -w3[1], -w3[2], w3[3]};
       if (b[0] < 0) {
          for (int k = 0; k < 4; k++) {
@@ -140,7 +140,7 @@ public class AnimatorPlaybackCheck {
       check(an.implicitNode() instanceof AnimGraph.Pipe, "a 300 ms el shiftto se sustituye por el pipe de wait");
       // 30 s despues: trunc(30.3 * 30) = 909 > 858 keys -> modo 1 se queda en 858.
       an.step(0f, new AnimTime(30, 0));
-      float[] last = net.freeworlds.bod.SeqSampler.sample(wait.joints.get("head"), (short) 858);
+      float[] last = net.openworlds.bod.SeqSampler.sample(wait.joints.get("head"), (short) 858);
       near(Math.abs(an.pose().find(6).v[0]), Math.abs(last[0]), 1e-5, "wait en modo 1 se queda en el ultimo key (858)");
 
       // Walk (indice 3: por distancia, bucle). axelwalk: 34 keys,

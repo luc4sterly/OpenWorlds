@@ -180,12 +180,12 @@ aplanar todo a un mesh único en espacio raíz, produce un árbol:
 
 ## Archivos
 
-- `client/src/net/freeworlds/rwx/RwxJoint.java` — nodo del árbol (nombre,
+- `client/src/net/openworlds/rwx/RwxJoint.java` — nodo del árbol (nombre,
   transform local, geometría local, hijos).
-- `client/src/net/freeworlds/rwx/RwxSkeletonParser.java` — parser
+- `client/src/net/openworlds/rwx/RwxSkeletonParser.java` — parser
   hermano de `RwxParser`, mismo comportamiento de transform/clump/material,
   produce el árbol en vez de aplanar.
-- `client/src/net/freeworlds/rwx/RwxSkeletonDumpMain.java` — CLI de
-  verificación (`java -cp out net.freeworlds.rwx.RwxSkeletonDumpMain
+- `client/src/net/openworlds/rwx/RwxSkeletonDumpMain.java` — CLI de
+  verificación (`java -cp out net.openworlds.rwx.RwxSkeletonDumpMain
   <file.rwx>`), imprime el árbol indentado con conteos de vértices/
   triángulos por joint.

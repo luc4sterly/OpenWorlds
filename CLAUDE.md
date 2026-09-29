@@ -1,4 +1,4 @@
-# FreeWorlds
+# OpenWorlds
 
 Preservación e ingeniería inversa de **Worlds Chat / WorldsPlayer** (Worlds
 Inc., mediados de los 90), uno de los primeros clientes de chat social 3D.
@@ -49,8 +49,8 @@ solo si necesitas la evidencia cruda de un hallazgo concreto.
 ## Layout del repo
 
 ```
-formats/src/net/freeworlds/   lectores verificados que usa el puente: bod/ (.bod y .seq), rwg/, cmp/ (.cmp y .mov)
-launcher/src/net/freeworlds/launcher/   lanzador del paquete (ventana con la estética del logo, menú de terminal, CLI): arranca el cliente original, whirl local y se actualiza solo
+formats/src/net/openworlds/   lectores verificados que usa el puente: bod/ (.bod y .seq), rwg/, cmp/ (.cmp y .mov)
+launcher/src/net/openworlds/launcher/   lanzador del paquete (ventana con la estética del logo, menú de terminal, CLI): arranca el cliente original, whirl local y se actualiza solo
 launcher/test/                 checks del lanzador (actualizador, copia de la instalación)
 .github/workflows/build.yml   CI: build + checks + corpus + pruebas de humo; apps macOS/Windows/Linux con whirl; release en cada push a main
 .claude/hooks/session-start.sh   aprovisiona cada sesión de Claude Code en la web (llama a tools/setup-linux.sh)
@@ -142,8 +142,8 @@ web. Sin pantalla: `xvfb-run -a` o un `Xvfb :99` propio.
 
 **Paquetes para probar sin scripts:** `tools/build-dist.sh [--app-image]`
 en local, o los *Artifacts* de cada ejecución de la CI en GitHub
-(`FreeWorlds-<ver>-macOS-X64` es el de este Mac). El lanzador
-(`FreeWorlds`, ventana o `--tui`) sustituye a `run_gamma.sh` para jugar;
+(`OpenWorlds-<ver>-macOS-X64` es el de este Mac). El lanzador
+(`OpenWorlds`, ventana o `--tui`) sustituye a `run_gamma.sh` para jugar;
 el script sigue para el diagnóstico con `JAVA_OPTS`.
 
 ## Herramientas (`tools/`)

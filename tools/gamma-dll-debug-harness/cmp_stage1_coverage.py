@@ -13,7 +13,7 @@ For each real .cmp file:
      cross-validated against sball.cmp's already-verified decoder output:
      both AE=0, zero pixel difference).
   2. Attempt to decode the same file with our own Java pipeline
-     (CmpDecodeCli -> net.freeworlds.cmp.CmpTexture).
+     (CmpDecodeCli -> net.openworlds.cmp.CmpTexture).
   3. If both succeed, pixel-diff them (ImageMagick `compare -metric AE`).
   4. Record OK / FAIL(reason) / NOT TESTED(reason) - never invented.
 
@@ -34,7 +34,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cmp_ground_truth as gt
 
-REPO_ROOT = "/home/lucas/FreeWorlds"
+REPO_ROOT = "/home/lucas/OpenWorlds"
 CLI_CLASS = "CmpDecodeCli"
 CLI_CLASS_RAW = "CmpDecodeRawCli"
 
@@ -200,7 +200,7 @@ def main():
             "instead of the real image - fixed by requiring a solid run of "
             "non-white pixels, not just one.\n\n"
             "Then, for each file, the existing Java pipeline "
-            "(`net.freeworlds.cmp.CmpTexture`, via the `CmpDecodeCli` wrapper in "
+            "(`net.openworlds.cmp.CmpTexture`, via the `CmpDecodeCli` wrapper in "
             "`cmp-stage2-decoder/`) attempts to decode the SAME file, and if it "
             "succeeds, the two are pixel-diffed. **OK** = byte-exact against real "
             "ground truth. **FAIL** = either our decoder threw (with the real "

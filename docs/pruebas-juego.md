@@ -1,7 +1,7 @@
 # Pruebas del juego: el cliente original de 2004 bajo el puente
 
 Sesión del 2026-09-26. Se probó todo lo que se puede hacer en el juego, a
-mano, con el paquete del lanzador (`build/dist`, `FreeWorlds --original`)
+mano, con el paquete del lanzador (`build/dist`, `OpenWorlds --original`)
 en Linux: Xvfb 1280×960 sin gestor de ventanas, Java 21, el espejo activado
 (`us1.worlds.net`, que hoy es LibreWorlds) y sin servidor de mundos, es
 decir, en modo monousuario ("Single-user mode" en el diálogo "Internet
@@ -57,7 +57,7 @@ BWDecade, BWArt, BWAvatar, Bowie, 13 MB) y Chaos.
 | WorldsMark → Add new WorldsMark... | ✅ | el marcador aparece en el menú |
 | WorldsMark → Change Location... | ✅ | lleva a la URL escrita; antes congelaba toda la UI (arreglado) |
 | WorldsMail | ✅ | To/Subject/cuerpo, Send cierra la ventana; el correo sale por SMTP al servidor de 2004 (muerto) y no llega |
-| VIP → Become a VIP | ✅ | abre `www-dynamic.us.worlds.net/cgi-bin/vip.pl`: el puente anota la URL y no la abre salvo con `-Dfreeworlds.openUrls=1` |
+| VIP → Become a VIP | ✅ | abre `www-dynamic.us.worlds.net/cgi-bin/vip.pl`: el puente anota la URL y no la abre salvo con `-Dopenworlds.openUrls=1` |
 | VIP → Choose Avatar, Saved Avatars, Customize Avatar, Accept Voice Calls, # Visible Users | gris | son de VIP, como en 2004; sin VIP el avatar se cambia pinchando las estatuas de Avatar Gallery |
 | Options → Edit Friends (Add, Done) | ✅ | "FRIENDS ONLINE" solo lista a los conectados |
 | Options → Proxy Server Settings | ✅ | diálogo con dos campos, Cancel lo cierra |
@@ -144,7 +144,7 @@ en Linux (Xvfb, `xdotool`, espejo activado):
     para al acabar y deja el login relleno (basta "Sign In").
 12. **"Un jugador" preguntaba por la conexión** ("unable to connect to Worlds
     servers... Single-user mode"): el lanzador pasa
-    `-Dfreeworlds.singleUser=true` y el diálogo contesta solo
+    `-Dopenworlds.singleUser=true` y el diálogo contesta solo
     (`bridge/natives-launcher.patch`). Y la ventana del juego ya no abre a
     568×424 la primera vez: dos tercios de la pantalla.
 

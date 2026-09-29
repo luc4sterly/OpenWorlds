@@ -680,7 +680,7 @@ public final class NativeScene {
       Material m = material(h);
       if (m != null) {
          m.texture = texture;
-         if (System.getProperty("freeworlds.traceTextures") != null) {
+         if (System.getProperty("openworlds.traceTextures") != null) {
             System.err.println("[RW] setMaterialTexture mat=" + h + " tex=" + texture
                + (texture != 0 && NativeTextures.texture(texture) == null ? " (handle sin textura!)" : ""));
          }
@@ -859,7 +859,7 @@ public final class NativeScene {
       int colEnd = ceilCell(uMax) * hRes;
       int rowEnd = ceilCell(vMax) * vRes;
       int count = (colEnd - col0) * (rowEnd - row);
-      if (System.getProperty("freeworlds.traceSubPolys") != null) {
+      if (System.getProperty("openworlds.traceSubPolys") != null) {
          Clump k = clump(clump);
          System.err.println("[RW] addSubPolys " + (k == null ? "-" : String.valueOf(k.data)) + " " + hRes + "x" + vRes
             + " flags=0x" + Integer.toHexString(flags) + " x " + x1 + "+" + dxTotal + " z " + z1 + "+" + dzTotal

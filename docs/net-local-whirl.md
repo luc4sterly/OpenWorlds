@@ -32,9 +32,9 @@ tools/net-probe/run-whirl-duo.sh <DIR_SALIDA>
 
 # Por partes:
 tools/run-whirl.sh <DIR_WHIRL>            # distributor 127.0.0.1:6650 + hub :5673
-FREEWORLDS_GAMMA_DIR=<dir> FREEWORLDS_SERVER=127.0.0.1:6650 \
-FREEWORLDS_USER=FWTestA FREEWORLDS_LOGIN=fwtest1 FREEWORLDS_NETDEBUG=1253 \
-FREEWORLDS_CHAT="15000:hola desde A" JAVA_OPTS="-Xmx512m -Dfreeworlds.dumpChat=30000" \
+OPENWORLDS_GAMMA_DIR=<dir> OPENWORLDS_SERVER=127.0.0.1:6650 \
+OPENWORLDS_USER=FWTestA OPENWORLDS_LOGIN=fwtest1 OPENWORLDS_NETDEBUG=1253 \
+OPENWORLDS_CHAT="15000:hola desde A" JAVA_OPTS="-Xmx512m -Dopenworlds.dumpChat=30000" \
   editor/worldsplayer_source_editor-main/run_gamma.sh home:GroundZero/groundzero.world
 tools/run-whirl.sh --stop <DIR_WHIRL>
 ```
@@ -60,17 +60,17 @@ tools/run-whirl.sh --stop <DIR_WHIRL>
 
 `run_gamma.sh` (solo actúa sobre la copia temporal de la instalación):
 
-- `FREEWORLDS_SERVER=host:puerto` añade `WorldServer=worldserver://host:puerto`
+- `OPENWORLDS_SERVER=host:puerto` añade `WorldServer=worldserver://host:puerto`
   a `[Runtime]` de `override.ini`. Es el mecanismo del propio cliente:
   `NetUpdate.<clinit>` lo lee y `World.setWorldServerURL` sustituye con él
   toda URL `worldserver://www.3dcd.com[:puerto]`, que es
   `World.defaultServerURL` (`World.java:54`), la de GroundZero. No hace falta
   redirigir DNS (`apply_mock.sh` no se ha tocado).
-- `FREEWORLDS_USER=nombre` pone `User0=nombre` en la sección `[host:puerto]` de
+- `OPENWORLDS_USER=nombre` pone `User0=nombre` en la sección `[host:puerto]` de
   `worlds.ini`, la que lee el LoginWizard (`Galaxy.getIniSection`).
-- `FREEWORLDS_NETDEBUG=N` pone `netdebug=N`. 1253 = 1 sendText, 4 sessionInit,
+- `OPENWORLDS_NETDEBUG=N` pone `netdebug=N`. 1253 = 1 sendText, 4 sessionInit,
   32 tipo de servidor, 64 recv, 128 send, 1024 bytes enviados.
-- `FREEWORLDS_LOGIN=contraseña` o `FREEWORLDS_CHAT=...` arrancan por
+- `OPENWORLDS_LOGIN=contraseña` o `OPENWORLDS_CHAT=...` arrancan por
   `tools/net-probe/LoginDriver.java` en vez de `Gamma` a pelo.
 
 ### El arnés `LoginDriver`
@@ -81,11 +81,11 @@ haría una persona; no toca lógica del cliente:
 - En el LoginWizard (pantalla HAVE_USERS) escribe la contraseña en el campo con
   eco `*`, **desmarca "Remember password"** y pulsa el `ForwardButton`
   ("Sign In") posteando el `ActionEvent` de un clic.
-- `FREEWORLDS_CHAT=MS:texto[;MS:texto]`: escribe en la línea de chat a los MS
+- `OPENWORLDS_CHAT=MS:texto[;MS:texto]`: escribe en la línea de chat a los MS
   ms de cerrarse el LoginWizard y le entrega el `Event` 1.0 `ACTION_EVENT` de
   Intro (ver "Hallazgos", punto 2).
-- `-Dfreeworlds.dumpChat=MS,...` vuelca el área de chat (`[CHAT]`);
-  `-Dfreeworlds.dumpDrones=MS,...` lista los `Drone` de todas las salas
+- `-Dopenworlds.dumpChat=MS,...` vuelca el área de chat (`[CHAT]`);
+  `-Dopenworlds.dumpDrones=MS,...` lista los `Drone` de todas las salas
   cargadas con su sala y posición (`[DRONES]`).
 
 Las contraseñas y nombres (`FWTestA`, `FWTestB`, `fwtest1`) son de prueba y
@@ -213,7 +213,7 @@ Quién tiene razón se decide con el código del cliente; whirl no se ha tocado.
    además traduce `209.67.68.214:6650` a ese nombre. Hoy `www.3dcd.com`
    resuelve (76.223.54.146 y 13.248.169.48) pero el 6650 no contesta: a los
    15 s el hilo de timeout de `WSConnecting` pone el error 106
-   (`NAK_TIMEOUT`). O sea: sin `FREEWORLDS_SERVER`, el cliente bajo el puente
+   (`NAK_TIMEOUT`). O sea: sin `OPENWORLDS_SERVER`, el cliente bajo el puente
    intenta conectar con un host de terceros.
 
 ## Lo que falta

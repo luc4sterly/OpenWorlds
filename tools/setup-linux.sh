@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # setup-linux.sh — deja una maquina Linux (o el contenedor de Claude Code en
 # la web, via .claude/hooks/session-start.sh) lista para desarrollar
-# FreeWorlds. Idempotente, se puede correr las veces que haga falta:
+# OpenWorlds. Idempotente, se puede correr las veces que haga falta:
 #
 #   1. Paquetes del sistema (apt, si hay permisos): xvfb (cliente original y
 #      checks AWT sin pantalla), patch (build_gamma.sh), zip (paquete portable),
@@ -101,7 +101,7 @@ if [ "$BUILD" = 1 ]; then
    "$JDK/bin/javac" -nowarn -encoding UTF-8 -d "$ROOT/formats/out" @"$ROOT/formats/out/.sources" 2>&1 \
       | grep -v '^Picked up JAVA_TOOL_OPTIONS' || true
    rm -f "$ROOT/formats/out/.sources"
-   [ -f "$ROOT/formats/out/net/freeworlds/cmp/CmpFrames.class" ] || { say "ERROR: formats/ no compila"; exit 3; }
+   [ -f "$ROOT/formats/out/net/openworlds/cmp/CmpFrames.class" ] || { say "ERROR: formats/ no compila"; exit 3; }
    run bash "$ROOT/editor/worldsplayer_source_editor-main/build_gamma.sh" || { say "ERROR: el puente no compila (editor/.build-gamma/javac.log)"; exit 3; }
    say "formats/out y editor/.build-gamma/out compilados"
 fi

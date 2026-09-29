@@ -18,7 +18,7 @@ import javax.sound.sampled.SourceDataLine;
  * la tarjeta, secuenciar MIDI) va por {@code javax.sound.sampled} y
  * {@code javax.sound.midi}.
  *
- * <p>{@code -Dfreeworlds.mute=1}: no se abre ninguna linea de audio ni
+ * <p>{@code -Dopenworlds.mute=1}: no se abre ninguna linea de audio ni
  * sintetizador, pero cada sonido "suena" igual en el tiempo (el WAV se
  * consume al ritmo de su frecuencia de muestreo y el MIDI corre en un
  * secuenciador sin receptor), asi que los estados, las duraciones y los
@@ -28,8 +28,8 @@ public final class NativeMediaSound {
    private NativeMediaSound() {
    }
 
-   public static final boolean MUTE = "1".equals(System.getProperty("freeworlds.mute"))
-      || "true".equalsIgnoreCase(System.getProperty("freeworlds.mute"));
+   public static final boolean MUTE = "1".equals(System.getProperty("openworlds.mute"))
+      || "true".equalsIgnoreCase(System.getProperty("openworlds.mute"));
 
    // Constructores estaticos de gamma.dll que Ghidra no listo como funcion:
    //   0x00420260: DAT_0049d108 = GetPrivateProfileInt("Gamma","disableWav",0,worlds.ini) != 0

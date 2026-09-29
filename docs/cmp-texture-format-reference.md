@@ -1495,7 +1495,7 @@ todos sus frames). Fuera de `content.zip`, los `.mov` de avatar
 (21 en `base-avatars/`, 31 en `cachedir/`) pasan de 37/52 ficheros
 decodificables a 52/52: los 15 que fallaban tienen tamaños distintos de 128 (104×135,
 118×100, 150×150, 160×150…) o hasta 16 frames. Comprobación:
-`formats/test/net/freeworlds/cmp/CmpTextureCheck.java`.
+`formats/test/net/openworlds/cmp/CmpTextureCheck.java`.
 
 La verificación "byte-exacta contra `cmpview.exe`" de `windr1` y
 `cbirda4` de 2026-09-13 comparaba, por tanto, el **último** frame (si aquella comparación era
@@ -1540,7 +1540,7 @@ En el puente las celdas las hace `NativeScene.addSubPolys` (casos a mano en
 
 Tres cosas que no salían en el corpus de GroundZero y sí en mundos
 descargados del espejo (muestras y procedencia en `assets/cmp-verified/`,
-test en `formats/test/net/freeworlds/cmp/CmpGroupsCheck.java`):
+test en `formats/test/net/openworlds/cmp/CmpGroupsCheck.java`):
 
 - **Un fotograma puede ser varios grupos de filas.** `FUN_00442bc0` es un
   bucle `while (filas < alto)`: cada grupo trae su cabecera de 16 bytes

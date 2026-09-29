@@ -3,7 +3,7 @@
 # en local para probar el cliente original con sesion (docs/net-local-whirl.md).
 #
 # Uso: tools/run-whirl.sh [DIR_DE_TRABAJO]
-#   DIR_DE_TRABAJO (por defecto $TMPDIR/freeworlds-whirl) recibe .whirl/Config.toml
+#   DIR_DE_TRABAJO (por defecto $TMPDIR/openworlds-whirl) recibe .whirl/Config.toml
 #   y .whirl/whirl.log; whirl lee SIEMPRE .whirl/ relativo a su cwd (lib.rs fija
 #   DATABASE_URL=.whirl/db.sqlite3 y whirl_config lee .whirl/Config.toml), asi
 #   que nada se escribe en el repo.
@@ -25,7 +25,7 @@
 # 100 %); con el prompt, read_line se bloquea sin gastar CPU.
 set -eu
 if [ "${1:-}" = "--stop" ]; then
-   D="${2:-${TMPDIR:-/tmp}/freeworlds-whirl}"
+   D="${2:-${TMPDIR:-/tmp}/openworlds-whirl}"
    for f in whirl.pid stdin.pid; do
       [ -f "$D/.whirl/$f" ] && kill "$(cat "$D/.whirl/$f")" 2>/dev/null
       rm -f "$D/.whirl/$f"
@@ -36,9 +36,9 @@ if [ "${1:-}" = "--stop" ]; then
 fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/.." && pwd)"
-DIR="${1:-${TMPDIR:-/tmp}/freeworlds-whirl}"
+DIR="${1:-${TMPDIR:-/tmp}/openworlds-whirl}"
 BIN="${WHIRL_BIN:-$REPO/server/whirl/target/debug/whirl}"
-[ -x "$BIN" ] || BIN="/Users/lucas/Developer/FreeWorlds/server/whirl/target/debug/whirl"
+[ -x "$BIN" ] || BIN="/Users/lucas/Developer/OpenWorlds/server/whirl/target/debug/whirl"
 [ -x "$BIN" ] || { echo "run-whirl: no hay binario de whirl (compilar con cargo en server/whirl)" >&2; exit 1; }
 IP="${WHIRL_IP:-127.0.0.1}"
 PORT="${WHIRL_PORT:-6650}"

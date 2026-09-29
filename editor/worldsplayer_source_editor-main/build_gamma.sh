@@ -43,7 +43,7 @@ s = s.replace(a, a + "            if (this.state == 4 || this.state == 7) {\n   
 open(p, "w").write(s)
 PY
 # Ruido de consola: la traza [NATIVE-MOCK] es del arnes (registra hasta las
-# nativas ya implementadas) y pasa a ser opt-in con -Dfreeworlds.nativeLog=1
+# nativas ya implementadas) y pasa a ser opt-in con -Dopenworlds.nativeLog=1
 # (JAVA_OPTS); y una textura que no se puede cargar se avisa una sola vez,
 # no una por cada Shape que la usa. Solo cambia lo que se imprime.
 python3 - "$B/source/NET/worlds/core/NativeMock.java" "$B/source/NET/worlds/scape/Material.java" <<'PY'
@@ -55,7 +55,7 @@ assert a in s
 s = s.replace(a, "      if (!NATIVE_LOG) {\n         return;\n      }\n" + a, 1)
 b = "   private static final java.util.Map<String, Integer> counts"
 assert b in s
-s = s.replace(b, "   private static final boolean NATIVE_LOG = Boolean.getBoolean(\"freeworlds.nativeLog\")\n      || \"1\".equals(System.getProperty(\"freeworlds.nativeLog\"));\n\n" + b, 1)
+s = s.replace(b, "   private static final boolean NATIVE_LOG = Boolean.getBoolean(\"openworlds.nativeLog\")\n      || \"1\".equals(System.getProperty(\"openworlds.nativeLog\"));\n\n" + b, 1)
 open(p, "w").write(s)
 t = open(m).read()
 c = "   private void loadError(URL var1) {\n"
@@ -110,7 +110,7 @@ body = """            long var14 = System.currentTimeMillis() / 1000L + 22089888
                      System.out.println("Error retrieving network time: " + var12);
                   }
                }
-            }, "freeworlds-timeServer");
+            }, "openworlds-timeServer");
             var13.setDaemon(true);
             var13.start();
          }
@@ -130,7 +130,7 @@ find "$B/source" -name '*.java' > "$B/sources.txt"
 # (.cmp/.mov), formas .rwg y cuerpos .bod (el .rwx lo interpreta
 # bridge/RwxReader, traducido de RWL21)
 for d in cmp rwg bod; do
-  find "$REPO/formats/src/net/freeworlds/$d" -name '*.java' >> "$B/sources.txt"
+  find "$REPO/formats/src/net/openworlds/$d" -name '*.java' >> "$B/sources.txt"
 done
 mkdir -p "$B/out"
 # El codigo de salida de javac cuenta: antes se perdia en la tuberia y una

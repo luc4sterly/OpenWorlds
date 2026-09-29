@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# setup-macos.sh — deja un Mac listo para desarrollar FreeWorlds, SIN Homebrew
+# setup-macos.sh — deja un Mac listo para desarrollar OpenWorlds, SIN Homebrew
 # (Homebrew ya no soporta Macs Intel). Todo queda dentro del repo, gitignored,
 # sin sudo ni tocar /Library:
 #
@@ -25,7 +25,7 @@ case "$(uname -m)" in
    *) echo "[setup] arquitectura no soportada: $(uname -m)"; exit 2;;
 esac
 
-echo "=== FreeWorlds setup macOS ($(uname -m), sin Homebrew) ==="
+echo "=== OpenWorlds setup macOS ($(uname -m), sin Homebrew) ==="
 
 # --- 1. python3 (Command Line Tools) ---
 if /usr/bin/python3 --version >/dev/null 2>&1; then
@@ -78,5 +78,5 @@ bash "$ROOT/editor/worldsplayer_source_editor-main/build_gamma.sh" >/dev/null \
    || { echo "[setup] el puente no compila (editor/.build-gamma/javac.log)"; exit 3; }
 
 echo ""
-echo "=== OK. Para jugar: tools/build-dist.sh y abre build/dist/FreeWorlds/FreeWorlds.command ==="
+echo "=== OK. Para jugar: tools/build-dist.sh y abre build/dist/OpenWorlds/OpenWorlds.command ==="
 echo "  (o el .zip de la CI; para diagnóstico: editor/worldsplayer_source_editor-main/run_gamma.sh)"

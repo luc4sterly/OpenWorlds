@@ -144,7 +144,7 @@ def main():
     if len(sys.argv) > 1 and not sys.argv[1].startswith("--"):
         win = int(sys.argv[1], 16)
     else:
-        title = sys.argv[2] if len(sys.argv) > 2 else "FreeWorlds World Viewer"
+        title = sys.argv[2] if len(sys.argv) > 2 else "OpenWorlds World Viewer"
         x0 = X(disp)
         win = find_by_title(x0, disp, title)
         if win is None:

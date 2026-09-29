@@ -16,7 +16,7 @@ public final class SysRegKeyCheck {
    public static void main(String[] args) throws Exception {
       File store = File.createTempFile("fw-registry", ".reg");
       store.delete();
-      System.setProperty("freeworlds.registry", store.getPath());
+      System.setProperty("openworlds.registry", store.getPath());
       final int HKLM = 0x80000002;
 
       // getReservedKey 0x004023f0: tabla de 4 y "Key not found: 0" literal

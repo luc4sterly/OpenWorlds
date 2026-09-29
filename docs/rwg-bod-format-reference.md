@@ -52,8 +52,8 @@ rellenado con suposiciones.
 > lector real, `RwReadStreamChunk` de `RWL21.DLL` (0x10039e40, leído en
 > ensamblador con `objdump`, el C de Ghidra de esa función está roto) y de
 > la parte de `gamma.dll` que abre el fichero. Implementado en
-> `formats/src/net/freeworlds/rwg/RwgParser.java`, comprobado en
-> `formats/test/net/freeworlds/rwg/RwgTablesCheck.java`. Ver la sección
+> `formats/src/net/openworlds/rwg/RwgParser.java`, comprobado en
+> `formats/test/net/openworlds/rwg/RwgTablesCheck.java`. Ver la sección
 > "Formato según el binario" justo debajo.
 
 ## Formato según el binario (RWL21 + gamma.dll)

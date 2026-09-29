@@ -309,7 +309,7 @@ public final class NativeShapes {
          b.data = null;
       }
       if (b.data != null) {
-         net.freeworlds.rwg.RwgParser.Header h = net.freeworlds.rwg.RwgParser.header(b.data);
+         net.openworlds.rwg.RwgParser.Header h = net.openworlds.rwg.RwgParser.header(b.data);
          if (h != null) {
             b.requests.addAll(h.textureRequests());
             b.complete = h.complete;
@@ -337,9 +337,9 @@ public final class NativeShapes {
       if (wasError || !(o instanceof Binary) || !((Binary) o).complete) {
          return 0;
       }
-      net.freeworlds.rwg.RwgModel model;
+      net.openworlds.rwg.RwgModel model;
       try {
-         model = net.freeworlds.rwg.RwgParser.parse(((Binary) o).data);
+         model = net.openworlds.rwg.RwgParser.parse(((Binary) o).data);
       } catch (RuntimeException e) {
          System.err.println("[RW] RwReadStreamChunk(CLUM): " + e.getMessage());
          return 0;
@@ -357,9 +357,9 @@ public final class NativeShapes {
     * the ATOM tree. 0 when a TELT entry gives no texture (error 0x5e,
     * 0x1003cf0b), which fails the whole CLUM.
     */
-   static int buildClum(net.freeworlds.rwg.RwgModel model) {
+   static int buildClum(net.openworlds.rwg.RwgModel model) {
       List<Integer> textures = new ArrayList<Integer>();
-      for (net.freeworlds.rwg.RwgTexture t : model.textures) {
+      for (net.openworlds.rwg.RwgTexture t : model.textures) {
          int tex = resolveTelt(t);
          if (tex == 0) {
             System.err.println("[RW] RwReadStreamChunk(TELT): no texture for \"" + t.name + "\" (error 0x5e)");
@@ -371,7 +371,7 @@ public final class NativeShapes {
          }
       }
       List<Integer> materials = new ArrayList<Integer>();
-      for (net.freeworlds.rwg.RwgMaterial m : model.materials) {
+      for (net.openworlds.rwg.RwgMaterial m : model.materials) {
          materials.add(Integer.valueOf(material(m, textures)));
       }
       return buildAtom(model.atom, materials);
@@ -390,7 +390,7 @@ public final class NativeShapes {
     * is not converted here, so that case gives 0 (the CLUM fails).</li>
     * </ul>
     */
-   static int resolveTelt(net.freeworlds.rwg.RwgTexture t) {
+   static int resolveTelt(net.openworlds.rwg.RwgTexture t) {
       if (t.name != null) {
          NativeTextures.Texture found = NativeTextures.rwFindNamed(t.name);
          if (found != null) {
@@ -436,7 +436,7 @@ public final class NativeShapes {
     * color, opacity, surface and the TELT texture (1-based; 0 or out of
     * range = none).
     */
-   static int material(net.freeworlds.rwg.RwgMaterial m, List<Integer> textures) {
+   static int material(net.openworlds.rwg.RwgMaterial m, List<Integer> textures) {
       int mat = NativeScene.createMaterial();
       NativeScene.setMaterialGeometrySampling(mat, m.geometrySampling());
       NativeScene.setMaterialLightSampling(mat, m.lightSampling());
@@ -469,7 +469,7 @@ public final class NativeShapes {
     * the end as FUN_1003d550 does (it only drops RW's own reference; the
     * polygons keep theirs).
     */
-   static int buildAtom(net.freeworlds.rwg.RwgAtom a, List<Integer> materials) {
+   static int buildAtom(net.openworlds.rwg.RwgAtom a, List<Integer> materials) {
       int c = NativeScene.createClump();
       if (c == 0) {
          return 0;
@@ -479,7 +479,7 @@ public final class NativeShapes {
       NativeScene.setClumpState(c, a.state());
       NativeScene.transformClump(c, a.matrix1.clone(), NativeRw.REPLACE);
       NativeScene.transformClumpJoint(c, a.matrix2.clone(), NativeRw.REPLACE);
-      for (net.freeworlds.rwg.RwgVertex v : a.vertices) {
+      for (net.openworlds.rwg.RwgVertex v : a.vertices) {
          int idx = NativeScene.addVertex(c, v.x, v.y, v.z);
          if (v.hasUv) {
             NativeScene.setVertexUV(c, idx, v.u, v.v);
@@ -488,7 +488,7 @@ public final class NativeShapes {
             NativeScene.setVertexNormal(c, idx, v.normalX, v.normalY, v.normalZ);
          }
       }
-      for (net.freeworlds.rwg.RwgPolygon p : a.polygons) {
+      for (net.openworlds.rwg.RwgPolygon p : a.polygons) {
          int[] one = new int[p.vertexIndices.length];
          for (int i = 0; i < one.length; i++) {
             one[i] = p.vertexIndices[i] + 1;
@@ -503,7 +503,7 @@ public final class NativeShapes {
             NativeScene.setPolygonTag(poly, p.tag);
          }
       }
-      for (net.freeworlds.rwg.RwgAtom child : a.children) {
+      for (net.openworlds.rwg.RwgAtom child : a.children) {
          int cc = buildAtom(child, materials);
          if (cc != 0) {
             NativeScene.addChildToClump(c, cc);
@@ -524,7 +524,7 @@ public final class NativeShapes {
     * state OFF, and the shape keeps no animatable clump.
     *
     * The part table and the clump tree are read with the .bod translation
-    * in formats/src/net/freeworlds/bod (from the official RWXTOBOD.PL
+    * in formats/src/net/openworlds/bod (from the official RWXTOBOD.PL
     * encoder). A placeholder clump carries its tag with bit 0x8000000 set,
     * which is the tag WObject.addChildToClump looks for when it attaches a
     * part to the body (gamma.dll 0x00412f90).
@@ -536,10 +536,10 @@ public final class NativeShapes {
       } catch (Exception e) {
          data = null;
       }
-      net.freeworlds.bod.BodClump part = null;
+      net.openworlds.bod.BodClump part = null;
       if (data != null && data.length > 1 && (data[0] & 0xFF) <= 1 && (data[1] & 0xFF) != 0) {
          try {
-            net.freeworlds.bod.BodFile f = net.freeworlds.bod.BodParser.parse(data);
+            net.openworlds.bod.BodFile f = net.openworlds.bod.BodParser.parse(data);
             for (int i = f.parts.size() - 1; i >= 0; i--) {
                if (f.parts.get(i).tag == partNum) {
                   part = f.parts.get(i);
@@ -564,7 +564,7 @@ public final class NativeShapes {
       return empty;
    }
 
-   private static int buildBod(net.freeworlds.bod.BodClump b) {
+   private static int buildBod(net.openworlds.bod.BodClump b) {
       int c = NativeScene.createClump();
       if (c == 0) {
          return 0;
@@ -576,7 +576,7 @@ public final class NativeShapes {
       NativeScene.transformClump(c, m, NativeRw.REPLACE);
       if (!b.placeholder) {
          if (b.vertices != null) {
-            for (net.freeworlds.bod.BodVertex v : b.vertices) {
+            for (net.openworlds.bod.BodVertex v : b.vertices) {
                int idx = NativeScene.addVertex(c, v.x, v.y, v.z);
                NativeScene.setVertexUV(c, idx, v.u, v.v);
             }
@@ -604,7 +604,7 @@ public final class NativeShapes {
             }
          }
          if (b.children != null) {
-            for (net.freeworlds.bod.BodClump ch : b.children) {
+            for (net.openworlds.bod.BodClump ch : b.children) {
                int cc = buildBod(ch);
                if (cc != 0) {
                   NativeScene.addChildToClump(c, cc);

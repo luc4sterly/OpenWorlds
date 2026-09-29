@@ -20,4 +20,4 @@ ceros, `CmpStage2` se paraba en el caso `idx == 0` y el juego decía
 La cabecera trae 255 colores (byte 12), así que el índice 255 no está en la
 paleta y es el transparente del holograma: las cuatro esquinas lo usan.
 
-Lo comprueba `formats/test/net/freeworlds/cmp/CmpGroupsCheck.java`.
+Lo comprueba `formats/test/net/openworlds/cmp/CmpGroupsCheck.java`.

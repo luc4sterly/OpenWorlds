@@ -19,7 +19,7 @@ failed with a TLS error before this was noticed). It contains
 `rwxtobod` tool, copyright 1995-1999, complete with a full inline
 specification of the `.bod` binary format in its header comments AND the
 actual encoder logic implementing it. **`docs/bod-format-reference.md`
-(this file) and `formats/src/net/freeworlds/bod/BodParser.java` are a
+(this file) and `formats/src/net/openworlds/bod/BodParser.java` are a
 direct, careful translation of that real encoder into its inverse (a
 decoder)** — not a guess, not inferred from bytes. Kept at
 `tools/gdk-sdk/RWXTOBOD.PL` for reference/attribution.
@@ -193,7 +193,7 @@ separate-material "hair" or "shoe" piece as a tag-0 child of `head`(4) or
 
 ## Verification
 
-`formats/src/net/freeworlds/bod/BodExtractMain.java` parses a `.bod` and
+`formats/src/net/openworlds/bod/BodExtractMain.java` parses a `.bod` and
 prints its full clump tree plus totals. Run against **all 26 real `.bod`
 files** in `assets/WorldsPlayer/cachedir/` (genuine avatar downloads from
 a live server in an earlier session, not synthetic) **plus 25 official

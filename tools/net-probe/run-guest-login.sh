@@ -27,7 +27,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 WORKDIR="${1:-}"
 if [ -z "$WORKDIR" ]; then
-   WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/freeworlds-net-guest-login.XXXXXX")"
+   WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/openworlds-net-guest-login.XXXXXX")"
 fi
 mkdir -p "$WORKDIR"
 echo "== workdir: $WORKDIR =="
@@ -52,7 +52,7 @@ PORT="${3:-8265}"
 # script corre desde el propio checkout principal), luego la ruta
 # absoluta conocida de este Mac, y solo si ninguna existe se cae al
 # java/javac del PATH (que en este Mac es un stub, ver docs/worlds-chat-project.md).
-MAIN_CHECKOUT_JDK="/Users/lucas/Developer/FreeWorlds/tools/jdk/Contents/Home/bin"
+MAIN_CHECKOUT_JDK="/Users/lucas/Developer/OpenWorlds/tools/jdk/Contents/Home/bin"
 if [ -x "$REPO_ROOT/tools/jdk/Contents/Home/bin/javac" ]; then
    JAVAC="$REPO_ROOT/tools/jdk/Contents/Home/bin/javac"
    JAVA="$REPO_ROOT/tools/jdk/Contents/Home/bin/java"

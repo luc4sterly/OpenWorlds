@@ -366,10 +366,10 @@ diff a/NET/worlds/scape/SendURLAction.java b/NET/worlds/scape/SendURLAction.java
        this.trigger = var1;
     }
  
-+   private boolean freeworldsUserOrigin;
++   private boolean openworldsUserOrigin;
 +
     public void startBrowser() {
-+      this.freeworldsUserOrigin = NET.worlds.core.NativeMediaUrl.isUserOrigin(Thread.currentThread().getStackTrace());
++      this.openworldsUserOrigin = NET.worlds.core.NativeMediaUrl.isUserOrigin(Thread.currentThread().getStackTrace());
        if (Main.isMainThread()) {
           this.tryLaunch();
        } else {
@@ -377,7 +377,7 @@ diff a/NET/worlds/scape/SendURLAction.java b/NET/worlds/scape/SendURLAction.java
     }
  
     private void tryLaunch() {
-+      NET.worlds.core.NativeMediaUrl.setPendingUserOrigin(this.freeworldsUserOrigin);
++      NET.worlds.core.NativeMediaUrl.setPendingUserOrigin(this.openworldsUserOrigin);
 +
 +      try {
 +         this.tryLaunch0();
@@ -395,7 +395,7 @@ diff a/NET/worlds/scape/SendURLAction.java b/NET/worlds/scape/SendURLAction.java
     }
  
 +   // 0x00413a10: ShellExecuteA("open", url) -> navegador del sistema solo con
-+   // -Dfreeworlds.openUrls=1 y si la peticion vino del usuario (NativeMediaUrl).
++   // -Dopenworlds.openUrls=1 y si la peticion vino del usuario (NativeMediaUrl).
     private static boolean launchViaRegistry(String var0) {
        NET.worlds.core.NativeMock.log("SendURLAction", "launchViaRegistry", new Object[]{var0});
 -      return true;
@@ -481,7 +481,7 @@ diff a/NET/worlds/scape/sendURL.java b/NET/worlds/scape/sendURL.java
     }
  
 +   // 0x004210a0: DDE WWW_Activate + WWW_OpenURL al navegador -> navegador del
-+   // sistema solo con -Dfreeworlds.openUrls=1 y origen de usuario.
++   // sistema solo con -Dopenworlds.openUrls=1 y origen de usuario.
     public static int get(String var0) {
        NET.worlds.core.NativeMock.log("sendURL", "get", new Object[]{var0});
 -      return 0;

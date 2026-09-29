@@ -10,7 +10,7 @@
 ; Input CRC32  : E3A64046
 ; Compiler     : Visual C++
 
-; File Name   : C:\Users\lucas\Documents\freeworlds_src\Worlds1900.exe
+; File Name   : C:\Users\lucas\Documents\openworlds_src\Worlds1900.exe
 ; Format      : Portable executable for 80386 (PE)
 ; Imagebase   : 400000
 ; Timestamp   : 33A5C184 (Mon Jun 16 22:43:16 1997 UTC)

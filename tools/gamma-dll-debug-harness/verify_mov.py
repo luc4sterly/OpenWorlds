@@ -8,7 +8,7 @@ import sys
 import time
 from PIL import Image
 
-CMPVIEW = "/home/lucas/FreeWorlds/tools/gdk-sdk/cmpview.exe"
+CMPVIEW = "/home/lucas/OpenWorlds/tools/gdk-sdk/cmpview.exe"
 DISPLAY = os.environ.get("VERIFY_DISPLAY", ":100")
 
 

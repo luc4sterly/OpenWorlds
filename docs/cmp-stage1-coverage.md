@@ -6,7 +6,7 @@
 > anteriores, documentados en `docs/cmp-texture-format-reference.md` y
 > `docs/worlds-chat-project.md`). La cifra "159/159 byte-exactos contra
 > `cmpview.exe`" no es reproducible en macOS (el arnés necesita Wine +
-> `cmpview.exe` + ImageMagick y tiene `REPO_ROOT=/home/lucas/FreeWorlds`) y no
+> `cmpview.exe` + ImageMagick y tiene `REPO_ROOT=/home/lucas/OpenWorlds`) y no
 > hay ground truth por archivo guardado en el repo. Reproducible hoy con el
 > código actual: 159/159 `.cmp` y 52/52 `.mov` de `content.zip` decodifican
 > sin excepción, y las pruebas deterministas de Stage 2 siguen exactas
@@ -37,7 +37,7 @@ differ). One real bug was found and fixed while building this: the naive
 window-frame border instead of the real image - fixed by requiring a solid
 run of non-white pixels, not just one pixel of difference.
 
-Then, for each file, the existing Java pipeline (`net.freeworlds.cmp.CmpTexture`,
+Then, for each file, the existing Java pipeline (`net.openworlds.cmp.CmpTexture`,
 via the `CmpDecodeCli` wrapper in `cmp-stage2-decoder/`) attempts to decode the
 SAME file, and if it succeeds, the two are pixel-diffed. **OK** = byte-exact
 against real ground truth. **FAIL** = either our decoder threw (with the real

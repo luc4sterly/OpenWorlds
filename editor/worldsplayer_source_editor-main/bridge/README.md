@@ -31,53 +31,53 @@ con `javac --release 8` (~900 clases, incluidos los decodificadores `.cmp`,
 `.rwg` y `.bod`/`.seq` de `formats/`). Tras `natives.patch` se aplican los
 `natives-<subsistema>.patch` por orden de nombre (animator, media, system,
 text, ui). Si `javac` falla, `build_gamma.sh` sale con 1. `run_gamma.sh [URL]` copia `assets/WorldsPlayer` a un
-directorio de trabajo (`$FREEWORLDS_GAMMA_DIR`, por defecto
-`$TMPDIR/freeworlds-gamma`) y arranca el `main` real; la URL opcional es el
+directorio de trabajo (`$OPENWORLDS_GAMMA_DIR`, por defecto
+`$TMPDIR/openworlds-gamma`) y arranca el `main` real; la URL opcional es el
 argumento de mundo del propio `Gamma.main` (sin ella arranca en
 `home:NewWorld.world`, como el original antes del login).
 
-Consola: la traza `[NATIVE-MOCK]` es opt-in (`JAVA_OPTS=-Dfreeworlds.nativeLog=true`)
+Consola: la traza `[NATIVE-MOCK]` es opt-in (`JAVA_OPTS=-Dopenworlds.nativeLog=true`)
 y cada textura que no carga se avisa una sola vez. El cliente de 2004 manda
 su salida a `Gamma.Log.open` (`LogFile=` de `worlds.ini`); `run_gamma.sh`
 vacía esa clave en la copia de trabajo para que la salida quede en la
-terminal, y `FREEWORLDS_GAMMA_LOG=1` conserva el log original.
+terminal, y `OPENWORLDS_GAMMA_LOG=1` conserva el log original.
 
-Otras opciones: `-Dfreeworlds.animLog=1` (DroneAnimator), `-Dfreeworlds.mute=1`
-(sin abrir audio; misma lógica y tiempos), `-Dfreeworlds.openUrls=1` (abrir en
+Otras opciones: `-Dopenworlds.animLog=1` (DroneAnimator), `-Dopenworlds.mute=1`
+(sin abrir audio; misma lógica y tiempos), `-Dopenworlds.openUrls=1` (abrir en
 el navegador del sistema las URLs que el usuario pide con un clic; por
-defecto solo se registran), `-Dfreeworlds.typeChat=MS:texto` /
-`-Dfreeworlds.typePassword=MS:[x]texto` (teclear como una persona),
-`-Dfreeworlds.registry=FICHERO` (registro de Windows portable, REGEDIT4) y
-`-Dfreeworlds.volumeSerial=0x…` (serie de volumen para descifrar una
+defecto solo se registran), `-Dopenworlds.typeChat=MS:texto` /
+`-Dopenworlds.typePassword=MS:[x]texto` (teclear como una persona),
+`-Dopenworlds.registry=FICHERO` (registro de Windows portable, REGEDIT4) y
+`-Dopenworlds.volumeSerial=0x…` (serie de volumen para descifrar una
 contraseña guardada en otro disco). Red con sesión contra un whirl local:
-`FREEWORLDS_SERVER=127.0.0.1:6650` (+ `FREEWORLDS_USER`, `FREEWORLDS_LOGIN`,
-`FREEWORLDS_CHAT`, `FREEWORLDS_NETDEBUG`); ver `docs/net-local-whirl.md`.
+`OPENWORLDS_SERVER=127.0.0.1:6650` (+ `OPENWORLDS_USER`, `OPENWORLDS_LOGIN`,
+`OPENWORLDS_CHAT`, `OPENWORLDS_NETDEBUG`); ver `docs/net-local-whirl.md`.
 
 Comprobaciones: `bridge/test/*Check.java` (casos calculados a mano, uno por
 subsistema) se ejecutan con `tools/run-checks.sh`, que reconstruye el puente
 si su build es anterior a los cambios.
 
-`-Dfreeworlds.dumpWindow=DIR` vuelca el árbol de componentes AWT de la
+`-Dopenworlds.dumpWindow=DIR` vuelca el árbol de componentes AWT de la
 ventana entera (clase, texto y límites) en los segundos 12/20/30/40, para
 revisar la maquetación de la UI sin poder capturar la pantalla. El PNG que
 intenta con `printAll` sale negro en macOS —la UI son componentes AWT
 pesados que pinta el peer nativo— así que solo se escribe si no lo está.
 
 Diagnóstico (desactivado por defecto): `JAVA_OPTS` con
-`-Dfreeworlds.dumpFrames=DIR` guarda los frames 1, 10, 100, 1000… de cada
-cámara como PNG (o, con `-Dfreeworlds.dumpSeconds=S1,S2`, el primer frame
-tras cada segundo; o, con `-Dfreeworlds.dumpRange=SEG:N`, N frames
+`-Dopenworlds.dumpFrames=DIR` guarda los frames 1, 10, 100, 1000… de cada
+cámara como PNG (o, con `-Dopenworlds.dumpSeconds=S1,S2`, el primer frame
+tras cada segundo; o, con `-Dopenworlds.dumpRange=SEG:N`, N frames
 **consecutivos** desde el segundo SEG, que es lo que hace falta para mirar
-un giro), y `-Dfreeworlds.scriptKeys=MS:KEYCODE:HOLD_MS,...`
+un giro), y `-Dopenworlds.scriptKeys=MS:KEYCODE:HOLD_MS,...`
 inyecta pulsaciones AWT sintéticas en el canvas. La captura de pantalla de
 macOS no tiene permiso en esta máquina.
 
-Para saber **qué objeto pinta qué**: `-Dfreeworlds.matStats=SEG` lista, una
+Para saber **qué objeto pinta qué**: `-Dopenworlds.matStats=SEG` lista, una
 vez por segundo y sala, los materiales visibles ordenados por píxeles
 dibujados, con su color 565, si la textura está puesta y resuelta, y el
-`WObject` dueño; `-Dfreeworlds.probePixel=X,Y` dice quién se queda con ese
-píxel; `-Dfreeworlds.traceTextures=1` traza cada `RwSetMaterialTexture`; y
-`-Dfreeworlds.fps=1` imprime los frames por segundo de la cámara principal,
+`WObject` dueño; `-Dopenworlds.probePixel=X,Y` dice quién se queda con ese
+píxel; `-Dopenworlds.traceTextures=1` traza cada `RwSetMaterialTexture`; y
+`-Dopenworlds.fps=1` imprime los frames por segundo de la cámara principal,
 su posición y su dirección, más la cobertura (píxeles escritos por frame
 frente al tamaño del raster: por encima del 100 % hay sobredibujado).
 
@@ -96,12 +96,12 @@ textura".
   celdas (`2h*2v*`) que antes no salían.
 - Las 6 figuras de las galerías (`avatar.rwg`, clump vacío válido) crean su
   DroneAnimator, reciben `prepFigure` y `moveto`/`update`
-  (`-Dfreeworlds.animLog=1`). Giran, y el C las deja en los estados 1/2,
+  (`-Dopenworlds.animLog=1`). Giran, y el C las deja en los estados 1/2,
   que no tienen secuencia.
 - Contra un whirl local: login, dos clientes en la misma sala y chat
   tecleado con Intro que llega al otro. No se ven: whirl no manda
   APPRACTR (`hub.rs:246`, comentado).
-- El cliente escribe su `Gamma.Log` de 2004 con `FREEWORLDS_GAMMA_LOG=1`,
+- El cliente escribe su `Gamma.Log` de 2004 con `OPENWORLDS_GAMMA_LOG=1`,
   con el informe de `SystemInfo.Record`.
 - `tools/run-checks.sh`: 38/38 (5 de `formats/` y 33 del puente, con
   `RasterGoldenCheck`, `MatrixAffineCheck`, `GdkUpCheck` y
@@ -135,10 +135,10 @@ textura".
   `sansserif` a Arial; un JDK moderno usa DejaVu/Lucida, más anchas, y la
   barra de estado decía "Jse arrow keys". Se usa Arial si está (macOS,
   Windows) o una de métricas iguales (Liberation/Arimo en Linux).
-  `-Dfreeworlds.modernFonts=true` vuelve a las del JDK.
+  `-Dopenworlds.modernFonts=true` vuelve a las del JDK.
 - **Rasterizador por franjas** (`NativeCamera.rasterize`): la pasada de
   clumps graba los triángulos (en el orden del driver) y se dibujan por
-  bandas horizontales en `-Dfreeworlds.rasterThreads` hilos (por defecto
+  bandas horizontales en `-Dopenworlds.rasterThreads` hilos (por defecto
   los procesadores, máximo 8). Cada banda recorre toda la lista y un
   triángulo solo escribe sus filas, así que cada píxel recibe las mismas
   escrituras en el mismo orden: `RasterGoldenCheck` compara el CRC de 18
@@ -158,7 +158,7 @@ textura".
   desde la puerta "Avatar Gallery" de Reception). Mismo orden de sumas:
   con matrices limpias, bit a bit igual (`MatrixAffineCheck`,
   `RasterGoldenCheck`).
-- `-Dfreeworlds.dumpScene=SEG` (y `dumpSceneMatrices`): vuelca el árbol de
+- `-Dopenworlds.dumpScene=SEG` (y `dumpSceneMatrices`): vuelca el árbol de
   clumps de cada escena (objeto, estado, polígonos, posición en el mundo).
 - **Material de las partes `.bod`** (`NativeShapes.buildBod`): gamma.dll
   FUN_0041d950 hace `RwPushCurrentMaterial`,
@@ -194,7 +194,7 @@ Informe completo en `docs/pruebas-juego.md`.
   `DAT_00489054`, que nunca se escribe), que en XP avanza a saltos de
   15,625 ms. Con el reloj de 1 ms del puente y 600-800 fps, los umbrales de
   `SmoothDriver` (minFB_vel=4, minLR_vel=3) anulaban la velocidad cada
-  frame y girar iba lentísimo. `-Dfreeworlds.tickMs=N` cambia el paso (0 =
+  frame y girar iba lentísimo. `-Dopenworlds.tickMs=N` cambia el paso (0 =
   1 ms).
 - **Cerrar diálogos con campo de texto** (`AwtCompat.closeHoldingLock`):
   `PolledDialog.mainCallback` es `synchronized` y cierra con
@@ -219,7 +219,7 @@ Informe completo en `docs/pruebas-juego.md`.
 
 Red: `run_gamma.sh` levanta `tools/local-upgrade-server.py` y apunta
 `upgradeServer` de la copia temporal a `127.0.0.1`. Lo que no hay en local
-lo pide al espejo, el `upgradeServer` original (`FREEWORLDS_MIRROR=0` lo
+lo pide al espejo, el `upgradeServer` original (`OPENWORLDS_MIRROR=0` lo
 quita), y responde 404 al instante a lo que tampoco tiene el espejo. Al
 salir el cliente aplica `gdkup.pending` y lo arranca otra vez, como el
 lanzador. `build_gamma.sh` parchea
@@ -237,7 +237,7 @@ Julie, Roxanne y Simon (`docs/worlds-chat-project.md`, 2026-09-18).
 | `NET/worlds/core/NativeScene.java` | Clumps, escenas, luces y materiales de RWL21 (vértices base 1, polígonos, jerarquía, LTM, bbox mundo/local, tags, estado ON=2/OFF=1, escena por defecto) y los wrappers de gamma.dll con lógica propia (`FUN_00417ac0`, `FUN_00418820/860` y sus callbacks, `FUN_00417950/a10`, `FUN_00419000`, `Surface.addSubPolys` 0x004206d0) |
 | `NET/worlds/core/NativeCamera.java` | Cámaras y render por software del driver de 16 bits (`RWDL6D21`): caché por ventana (0x00415fb0), `RwTransformCamera` con ortonormalización y det>0.9, proyección y recorte de RWL21 (0x10009dd0), culling por área en pantalla (0x10051000), iluminación ambiente/difusa/especular por faceta o vértice y paso a 5-6-5 (driver 0x1000d230/0x10019920), texel 0 transparente, opacidad como "screen door", horizonte (0x00417dc0), marca de resaltado (0x00417c40), picking. Triángulos del driver (vértices a la rejilla, pendientes con la tabla de recíprocos 0x1000a008, avance antes de pintar, abanico del último al primero), tramo texturizado 0x1002cbb0 con perspectiva cada 16 px y u/v empaquetados, Gouraud en espacio de color con tramado de G (0x1006a340), árbol de ordenación por clump 0x10033750 y modos de hints (0x10033600: más de 1000 polígonos → editable), rango de UV 0..256 (0x10017de0), `RwDestroyScene` (0x100306b0), `WObject.nativeInCamSpace` (0x00413910) |
 | `NET/worlds/core/NativeTextures.java` | Texturas: StretchBlt COLORONCOLOR (modo 3, 0x422682 → `GDI32!SetStretchBltMode` por la IAT 0x487814) a 128×128 5-6-5 (FUN_004222b0) con la paleta de FUN_00422b30; diccionario de RW (nombre base 0x10043e80, comparación 0x10043f20, duplicados rechazados) con la cuenta de gamma.dll (0x004183e0/0x00418370); `RwReadTexture`: BMP/RAS (0x10021620/0x10021da0), reescalado por área a 128 o 16 (0x10042f30), conversión del driver (0x10007a80, negro → 1); `RwGetNamedTexture` con la ruta ".;.." y .ras/.tex/.env/.bmp/.rle; `StringTexture` (0x00424af0/0x00424870) |
-| `NET/worlds/core/ScapePic.java` | Cabecera ScapePic (0x00442750) sobre `formats/src/net/freeworlds/cmp/CmpFrames` (todos los frames de `.mov` por la tabla de frames) |
+| `NET/worlds/core/ScapePic.java` | Cabecera ScapePic (0x00442750) sobre `formats/src/net/openworlds/cmp/CmpFrames` (todos los frames de `.mov` por la tabla de frames) |
 | `NET/worlds/core/NativeWindows.java` | Ventanas: la hija de render es el `RenderCanvas` AWT real (0x0040e3f0), instancia de ventana con tamaño de render (0x0040f250/0x0040d950) |
 | `NET/worlds/core/RwxReader.java` | El intérprete de scripts `.rwx` de RWL21 (`RwReadShape` 0x10009bf0, bucle 0x100163e0) mandato a mandato: pilas de CTM, joint y material con copia al entrar en un bloque, `ClumpBegin` congelando la CTM (0x1000f560), `ClumpEnd` fusionando la geometría y re-colgando los nietos (0x1000f980), vértices con la CTM interna aplicada (0x10010270), índices base 1 por clump, `Tag`/`Hints`/`AxisAlignment`, `Proto`/`Include` y el estado de material completo; `Texture`/`TextureExt` resuelve con `RwGetNamedTexture` al leer (0x10014b00) y si no hay textura la forma entera da 0 |
 | `NET/worlds/core/NativeShapes.java` | Lo que `ShapeLoader` recibe de RenderWare: el `.rwx` por `RwxReader` + callback 0x004187e0 (tag < 0x4000000 → hints 2, si no OFF); barridos previos de texturas de `loadTextFile` (0x0041cba0) y de la cabecera `.rwg` (FUN_0041c970); `RwReadStreamChunk(CLUM)` (0x10039e40, leído en ASM) con TELT (diccionario/ruta de formas, error 0x5e), materiales de MALT, PLST con material y tag, ATOM con estado/ejes/matrices/hijos (ATOM vacío = clump válido); cuerpos `.bod` (0x0041e440); `Shape.convertSpecial` (0x0041f1b0 → `TwoWayPortal`/`Rect`) |
@@ -318,7 +318,7 @@ Animación:
 
 UI, sistema y medios:
 - La contraseña guardada en 2004 solo se descifra con
-  `-Dfreeworlds.volumeSerial`: la serie de volumen de aquí es `unix:dev`.
+  `-Dopenworlds.volumeSerial`: la serie de volumen de aquí es `unix:dev`.
 - `setDIBPixelInts` reproduce un fallo del original: direcciona en bytes,
   así que un JPEG de color directo queda en el primer cuarto de la textura.
   Falta decidir si se corrige.
@@ -333,7 +333,7 @@ UI, sistema y medios:
 - Curva de volumen de waveOut (aquí lineal); `SND_PURGE` con nombre; textos
   de `mciGetErrorString`; el decodificador IMA ADPCM no está comparado
   muestra a muestra con `imaadp32.acm`.
-- El candado de URLs (`-Dfreeworlds.openUrls` + origen de usuario) es un
+- El candado de URLs (`-Dopenworlds.openUrls` + origen de usuario) es un
   criterio del puente, no del binario.
 
 Red:

@@ -4,7 +4,7 @@ Reconstruido del Java decompilado del cliente,
 `editor/worldsplayer_source_editor-main/source/NET/worlds/scape/PosableShape.java`
 (abreviado `PS`). El cliente original lo ejecuta con su propio
 `PosableShape`. La traducción a Java de este documento
-(`client/src/net/freeworlds/avatar/`, con `AvatarNameMain --todos`) era del
+(`client/src/net/openworlds/avatar/`, con `AvatarNameMain --todos`) era del
 motor nuevo y se quitó con él el 2026-09-26: está en el historial de git
 hasta el commit `8cd795d`.
 

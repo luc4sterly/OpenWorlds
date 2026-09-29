@@ -2,7 +2,7 @@ package NET.worlds.core;
 
 import java.util.ArrayList;
 import java.util.List;
-import net.freeworlds.cmp.CmpFrames;
+import net.openworlds.cmp.CmpFrames;
 
 /**
  * DIB sections de gamma.dll para ImageConverter (texturas GIF/JPEG de

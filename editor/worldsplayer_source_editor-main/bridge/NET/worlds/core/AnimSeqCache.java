@@ -78,16 +78,16 @@ public final class AnimSeqCache {
 
    /** El objeto secuencia de FUN_004380f0. */
    public static final class Sequence {
-      public final net.freeworlds.bod.SeqParser.SeqData data;
+      public final net.openworlds.bod.SeqParser.SeqData data;
       /** Las pistas de joint en el orden del fichero (+0x220). */
-      final List<net.freeworlds.bod.SeqParser.Track> tracks = new ArrayList<net.freeworlds.bod.SeqParser.Track>();
+      final List<net.openworlds.bod.SeqParser.Track> tracks = new ArrayList<net.openworlds.bod.SeqParser.Track>();
       /** Pares (pista, id) ordenados por id (FUN_00438800 / FUN_00439210). */
       final int[][] pairs;
 
-      public Sequence(net.freeworlds.bod.SeqParser.SeqData data) {
+      public Sequence(net.openworlds.bod.SeqParser.SeqData data) {
          this.data = data;
          List<int[]> p = new ArrayList<int[]>();
-         for (Map.Entry<String, net.freeworlds.bod.SeqParser.Track> e : data.joints.entrySet()) {
+         for (Map.Entry<String, net.openworlds.bod.SeqParser.Track> e : data.joints.entrySet()) {
             p.add(new int[]{this.tracks.size(), jointId(e.getKey())});
             this.tracks.add(e.getValue());
          }
@@ -119,13 +119,13 @@ public final class AnimSeqCache {
          float rx = 0f;
          float ry = 0f;
          float rz = 0f;
-         List<net.freeworlds.bod.SeqParser.Track> ex = this.data.extras;
+         List<net.openworlds.bod.SeqParser.Track> ex = this.data.extras;
          if (ex.size() > 2) {
-            rx = rx + net.freeworlds.bod.SeqSampler.sample(ex.get(0), t)[0];
-            ry = ry + net.freeworlds.bod.SeqSampler.sample(ex.get(1), t)[0];
-            rz = rz + net.freeworlds.bod.SeqSampler.sample(ex.get(2), t)[0];
+            rx = rx + net.openworlds.bod.SeqSampler.sample(ex.get(0), t)[0];
+            ry = ry + net.openworlds.bod.SeqSampler.sample(ex.get(1), t)[0];
+            rz = rz + net.openworlds.bod.SeqSampler.sample(ex.get(2), t)[0];
             if (ex.size() > 3) {
-               rootQ = net.freeworlds.bod.SeqSampler.sample(ex.get(3), t);
+               rootQ = net.openworlds.bod.SeqSampler.sample(ex.get(3), t);
             }
          }
          if (ex.size() > 0) {
@@ -136,8 +136,8 @@ public final class AnimSeqCache {
             out.add(new AnimPose.Entry(2, 2, new float[]{rx, ry, keepZ ? -1f * rz : 0f}));
          }
          for (int[] p : this.pairs) {
-            net.freeworlds.bod.SeqParser.Track tr = this.tracks.get(p[0]);
-            float[] s = net.freeworlds.bod.SeqSampler.sample(tr, t);
+            net.openworlds.bod.SeqParser.Track tr = this.tracks.get(p[0]);
+            float[] s = net.openworlds.bod.SeqSampler.sample(tr, t);
             int flag = tr.sizeFlag & 0xFF;
             int kind = flag == 4 ? 3 : (flag == 0x10 ? 6 : 0);
             if (tr.sizeFlag == 0x10) {
@@ -321,7 +321,7 @@ public final class AnimSeqCache {
          if (bytes != null) {
             Sequence seq = null;
             try {
-               seq = new Sequence(net.freeworlds.bod.SeqParser.parse(bytes));
+               seq = new Sequence(net.openworlds.bod.SeqParser.parse(bytes));
             } catch (RuntimeException ex) {
                System.err.println("[DroneAnimator] " + path + ": " + ex.getMessage());
             }

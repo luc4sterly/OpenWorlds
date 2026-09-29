@@ -43,7 +43,7 @@ public final class NativeWindows {
    public static volatile boolean microsoftVMHacks;
 
    /**
-    * Diagnostico (opt-in): -Dfreeworlds.dumpWindow=DIR escribe, en los
+    * Diagnostico (opt-in): -Dopenworlds.dumpWindow=DIR escribe, en los
     * segundos 12/20/30/40, el arbol de componentes AWT de cada ventana
     * (clase, nombre, texto y limites) y ademas intenta un PNG con
     * Component.printAll.
@@ -53,13 +53,13 @@ public final class NativeWindows {
     * nativo, no Java, y printAll no los captura. El arbol de texto si es
     * fiable y sirve para comprobar la maquetacion (tamanos, solapes,
     * componentes de tamano cero). El render 3D se ve con
-    * -Dfreeworlds.dumpFrames; una captura real de la ventana solo la puede
+    * -Dopenworlds.dumpFrames; una captura real de la ventana solo la puede
     * hacer el sistema operativo.
     */
    private static final int[] DUMP_WINDOW_SECONDS = {12, 20, 30, 40};
 
    static {
-      final String dir = System.getProperty("freeworlds.dumpWindow");
+      final String dir = System.getProperty("openworlds.dumpWindow");
       if (dir != null) {
          Thread t = new Thread(new Runnable() {
             public void run() {
@@ -73,7 +73,7 @@ public final class NativeWindows {
                   dumpWindows(dir, DUMP_WINDOW_SECONDS[i]);
                }
             }
-         }, "freeworlds-dumpWindow");
+         }, "openworlds-dumpWindow");
          t.setDaemon(true);
          t.start();
       }

@@ -21,7 +21,7 @@ public final class SysComCheck {
    public static void main(String[] args) throws Exception {
       File store = File.createTempFile("fw-registry-com", ".reg");
       store.delete();
-      System.setProperty("freeworlds.registry", store.getPath());
+      System.setProperty("openworlds.registry", store.getPath());
 
       // IIDFromString
       eqs("GUID minúsculas", NativeSysCom.parseGuid("{f8535c80-f5ee-11d2-a6ac-0050041a1735}"), "{F8535C80-F5EE-11D2-A6AC-0050041A1735}");

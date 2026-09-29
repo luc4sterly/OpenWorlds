@@ -8,15 +8,15 @@
 #   sin URL arranca como el original (home:NewWorld.world hasta el login);
 #   p. ej. home:GroundZero/groundzero.world entra directo en GroundZero
 #   (argumento de linea de comandos del propio Gamma.main).
-# Directorio de trabajo: $FREEWORLDS_GAMMA_DIR o $TMPDIR/freeworlds-gamma.
-# Diagnostico: JAVA_OPTS="-Dfreeworlds.dumpFrames=DIR [-Dfreeworlds.dumpSeconds=10,20]
-#   [-Dfreeworlds.scriptKeys=MS:KEYCODE:HOLD_MS,...]" (ver bridge/README.md).
+# Directorio de trabajo: $OPENWORLDS_GAMMA_DIR o $TMPDIR/openworlds-gamma.
+# Diagnostico: JAVA_OPTS="-Dopenworlds.dumpFrames=DIR [-Dopenworlds.dumpSeconds=10,20]
+#   [-Dopenworlds.scriptKeys=MS:KEYCODE:HOLD_MS,...]" (ver bridge/README.md).
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 JAVA="$REPO/tools/jdk/Contents/Home/bin/java"
 [ -x "$JAVA" ] || JAVA=java
-CWD="${FREEWORLDS_GAMMA_DIR:-${TMPDIR:-/tmp}/freeworlds-gamma}"
+CWD="${OPENWORLDS_GAMMA_DIR:-${TMPDIR:-/tmp}/openworlds-gamma}"
 mkdir -p "$CWD"
 # cachedir siempre desde el original: un cache.open huerfano de una salida sucia
 # hace que el cliente descarte todo el indice.
@@ -29,11 +29,11 @@ cd "$CWD"
 # que falta (paquetes de mundo, vestuario de avatares, el mapa del universo)
 # lo pide al upgradeServer original, http://us1.worlds.net/3DCDup, que hoy es
 # el espejo de LibreWorlds, y lo guarda en build/mirror-cache, como el
-# lanzador. FREEWORLDS_MIRROR=URL usa otro espejo y FREEWORLDS_MIRROR=0 ninguno.
-# FREEWORLDS_NO_LOCAL_SERVER=1 conserva el upgradeServer original.
-if [ -z "${FREEWORLDS_NO_LOCAL_SERVER:-}" ]; then
+# lanzador. OPENWORLDS_MIRROR=URL usa otro espejo y OPENWORLDS_MIRROR=0 ninguno.
+# OPENWORLDS_NO_LOCAL_SERVER=1 conserva el upgradeServer original.
+if [ -z "${OPENWORLDS_NO_LOCAL_SERVER:-}" ]; then
    SRVLOG="$CWD/upgrade-server.log"
-   MIRROR="${FREEWORLDS_MIRROR-$(sed -n 's/^[Uu]pgrade[Ss]erver=//p' worlds.ini 2>/dev/null | head -1 | tr -d '\r')}"
+   MIRROR="${OPENWORLDS_MIRROR-$(sed -n 's/^[Uu]pgrade[Ss]erver=//p' worlds.ini 2>/dev/null | head -1 | tr -d '\r')}"
    case "$MIRROR" in 0|none|"") MIRROR_ARGS="" ;; *) MIRROR_ARGS="--mirror $MIRROR --cache $REPO/build/mirror-cache" ;; esac
    python3 "$REPO/tools/local-upgrade-server.py" --root "$REPO/assets/WorldsPlayer" $MIRROR_ARGS >"$SRVLOG.port" 2>"$SRVLOG" &
    SRV_PID=$!
@@ -54,28 +54,28 @@ fi
 # Consola: con LogFile=Gamma.Log en [Gamma] (worlds.ini) el cliente manda
 # System.out/err a Gamma.Log.open (LogFile.open, como en 2004); desde que el
 # mock de IniFile no distingue mayusculas esa clave si se encuentra. Los
-# diagnosticos del arnes (-Dfreeworlds.*) y los scripts (run-whirl-duo.sh...)
+# diagnosticos del arnes (-Dopenworlds.*) y los scripts (run-whirl-duo.sh...)
 # leen la consola, asi que por defecto se vacia LogFile en la copia de trabajo
 # (config, no logica: con LogFile vacio LogFile.open no redirige).
-# FREEWORLDS_GAMMA_LOG=1 conserva el Gamma.Log original.
-if [ -z "${FREEWORLDS_GAMMA_LOG:-}" ] && [ -f worlds.ini ]; then
+# OPENWORLDS_GAMMA_LOG=1 conserva el Gamma.Log original.
+if [ -z "${OPENWORLDS_GAMMA_LOG:-}" ] && [ -f worlds.ini ]; then
    perl -pi -e 's/^logfile=[^\r\n]*/LogFile=/i' worlds.ini
 fi
 
-# WorldServer: FREEWORLDS_SERVER=host:puerto (p. ej. el whirl local de
+# WorldServer: OPENWORLDS_SERVER=host:puerto (p. ej. el whirl local de
 # tools/run-whirl.sh) usa el mecanismo del propio cliente: la clave
 # [Runtime] WorldServer= de override.ini (NetUpdate.<clinit>) sustituye en
 # World.setWorldServerURL todo worldserver://www.3dcd.com[:puerto] (la URL por
 # defecto de World.defaultServerURL, que es la que llevan los .world) por
 # worldserver://host:puerto. Sin la variable, el original (www.3dcd.com ya no
 # existe: el cliente acaba en modo monousuario, error #205).
-# FREEWORLDS_USER=nombre deja ese usuario como User0 en la seccion [host:puerto]
+# OPENWORLDS_USER=nombre deja ese usuario como User0 en la seccion [host:puerto]
 # de worlds.ini, que es la que lee LoginWizard (Galaxy.getIniSection): la
 # pantalla de entrada sale con el nombre puesto y sin contrasena guardada.
-# FREEWORLDS_NETDEBUG=N pone netdebug=N en [Gamma] (bits de Galaxy/WorldServer
+# OPENWORLDS_NETDEBUG=N pone netdebug=N en [Gamma] (bits de Galaxy/WorldServer
 # .getDebugLevel(): 4 sessionInit, 32 tipo de servidor, 64 paquetes...).
-if [ -n "${FREEWORLDS_SERVER:-}" ]; then
-   python3 - "$FREEWORLDS_SERVER" "${FREEWORLDS_USER:-}" "${FREEWORLDS_NETDEBUG:-}" <<'PY'
+if [ -n "${OPENWORLDS_SERVER:-}" ]; then
+   python3 - "$OPENWORLDS_SERVER" "${OPENWORLDS_USER:-}" "${OPENWORLDS_NETDEBUG:-}" <<'PY'
 import sys, re
 server, user, netdebug = sys.argv[1], sys.argv[2], sys.argv[3]
 def set_key(path, section, key, value):
@@ -106,17 +106,17 @@ if user:
 if netdebug:
     set_key("worlds.ini", "Gamma", "netdebug", netdebug)
 PY
-   echo "run_gamma: WorldServer=worldserver://$FREEWORLDS_SERVER${FREEWORLDS_USER:+ (User0=$FREEWORLDS_USER)}"
+   echo "run_gamma: WorldServer=worldserver://$OPENWORLDS_SERVER${OPENWORLDS_USER:+ (User0=$OPENWORLDS_USER)}"
 fi
 
-# FREEWORLDS_LOGIN=contrasena (arnes, solo contra un servidor local de pruebas)
+# OPENWORLDS_LOGIN=contrasena (arnes, solo contra un servidor local de pruebas)
 # arranca por tools/net-probe/LoginDriver: rellena la contrasena en el
 # LoginWizard real y pulsa su boton Sign-In con eventos AWT, como una persona.
-# Ver docs/net-local-whirl.md. FREEWORLDS_CHAT=MS:texto;... escribe en la linea
-# de chat y -Dfreeworlds.dumpChat=MS,... vuelca el area de chat.
+# Ver docs/net-local-whirl.md. OPENWORLDS_CHAT=MS:texto;... escribe en la linea
+# de chat y -Dopenworlds.dumpChat=MS,... vuelca el area de chat.
 MAIN=NET.worlds.console.Gamma
 CP=".:$REPO/editor/.build-gamma/out"
-if [ -n "${FREEWORLDS_LOGIN:-}${FREEWORLDS_CHAT:-}" ]; then
+if [ -n "${OPENWORLDS_LOGIN:-}${OPENWORLDS_CHAT:-}" ]; then
    DRV="$REPO/editor/.build-gamma/net-probe-driver"
    mkdir -p "$DRV"
    "$(dirname "$JAVA")/javac" --release 8 -nowarn -encoding UTF-8 -cp "$REPO/editor/.build-gamma/out" \

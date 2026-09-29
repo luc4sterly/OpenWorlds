@@ -283,7 +283,7 @@ public final class NativeUiEvents {
       }
    }
 
-   private static final boolean LOG = Boolean.getBoolean("freeworlds.uiEventsLog");
+   private static final boolean LOG = Boolean.getBoolean("openworlds.uiEventsLog");
    private static boolean installed;
 
    /**
@@ -312,7 +312,7 @@ public final class NativeUiEvents {
 
    /**
     * Diagnostico del arnes, desactivado por defecto:
-    * {@code -Dfreeworlds.typeChat=MS:texto[;MS:texto...]} hace lo que haria
+    * {@code -Dopenworlds.typeChat=MS:texto[;MS:texto...]} hace lo que haria
     * una persona con la linea de chat: a los MS ms de mostrarse, un clic en
     * su centro (MOUSE_PRESSED/RELEASED/CLICKED) y, por cada caracter,
     * KEY_PRESSED/KEY_TYPED/KEY_RELEASED, terminando con Intro. Los eventos
@@ -324,13 +324,13 @@ public final class NativeUiEvents {
     * FocusPreservingTextField.chatLine (reflexion: solo el arnes lo lee).
     */
    private static void typeChatScript() {
-      typeScript("freeworlds.typeChat", "linea de chat", false);
-      typeScript("freeworlds.typePassword", "campo de contrasena", true);
+      typeScript("openworlds.typeChat", "linea de chat", false);
+      typeScript("openworlds.typePassword", "campo de contrasena", true);
    }
 
    /**
     * El mismo arnes para el LoginWizard:
-    * {@code -Dfreeworlds.typePassword=MS:texto} teclea en el primer
+    * {@code -Dopenworlds.typePassword=MS:texto} teclea en el primer
     * TextField visible con eco ({@code setEchoChar}) y pulsa Intro; con
     * texto vacio solo pulsa Intro (contrasena ya rellena por "Remember
     * password").
@@ -340,7 +340,7 @@ public final class NativeUiEvents {
       if (spec == null || spec.length() == 0) {
          return;
       }
-      Thread t = new Thread("freeworlds-" + prop) {
+      Thread t = new Thread("openworlds-" + prop) {
          public void run() {
             try {
                Component line = null;

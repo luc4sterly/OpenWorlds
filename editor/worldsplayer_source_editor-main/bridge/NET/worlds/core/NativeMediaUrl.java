@@ -10,7 +10,7 @@ import java.net.URI;
  * DDE {@code WWW_OpenURL} al navegador). Aqui eso es el navegador del
  * sistema ({@code java.awt.Desktop}), con dos candados:
  * <ol>
- * <li>solo con {@code -Dfreeworlds.openUrls=1}; sin el, la URL se registra
+ * <li>solo con {@code -Dopenworlds.openUrls=1}; sin el, la URL se registra
  *     en el log y no se abre nada;</li>
  * <li>solo si la peticion sale de una accion explicita del usuario: la pila
  *     de la llamada que la origino contiene uno de los puntos de entrada de
@@ -24,8 +24,8 @@ public final class NativeMediaUrl {
    private NativeMediaUrl() {
    }
 
-   public static final boolean OPEN_URLS = "1".equals(System.getProperty("freeworlds.openUrls"))
-      || "true".equalsIgnoreCase(System.getProperty("freeworlds.openUrls"));
+   public static final boolean OPEN_URLS = "1".equals(System.getProperty("openworlds.openUrls"))
+      || "true".equalsIgnoreCase(System.getProperty("openworlds.openUrls"));
 
    /** Metodos (clase.metodo) que solo se ejecutan por una accion del usuario. */
    static final String[] USER_ORIGINS = new String[]{
@@ -130,7 +130,7 @@ public final class NativeMediaUrl {
             NativeMediaSound.log("URL (" + via + "): abriendo en el navegador del sistema: " + url);
             return true;
          case LOG_DISABLED:
-            NativeMediaSound.log("URL (" + via + ") registrada, no abierta (-Dfreeworlds.openUrls=1 para abrirla): " + url);
+            NativeMediaSound.log("URL (" + via + ") registrada, no abierta (-Dopenworlds.openUrls=1 para abrirla): " + url);
             return false;
          default:
             NativeMediaSound.log("URL (" + via + ") registrada, no abierta: no viene de una accion del usuario: " + url);

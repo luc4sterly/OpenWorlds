@@ -1,4 +1,4 @@
-# Build, tests, paquetes y releases de FreeWorlds.
+# Build, tests, paquetes y releases de OpenWorlds.
 #
 # - build (Linux): compila el cliente original con el puente (y los lectores
 #   de formats/), el lanzador y whirl (server/whirl, para "whirl local"); pasa
@@ -80,7 +80,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "numeric=${version%%-*}" >> "$GITHUB_OUTPUT"
           echo "commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-          echo "FreeWorlds $version ($(git rev-parse --short HEAD))"
+          echo "OpenWorlds $version ($(git rev-parse --short HEAD))"
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -96,9 +96,9 @@ jobs:
 
       - name: Paquete portable + app de Linux
         env:
-          FREEWORLDS_VERSION: ${{ steps.v.outputs.version }}
-          FREEWORLDS_NUMERIC_VERSION: ${{ steps.v.outputs.numeric }}
-          FREEWORLDS_COMMIT: ${{ steps.v.outputs.commit }}
+          OPENWORLDS_VERSION: ${{ steps.v.outputs.version }}
+          OPENWORLDS_NUMERIC_VERSION: ${{ steps.v.outputs.numeric }}
+          OPENWORLDS_COMMIT: ${{ steps.v.outputs.commit }}
         run: tools/build-dist.sh --app-image
 
       - name: Checks unitarios (formats/test + bridge/test + launcher/test)
@@ -109,14 +109,14 @@ jobs:
 
       - name: Prueba de humo - el cliente original empaquetado dibuja
         env:
-          FREEWORLDS_DATA: ${{ runner.temp }}/freeworlds-data
-        run: xvfb-run -a -s "-screen 0 1280x1024x24" build/app/FreeWorlds/bin/FreeWorlds --smoke 120
+          OPENWORLDS_DATA: ${{ runner.temp }}/openworlds-data
+        run: xvfb-run -a -s "-screen 0 1280x1024x24" build/app/OpenWorlds/bin/OpenWorlds --smoke 120
 
       - name: Prueba de humo - whirl local (el de la app) y el cliente conectado
         if: steps.whirl.outcome == 'success'
         env:
-          FREEWORLDS_DATA: ${{ runner.temp }}/freeworlds-data-whirl
-        run: xvfb-run -a -s "-screen 0 1280x1024x24" build/app/FreeWorlds/bin/FreeWorlds --smoke 120 --server 127.0.0.1:6650
+          OPENWORLDS_DATA: ${{ runner.temp }}/openworlds-data-whirl
+        run: xvfb-run -a -s "-screen 0 1280x1024x24" build/app/OpenWorlds/bin/OpenWorlds --smoke 120 --server 127.0.0.1:6650
 
       - name: Registros de las pruebas de humo
         if: always()
@@ -124,22 +124,22 @@ jobs:
         with:
           name: smoke-log
           path: |
-            ${{ runner.temp }}/freeworlds-data/logs
-            ${{ runner.temp }}/freeworlds-data-whirl/logs
+            ${{ runner.temp }}/openworlds-data/logs
+            ${{ runner.temp }}/openworlds-data-whirl/logs
           if-no-files-found: ignore
 
       - name: Subir el paquete portable
         uses: actions/upload-artifact@v4
         with:
-          name: FreeWorlds-${{ steps.v.outputs.version }}-portable
-          path: build/FreeWorlds-*-portable.zip
+          name: OpenWorlds-${{ steps.v.outputs.version }}-portable
+          path: build/OpenWorlds-*-portable.zip
           compression-level: 0
 
       - name: Subir la app de Linux
         uses: actions/upload-artifact@v4
         with:
-          name: FreeWorlds-${{ steps.v.outputs.version }}-linux-x64
-          path: build/FreeWorlds-*-linux-x64.tar.gz
+          name: OpenWorlds-${{ steps.v.outputs.version }}-linux-x64
+          path: build/OpenWorlds-*-linux-x64.tar.gz
           compression-level: 0
 
       - name: Arbol del paquete para los demas sistemas
@@ -207,18 +207,18 @@ jobs:
 
       - name: jlink + jpackage
         env:
-          FREEWORLDS_VERSION: ${{ needs.build.outputs.version }}
-          FREEWORLDS_NUMERIC_VERSION: ${{ needs.build.outputs.numeric }}
-          FREEWORLDS_COMMIT: ${{ needs.build.outputs.commit }}
+          OPENWORLDS_VERSION: ${{ needs.build.outputs.version }}
+          OPENWORLDS_NUMERIC_VERSION: ${{ needs.build.outputs.numeric }}
+          OPENWORLDS_COMMIT: ${{ needs.build.outputs.commit }}
         run: tools/build-dist.sh --package-only
 
       - name: Prueba rapida del lanzador empaquetado
         run: |
-          if [ -d build/app/FreeWorlds.app ]; then
-            build/app/FreeWorlds.app/Contents/MacOS/FreeWorlds --version
-            build/app/FreeWorlds.app/Contents/MacOS/FreeWorlds --paths
+          if [ -d build/app/OpenWorlds.app ]; then
+            build/app/OpenWorlds.app/Contents/MacOS/OpenWorlds --version
+            build/app/OpenWorlds.app/Contents/MacOS/OpenWorlds --paths
           else
-            build/app/FreeWorlds/FreeWorlds.exe --version || true
+            build/app/OpenWorlds/OpenWorlds.exe --version || true
           fi
 
       # El .exe/.app son de interfaz grafica (sin consola): la prueba de humo
@@ -226,33 +226,33 @@ jobs:
       # los tres sistemas desde la ejecucion #5, asi que ya es obligatoria.
       - name: Prueba de humo - el cliente original empaquetado dibuja
         env:
-          FREEWORLDS_DATA: ${{ runner.temp }}/freeworlds-data
+          OPENWORLDS_DATA: ${{ runner.temp }}/openworlds-data
         run: |
-          if [ -d build/app/FreeWorlds.app ]; then
-            APP=build/app/FreeWorlds.app/Contents
+          if [ -d build/app/OpenWorlds.app ]; then
+            APP=build/app/OpenWorlds.app/Contents
             JAVA="$APP/runtime/Contents/Home/bin/java"
           else
-            APP=build/app/FreeWorlds
+            APP=build/app/OpenWorlds
             JAVA="$APP/runtime/bin/java.exe"
           fi
-          "$JAVA" -jar "$APP/app/freeworlds-launcher.jar" --smoke 120
+          "$JAVA" -jar "$APP/app/openworlds-launcher.jar" --smoke 120
 
       - name: Registro de la prueba de humo
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-log-${{ runner.os }}-${{ runner.arch }}
-          path: ${{ runner.temp }}/freeworlds-data/logs
+          path: ${{ runner.temp }}/openworlds-data/logs
           if-no-files-found: ignore
 
       # Tambien si la prueba de humo falla: la app sirve para investigarlo.
       - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: FreeWorlds-${{ needs.build.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
+          name: OpenWorlds-${{ needs.build.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
           path: |
-            build/FreeWorlds-*.zip
-            !build/FreeWorlds-*-portable.zip
+            build/OpenWorlds-*.zip
+            !build/OpenWorlds-*-portable.zip
           compression-level: 0
 
   release:
@@ -269,7 +269,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-          pattern: FreeWorlds-*
+          pattern: OpenWorlds-*
           merge-multiple: true
 
       - name: Publicar
@@ -281,7 +281,7 @@ jobs:
           set -euo pipefail
           cd artifacts
           ls -la
-          sha256sum FreeWorlds-* > SHA256SUMS.txt
+          sha256sum OpenWorlds-* > SHA256SUMS.txt
           PRE=""
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             TAG="$GITHUB_REF_NAME"
@@ -292,23 +292,23 @@ jobs:
           fi
           [[ "$VERSION" == *-* ]] && PRE="--prerelease"
           cat > notes.md <<EOF
-          FreeWorlds $VERSION (commit \`$COMMIT\`): el cliente original de Worlds Chat (2004) con el puente portable.
+          OpenWorlds $VERSION (commit \`$COMMIT\`): el cliente original de Worlds Chat (2004) con el puente portable.
 
           | Sistema | Paquete |
           |---|---|
-          | macOS Apple Silicon | \`FreeWorlds-$VERSION-macos-arm64.zip\` |
-          | macOS Intel | \`FreeWorlds-$VERSION-macos-x64.zip\` |
-          | Windows | \`FreeWorlds-$VERSION-windows-x64.zip\` |
-          | Linux | \`FreeWorlds-$VERSION-linux-x64.tar.gz\` |
-          | Cualquier sistema con Java 17+ | \`FreeWorlds-$VERSION-portable.zip\` |
+          | macOS Apple Silicon | \`OpenWorlds-$VERSION-macos-arm64.zip\` |
+          | macOS Intel | \`OpenWorlds-$VERSION-macos-x64.zip\` |
+          | Windows | \`OpenWorlds-$VERSION-windows-x64.zip\` |
+          | Linux | \`OpenWorlds-$VERSION-linux-x64.tar.gz\` |
+          | Cualquier sistema con Java 17+ | \`OpenWorlds-$VERSION-portable.zip\` |
 
-          Las apps llevan su propio Java y whirl para jugar en "whirl local". El lanzador se actualiza solo desde aqui (Ajustes > Actualizaciones). macOS: la app no esta firmada por Apple; la primera vez, "Abrir igualmente" en Privacidad y seguridad, o \`xattr -dr com.apple.quarantine FreeWorlds.app\`.
+          Las apps llevan su propio Java y whirl para jugar en "whirl local". El lanzador se actualiza solo desde aqui (Ajustes > Actualizaciones). macOS: la app no esta firmada por Apple; la primera vez, "Abrir igualmente" en Privacidad y seguridad, o \`xattr -dr com.apple.quarantine OpenWorlds.app\`.
           EOF
           if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "La release $TAG ya existe: se reponen sus paquetes"
-            gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber FreeWorlds-* SHA256SUMS.txt
+            gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber OpenWorlds-* SHA256SUMS.txt
           else
             gh release create "$TAG" -R "$GITHUB_REPOSITORY" $TARGET \
-              --title "FreeWorlds ${TAG#v}" --notes-file notes.md --generate-notes $PRE \
-              FreeWorlds-* SHA256SUMS.txt
+              --title "OpenWorlds ${TAG#v}" --notes-file notes.md --generate-notes $PRE \
+              OpenWorlds-* SHA256SUMS.txt
           fi

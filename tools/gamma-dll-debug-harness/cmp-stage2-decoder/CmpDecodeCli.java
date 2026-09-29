@@ -1,11 +1,11 @@
-import net.freeworlds.cmp.CmpTexture;
+import net.openworlds.cmp.CmpTexture;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 
 /**
- * Minimal CLI wrapper around net.freeworlds.cmp.CmpTexture.load, for the
+ * Minimal CLI wrapper around net.openworlds.cmp.CmpTexture.load, for the
  * corpus-wide coverage harness (docs/cmp-stage1-coverage.md /
  * cmp_stage1_coverage.py). Writes a top-down P6 PPM on success (so the
  * Python side can diff it against real ground truth with ImageMagick's

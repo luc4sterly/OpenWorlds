@@ -5,7 +5,7 @@ Todo lo de este documento viene de leer directamente
 instalaba en `tools/rwx-harness/node_modules`) — no de la wiki de Active
 Worlds ni de suposiciones. Donde el comportamiento real sorprende o
 contradice lo que uno esperaría, se explica con evidencia (número de línea,
-fragmento de código). Se implementó en `client/src/net/freeworlds/rwx/` y
+fragmento de código). Se implementó en `client/src/net/openworlds/rwx/` y
 se verificó con `tools/rwx-harness/compare.py` contra los 118 archivos
 `.rwx` reales del proyecto: **118/118 OK**.
 
@@ -232,7 +232,7 @@ contra un archivo real** — ⚠️ VERIFICAR si aparece uno.
 Todo el código de `three-rwx-loader` usa las convenciones de `THREE.js`:
 almacenamiento column-major (`e[0..3]` = columna 0, etc.), `a.multiply(b)`
 significa `a = a * b`, y un punto se transforma como `v' = M * v` (vector
-columna). `client/src/net/freeworlds/rwx/RwxMatrix4.java` replica esto
+columna). `client/src/net/openworlds/rwx/RwxMatrix4.java` replica esto
 exactamente — la primera versión del parser usaba row-major con
 `v' = v * M` (convención opuesta) y producía geometría sutilmente
 incorrecta en archivos con transformaciones no-triviales, sin dar ningún
@@ -286,7 +286,7 @@ comportamiento verificado como correcto, no por omisión accidental.
   líneas 2233-2239 del loader — **no** viene del archivo `.rwx`, la añade
   el loader siempre) para comparar en las mismas unidades "crudas" que un
   parser que no aplique esa escala.
-- `client/src/net/freeworlds/rwx/RwxExtractMain.java`: mismo formato JSON
+- `client/src/net/openworlds/rwx/RwxExtractMain.java`: mismo formato JSON
   de salida desde el parser Java.
 - `tools/rwx-harness/compare.py`: corre ambos, reordena los triángulos de
   cada lado con una clave numérica calculada en Python (no confía en el

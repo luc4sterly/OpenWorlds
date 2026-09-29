@@ -9,7 +9,7 @@
 # Uso:
 #   tools/run-original.sh [--display :N] [--wine-prefix dir] [--client-dir dir]
 #
-# - Copia assets/WorldsPlayer a ~/.freeworlds-client (una vez; despues
+# - Copia assets/WorldsPlayer a ~/.openworlds-client (una vez; despues
 #   reutiliza para no ensuciar el repo con logs/caches del original).
 # - Sin X utilizable, levanta Xvfb propio (100-110).
 # - La linea de arranque es la del propio run.exe original:
@@ -31,13 +31,13 @@ if [ "$(uname -s)" = "Darwin" ]; then
    echo "[run-original] macOS: el cliente original 2004 (x86 Win32 + gamma.dll)"
    echo "  no corre con Wine vanilla en Apple Silicon. Opciones:"
    echo "  - CrossOver / Whisky / Parallels + Windows ARM, o"
-   echo "  - usar el lanzador FreeWorlds (tools/build-dist.sh) o run_gamma.sh: el"
+   echo "  - usar el lanzador OpenWorlds (tools/build-dist.sh) o run_gamma.sh: el"
    echo "    mismo cliente con el puente portable, sin Wine (el camino principal)."
    echo "  Sigo solo si pasas --force-macos con tu Wine ya configurado."
    if [ "${1:-}" != "--force-macos" ]; then exit 2; fi
    shift
 fi
-CLIENT_HOME="$HOME/.freeworlds-client"
+CLIENT_HOME="$HOME/.openworlds-client"
 WINEPREFIX="$HOME/.wine-fw-orig"
 DISPLAY_WANT=""
 

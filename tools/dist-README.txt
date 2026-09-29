@@ -1,4 +1,4 @@
-FreeWorlds - Worlds Chat / WorldsPlayer (1995-2004), preservado
+OpenWorlds - Worlds Chat / WorldsPlayer (1995-2004), preservado
 =================================================================
 
 Que es
@@ -10,22 +10,22 @@ universo...) y el mismo dibujo por software, sin Windows ni Wine.
 
 Como se arranca
 ---------------
-  macOS:   FreeWorlds.app (paquete con Java incluido). No esta firmado
+  macOS:   OpenWorlds.app (paquete con Java incluido). No esta firmado
            por Apple: la primera vez macOS lo bloquea. En macOS 15
            (Sequoia) ve a Ajustes del Sistema > Privacidad y seguridad >
            "Abrir igualmente" tras el primer intento; o, en Terminal:
-              xattr -dr com.apple.quarantine /ruta/a/FreeWorlds.app
+              xattr -dr com.apple.quarantine /ruta/a/OpenWorlds.app
            (esto tambien arregla el aviso de "esta danado").
-  Windows: FreeWorlds\FreeWorlds.exe
-  Linux:   FreeWorlds/bin/FreeWorlds
+  Windows: OpenWorlds\OpenWorlds.exe
+  Linux:   OpenWorlds/bin/OpenWorlds
 
   Paquete portable (sin Java incluido, necesita Java 17 o mas nuevo):
-           FreeWorlds.command (macOS), FreeWorlds.bat (Windows),
-           FreeWorlds.sh (Linux)
+           OpenWorlds.command (macOS), OpenWorlds.bat (Windows),
+           OpenWorlds.sh (Linux)
 
 Se abre el lanzador: elige el mundo y el servidor y pulsa "Jugar". Sin
 pantalla, o con --tui, el menu sale en la terminal. Todas las opciones:
-FreeWorlds --help
+OpenWorlds --help
 
 Cliente original
 ----------------
@@ -40,9 +40,9 @@ Cliente original
   - Otro servidor: escribelo como host:puerto y pon tu nombre.
   - Tu copia de la instalacion (worlds.ini con amigos, contrasena recordada,
     etc.) esta en la carpeta de datos (boton "Carpeta de datos"):
-       macOS:   ~/Library/Application Support/FreeWorlds
-       Windows: %LOCALAPPDATA%\FreeWorlds
-       Linux:   ~/.local/share/freeworlds
+       macOS:   ~/Library/Application Support/OpenWorlds
+       Windows: %LOCALAPPDATA%\OpenWorlds
+       Linux:   ~/.local/share/openworlds
   - Otros mundos: la instalacion de 2004 solo trae GroundZero. Los demas
     (Avatar Gallery, Worlds Center, Animal House, Hang, Meteor, The Blair
     Witch World, los de Bowie...) se piden desde el mapa, el menu Teleport
@@ -61,7 +61,7 @@ Actualizaciones
   (boton "Reiniciar y actualizar"). Se guarda en la carpeta de datos (app/),
   sin tocar la app instalada. Ajustes > Actualizaciones: desactivarlo,
   recibir versiones de prueba o, mientras el repositorio sea privado, poner
-  un token de GitHub de solo lectura. A mano: FreeWorlds --update.
+  un token de GitHub de solo lectura. A mano: OpenWorlds --update.
 
 Problemas
 ---------
