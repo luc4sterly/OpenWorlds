@@ -1,17 +1,17 @@
 # `.cmp` Stage 1 corpus coverage report
 
-> **Auditoría 2026-09-15 — este informe está desactualizado.** La tabla de
-> abajo es el *baseline* del commit `39e9f31c` (0/159 decodificados) y nunca
-> se regeneró tras los arreglos que llevaron a 159/159 (`8d450e61` y
-> anteriores, documentados en `docs/cmp-texture-format-reference.md` y
-> `docs/worlds-chat-project.md`). La cifra "159/159 byte-exactos contra
-> `cmpview.exe`" no es reproducible en macOS (el arnés necesita Wine +
-> `cmpview.exe` + ImageMagick y tiene `REPO_ROOT=/home/lucas/OpenWorlds`) y no
-> hay ground truth por archivo guardado en el repo. Reproducible hoy con el
-> código actual: 159/159 `.cmp` y 52/52 `.mov` de `content.zip` decodifican
-> sin excepción, y las pruebas deterministas de Stage 2 siguen exactas
-> (`test4b` 256/256, `sball` y `rustwood` 4096/4096). Pendiente: regenerar
-> este informe en una máquina con Wine.
+> **Audit 2026-09-15 — this report is out of date.** The table below is the
+> *baseline* of commit `39e9f31c` (0/159 decoded) and was never regenerated
+> after the fixes that took it to 159/159 (`8d450e61` and earlier,
+> documented in `docs/cmp-texture-format-reference.md` and
+> `docs/worlds-chat-project.md`). The figure "159/159 byte-exact against
+> `cmpview.exe`" is not reproducible on macOS (the harness needs Wine +
+> `cmpview.exe` + ImageMagick and has `REPO_ROOT=/home/lucas/OpenWorlds`) and
+> there is no per-file ground truth stored in the repo. Reproducible today
+> with the current code: 159/159 `.cmp` and 52/52 `.mov` from `content.zip`
+> decode without an exception, and the deterministic Stage 2 tests are still
+> exact (`test4b` 256/256, `sball` and `rustwood` 4096/4096). Pending:
+> regenerate this report on a machine with Wine.
 
 This is the project's real closing criterion for `.cmp` Stage 1 work: nothing is
 claimed "decoded" without passing through this harness against the real game

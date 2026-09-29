@@ -1,298 +1,299 @@
-# Referencia del formato RWX, verificada contra three-rwx-loader
+# RWX format reference, verified against three-rwx-loader
 
-Todo lo de este documento viene de leer directamente
-`three-rwx-loader/src/RWXLoader.js` (paquete npm, no vendorizado; se
-instalaba en `tools/rwx-harness/node_modules`) — no de la wiki de Active
-Worlds ni de suposiciones. Donde el comportamiento real sorprende o
-contradice lo que uno esperaría, se explica con evidencia (número de línea,
-fragmento de código). Se implementó en `client/src/net/openworlds/rwx/` y
-se verificó con `tools/rwx-harness/compare.py` contra los 118 archivos
-`.rwx` reales del proyecto: **118/118 OK**.
+Everything in this document comes from reading directly
+`three-rwx-loader/src/RWXLoader.js` (an npm package, not vendored; it was
+installed in `tools/rwx-harness/node_modules`) — not from the Active
+Worlds wiki or from assumptions. Where the real behavior is surprising or
+contradicts what one would expect, it is explained with evidence (line
+number, code fragment). It was implemented in
+`client/src/net/openworlds/rwx/` and verified with
+`tools/rwx-harness/compare.py` against the project's 118 real `.rwx`
+files: **118/118 OK**.
 
-> **2026-09-26:** ese lector, el arnés `tools/rwx-harness` y su informe
-> `docs/rwx-parser-progress.md` eran del motor nuevo y se quitaron con él;
-> están en el historial de git, hasta el commit `8cd795d`. El cliente
-> original lee los `.rwx` con el lector del puente
-> (`bridge/NET/worlds/core/RwxReader.java`, traducido de RWL21).
+> **2026-09-26:** that reader, the `tools/rwx-harness` harness and its report
+> `docs/rwx-parser-progress.md` belonged to the new engine and were removed
+> with it; they are in the git history, up to commit `8cd795d`. The
+> original client reads the `.rwx` files with the bridge's reader
+> (`bridge/NET/worlds/core/RwxReader.java`, translated from RWL21).
 
-**Nota sobre este documento**: un primer intento de generarlo con un
-subagente de solo lectura se interrumpió a medio camino (se desvió
-construyendo el arnés de comparación, que sí quedó terminado y funcional,
-pero nunca escribió este archivo). Se completó leyendo el código fuente
-directamente en el hilo principal, dado que es la lógica central del
-parser (fuera del alcance de delegar, según las instrucciones del
-proyecto).
-
----
-
-## 0. Hallazgo estructural más importante: scoping por clump
-
-Antes de leer las tablas de comandos, esto es lo que hace que la mayoría
-de los bugs iniciales del parser desaparecieran de golpe:
-
-- **`ModelBegin`/`ModelEnd` NO existen para el parser.** No hay ninguna
-  regex que los reconozca (`this.clumpbeginRegex = /^ *(clumpbegin).*$/i` —
-  nada de "model"). Son no-ops puros. El verdadero establecimiento de
-  ámbito lo hace el primer `ClumpBegin` inmediatamente dentro.
-- **Los índices de vértice de `Triangle`/`Quad`/`Polygon` son relativos a
-  un buffer de vértices *por clump*, no a una lista global del archivo
-  entero.** `ClumpBegin` limpia el buffer (`clearGeometry()`, línea 596) Y
-  `ClumpEnd` lo vuelve a limpiar. Si un clump padre declara `Vertex` antes
-  Y después de un clump hijo anidado, los `Triangle` de "después" indexan
-  desde 0 otra vez — no continúan donde se quedó el padre.
-- **El material también tiene ámbito de clump**: `ClumpBegin` clona el
-  material actual y lo apila (`pushCurrentMaterial`, línea 1277);
-  `ClumpEnd` lo restaura (`popCurrentMaterial`, línea 1285). Un `Color`
-  dentro de un clump hijo no se filtra a los hermanos siguientes.
-- **La transformación también tiene ámbito de clump, pero de forma
-  distinta a `TransformBegin`/`TransformEnd`**: `ClumpBegin` congela lo que
-  se había acumulado como la "base" de este clump y **resetea el
-  acumulador local a identidad** para lo declarado dentro
-  (`pushCurrentGroup`, línea 1258); `ClumpEnd` restaura el acumulador local
-  a lo que era justo antes del reset, descartando lo que el clump hijo hizo
-  con él (`popCurrentGroup`, línea 1270). `TransformBegin`/`TransformEnd`
-  en cambio solo guardan/restauran sin resetear a identidad
-  (`saveCurrentTransform`/`loadCurrentTransform`, líneas 1292-1298).
-
-Implementado en `RwxParser.java` como: un `groupWorld` (transform "mundo"
-del clump que envuelve al actual) + una pila de saves; un
-`currentTransform` LOCAL al clump actual (se resetea a identidad en cada
-`ClumpBegin`) + una pila separada para `TransformBegin`/`TransformEnd`. El
-vértice horneado en el momento de `Vertex`/`VertexExt` es
-`groupWorld × currentTransform × posición-cruda` — evaluado
-inmediatamente, no diferido.
+**Note about this document**: a first attempt to generate it with a
+read-only subagent was interrupted midway (it got sidetracked building the
+comparison harness, which was completed and works, but never wrote this
+file). It was completed by reading the source code directly in the main
+thread, since it is the core logic of the parser (out of scope for
+delegating, according to the project's instructions).
 
 ---
 
-## Batch (a): geometría estática básica
+## 0. Most important structural finding: per-clump scoping
+
+Before reading the command tables, this is what made most of the parser's
+initial bugs disappear all at once:
+
+- **`ModelBegin`/`ModelEnd` do NOT exist for the parser.** There is no regex
+  that recognizes them (`this.clumpbeginRegex = /^ *(clumpbegin).*$/i` —
+  nothing about "model"). They are pure no-ops. The real scope
+  establishment is done by the first `ClumpBegin` immediately inside.
+- **The vertex indices of `Triangle`/`Quad`/`Polygon` are relative to a
+  vertex buffer *per clump*, not to a global list for the entire file.**
+  `ClumpBegin` clears the buffer (`clearGeometry()`, line 596) AND
+  `ClumpEnd` clears it again. If a parent clump declares `Vertex` before
+  AND after a nested child clump, the `Triangle`s "after" index from 0
+  again — they do not continue where the parent left off.
+- **The material also has clump scope**: `ClumpBegin` clones the current
+  material and pushes it (`pushCurrentMaterial`, line 1277);
+  `ClumpEnd` restores it (`popCurrentMaterial`, line 1285). A `Color`
+  inside a child clump does not leak to the following siblings.
+- **The transformation also has clump scope, but in a different way from
+  `TransformBegin`/`TransformEnd`**: `ClumpBegin` freezes what had been
+  accumulated as the "base" of this clump and **resets the local
+  accumulator to identity** for what is declared inside
+  (`pushCurrentGroup`, line 1258); `ClumpEnd` restores the local accumulator
+  to what it was right before the reset, discarding what the child clump did
+  with it (`popCurrentGroup`, line 1270). `TransformBegin`/`TransformEnd`,
+  in contrast, only save/restore without resetting to identity
+  (`saveCurrentTransform`/`loadCurrentTransform`, lines 1292-1298).
+
+Implemented in `RwxParser.java` as: a `groupWorld` (the "world" transform of
+the clump that wraps the current one) + a stack of saves; a
+`currentTransform` LOCAL to the current clump (reset to identity at each
+`ClumpBegin`) + a separate stack for `TransformBegin`/`TransformEnd`. The
+vertex baked in at the moment of `Vertex`/`VertexExt` is
+`groupWorld × currentTransform × raw-position` — evaluated
+immediately, not deferred.
+
+---
+
+## Batch (a): basic static geometry
 
 ### `ClumpBegin` / `ClumpEnd`
-Ver sección 0. Además: la primera vez que se ve un `ClumpBegin` en el
-archivo, three-rwx-loader lo marca como "la raíz real de la topología"
-(línea 2269) — detalle de nomenclatura interna, sin efecto en geometría.
+See section 0. Also: the first time a `ClumpBegin` is seen in the
+file, three-rwx-loader marks it as "the real root of the topology"
+(line 2269) — an internal naming detail, with no effect on geometry.
 
-### `Vertex x y z [UV u v]` / `VertexExt` (mismo regex, mismo tratamiento)
-- Se transforma **inmediatamente** con `currentTransform` (línea 2542:
-  `tmpVertex.applyMatrix4(ctx.currentTransform)`) y se añade al buffer del
-  clump actual — no se difiere al momento de emitir el triángulo.
-- UV: si no hay `UV u v`, se usa `(0, 0)`. Si hay, la V se invierte:
-  `1 - v` (línea 2555). No afecta la comparación de geometría/posición,
-  sí afectaría a un renderer real con texturas.
-- ⚠️ **VERIFICAR**: no se comprobó si `VertexExt` (vs `Vertex` a secas)
-  tiene algún campo adicional real en archivos de este proyecto — en los
-  118 de prueba, `VertexExt` se comporta idéntico a `Vertex` según el
-  regex compartido (`this.vertexRegex` cubre ambos nombres).
+### `Vertex x y z [UV u v]` / `VertexExt` (same regex, same treatment)
+- It is transformed **immediately** with `currentTransform` (line 2542:
+  `tmpVertex.applyMatrix4(ctx.currentTransform)`) and added to the buffer
+  of the current clump — not deferred to the moment the triangle is emitted.
+- UV: if there is no `UV u v`, `(0, 0)` is used. If there is, V is inverted:
+  `1 - v` (line 2555). It does not affect the geometry/position comparison;
+  it would affect a real renderer with textures.
+- ⚠️ **VERIFY**: it was not checked whether `VertexExt` (vs. plain `Vertex`)
+  has any additional real field in this project's files — in the
+  118 test files, `VertexExt` behaves identically to `Vertex` according to
+  the shared regex (`this.vertexRegex` covers both names).
 
 ### `Triangle a b c [tag N]`
-- Índices 1-based en el archivo → 0-based internamente (línea 2406:
+- 1-based indices in the file → 0-based internally (line 2406:
   `parseInt(entry) - 1`).
-- El parámetro `tag` opcional se usa para un mecanismo de "letreros"
-  (`signTag`/`setMaterialRatio`) ajeno a geometría pura — no implementado
-  en el parser Java, no afecta la comparación de vértices/caras.
+- The optional `tag` parameter is used for a "signs" mechanism
+  (`signTag`/`setMaterialRatio`) unrelated to pure geometry — not implemented
+  in the Java parser, does not affect the vertex/face comparison.
 
 ### `Quad a b c d [tag N]`
-- **NO siempre corta por la diagonal A-C.** Corta por la diagonal más
-  **corta**: `cutAC = distSq(A,C) > distSq(B,D)` (línea 772) — es decir, si
-  A-C es más larga que B-D, corta por B-D en su lugar. Con `cutAC`:
-  triángulos `(a,b,c)` y `(a,c,d)`; si no: `(a,b,d)` y `(b,c,d)`.
-- Caso especial NO implementado en el parser Java (⚠️ fuera de alcance por
-  ahora, no aparece en los 118 archivos de prueba): si
-  `GeometrySampling == WIREFRAME`, el quad se renderiza como solo los
-  bordes exteriores (líneas 732-754), lógica de renderizado, no de
-  geometría de relleno.
-- Caso especial NO implementado (⚠️ igual, no aparece en el corpus):
-  `correctInvalidNormals` — si está activado y el corte elegido produciría
-  normales inválidas, duplica los 4 vértices y usa esas copias en vez de
-  los índices originales (líneas 778-814). Requeriría calcular normales
-  reales, que el parser Java actual no calcula (solo posiciones).
+- **It does NOT always cut along the A-C diagonal.** It cuts along the
+  **shorter** diagonal: `cutAC = distSq(A,C) > distSq(B,D)` (line 772) —
+  that is, if A-C is longer than B-D, it cuts along B-D instead. With
+  `cutAC`: triangles `(a,b,c)` and `(a,c,d)`; otherwise: `(a,b,d)` and
+  `(b,c,d)`.
+- Special case NOT implemented in the Java parser (⚠️ out of scope for now,
+  it does not appear in the 118 test files): if
+  `GeometrySampling == WIREFRAME`, the quad is rendered as only the outer
+  edges (lines 732-754), which is rendering logic, not fill-geometry logic.
+- Special case NOT implemented (⚠️ likewise, it does not appear in the corpus):
+  `correctInvalidNormals` — if enabled and the chosen cut would produce
+  invalid normals, it duplicates the 4 vertices and uses those copies instead
+  of the original indices (lines 778-814). It would require computing
+  real normals, which the current Java parser does not compute (positions
+  only).
 
 ### `Polygon n v1 v2 ... vn [tag N]`
-- **El orden de los índices se invierte antes de triangular en abanico**:
-  `polyIDs.unshift(parseInt(id) - 1)` en un bucle ascendente (línea 2508) —
-  como `unshift` inserta al principio, el resultado queda en orden
-  inverso al del archivo.
-- Fuerza `LightSampling.FACET` para el material durante la emisión
-  (línea 830) — efecto de iluminación, no de geometría.
-- No aparece en los 118 archivos de prueba; implementado en el parser Java
-  seguido de la reversión de orden documentada arriba, pero **sin verificar
-  contra un archivo real** — ⚠️ VERIFICAR si aparece un `.rwx` con
-  `Polygon` en el futuro.
+- **The order of the indices is reversed before fan triangulation**:
+  `polyIDs.unshift(parseInt(id) - 1)` in an ascending loop (line 2508) —
+  since `unshift` inserts at the front, the result ends up in the
+  reverse of the file's order.
+- Forces `LightSampling.FACET` for the material during emission
+  (line 830) — a lighting effect, not a geometry one.
+- It does not appear in the 118 test files; implemented in the Java parser
+  followed by the order reversal documented above, but **not verified
+  against a real file** — ⚠️ VERIFY if an `.rwx` with
+  `Polygon` shows up in the future.
 
 ---
 
-## Batch (b): materiales y texturas
+## Batch (b): materials and textures
 
 ### `Color r g b`
-Set directo de `material.color = [r,g,b]` (línea 2579) — **no** se mezcla
-con `Ambient`/`Diffuse`/`Specular`, son campos completamente separados.
+Direct set of `material.color = [r,g,b]` (line 2579) — it is **not** mixed
+with `Ambient`/`Diffuse`/`Specular`, they are completely separate fields.
 
 ### `Surface a d s`
-Set de los TRES coeficientes de golpe: `material.surface = [a,d,s]`
-(ambient, diffuse, specular, en ese orden — línea 2727).
+Sets all THREE coefficients at once: `material.surface = [a,d,s]`
+(ambient, diffuse, specular, in that order — line 2727).
 
 ### `Ambient a` / `Diffuse d` / `Specular s`
-Cada uno pisa solo su propia posición dentro de `material.surface[0/1/2]`
-(líneas 2735-2751) — no tocan `color` ni las otras dos posiciones.
+Each one overwrites only its own position inside `material.surface[0/1/2]`
+(lines 2735-2751) — they do not touch `color` or the other two positions.
 
 ### `Opacity o`
-Set directo de `material.opacity`.
+Direct set of `material.opacity`.
 
-### `Texture nombre [máscara]`
-- Solo se procesa si `this.enableTextures` está activo (default `true` en
-  el loader real, línea 1988) — **pero el arnés de comparación lo
-  desactiva a propósito**, ver el aviso grande más abajo.
-- `Texture NULL` (case-insensitive) limpia la textura.
+### `Texture name [mask]`
+- Only processed if `this.enableTextures` is on (default `true` in
+  the real loader, line 1988) — **but the comparison harness disables it
+  on purpose**, see the big warning below.
+- `Texture NULL` (case-insensitive) clears the texture.
 
-### ⚠️ Hallazgo importante: comparar materiales de tres-rwx-loader en este
-### entorno (Node headless, sin archivos de imagen reales) NO es fiable
+### ⚠️ Important finding: comparing three-rwx-loader materials in this
+### environment (headless Node, no real image files) is NOT reliable
 
-Con `enableTextures` activo (el default), cargar cualquier archivo de
-nuestro corpus produce el mismo material gris plano `d8d8d8` sin textura
-en **todos** los triángulos, sin importar lo que declare `Color`/`Texture`
-en el `.rwx` — confirmado inspeccionando directamente los objetos
-`THREE.Material` resultantes (no solo el JSON del arnés), en archivos con
-y sin `Texture`, con distintos valores de `Color`. La causa más probable:
-el corpus solo tiene texturas en formato `.cmp` (propio de Worlds), no
-`.jpg` (`textureExtension` por defecto del loader) ni ningún formato que
-el pipeline de carga headless pueda resolver, y el fallo de carga
-contamina también el color base, no solo el mapa.
+With `enableTextures` on (the default), loading any file from
+our corpus produces the same flat gray material `d8d8d8` with no texture
+on **all** the triangles, regardless of what `Color`/`Texture` declare in the
+`.rwx` — confirmed by directly inspecting the resulting
+`THREE.Material` objects (not just the harness JSON), in files with
+and without `Texture`, with different `Color` values. The most likely cause:
+the corpus only has textures in `.cmp` format (Worlds' own), not
+`.jpg` (the loader's default `textureExtension`) nor any format that
+the headless loading pipeline can resolve, and the load failure
+contaminates the base color too, not just the map.
 
-**Mitigación aplicada**: `tools/rwx-harness/extract.mjs` llama a
-`loader.setEnableTextures(false)` para evitar la contaminación — pero con
-esto el nombre de textura JAMÁS se registra en el lado de referencia
-(mientras que el parser Java sí lo hace correctamente), así que **el campo
-`map`/`textureName` no es comparable entre los dos lados con esta
-configuración**. Además, incluso con texturas desactivadas, el color en
-hex que produce `THREE.Color.getHexString()` **no coincide** con una
-conversión directa `round(canal*255)` — sospecha fuerte de conversión
-linear↔sRGB interna de `THREE.Color` (confirmado con una prueba aislada:
-`new THREE.Color(0.537255, 0.196078, 0.196078).getHexString()` da
-`"c27a7a"`, no `"893232"` como daría una conversión directa; y el valor que
-de verdad sale del loader real es un TERCER valor distinto, `"732828"` —
-no se identificó la fórmula exacta).
+**Mitigation applied**: `tools/rwx-harness/extract.mjs` calls
+`loader.setEnableTextures(false)` to avoid the contamination — but with
+this the texture name is NEVER recorded on the reference side
+(while the Java parser does record it correctly), so **the
+`map`/`textureName` field is not comparable between the two sides with this
+configuration**. Also, even with textures disabled, the hex color that
+`THREE.Color.getHexString()` produces **does not match** a direct
+`round(channel*255)` conversion — strong suspicion of an internal linear↔sRGB
+conversion in `THREE.Color` (confirmed with an isolated test:
+`new THREE.Color(0.537255, 0.196078, 0.196078).getHexString()` gives
+`"c27a7a"`, not `"893232"` as a direct conversion would; and the value that
+actually comes out of the real loader is a THIRD, different value, `"732828"` —
+the exact formula was not identified).
 
-**Decisión tomada**: `tools/rwx-harness/compare.py` reporta el conteo de
-materiales como **nota informativa, no como criterio de OK/DIFERENCIAS**
-— la comparación autoritativa es geometría (vértices/triángulos), que sí
-es 100% verificable y da 118/118 OK. ⚠️ **VERIFICAR pendiente**: la fórmula
-exacta de conversión de color de `THREE.Color`, si en el futuro hace falta
-verificar colores exactos (por ejemplo cuando el renderer LWJGL necesite
-pintar con el color correcto).
+**Decision made**: `tools/rwx-harness/compare.py` reports the material
+count as an **informational note, not as an OK/DIFFERENCES criterion**
+— the authoritative comparison is geometry (vertices/triangles), which
+is 100% verifiable and gives 118/118 OK. ⚠️ **VERIFY pending**: the exact
+color conversion formula of `THREE.Color`, if in the future exact colors need
+to be verified (for example when the LWJGL renderer needs
+to paint with the correct color).
 
-### Comandos de material reconocidos por el parser pero SIN efecto de
-### geometría verificado más allá de guardar el campo (no se profundizó,
-### bajo impacto para fase 1): `MaterialModes`, `TextureModes`,
-### `GeometrySampling`, `LightSampling`, `CollisionEnabled`. Todos tienen
-### regex propia en el loader real pero solo mutan flags de
-### renderizado/colisión, no posiciones — confirmado por lectura del
-### código (no se testearon exhaustivamente contra el corpus real).
+### Material commands recognized by the parser but WITHOUT a verified
+### geometry effect beyond storing the field (not explored in depth,
+### low impact for phase 1): `MaterialModes`, `TextureModes`,
+### `GeometrySampling`, `LightSampling`, `CollisionEnabled`. All have their
+### own regex in the real loader but only mutate rendering/collision flags,
+### not positions — confirmed by reading the code (not tested
+### exhaustively against the real corpus).
 
 ---
 
-## Batch (c): transformaciones
+## Batch (c): transformations
 
 ### `Identity`
-`currentTransform.identity()` — reset absoluto (línea 2599).
+`currentTransform.identity()` — absolute reset (line 2599).
 
-### `Transform` (16 valores)
-- **Set absoluto**, no multiplicación: `currentTransform.fromArray(tprops)`
-  (línea 2623).
-- Los 16 valores se leen en **orden column-major**, exactamente como
-  `THREE.Matrix4.fromArray` — **no** row-major. Ver la nota de convenciones
-  más abajo, es la fuente de bugs más probable si se reimplementa esto sin
-  verificar.
-- ⚠️ **Quirk confirmado del cliente AW/Worlds** (comentario explícito en el
-  código fuente, línea 2615): si el último valor (posición 15, esquina
-  inferior derecha en column-major) es `0`, se fuerza a `1`. Replicado tal
-  cual en `RwxParser.parseTransformMatrix`.
+### `Transform` (16 values)
+- **Absolute set**, not multiplication: `currentTransform.fromArray(tprops)`
+  (line 2623).
+- The 16 values are read in **column-major order**, exactly like
+  `THREE.Matrix4.fromArray` — **not** row-major. See the note on conventions
+  below, it is the most likely source of bugs if this is reimplemented
+  without verifying.
+- ⚠️ **Confirmed quirk of the AW/Worlds client** (explicit comment in the
+  source code, line 2615): if the last value (position 15, bottom-right
+  corner in column-major) is `0`, it is forced to `1`. Replicated as is in
+  `RwxParser.parseTransformMatrix`.
 
 ### `Translate x y z` / `Scale x y z`
-Post-multiplican: `currentTransform.multiply(M)` (líneas 2646, 2710) — es
-decir, `currentTransform = currentTransform * M`.
+They post-multiply: `currentTransform.multiply(M)` (lines 2646, 2710) — that
+is, `currentTransform = currentTransform * M`.
 
 ### `Rotate x y z angle`
-**No es una rotación de eje arbitrario.** Son hasta TRES rotaciones
-independientes alrededor de los ejes cardinales X, Y, Z (en ese orden),
-cada una aplicada solo si su coeficiente es no-cero, con ángulo
-`coeficiente × angle` grados (líneas 2668-2687):
+**It is not an arbitrary-axis rotation.** It is up to THREE
+independent rotations about the cardinal axes X, Y, Z (in that order),
+each applied only if its coefficient is non-zero, with angle
+`coefficient × angle` degrees (lines 2668-2687):
 ```
-if (x != 0) currentTransform *= RotationX(x * angle grados)
-if (y != 0) currentTransform *= RotationY(y * angle grados)
-if (z != 0) currentTransform *= RotationZ(z * angle grados)
+if (x != 0) currentTransform *= RotationX(x * angle degrees)
+if (y != 0) currentTransform *= RotationY(y * angle degrees)
+if (z != 0) currentTransform *= RotationZ(z * angle degrees)
 ```
-Esto es fácil de malinterpretar como "eje arbitrario normalizado +
-fórmula de Rodrigues" (así lo implementé al principio, incorrectamente,
-antes de leer el código fuente) — no lo es. No aparece ningún `Rotate` en
-el corpus de 118 archivos de prueba (todos usan `Transform` con matriz
-cruda), así que esto está implementado pero **sin verificación empírica
-contra un archivo real** — ⚠️ VERIFICAR si aparece uno.
+This is easy to misread as "normalized arbitrary axis +
+Rodrigues formula" (that is how I implemented it at first, incorrectly,
+before reading the source code) — it is not. No `Rotate` appears in
+the corpus of 118 test files (all of them use `Transform` with a
+raw matrix), so this is implemented but **without empirical verification
+against a real file** — ⚠️ VERIFY if one shows up.
 
-### Convención de matrices: column-major, `M × v`
+### Matrix convention: column-major, `M × v`
 
-Todo el código de `three-rwx-loader` usa las convenciones de `THREE.js`:
-almacenamiento column-major (`e[0..3]` = columna 0, etc.), `a.multiply(b)`
-significa `a = a * b`, y un punto se transforma como `v' = M * v` (vector
-columna). `client/src/net/openworlds/rwx/RwxMatrix4.java` replica esto
-exactamente — la primera versión del parser usaba row-major con
-`v' = v * M` (convención opuesta) y producía geometría sutilmente
-incorrecta en archivos con transformaciones no-triviales, sin dar ningún
-error de compilación ni excepción — solo números ligeramente distintos.
-Detectado gracias al arnés de comparación, no habría sido obvio a simple
-vista.
+All of the `three-rwx-loader` code uses the conventions of `THREE.js`:
+column-major storage (`e[0..3]` = column 0, etc.), `a.multiply(b)`
+means `a = a * b`, and a point is transformed as `v' = M * v` (column
+vector). `client/src/net/openworlds/rwx/RwxMatrix4.java` replicates this
+exactly — the first version of the parser used row-major with
+`v' = v * M` (the opposite convention) and produced subtly
+incorrect geometry in files with non-trivial transformations, without giving
+any compilation error or exception — just slightly different numbers.
+Detected thanks to the comparison harness, it would not have been obvious
+at a glance.
 
 ---
 
-## Batch (d): jerarquía de clumps/proto
+## Batch (d): clump/proto hierarchy
 
 ### `ProtoBegin` / `ProtoEnd` / `ProtoInstance`
-Reconocidos por el loader real (líneas 2310-2358, mecanismo de plantillas
-reutilizables con `ctx.rwxPrototypes`), pero **no aparecen en ningún
-archivo de los 118 de prueba** de este proyecto. **No implementado en el
-parser Java** — ⚠️ VERIFICAR y añadir si se necesitan modelos de otra
-fuente (avatares `.rwg`/`.bod` u otros mundos) que sí los usen.
+Recognized by the real loader (lines 2310-2358, a reusable-template mechanism
+with `ctx.rwxPrototypes`), but **they do not appear in any of the project's
+118 test files**. **Not implemented in the Java
+parser** — ⚠️ VERIFY and add if models from another
+source (`.rwg`/`.bod` avatars or other worlds) that do use them are needed.
 
-### Comandos con regex propia en el loader pero que además NO alcanzaron
-### el corpus de prueba: (ninguno más relevante a jerarquía — `Tag` es el
-### único que aparece con frecuencia, ver abajo).
+### Commands with their own regex in the loader that also did NOT reach
+### the test corpus: (none more relevant to hierarchy — `Tag` is the
+### only one that appears frequently, see below).
 
 ### `Tag N`
-Solo mete `N` en `userData.rwx.tag` del grupo actual (línea 3001) —
-metadata pura, sin efecto en geometría ni jerarquía real.
+It only puts `N` in `userData.rwx.tag` of the current group (line 3001) —
+pure metadata, with no effect on geometry or real hierarchy.
 
 ---
 
-## Comandos que NO reconoce three-rwx-loader (verificado: no existe regex
-## para ellos en todo el archivo) — no-ops puros, confirmado que aparecen
-## profusamente en el corpus real sin efecto alguno en la geometría final:
+## Commands that three-rwx-loader does NOT recognize (verified: there is no
+## regex for them in the whole file) — pure no-ops, confirmed to appear
+## profusely in the real corpus with no effect whatsoever on the final geometry:
 
-- `ModelBegin` / `ModelEnd` (section 0 — el hallazgo más importante)
+- `ModelBegin` / `ModelEnd` (section 0 — the most important finding)
 - `JointTransformBegin` / `JointTransformEnd` / `IdentityJoint`
 - `Hints` / `AddHint`
 
-Los 4 últimos aparecen 72+40+336 veces combinadas en el corpus (avatares y
-props con huesos/joints) y **no hacen absolutamente nada** en
-three-rwx-loader. El parser Java los deja caer al `default:` (ignorar) —
-comportamiento verificado como correcto, no por omisión accidental.
+The last 4 appear 72+40+336 times combined in the corpus (avatars and
+props with bones/joints) and **do absolutely nothing** in
+three-rwx-loader. The Java parser lets them fall through to `default:`
+(ignore) — behavior verified as correct, not an accidental omission.
 
 ---
 
-## Metodología de verificación (arnés)
+## Verification methodology (harness)
 
-- `tools/rwx-harness/extract.mjs`: parsea con three-rwx-loader real
-  (`setFlatten(false)`, `setEnableTextures(false)` — ver Batch (b)),
-  aplana la jerarquía de grupos multiplicando matrices manualmente
-  (`walk()`), excluye el grupo `rwx-scale-group` que el loader añade con
-  una escala fija de 10x (convención de "decámetro" de Active Worlds,
-  líneas 2233-2239 del loader — **no** viene del archivo `.rwx`, la añade
-  el loader siempre) para comparar en las mismas unidades "crudas" que un
-  parser que no aplique esa escala.
-- `client/src/net/openworlds/rwx/RwxExtractMain.java`: mismo formato JSON
-  de salida desde el parser Java.
-- `tools/rwx-harness/compare.py`: corre ambos, reordena los triángulos de
-  cada lado con una clave numérica calculada en Python (no confía en el
-  orden interno de cada lado — ver el comentario grande en
-  `numeric_sort_key()`, fue la causa de falsos positivos masivos hasta que
-  se corrigió), compara posición por vértice con tolerancia `1e-3`, y
-  escribe `docs/rwx-parser-progress.md`.
-- **Resultado final: 118/118 archivos OK** en geometría (vértices y
-  triángulos). Material es informativo únicamente (ver Batch (b)).
+- `tools/rwx-harness/extract.mjs`: parses with the real three-rwx-loader
+  (`setFlatten(false)`, `setEnableTextures(false)` — see Batch (b)),
+  flattens the group hierarchy by multiplying matrices manually
+  (`walk()`), excludes the `rwx-scale-group` group that the loader adds with
+  a fixed scale of 10x (Active Worlds' "decameter" convention,
+  lines 2233-2239 of the loader — it does **not** come from the `.rwx` file,
+  the loader always adds it) in order to compare in the same "raw" units as a
+  parser that does not apply that scale.
+- `client/src/net/openworlds/rwx/RwxExtractMain.java`: same JSON output format
+  from the Java parser.
+- `tools/rwx-harness/compare.py`: runs both, reorders the triangles of
+  each side with a numeric key computed in Python (it does not trust the
+  internal order of each side — see the big comment in
+  `numeric_sort_key()`, it was the cause of massive false positives until
+  it was fixed), compares position per vertex with tolerance `1e-3`, and
+  writes `docs/rwx-parser-progress.md`.
+- **Final result: 118/118 files OK** in geometry (vertices and
+  triangles). Material is informational only (see Batch (b)).

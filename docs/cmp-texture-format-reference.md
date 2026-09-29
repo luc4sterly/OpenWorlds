@@ -1,466 +1,462 @@
-# Referencia del formato `.cmp`/`.mov` (texturas "ScapePic"), investigación desde bytes + desensamblado real
+# `.cmp`/`.mov` format reference ("ScapePic" textures), investigation from bytes + real disassembly
 
-## Resumen ejecutivo
+## Executive summary
 
-`.cmp`/`.mov` son las texturas comprimidas de WorldsPlayer ("ScapePic",
-nombre interno confirmado por las clases `NET.worlds.scape.ScapePicTexture`
-y `NET.worlds.console.ScapePicImage` del cliente decompilado). **La
-descompresión ocurre enteramente en `gamma.dll` (nativo), no en Java** —
-igual que RWX/RWG. A diferencia de RWG, esta sesión SÍ desensambló el
-código real con Ghidra (mismo binario/herramienta usada en sesiones
-anteriores para mapear métodos `native`) y encontró evidencia fuerte:
+`.cmp`/`.mov` are the compressed textures of WorldsPlayer ("ScapePic",
+internal name confirmed by the classes `NET.worlds.scape.ScapePicTexture`
+and `NET.worlds.console.ScapePicImage` of the decompiled client). **The
+decompression happens entirely in `gamma.dll` (native), not in Java** —
+just like RWX/RWG. Unlike RWG, this session DID disassemble the real
+code with Ghidra (the same binary/tool used in earlier sessions to map
+`native` methods) and found strong evidence:
 
-- El contenedor usa un esquema de compresión **Huffman canónico +
-  probable LZSS**, con una función interna literalmente llamada
-  `huffdcod` (nombre de módulo fuente incrustado como string de
-  aserción — "Huffman decode") cuyo algoritmo de construcción de tabla
-  (`FUN_004266f0`/`FUN_00426820` en las direcciones desensambladas)
-  coincide **estructuralmente, variable por variable**, con la función
-  pública y bien documentada `make_table()` de la familia de algoritmos
-  LHA/LZH de Okumura/Yoshizaki (Huffman canónico: cuenta de frecuencias
-  por longitud de código de 0 a 8 bits, tabla de offsets acumulados
-  `start[i+1] = (count[i]+start[i])*2`, expansión de tabla de búsqueda
-  por prefijo).
-- **NO es, sin embargo, una variante públicamente documentada bajo el
-  nombre "LzH2"** — confirmado por investigación externa (ver abajo):
-  nadie ha publicado un decoder ni una especificación para esta variante
-  exacta. Es plausible que Worlds Inc. haya adaptado/derivado el
-  algoritmo público de LHA (que era ampliamente reutilizado en 1994-1997)
-  para su propia herramienta interna "ScapePic", cambiando el magic tag.
-- **El bucle real de descompresión LZSS (que consume el bitstream
-  comprimido usando las tablas Huffman ya construidas) NO se llegó a
-  desensamblar/entender esta sesión** — es la pieza que falta para un
-  decoder completo. Ver "Siguiente paso" al final.
+- The container uses a **canonical Huffman + probable LZSS** compression
+  scheme, with an internal function literally named
+  `huffdcod` (source module name embedded as an assertion string
+  — "Huffman decode") whose table-construction algorithm
+  (`FUN_004266f0`/`FUN_00426820` at the disassembled addresses)
+  matches **structurally, variable by variable**, the public and well
+  documented function `make_table()` of the LHA/LZH family of algorithms
+  by Okumura/Yoshizaki (canonical Huffman: frequency count
+  per code length from 0 to 8 bits, table of accumulated offsets
+  `start[i+1] = (count[i]+start[i])*2`, expansion of the lookup table
+  by prefix).
+- It is **NOT, however, a publicly documented variant under the
+  name "LzH2"** — confirmed by external research (see below):
+  nobody has published a decoder or a specification for this exact variant.
+  It is plausible that Worlds Inc. adapted/derived the public LHA
+  algorithm (which was widely reused in 1994-1997)
+  for its own internal "ScapePic" tool, changing the magic tag.
+- **The real LZSS decompression loop (which consumes the compressed
+  bitstream using the Huffman tables already built) was NOT
+  disassembled/understood in this session** — it is the missing piece for a
+  complete decoder. See "Next step" at the end.
 
-**Decisión de alcance tomada esta sesión**: en vez de invertir el resto
-de la sesión en terminar la ingeniería inversa completa del decoder de
-píxeles (un esfuerzo del mismo orden que el desensamblado de `.bod`,
-que el propio usuario pidió posponer en la sesión anterior), se documentó
-la evidencia real encontrada hasta el límite razonable de tiempo, y el
-resto de la sesión (iluminación, pipeline de materiales, escena) se
-implementó usando el color/opacidad de material YA verificado (RWX/RWG
-parseado), **sin renderizar ninguna textura y sin inventar píxeles**, con
-un fallback de color plano explícito, no con una textura inventada (las
-capturas de aquel renderizador, el del motor nuevo, se retiraron con él el
-2026-09-26 y están en el historial de git hasta el commit `8cd795d`).
+**Scope decision made this session**: instead of investing the rest of
+the session in finishing the complete reverse engineering of the pixel
+decoder (an effort of the same order as the disassembly of `.bod`,
+which the user themselves asked to postpone in the previous session), the
+real evidence found was documented up to a reasonable time limit, and the
+rest of the session (lighting, materials pipeline, scene) was
+implemented using the material color/opacity ALREADY verified (parsed
+RWX/RWG), **without rendering any texture and without inventing pixels**, with
+an explicit flat-color fallback, not with an invented texture (the
+captures of that renderer, the new engine's, were withdrawn with it on
+2026-09-26 and are in the git history up to commit `8cd795d`).
 
 ---
 
-## Corpus real usado
+## Real corpus used
 
-17 archivos `.cmp` reales del proyecto (`assets/FIRST/*.CMP`,
-`assets/WorldsPlayer/*.cmp`, `assets/WorldsPlayer/cachedir/*.cmp` — estos
-últimos, igual que los `.bod`, son contenido real descargado de un
-servidor en una sesión anterior, no inventado). Tamaños entre 1637 y
+17 real `.cmp` files from the project (`assets/FIRST/*.CMP`,
+`assets/WorldsPlayer/*.cmp`, `assets/WorldsPlayer/cachedir/*.cmp` — the
+latter, like the `.bod`, are real content downloaded from a
+server in an earlier session, not invented). Sizes between 1637 and
 10973 bytes.
 
-## Estructura de cabecera (hex dump real, confirmada byte a byte)
+## Header structure (real hex dump, confirmed byte by byte)
 
-Los primeros 16 bytes son idénticos en su forma en los 6 archivos
-inspeccionados (`ADWORLDS.CMP`, `IDLE.CMP`, `ADFRAME.CMP`,
+The first 16 bytes are identical in form in the 6 files
+inspected (`ADWORLDS.CMP`, `IDLE.CMP`, `ADFRAME.CMP`,
 `cachedir/47.cmp`, `48.cmp`, `49.cmp`):
 
 ```
 4c 7a 48 32 | XX | 80 80 00 80 00 | YY YY | ZZ | 29 ?? ...
-"L  z  H  2"  modo   (constante)     ?      ?
+"L  z  H  2"  mode   (constant)      ?      ?
 ```
 
-- **Magic de 4 bytes**: `"LzH2"` (`4C 7A 48 32`) — confirmado constante
-  en los 17 archivos.
-- **Byte 4 ("modo")**: `0x02` en la mayoría de archivos, `0x06` en
-  `IDLE.CMP`/`idle.cmp`. ⚠️ VERIFICAR significado exacto — posible
-  variante de compresión o profundidad de color distinta.
-- **Bytes 5-9**: `80 80 00 80 00`, constantes en TODOS los archivos
-  inspeccionados. ⚠️ VERIFICAR — no se determinó su significado
-  (posiblemente parte de la propia tabla de códigos Huffman inicial, no
-  un campo de cabecera "plano" — ver más abajo, el análisis de
-  `FUN_00442750` sugiere que la cabecera "plana" es mucho más corta de
-  lo que parece a simple vista y estos bytes ya forman parte de
-  estructuras internas del formato, ya con floats/flags empaquetados).
-- El resto de bytes 10 en adelante varía por archivo y aparenta ser ya
-  parte del stream comprimido/tablas de código — **no se completó la
-  separación exacta entre "cabecera" y "datos comprimidos"**.
+- **4-byte magic**: `"LzH2"` (`4C 7A 48 32`) — confirmed constant
+  in the 17 files.
+- **Byte 4 ("mode")**: `0x02` in most files, `0x06` in
+  `IDLE.CMP`/`idle.cmp`. ⚠️ VERIFY exact meaning — possible
+  compression variant or different color depth.
+- **Bytes 5-9**: `80 80 00 80 00`, constant in ALL the files
+  inspected. ⚠️ VERIFY — their meaning was not determined
+  (possibly part of the initial Huffman code table itself, not
+  a "flat" header field — see below, the analysis of
+  `FUN_00442750` suggests that the "flat" header is much shorter
+  than it seems at first sight and these bytes already form part of
+  internal structures of the format, already with packed floats/flags).
+- The rest of the bytes from 10 onward varies per file and appears to be
+  already part of the compressed stream/code tables — **the exact
+  separation between "header" and "compressed data" was not completed**.
 
-## Evidencia oficial/comunitaria externa (subagente de investigación)
+## External official/community evidence (research subagent)
 
-- **`github.com/vanjac/zoomscape-info`** (wiki, página "Images"):
-  documenta el mismo header `LzH2`, la misma lista de extensiones
-  relacionadas (`.CMP`/`.CMS`/`.CMX`/`.IMG`/`.IMS`/`.IM2`/`.IM5`/`.OVL`),
-  e incluye una copia del binario original `T.EXE` ("ScapePic") — la
-  herramienta de inspección/descompresión de época. **El propio wiki
-  marca el esquema de compresión como "unknown"** — confirma que nadie
-  más lo ha resuelto públicamente tampoco.
+- **`github.com/vanjac/zoomscape-info`** (wiki, "Images" page):
+  documents the same `LzH2` header, the same list of related
+  extensions (`.CMP`/`.CMS`/`.CMX`/`.IMG`/`.IMS`/`.IM2`/`.IM5`/`.OVL`),
+  and includes a copy of the original binary `T.EXE` ("ScapePic") — the
+  period inspection/decompression tool. **The wiki itself marks the
+  compression scheme as "unknown"** — it confirms that nobody else has
+  solved it publicly either.
 - **`community.worlio.com/forum/12/thread/81`** ("Figuring out the
-  CMP/MOV format"): confirma independientemente los mismos bytes mágicos
-  `4C 7A 48 32`, sugiere que el 5º byte es una bandera de
-  versión/tipo-de-compresión, y describe el formato como multi-frame
-  (animaciones, avatares rotables) — `.cmp` y `.mov` son el mismo
-  contenedor con extensión distinta.
-- **`kangworlds.net/tutorials/cmp`**: tutorial práctico (no a nivel de
-  bytes) sobre `COMPIMG` (herramienta del SDK "Accomplish") para generar
-  `.cmp`/`.mov` — confirma que es paleta indexada, basado conceptualmente
-  en BMP/Sun RAS, sin especificación binaria.
-- **No existe ningún decoder de código abierto** para este formato en
-  ningún lenguaje (confirmado por búsqueda) — a diferencia de RWX
-  (`three-rwx-loader`), aquí no hay ningún atajo de biblioteca externa.
-  Posible pista de "ZoomScape" como producto hermano (mismo tag `LzH2`,
-  mismo nombre "ScapePic") — **sin confirmar** que compartan código real
-  con Worlds Inc., solo indicios de búsqueda.
+  CMP/MOV format"): independently confirms the same magic bytes
+  `4C 7A 48 32`, suggests that the 5th byte is a
+  version/compression-type flag, and describes the format as multi-frame
+  (animations, rotatable avatars) — `.cmp` and `.mov` are the same
+  container with a different extension.
+- **`kangworlds.net/tutorials/cmp`**: practical tutorial (not at byte
+  level) about `COMPIMG` (tool of the "Accomplish" SDK) for generating
+  `.cmp`/`.mov` — confirms that it is an indexed palette, conceptually
+  based on BMP/Sun RAS, with no binary specification.
+- **There is no open-source decoder** for this format in any
+  language (confirmed by search) — unlike RWX
+  (`three-rwx-loader`), here there is no external library shortcut.
+  Possible lead of "ZoomScape" as a sibling product (same `LzH2` tag,
+  same name "ScapePic") — **unconfirmed** that they share real code
+  with Worlds Inc., only search hints.
 
-## Evidencia del desensamblado real (Ghidra, `gamma.dll`)
+## Evidence from the real disassembly (Ghidra, `gamma.dll`)
 
-Cadena de llamadas confirmada desde el punto de entrada JNI hasta el
-núcleo Huffman (direcciones reales del binario, build de
+Call chain confirmed from the JNI entry point to the Huffman core
+(real addresses of the binary, build of
 `assets/WorldsPlayer/bin/gamma.dll`):
 
 ```
-Java_NET_worlds_console_ScapePicImage_loadImage@12  (0x004103e0)  [entry point JNI]
-  -> FUN_00442fd0 (0x00442fd0)      [construye el objeto imagen]
-       -> FUN_004425f0 (0x004425f0) [inicializa campos, delega si header OK]
-            -> FUN_00442750 (0x00442750)  [lee y valida la cabecera "plana"
-                                            (0x22=34 bytes), luego 5 tablas]
-                 -> FUN_004269c0 x4  (una por "canal"/tabla, índices 0-3)
-                      -> FUN_00426930  ["huffdcod" - construye tabla Huffman]
-                           -> FUN_00426640   [desempaqueta longitudes de código
-                                              de 4 bits por símbolo, remapeadas
-                                              por una tabla de permutación fija]
-                           -> FUN_004266f0   [== make_table() de LHA: cuenta
-                                              frecuencias por longitud (0-8),
-                                              asigna códigos canónicos]
-                           -> FUN_00426820   [== fase de expansión de make_table:
-                                              rellena la tabla de búsqueda por
-                                              prefijo con el símbolo hoja]
-                 -> FUN_0044df50 (tabla índice 4: memcpy directo, SIN Huffman -
-                                  probablemente la paleta de color o los
-                                  offsets de fila, sin comprimir)
+Java_NET_worlds_console_ScapePicImage_loadImage@12  (0x004103e0)  [JNI entry point]
+  -> FUN_00442fd0 (0x00442fd0)      [builds the image object]
+       -> FUN_004425f0 (0x004425f0) [initializes fields, delegates if header OK]
+            -> FUN_00442750 (0x00442750)  [reads and validates the "flat" header
+                                            (0x22=34 bytes), then 5 tables]
+                 -> FUN_004269c0 x4  (one per "channel"/table, indices 0-3)
+                      -> FUN_00426930  ["huffdcod" - builds Huffman table]
+                           -> FUN_00426640   [unpacks the 4-bit code lengths
+                                              per symbol, remapped
+                                              by a fixed permutation table]
+                           -> FUN_004266f0   [== LHA's make_table(): counts
+                                              frequencies per length (0-8),
+                                              assigns canonical codes]
+                           -> FUN_00426820   [== expansion phase of make_table:
+                                              fills the lookup table by
+                                              prefix with the leaf symbol]
+                 -> FUN_0044df50 (table index 4: direct memcpy, NO Huffman -
+                                  probably the color palette or the
+                                  row offsets, uncompressed)
 ```
 
-- **Confirmado**: 4 de las 5 "tablas" internas se construyen con Huffman
-  canónico (una tabla de código distinta por tabla — patrón típico de
-  compresión de imagen por planos: probablemente 3 planos de color +
-  1 plano de "excepciones"/máscara, o splits run-length/posición al
-  estilo LZSS clásico), la 5ª es un bloque sin comprimir copiado tal
-  cual.
-- **Confirmado**: cada tabla usa un "patrón" de longitudes de tabla de
-  código FIJO según su índice (`FUN_00442590`: índice 0 → 81 bytes de
-  patrón, índice 1 → 49 bytes, índice 3 → 22 bytes) — esto es exactamente
-  el truco clásico de LHA de tener alfabetos de tamaño fijo conocido para
-  cada tipo de tabla (p.ej. tabla de longitudes de código en sí, tabla de
-  posiciones/distancias) en vez de codificar el tamaño del alfabeto en el
-  archivo.
-- **NO completado**: el bucle que, una vez construidas las tablas Huffman,
-  realmente decodifica el bitstream comprimido en símbolos y los expande
-  en píxeles (probablemente una función tipo `decode_c`/`decode_p` de LHA,
-  con ventana deslizante LZSS) no se llegó a ubicar/desensamblar. Sin
-  esa pieza no se puede producir un decoder Java funcional — construir
-  solo las tablas sin poder consumir el bitstream no permite extraer
-  ningún píxel real todavía.
+- **Confirmed**: 4 of the 5 internal "tables" are built with canonical
+  Huffman (a different code table for each table — a typical pattern of
+  plane-based image compression: probably 3 color planes +
+  1 plane of "exceptions"/mask, or run-length/position splits in
+  the classic LZSS style), the 5th is an uncompressed block copied
+  as is.
+- **Confirmed**: each table uses a FIXED "pattern" of code table
+  lengths according to its index (`FUN_00442590`: index 0 → 81 bytes of
+  pattern, index 1 → 49 bytes, index 3 → 22 bytes) — this is exactly
+  the classic LHA trick of having alphabets of a known fixed size
+  for each type of table (e.g. table of code lengths itself, table of
+  positions/distances) instead of encoding the alphabet size in the
+  file.
+- **NOT completed**: the loop that, once the Huffman tables are built,
+  actually decodes the compressed bitstream into symbols and expands them
+  into pixels (probably a function like LHA's `decode_c`/`decode_p`,
+  with an LZSS sliding window) was not located/disassembled. Without
+  that piece a working Java decoder cannot be produced — building
+  just the tables without being able to consume the bitstream does not allow
+  extracting any real pixel yet.
 
-## Sesión 2 (continuación, 2026-09-09): se localizó el bucle final — sigue
-## sin ser suficientemente claro para implementar con confianza
+## Session 2 (continuation, 2026-09-09): the final loop was located — it is still
+## not clear enough to implement with confidence
 
-Retomando exactamente donde quedó la sesión anterior, se volvió a
-`gamma.dll` con Ghidra y se persiguió la cadena de llamadas más allá de
-`FUN_00442750` (que solo construye las tablas Huffman) hasta encontrar
-**la función que de verdad decodifica una fila de píxeles y la escribe
-en el buffer de imagen**: `FUN_00442bc0` (invocada como
-`this->getScanline(rowIndex, destBuffer, stride)` desde
-`FUN_00443180`/`ScapePicTexture_makeTexture`). Su interior:
+Resuming exactly where the previous session left off, we went back to
+`gamma.dll` with Ghidra and followed the call chain beyond
+`FUN_00442750` (which only builds the Huffman tables) until finding
+**the function that actually decodes a row of pixels and writes it
+into the image buffer**: `FUN_00442bc0` (invoked as
+`this->getScanline(rowIndex, destBuffer, stride)` from
+`FUN_00443180`/`ScapePicTexture_makeTexture`). Its interior:
 
-1. Llama a `FUN_00426af0` — el decodificador Huffman a nivel de bit real
-   (registro de desplazamiento, tabla de 256 entradas, exactamente el
-   patrón clásico `decode_c()` de LHA) — para producir hasta 5 "canales"
-   de símbolos decodificados por fila.
-2. Llama a `FUN_00457d88` — la función que **de verdad reconstruye los
-   píxeles** a partir de esos símbolos y los escribe en el buffer final.
-   Esta SÍ es la pieza que faltaba la sesión anterior.
+1. Calls `FUN_00426af0` — the real bit-level Huffman decoder
+   (shift register, 256-entry table, exactly the classic `decode_c()` pattern
+   of LHA) — to produce up to 5 "channels" of decoded symbols per row.
+2. Calls `FUN_00457d88` — the function that **really reconstructs the
+   pixels** from those symbols and writes them into the final buffer.
+   This IS the piece that was missing in the previous session.
 
-**Hallazgos concretos y verificables dentro de `FUN_00457d88` y su
-contexto** (no especulación — datos reales extraídos del binario):
+**Concrete, verifiable findings inside `FUN_00457d88` and its
+context** (not speculation — real data extracted from the binary):
 
-- **Formato de píxel confirmado: 8 bits por píxel, paleta indexada**,
-  con el ancho de fila redondeado a múltiplos de 4 bytes (`(width+3)/4`
-  DWORDs por fila) — coincide exactamente con lo que ya había reportado
-  la comunidad (`kangworlds.net/tutorials/cmp`: "indexed palette, based
-  on BMP") pero ahora confirmado a nivel de código real, no solo de
-  tutorial de usuario.
-- **Filas escritas con stride negativo** (`param_5 = -stride`) — convención
-  bottom-up típica de un `HBITMAP`/DIB de Windows (coincide con que la
-  función que arma el bitmap final, `FUN_00422260`/`FUN_00422150`, usa
-  literalmente `CreateCompatibleDC`/`HBITMAP` de la API de Windows).
-- **Tabla de predictores espaciales extraída directamente del binario**
-  (no inferida): en `0x478e98`-`0x478f5f` hay una tabla real de pares
-  `(desplazamiento_fila, desplazamiento_columna)` — ej. `(0,-6)`,
+- **Confirmed pixel format: 8 bits per pixel, indexed palette**,
+  with the row width rounded to multiples of 4 bytes (`(width+3)/4`
+  DWORDs per row) — it matches exactly what the community had
+  already reported (`kangworlds.net/tutorials/cmp`: "indexed palette, based
+  on BMP") but now confirmed at the level of real code, not just of a user
+  tutorial.
+- **Rows written with negative stride** (`param_5 = -stride`) — bottom-up
+  convention typical of a Windows `HBITMAP`/DIB (it matches the fact
+  that the function that assembles the final bitmap,
+  `FUN_00422260`/`FUN_00422150`, literally uses
+  `CreateCompatibleDC`/`HBITMAP` of the Windows API).
+- **Table of spatial predictors extracted directly from the binary**
+  (not inferred): at `0x478e98`-`0x478f5f` there is a real table of pairs
+  `(row_offset, column_offset)` — e.g. `(0,-6)`,
   `(0,-5)`... `(0,-2)`, `(-4,0)`, `(-4,1)`... `(-4,6)`, `(-4,-6)`...
-  formando una ventana causal de ~50 posiciones candidatas dentro de las
-  últimas ~4-6 filas y ±6 columnas. Combinada en tiempo real con el
-  stride real de la imagen (`offset = colDelta - stride*rowDelta`) para
-  obtener un desplazamiento de bytes concreto. **Esto revela que el
-  algoritmo real no es LZSS con offsets arbitrarios de una ventana
-  deslizante genérica, sino un predictor 2D de vecinos causales**: cada
-  símbolo Huffman-decodificado selecciona uno de esos ~50 vecinos ya
-  decodificados y copia su valor de píxel — mucho más parecido a los
-  filtros predictivos de PNG/JPEG-LS que a LZSS clásico. Esto corrige
-  la hipótesis "LZSS" de la sesión anterior con evidencia real.
-- **La tabla de 256 punteros a función indirectos** (`PTR_LAB_00483844`,
-  invocada una vez por símbolo) que en un primer vistazo parecía sugerir
-  256 rutinas de reconstrucción distintas (complejidad temida) **resultó
-  ser trivial una vez desensamblada**: cada una de las 256 entradas es
-  una función de 5-7 instrucciones que solo reordena/replica el byte de
-  entrada en distintas combinaciones de registros de 8/16/32 bits — es
-  el truco manual clásico de los años 90 para "rellenar 4 bytes a la vez
-  con el mismo valor, con distintos desplazamientos de alineación", usado
-  para acelerar el relleno de tramos (runs) de píxeles repetidos. **No
-  aporta complejidad algorítmica real** — en Java equivale trivialmente a
-  un bucle de relleno normal, sin necesidad de replicar el truco de
-  registros de x86.
+  forming a causal window of ~50 candidate positions within the
+  last ~4-6 rows and ±6 columns. Combined at run time with the real
+  stride of the image (`offset = colDelta - stride*rowDelta`) to
+  obtain a concrete byte offset. **This reveals that the real
+  algorithm is not LZSS with arbitrary offsets from a generic sliding
+  window, but a 2D predictor of causal neighbors**: each
+  Huffman-decoded symbol selects one of those ~50 already decoded
+  neighbors and copies its pixel value — much more similar to the
+  predictive filters of PNG/JPEG-LS than to classic LZSS. This corrects
+  the "LZSS" hypothesis of the previous session with real evidence.
+- **The table of 256 indirect function pointers** (`PTR_LAB_00483844`,
+  invoked once per symbol) that at first glance seemed to suggest
+  256 distinct reconstruction routines (feared complexity) **turned out
+  to be trivial once disassembled**: each of the 256 entries is
+  a function of 5-7 instructions that only reorders/replicates the input
+  byte into different combinations of 8/16/32-bit registers — it is
+  the classic manual trick of the 90s for "filling 4 bytes at a time
+  with the same value, with different alignment offsets", used
+  to speed up the filling of runs of repeated pixels. **It adds
+  no real algorithmic complexity** — in Java it is trivially equivalent to
+  an ordinary fill loop, with no need to replicate the x86 register trick.
 
-**Por qué NO se implementó igualmente, siguiendo la instrucción
-explícita del usuario de no forzar nada a medias**: aunque el `qué`
-(predictor causal 2D + relleno de tramos) ya está razonablemente claro,
-el `cómo exacto` de `FUN_00457d88` sigue sin estarlo lo suficiente para
-confiar en una traducción bit-exacta: usa aritmética de acarreo
-(`CARRY4`) sobre un par de acumuladores empaquetados que llevan a la vez
-un contador de repetición y un registro de desplazamiento de bits, y
-escribe DOS filas de salida simultáneamente por cada símbolo consumido
-(offset `_DAT_00482d05` aparte del principal) — el motivo de ese
-"doblado" de filas no se terminó de entender. Implementar sin esa
-claridad arriesgaría exactamente lo que se pidió evitar: producir
-píxeles con aspecto plausible pero incorrectos, presentados como
-verificados sin serlo. Se decidió parar aquí y documentar, no adivinar.
+**Why it was NOT implemented anyway, following the user's explicit
+instruction not to force anything half-done**: although the `what`
+(2D causal predictor + run fill) is already reasonably clear,
+the `exact how` of `FUN_00457d88` is still not clear enough to
+trust a bit-exact translation: it uses carry arithmetic
+(`CARRY4`) on a pair of packed accumulators that carry at the same time
+a repetition counter and a bit shift register,
+and it writes TWO output rows simultaneously for each symbol consumed
+(offset `_DAT_00482d05` besides the main one) — the reason for that
+"doubling" of rows was not fully understood. Implementing without that
+clarity would risk exactly what was asked to be avoided: producing
+plausible-looking but incorrect pixels, presented as verified without
+being so. It was decided to stop here and document, not guess.
 
-## Sesión de depuración dinámica (2026-09-10): entorno real construido y
-## verificado, pero un bloqueo de infraestructura (no del algoritmo) impidió
-## llegar al decoder de píxeles
+## Dynamic debugging session (2026-09-10): real environment built and
+## verified, but an infrastructure blocker (not of the algorithm) prevented
+## reaching the pixel decoder
 
-Objetivo de esta sesión: resolver la ambigüedad real pendiente (aritmética
-de acarreo + escritura de doble fila en `FUN_00457d88`) mediante
-depuración dinámica de verdad — no más análisis estático — ejecutando
-`gamma.dll` bajo Wine, paso a paso, con valores reales de registros y
-memoria.
+Goal of this session: resolve the real pending ambiguity (carry arithmetic
++ double-row write in `FUN_00457d88`) through real dynamic debugging —
+no more static analysis — running `gamma.dll` under Wine, step by step,
+with real register and memory values.
 
-### Entorno de depuración: construido y verificado, funciona
+### Debugging environment: built and verified, it works
 
-Herramienta elegida: **Wine 11.0 (Staging) + `winedbg --gdb`** (proxy que
-lanza el proceso bajo Wine y conecta un `gdb` real vía protocolo remoto),
-con scripting Python embebido en gdb para automatizar lo que la
-interacción manual no podía. Documentado en detalle, con el código
-reutilizable, en `tools/gamma-dll-debug-harness/README.md`. Piezas clave:
-
-- **Arnés Java mínimo, de sala limpia** (`tools/gamma-dll-debug-harness/`):
-  en vez de levantar el cliente completo (que necesita red/servidor real),
-  se escribieron clases Java mínimas que declaran únicamente los métodos
-  `native` con la firma exacta (`NET.worlds.console.ScapePicImage.
+Chosen tool: **Wine 11.0 (Staging) + `winedbg --gdb`** (a proxy that
+launches the process under Wine and connects a real `gdb` via the remote
+protocol), with Python scripting embedded in gdb to automate what manual
+interaction could not. Documented in detail, with the reusable code, in
+`tools/gamma-dll-debug-harness/README.md`. Key pieces:
+- **Minimal clean-room Java harness** (`tools/gamma-dll-debug-harness/`):
+  instead of bringing up the whole client (which needs a real network/server),
+  minimal Java classes were written that declare only the `native`
+  methods with the exact signature (`NET.worlds.console.ScapePicImage.
   loadImage(String)`, `NET.worlds.scape.ScapePicTexture.makeTexture(String,
-  String)` — firmas confirmadas con `javap` contra las clases REALES de
-  `assets/worlds.jar`, no supuestas) y las invocan directamente. Estas
-  clases se ejecutan bajo el propio JRE de época incluido en el proyecto
-  (`assets/WorldsPlayer/bin/java.exe`, Java 1.4.2_05) — mismo binario que
-  el cliente real habría usado. Truco necesario: `javac` moderno no puede
-  emitir bytecode tan antiguo (mínimo `--release 8`, classfile 52, que
-  1.4.2 rechaza), así que se compila con `--release 8` y se parchea a mano
-  el byte de versión mayor del `.class` (52→48) — seguro porque el código
-  fuente es deliberadamente trivial (sin generics, sin concatenación de
-  strings con `+`, sin autoboxing — nada que dependa de clases de runtime
-  posteriores a 1.4).
-- **Confirmado real, con ejecución en vivo**: un breakpoint en
-  `FUN_00442750` (el validador de cabecera ya localizado por análisis
-  estático) SÍ se alcanza al invocar `loadImage()` con un `.cmp` real, y
-  un volcado instrucción-a-instrucción con valores reales de registros
-  muestra la función abriendo y leyendo el archivo de verdad (`ReadFile`
-  real contra los bytes reales del `.cmp`) — la primera confirmación en
-  vivo (no solo estática) de que el código identificado en sesiones
-  anteriores es efectivamente el que procesa estos archivos.
-- **Corrección metodológica real encontrada**: los nombres de símbolo que
-  `gdb`/`winedbg` muestran para direcciones de `gamma.dll` **no son
-  fiables** — la misma dirección que Ghidra (recién reabierto sobre el
-  binario exacto, `analysis/GammaDLL.gpr`, para verificar) confirma como
-  `FUN_00442750` (una función interna real) aparecía en `gdb` etiquetada
-  como `_Java_NET_worlds_core_SystemInfo_GetProcessorType@8+736` — un
-  export completamente distinto y no relacionado. La aritmética de
-  direcciones (`base_runtime - ImageBase_preferido + VA_estática`) es
-  correcta y reproducible entre ejecuciones (`gamma.dll` carga siempre en
-  `0x03A40000` en este entorno); lo que no hay que hacer es fiarse de la
-  etiqueta que `gdb` imprime — hay que verificar contra Ghidra directamente.
+  String)` — signatures confirmed with `javap` against the REAL classes of
+  `assets/worlds.jar`, not assumed) and call them directly. These
+  classes are run under the period JRE included in the project
+  (`assets/WorldsPlayer/bin/java.exe`, Java 1.4.2_05) — the same binary
+  the real client would have used. Necessary trick: a modern `javac` cannot
+  emit such old bytecode (minimum `--release 8`, classfile 52, which
+  1.4.2 rejects), so it is compiled with `--release 8` and the
+  major-version byte of the `.class` is patched by hand (52→48) — safe
+  because the source code is deliberately trivial (no generics, no string
+  concatenation with `+`, no autoboxing — nothing that depends on runtime
+  classes later than 1.4).
+- **Confirmed real, with live execution**: a breakpoint at
+  `FUN_00442750` (the header validator already located by static
+  analysis) IS reached when invoking `loadImage()` with a real `.cmp`, and
+  an instruction-by-instruction dump with real register values
+  shows the function really opening and reading the file (a real `ReadFile`
+  against the real bytes of the `.cmp`) — the first live (not only static)
+  confirmation that the code identified in earlier sessions is indeed
+  the one that processes these files.
+- **Real methodological correction found**: the symbol names that
+  `gdb`/`winedbg` show for addresses of `gamma.dll` **are not
+  reliable** — the same address that Ghidra (freshly reopened on the
+  exact binary, `analysis/GammaDLL.gpr`, to verify) confirms as
+  `FUN_00442750` (a real internal function) appeared in `gdb` labeled
+  as `_Java_NET_worlds_core_SystemInfo_GetProcessorType@8+736` — a
+  completely different and unrelated export. The address arithmetic
+  (`runtime_base - preferred_ImageBase + static_VA`) is
+  correct and reproducible between runs (`gamma.dll` always loads at
+  `0x03A40000` in this environment); what must not be done is to trust the
+  label that `gdb` prints — one has to verify against Ghidra directly.
 
-### El bloqueo real: no es el algoritmo, es la ventana/dispositivo gráfico
+### The real blocker: it is not the algorithm, it is the window/graphics device
 
-`loadImage()` con `IDLE.CMP` (modo `0x06`, atípico) vuelve rápido con
-`width=height=hDIB=0` — evidencia de que ese modo toma una rama de salida
-temprana, no de que el decoder falle. Con un archivo "normal" (modo
-`0x02`, `ADWORLDS.CMP` — exactamente el tipo de archivo simple que se
-pidió probar primero) y también con `ScapePicTexture.makeTexture()` (la
-función que, según la documentación de sesiones anteriores, es la que de
-verdad invoca `getScanline`/`FUN_00442bc0`), la ejecución real SÍ avanza
-más allá del parseo de cabecera — pero antes de llegar a
-`FUN_00442bc0`/`FUN_00457d88` entra en la inicialización de un dispositivo
-DirectDraw/OpenGL y una ventana real, que en este entorno concreto (Wine
-bajo Xwayland sandboxed, sin aceleración gráfica real) **se cuelga
-indefinidamente** — confirmado repetidas veces, con y sin depurador
-adjunto, con timeouts de hasta 150 segundos, con evidencia de bytes reales
-(`err:clipboard:convert_selection Timed out waiting for SelectionNotify
-event`, `libEGL warning: egl: failed to create dri2 screen`, y una
-interrupción asíncrona durante el cuelgue que mostró un hilo esperando una
-sección crítica del propio cargador de Wine bloqueada por otro hilo — un
-patrón de contención de arranque de dispositivo/ventana bajo Wine, no un
-bucle infinito dentro de la lógica de `gamma.dll` en sí). Se probaron
-mitigaciones razonables (matar `wineserver` residual de ejecuciones
-previas interrumpidas, modo de escritorio virtual de Wine
-`explorer /desktop=...`) sin éxito dentro del tiempo disponible de esta
-sesión.
+`loadImage()` with `IDLE.CMP` (mode `0x06`, atypical) returns quickly with
+`width=height=hDIB=0` — evidence that that mode takes an early exit branch,
+not that the decoder fails. With a "normal" file (mode
+`0x02`, `ADWORLDS.CMP` — exactly the type of simple file that was asked to
+be tried first) and also with `ScapePicTexture.makeTexture()` (the
+function that, according to the documentation of earlier sessions, is the one
+that really invokes `getScanline`/`FUN_00442bc0`), the real execution DOES
+advance beyond the header parsing — but before reaching
+`FUN_00442bc0`/`FUN_00457d88` it enters the initialization of a
+DirectDraw/OpenGL device and a real window, which in this particular
+environment (Wine under sandboxed Xwayland, without real graphics
+acceleration) **hangs indefinitely** — confirmed repeatedly, with and
+without an attached debugger, with timeouts of up to 150 seconds, with evidence
+of real bytes (`err:clipboard:convert_selection Timed out waiting for SelectionNotify
+event`, `libEGL warning: egl: failed to create dri2 screen`, and an
+asynchronous interrupt during the hang that showed a thread waiting on a
+critical section of Wine's own loader held by another thread — a
+device/window startup contention pattern under Wine, not an infinite
+loop inside the logic of `gamma.dll` itself). Reasonable mitigations were
+tried (killing the leftover `wineserver` from previous interrupted runs, Wine's
+virtual desktop mode
+`explorer /desktop=...`) without success within the time available in this
+session.
 
-**Conclusión honesta**: la ambigüedad original (aritmética de acarreo +
-escritura de doble fila en `FUN_00457d88`) **sigue sin resolverse** —
-no por falta de intentarlo con evidencia de ejecución real, sino porque
-este entorno concreto no permite llegar tan lejos en la ejecución real del
-decoder. No se implementó el decoder en Java (habría significado inventar
-la parte no verificada, exactamente lo que se pidió evitar), y por lo
-tanto tampoco se conectó ningún decoder al pipeline de materiales del
-motor — no hay nada real que conectar todavía.
+**Honest conclusion**: the original ambiguity (carry arithmetic +
+double-row write in `FUN_00457d88`) **remains unresolved** —
+not for lack of trying with real execution evidence, but because
+this particular environment does not allow getting that far in the real
+execution of the decoder. The decoder was not implemented in Java (it
+would have meant inventing the unverified part, exactly what was asked to
+be avoided), and therefore no decoder was connected to the engine's
+materials pipeline either — there is nothing real to connect yet.
 
-### Siguiente paso concreto para una futura sesión
+### Concrete next step for a future session
 
-1. Repetir el arnés de `tools/gamma-dll-debug-harness/` en un entorno con
-   acceso real a GPU/DRI o con un gestor de ventanas real disponible — el
-   propio README documenta el bloqueo exacto para no tener que
-   redescubrirlo. Si el cuelgue desaparece ahí, el resto del plan original
-   (single-step por `FUN_00442bc0`/`FUN_00457d88` con valores reales) sigue
-   siendo el camino correcto y ahora hay un entorno de depuración ya
-   verificado y funcional para hacerlo, en vez de partir de cero.
-2. Alternativa si el bloqueo persiste: investigar si existe alguna forma
-   de invocar `FUN_00442bc0`/`FUN_00457d88` sin pasar por la creación real
-   de dispositivo/ventana (p.ej. llamando las funciones internas
-   directamente desde `gdb` con un objeto `this` construido a mano una vez
-   se conozca su layout con más precisión) — no intentado esta sesión por
-   el riesgo de invertir mucho tiempo en una reconstrucción de layout sin
-   evidencia suficiente.
-3. Una vez con eso claro, implementar en Java el predictor causal 2D ya
-   identificado (copiar valor de uno de los ~50 vecinos de la tabla real
-   extraída, o repetir un literal N veces) y verificar dimensiones +
-   tamaño de salida esperado antes de aceptar cualquier píxel como bueno.
-4. Verificar contra los 17 archivos `.cmp` reales del proyecto y, si
-   aparece, contra el material RWX que los referencia.
+1. Repeat the harness of `tools/gamma-dll-debug-harness/` in an environment
+   with real GPU/DRI access or with a real window manager available — the
+   README itself documents the exact blocker so that it does not have to be
+   rediscovered. If the hang disappears there, the rest of the original plan
+   (single-step through `FUN_00442bc0`/`FUN_00457d88` with real values) is
+   still the right path and now there is an already verified and working
+   debugging environment to do it, instead of starting from scratch.
+2. Alternative if the blocker persists: investigate whether there is any way
+   to invoke `FUN_00442bc0`/`FUN_00457d88` without going through the real
+   creation of the device/window (e.g. calling the internal functions
+   directly from `gdb` with a hand-built `this` object once its layout is
+   known more precisely) — not attempted this session because of the
+   risk of investing a lot of time in a layout reconstruction without
+   sufficient evidence.
+3. Once that is clear, implement in Java the 2D causal predictor already
+   identified (copy the value of one of the ~50 neighbors of the real
+   extracted table, or repeat a literal N times) and verify dimensions +
+   expected output size before accepting any pixel as good.
+4. Verify against the project's 17 real `.cmp` files and, if it
+   shows up, against the RWX material that references them.
 
 ---
 
-## Sesión de desbloqueo (2026-09-10): Xvfb desbloquea el cuelgue de
-## ventana/dispositivo — ambigüedad de acarreo y doble fila RESUELTAS con
-## ejecución real
+## Unblocking session (2026-09-10): Xvfb unblocks the window/device
+## hang — carry and double-row ambiguity RESOLVED with real
+## execution
 
-Punto de partida: la sesión anterior construyó un entorno de depuración
-dinámica real (Wine + `winedbg --gdb`) pero se bloqueó porque cualquier
-camino de ejecución que pasara del parseo de cabecera hacia el decoder de
-píxeles disparaba creación de ventana/dispositivo DirectDraw/OpenGL, que
-se colgaba indefinidamente en el sandbox (sin X real, sin gestor de
-ventanas).
+Starting point: the previous session built a real dynamic debugging
+environment (Wine + `winedbg --gdb`) but got blocked because any
+execution path that went past the header parsing toward the pixel decoder
+triggered the creation of a DirectDraw/OpenGL window/device, which
+hung indefinitely in the sandbox (no real X, no window manager).
 
-### El desbloqueo: Xvfb solo, sin gestor de ventanas
+### The unblock: Xvfb alone, no window manager
 
-Se arrancó `Xvfb :99 -screen 0 1024x768x24` (mismo patrón que la sesión
-del `HeadlessException` de Swing, varias sesiones atrás) y se exportó
-`DISPLAY=:99` para Wine. **Esto solo bastó** — no hizo falta ningún
-gestor de ventanas (`fluxbox`/`openbox`/etc. no están instalados en este
-entorno y no se pudieron instalar por falta de `sudo`, pero no hicieron
-falta). Con `ScapePicImage.loadImage()` sobre un archivo "normal"
-(`ADWORLDS.CMP`, modo `0x02`, el tipo de archivo simple pedido) el
-proceso ya no se cuelga: termina limpio (`EXIT 0`) y devuelve
-**`width=128, height=128, hDIB=0x0309004D`** — la primera decodificación
-real y exitosa obtenida en todas las sesiones de este proyecto sobre
-`.cmp`. (El arnés `ScapePicTexture.makeTexture()` de la sesión anterior sí
-sigue fallando bajo Xvfb, pero con un error DISTINTO y no relacionado con
-ventanas — `Assertion failed: line 98 in file nScapePicTexture` durante
-`nativeInit()`, consistente con que el arnés minimalista de esa clase no
-replica todos los campos que el código nativo espera; irrelevante para
-esta sesión porque `loadImage()` solo, sin `makeTexture()`, ya alcanza y
-ejecuta el decoder de píxeles real.)
+`Xvfb :99 -screen 0 1024x768x24` was started (same pattern as the session
+of the Swing `HeadlessException`, several sessions back) and
+`DISPLAY=:99` was exported for Wine. **This alone was enough** — no window
+manager was needed (`fluxbox`/`openbox`/etc. are not installed in this
+environment and could not be installed for lack of `sudo`, but they were
+not needed). With `ScapePicImage.loadImage()` on a "normal" file
+(`ADWORLDS.CMP`, mode `0x02`, the simple type of file asked for) the
+process no longer hangs: it finishes cleanly (`EXIT 0`) and returns
+**`width=128, height=128, hDIB=0x0309004D`** — the first real,
+successful decode obtained in all the sessions of this project on
+`.cmp`. (The `ScapePicTexture.makeTexture()` harness of the previous session
+does still fail under Xvfb, but with a DIFFERENT error unrelated to
+windows — `Assertion failed: line 98 in file nScapePicTexture` during
+`nativeInit()`, consistent with the minimalist harness of that class not
+replicating all the fields that the native code expects; irrelevant for
+this session because `loadImage()` alone, without `makeTexture()`, already
+reaches and runs the real pixel decoder.)
 
-Con el entorno desbloqueado, un breakpoint puesto en `FUN_00442750`
-(validador de cabecera), `FUN_00442bc0` (`getScanline`) y `FUN_00457d88`
-(reconstructor de píxeles) — las tres direcciones ya identificadas por
-sesiones anteriores — **se alcanzan las tres, en orden, durante una sola
-llamada a `loadImage()`** (no hace falta `ScapePicTexture.makeTexture()`
-después de todo). Direcciones runtime confirmadas otra vez estables
-(`gamma.dll` sigue cargando siempre en `0x03A40000` en este entorno):
+With the environment unblocked, a breakpoint placed at `FUN_00442750`
+(header validator), `FUN_00442bc0` (`getScanline`) and `FUN_00457d88`
+(pixel reconstructor) — the three addresses already identified by
+earlier sessions — **all three are reached, in order, during a single call
+to `loadImage()`** (`ScapePicTexture.makeTexture()` is not needed
+afterwards after all). Runtime addresses confirmed stable once
+more (`gamma.dll` still always loads at `0x03A40000` in this environment):
 `0x03A82750`, `0x03A82BC0`, `0x03A97D88`.
 
-### Ambigüedad #1 resuelta: "aritmética de acarreo" = lectura de bits
-### MSB-primero, no aritmética multi-precisión
+### Ambiguity #1 resolved: "carry arithmetic" = MSB-first bit reading,
+### not multi-precision arithmetic
 
-Traza real de 900 instrucciones (single-step completo, con EFLAGS y los
-8 registros generales en cada paso) capturada desde la entrada de
-`FUN_00457d88`. **Cero instrucciones `ADC`/`SBB` reales aparecen en la
-traza** — lo que Ghidra marcaba como `CARRY4` en su pseudocódigo resulta
-ser el patrón clásico de "leer un bit a la vez de un registro de
-desplazamiento" mediante `add %edx,%edx` (equivalente a `shl $1,%edx`)
-seguido de `jb`/`jae`/`je` sobre el flag de acarreo resultante — el bit
-que "se cae" de la posición 31 al desplazar queda en `CF`, y el código
-lo usa para caminar un árbol de Huffman de 2-3 niveles mediante saltos
-condicionales encadenados (no una tabla de búsqueda por prefijo en esta
-parte — la tabla de búsqueda de LHA ya identificada sirve para otra
-etapa). Antes de este bucle, el registro de 32 bits recién leído del
-stream se pasa por `rol $0x10,%edx` (intercambia las dos mitades de 16
-bits) — corrección de orden de bytes necesaria para que la extracción de
-bits MSB-primero funcione sobre una palabra leída en little-endian.
-**No hay ninguna aritmética de acarreo multi-palabra real** — la
-ambigüedad original queda resuelta: es el lector de bits canónico de
-LHA/Huffman ya documentado en sesiones anteriores, aplicado aquí con
-total literalidad.
+Real trace of 900 instructions (full single-step, with EFLAGS and the
+8 general registers at each step) captured from the entry of
+`FUN_00457d88`. **Zero real `ADC`/`SBB` instructions appear in the
+trace** — what Ghidra flagged as `CARRY4` in its pseudocode turns out
+to be the classic pattern of "reading one bit at a time from a shift
+register" by means of `add %edx,%edx` (equivalent to `shl $1,%edx`)
+followed by `jb`/`jae`/`je` on the resulting carry flag — the bit
+that "falls off" position 31 when shifting is left in `CF`, and the code
+uses it to walk a 2-3 level Huffman tree through chained
+conditional jumps (not a prefix lookup table in this
+part — the LHA lookup table already identified serves another
+stage). Before this loop, the 32-bit register just read from the
+stream is passed through `rol $0x10,%edx` (swaps the two 16-bit
+halves) — a byte-order correction needed so that MSB-first extraction of
+bits works on a word read in little-endian.
+**There is no real multi-word carry arithmetic** — the original
+ambiguity is resolved: it is the canonical LHA/Huffman bit reader already
+documented in earlier sessions, applied here with complete
+literalness.
 
-### Ambigüedad #2 resuelta: la "escritura de doble fila" es una
-### duplicación vertical deliberada de 2 filas por símbolo
+### Ambiguity #2 resolved: the "double-row write" is a deliberate
+### vertical duplication of 2 rows per symbol
 
-Evidencia real, dirección por dirección, de AMBOS caminos de símbolo que
-escriben píxeles (relleno de "run" y copia por predictor):
-
-```
-; relleno (run-fill), tras obtener un valor de 4 bytes ya replicado
-; (dx=cx=bx=ax, vía el manejador de reparto trivial de PTR_LAB_00483844)
-mov %dx,(%edi)           ; escribe 2 bytes en la fila ACTUAL
-mov %cx,0x2(%edi)        ; escribe 2 bytes más en la fila ACTUAL (4 en total)
-add DAT_3ac2d05,%edi     ; edi += stride  (DAT_3ac2d05 = -128 para esta imagen)
-mov %bx,(%edi)           ; escribe 2 bytes en la OTRA fila (edi+stride)
-mov %ax,0x2(%edi)        ; escribe 2 bytes más en la OTRA fila (4 en total)
-sub DAT_3ac2d05,%edi     ; edi -= stride  (vuelve a la fila actual)
-```
+Real evidence, address by address, of BOTH symbol paths that
+write pixels (run fill and copy by predictor):
 
 ```
-; copia por predictor 2D (tabla en 0x3ac2d0d, ver más abajo)
-mov 0x3ac2d0d(,%ebx,4),%ebx  ; ebx = tabla[índice] = desplazamiento de bytes del vecino
-mov (%ebx,%edi,1),%eax        ; lee 4 bytes del vecino predicho
-mov %eax,(%edi)                ; los escribe en la fila ACTUAL
+; fill (run-fill), after obtaining an already replicated 4-byte value
+; (dx=cx=bx=ax, via the trivial dispatch handler of PTR_LAB_00483844)
+mov %dx,(%edi)           ; writes 2 bytes in the CURRENT row
+mov %cx,0x2(%edi)        ; writes 2 more bytes in the CURRENT row (4 in total)
+add DAT_3ac2d05,%edi     ; edi += stride  (DAT_3ac2d05 = -128 for this image)
+mov %bx,(%edi)           ; writes 2 bytes in the OTHER row (edi+stride)
+mov %ax,0x2(%edi)        ; writes 2 more bytes in the OTHER row (4 in total)
+sub DAT_3ac2d05,%edi     ; edi -= stride  (back to the current row)
+```
+
+```
+; copy by 2D predictor (table at 0x3ac2d0d, see below)
+mov 0x3ac2d0d(,%ebx,4),%ebx  ; ebx = table[index] = byte offset of the neighbor
+mov (%ebx,%edi,1),%eax        ; reads 4 bytes of the predicted neighbor
+mov %eax,(%edi)                ; writes them in the CURRENT row
 rol $0x8,%eax
-mov %al,(%esi)                  ; 1 byte al buffer de salida de "paleta" (esi)
+mov %al,(%esi)                  ; 1 byte to the "palette" output buffer (esi)
 add DAT_3ac2d05,%edi            ; edi += stride
-mov (%edi,%ebx,1),%eax          ; lee 4 bytes del vecino, esta vez relativo a la OTRA fila
-mov %eax,(%edi)                  ; los escribe en la OTRA fila
-sub DAT_3ac2d05,%edi              ; vuelve a la fila actual
+mov (%edi,%ebx,1),%eax          ; reads 4 bytes of the neighbor, this time relative to the OTHER row
+mov %eax,(%edi)                  ; writes them in the OTHER row
+sub DAT_3ac2d05,%edi              ; back to the current row
 rol $0x8,%eax
-mov %al,0x1(%esi)                   ; siguiente byte de salida
+mov %al,0x1(%esi)                   ; next output byte
 ```
 
-**Confirmado con evidencia real: cada símbolo (relleno o copia por
-predictor) escribe el mismo bloque de 4 bytes en DOS filas separadas por
-exactamente un `stride`** — no es limpieza de un buffer de scratch ni un
-efecto colateral accidental; es la operación central del símbolo. Dado
-que el stride es negativo (DIB "bottom-up") y todo el resto de la
-evidencia (tabla de predictores con desplazamientos de fila hasta -4,
-más abajo) indica que la imagen se decodifica en el sentido estándar
-top-to-bottom mientras el buffer físico crece hacia direcciones más
-bajas, la interpretación más consistente es que **cada símbolo pinta un
-bloque de 4×2 píxeles (4 de ancho, 2 filas de alto) con el mismo valor
-de una sola vez** — una optimización de compresión deliberada que
-explota la coherencia vertical típica de texturas de superficies lisas,
-no una construcción auxiliar. (Alternativa no descartada del todo: que
-sea una pre-siembra de la fila siguiente antes de decodificarla — en
-cualquier caso, el hecho verificado y relevante para implementar el
-decoder es el MISMO: escribir el bloque en `edi` y en `edi±stride` a la
-vez.)
+**Confirmed with real evidence: each symbol (fill or copy by
+predictor) writes the same 4-byte block into TWO rows separated by
+exactly one `stride`** — it is not the cleaning of a scratch buffer nor an
+accidental side effect; it is the central operation of the symbol. Given
+that the stride is negative ("bottom-up" DIB) and all the rest of the
+evidence (predictor table with row offsets down to -4,
+below) indicates that the image is decoded in the standard
+top-to-bottom direction while the physical buffer grows toward lower
+addresses, the most consistent interpretation is that **each symbol paints a
+block of 4×2 pixels (4 wide, 2 rows high) with the same value
+at once** — a deliberate compression optimization that
+exploits the vertical coherence typical of textures of smooth surfaces,
+not an auxiliary construction. (Alternative not entirely ruled out: that
+it is a pre-seeding of the next row before decoding it — in
+any case, the verified fact relevant to implementing the
+decoder is the SAME: write the block at `edi` and at `edi±stride` at
+once.)
 
-### Bonus: la tabla de predictores en runtime coincide EXACTA con la
-### tabla estática ya extraída, con la fórmula de conversión corregida
+### Bonus: the runtime predictor table matches EXACTLY the
+### static table already extracted, with the conversion formula corrected
 
-Se volcó la tabla real que `FUN_00457d88` usa en `0x3ac2d0d` (24 dwords,
-memoria en vivo, no inferida):
+The real table that `FUN_00457d88` uses at `0x3ac2d0d` was dumped
+(24 dwords, live memory, not inferred):
 
 ```
 0x3ac2d0d: 0x00000000 0xfffffffa 0xfffffffb 0xfffffffc
@@ -471,1104 +467,1092 @@ memoria en vivo, no inferida):
 0x3ac2d5d: 0x00000181 0x00000182 0x00000183 0x00000184
 ```
 
-Comparado contra la tabla estática de `(desplazamiento_fila,
-desplazamiento_columna)` ya extraída de `0x478e98` en una sesión anterior
-(`docs/gamma-dll-cmp-evidence/predictor-offset-tables.txt`), **cada
-entrada coincide exactamente** con la fórmula
-`offset = colDelta + stride·rowDelta` (con `stride=-128` para esta
-imagen) — por ejemplo `(0,-6)→-6`, `(-4,0)→0+(-128)·(-4)=512=0x200`,
-`(-4,6)→6+512=518=0x206`, `(-4,-6)→-6+512=506=0x1FA`. **Corrección real
-frente a la sesión anterior**: la fórmula tentativa documentada entonces
-era `offset = colDelta - stride·rowDelta` (con un signo negativo) — la
-ejecución real confirma que es `colDelta + stride·rowDelta` (sin negar).
-Esto conecta de forma sólida, con evidencia de dos sesiones distintas
-(extracción estática de la tabla + uso real en ejecución), el mecanismo
-de predicción 2D documentado desde el principio.
+Compared against the static table of `(row_offset,
+column_offset)` already extracted from `0x478e98` in an earlier session
+(`docs/gamma-dll-cmp-evidence/predictor-offset-tables.txt`), **every
+entry matches exactly** the formula
+`offset = colDelta + stride·rowDelta` (with `stride=-128` for this
+image) — for example `(0,-6)→-6`, `(-4,0)→0+(-128)·(-4)=512=0x200`,
+`(-4,6)→6+512=518=0x206`, `(-4,-6)→-6+512=506=0x1FA`. **Real correction
+relative to the previous session**: the tentative formula documented then
+was `offset = colDelta - stride·rowDelta` (with a negative sign) — the real
+execution confirms that it is `colDelta + stride·rowDelta` (not negated).
+This connects solidly, with evidence from two different sessions (static
+extraction of the table + real use in execution), the 2D prediction
+mechanism documented from the beginning.
 
-### Ground truth real capturado: fila 0 decodificada, byte a byte
+### Real ground truth captured: row 0 decoded, byte by byte
 
-Se volcó la fila de salida real (128 bytes, apuntada por `esi` =
-`0xc(%ebp)`) justo al retornar de la ÚNICA llamada real a `FUN_00457d88`
-durante un `loadImage()` de `ADWORLDS.CMP` (128×128): **los 128 bytes
-son `0xAD` constante** — coincide exactamente con el patrón
-`0xadadadad` visto repetido por todo el resto de la traza (el valor
-replicado por el manejador de reparto trivial), confirmando de forma
-cruzada que esta fila se decodificó enteramente por el camino de
-"relleno" (run-fill). Guardado como evidencia cruda en
-`docs/gamma-dll-cmp-evidence/adworlds-row0-dump.txt` para verificar
-contra una futura reimplementación en Java.
+The real output row (128 bytes, pointed to by `esi` =
+`0xc(%ebp)`) was dumped right upon returning from the ONLY real call to
+`FUN_00457d88` during a `loadImage()` of `ADWORLDS.CMP` (128×128): **the
+128 bytes are constant `0xAD`** — it matches exactly the pattern
+`0xadadadad` seen repeated throughout the rest of the trace (the value
+replicated by the trivial dispatch handler), cross-confirming that
+this row was decoded entirely via the "fill" path (run-fill). Saved
+as raw evidence in
+`docs/gamma-dll-cmp-evidence/adworlds-row0-dump.txt` to verify
+against a future Java reimplementation.
 
-### Corrección real importante: `FUN_00457d88` se invoca UNA sola vez
-### por `loadImage()`, no una vez por fila
+### Important real correction: `FUN_00457d88` is invoked ONLY ONCE
+### per `loadImage()`, not once per row
 
-Con los 3 breakpoints (`FUN_00442750`, `FUN_00442bc0`/`getScanline`,
-`FUN_00457d88`) armados, los tres se alcanzan **exactamente una vez cada
-uno** durante todo un `loadImage()` completo — el proceso termina
-normalmente sin volver a golpear ninguno, incluso para una imagen de 128
-filas. Esto corrige la asunción inicial de esta sesión ("una llamada =
-una fila decodificada por `ch`, contador de grupos de 4 píxeles"): con
-`ch=32` y ancho=128 (`128/4=32`), esa aritmética SÍ encaja para una sola
-fila, pero la evidencia de una única invocación total apuntaba a que, o
-bien (a) esta llamada decodifica la imagen COMPLETA en un bucle externo
-más allá de las 900 instrucciones trazadas, o bien (b) `loadImage()` en
-sí solo materializa una fila representativa y el resto se decodifica más
-tarde vía `makeTexture()`.
+With the 3 breakpoints (`FUN_00442750`, `FUN_00442bc0`/`getScanline`,
+`FUN_00457d88`) armed, all three are reached **exactly once each**
+during an entire `loadImage()` — the process ends normally without
+hitting any of them again, even for an image of 128
+rows. This corrects the initial assumption of this session ("one call =
+one row decoded per `ch`, a counter of groups of 4 pixels"): with
+`ch=32` and width=128 (`128/4=32`), that arithmetic DOES fit for a single
+row, but the evidence of a single total invocation pointed to the fact that
+either (a) this call decodes the COMPLETE image in an outer loop
+beyond the 900 traced instructions, or (b) `loadImage()` itself only
+materializes one representative row and the rest is decoded later via
+`makeTexture()`.
 
-**Resuelto a favor de (a), con evidencia adicional**: se extendió la
-traza a 6000 instrucciones (solo registrando el PC en cada paso, sin
-volcar registros completos, para mantenerla manejable), comprobando en
-cada paso si `ESP` volvía a subir por encima de su valor de entrada (lo
-que indicaría un `ret` real de vuelta al llamador) y si el `PC` volvía a
-`0x03A97D88` (una reentrada real a la función). **Ninguna de las dos
-cosas ocurrió en 6000 instrucciones** — la ejecución sigue dentro de la
-función (`PC` final `0x03a97e31`, dentro del mismo rango de direcciones
-ya visto). Dado que decodificar una sola fila de 128 píxeles a ~4 por
-símbolo con ~20-30 instrucciones por símbolo encajaría en unas 700-900
-instrucciones (justo donde se cortó la primera traza), y aun así a las
-6000 sigue sin retornar, la explicación mucho más consistente es que
-**una sola llamada a `FUN_00457d88` decodifica la imagen COMPLETA
-(las 128 filas), no una fila suelta** — coherente con que `getScanline`
-solo necesite invocar al decoder una vez y luego sirva cada fila
-posterior devolviendo punteros al buffer ya completamente decodificado.
-No se llegó a presenciar el `ret` real (habría hecho falta trazar
-decenas de miles de instrucciones más, coste no justificado para esta
-sesión), así que esto queda como una inferencia fuerte respaldada por
-evidencia negativa real (ausencia de retorno/reentrada en 6000 pasos),
-no como observación directa del `ret`.
+**Resolved in favor of (a), with additional evidence**: the trace was
+extended to 6000 instructions (only recording the PC at each step, without
+dumping complete registers, to keep it manageable), checking at
+each step whether `ESP` rose again above its entry value (which would
+indicate a real `ret` back to the caller) and whether the `PC` returned to
+`0x03A97D88` (a real re-entry into the function). **Neither of the two
+things happened in 6000 instructions** — execution continues inside the
+function (final `PC` `0x03a97e31`, within the same address range
+already seen). Given that decoding a single row of 128 pixels at ~4 per
+symbol with ~20-30 instructions per symbol would fit in about 700-900
+instructions (right where the first trace was cut), and even so at 6000 it
+still does not return, the much more consistent explanation is that
+**a single call to `FUN_00457d88` decodes the COMPLETE image
+(all 128 rows), not a single row** — consistent with `getScanline`
+only needing to invoke the decoder once and then serve each
+subsequent row by returning pointers into the already fully decoded
+buffer. The real `ret` was not witnessed (it would have been necessary to
+trace tens of thousands more instructions, a cost not justified for this
+session), so this remains a strong inference backed by real negative
+evidence (absence of return/re-entry in 6000 steps),
+not a direct observation of the `ret`.
 
-### Qué queda genuinamente sin verificar
+### What remains genuinely unverified
 
-- El significado exacto del byte centinela `0x24` (36 decimal) que
-  provoca una salida temprana de la rama de "control byte" no se
-  investigó más allá de confirmar que existe.
-- El espacio completo de símbolos del árbol de Huffman interno (solo se
-  trazaron las ramas que esta fila concreta, toda plana, llegó a
-  ejercitar — un archivo con más variación de píxeles ejercitaría más
-  ramas y podría revelar comportamiento no visto aquí).
-- Un decoder Java todavía no se implementó ni se verificó contra el
-  ground truth real capturado — dado que las dos ambigüedades
-  específicas que motivaron esta sesión (aritmética de acarreo, doble
-  fila) SÍ están resueltas, y la granularidad de llamada también quedó
-  razonablemente aclarada (una llamada decodifica la imagen completa),
-  pero el espacio de símbolos completo del árbol de Huffman NO — solo se
-  ejercitaron las ramas que una fila totalmente plana llegó a tocar —
-  implementar ahora arriesgaría exactamente lo que el proyecto prohíbe:
-  producir píxeles con aspecto plausible pero no verificados. Próximo
-  paso concreto y honesto para una futura sesión: trazar 2-3 archivos
-  `.cmp` reales adicionales con contenido no plano (para ejercitar más
-  ramas del árbol de símbolos, incluyendo el camino de copia por
-  predictor 2D y el byte centinela `0x24`) antes de escribir el decoder.
+- The exact meaning of the sentinel byte `0x24` (36 decimal) that
+  causes an early exit from the "control byte" branch was not
+  investigated beyond confirming that it exists.
+- The full symbol space of the internal Huffman tree (only the
+  branches that this particular row, entirely flat, happened to exercise
+  were traced — a file with more pixel variation would exercise more
+  branches and could reveal behavior not seen here).
+- A Java decoder was not yet implemented or verified against the
+  real ground truth captured — given that the two
+  specific ambiguities that motivated this session (carry arithmetic, double
+  row) ARE resolved, and the call granularity was also reasonably
+  clarified (one call decodes the complete image),
+  but the full symbol space of the Huffman tree is NOT — only the
+  branches that a completely flat row happened to touch were
+  exercised — implementing now would risk exactly what the project
+  prohibits: producing plausible-looking but unverified pixels. Concrete and
+  honest next step for a future session: trace 2-3 additional real
+  `.cmp` files with non-flat content (to exercise more
+  branches of the symbol tree, including the 2D predictor copy path and
+  the sentinel byte `0x24`) before writing the decoder.
 
-**Conclusión**: las dos ambigüedades que motivaron toda la investigación
-dinámica de esta sesión y la anterior — aritmética de acarreo y
-propósito de la escritura de doble fila — están **resueltas con
-evidencia de ejecución real**, no solo hipótesis. Lo que falta para un
-decoder Java completo es trabajo de implementación y verificación
-adicional (no ambigüedad de diseño), documentado arriba como próximos
-pasos concretos.
+**Conclusion**: the two ambiguities that motivated all the dynamic
+research of this session and the previous one — carry arithmetic and
+purpose of the double-row write — are **resolved with real
+execution evidence**, not just hypotheses. What is missing for a complete
+Java decoder is additional implementation and verification work (not
+design ambiguity), documented above as concrete next steps.
 
 ---
 
-## Sesión de cierre (2026-09-10, continuación): árbol de símbolos ampliado
-## con archivos reales variados, `0x24` resuelto, decoder Java implementado
-## y parcialmente verificado — NO conectado al pipeline todavía
+## Closing session (2026-09-10, continuation): symbol tree widened
+## with varied real files, `0x24` resolved, Java decoder implemented
+## and partially verified — NOT connected to the pipeline yet
 
-Objetivo: cerrar el descompresor `.cmp` ejercitando el árbol de símbolos
-completo (no solo el caso trivial de fila plana de la sesión anterior),
-implementar el decoder en Java, y verificarlo byte a byte contra
-`gamma.dll` real antes de conectarlo al pipeline de materiales.
+Goal: close the `.cmp` decompressor by exercising the complete symbol tree
+(not just the trivial flat-row case of the previous session), implement
+the decoder in Java, and verify it byte by byte against the real
+`gamma.dll` before connecting it to the materials pipeline.
 
-### Corpus real variado localizado y confirmado no-plano
+### Varied real corpus located and confirmed non-flat
 
-De los 13 `.cmp` reales únicos del proyecto, se calculó la entropía de
-Shannon de cada uno como filtro barato antes de gastar ciclos de
-depuración: `ADWORLDS.CMP` (la fila ya analizada) tiene entropía 5.0,
-muy por debajo del resto (7.0-7.8), confirmando que era un caso
-degenerado. Se seleccionaron `4i.cmp`, `4h.cmp`, `48.cmp`, `4a.cmp` y
-`ADFRAME.CMP` (entropía 7.4-7.8) como candidatos reales no planos; los 5
-decodifican con éxito bajo Xvfb (128×128, `hDIB` real). Se volcó la fila 0
-real de `4i.cmp` y resultó genuinamente variada (9+ valores de byte
-distintos en 16 bytes, contra el `0xAD` constante de `ADWORLDS.CMP`) —
-corpus válido para ejercitar ramas nuevas del árbol de símbolos.
+Of the project's 13 unique real `.cmp` files, the Shannon entropy of each
+was computed as a cheap filter before spending debugging cycles:
+`ADWORLDS.CMP` (the row already analyzed) has entropy 5.0, far below
+the rest (7.0-7.8), confirming that it was a degenerate case.
+`4i.cmp`, `4h.cmp`, `48.cmp`, `4a.cmp` and
+`ADFRAME.CMP` (entropy 7.4-7.8) were selected as real non-flat candidates; all 5
+decode successfully under Xvfb (128×128, real `hDIB`). Row 0
+of `4i.cmp` was dumped and turned out to be genuinely varied (9+ distinct
+byte values in 16 bytes, versus the constant `0xAD` of `ADWORLDS.CMP`) —
+a valid corpus to exercise new branches of the symbol tree.
 
-### Corrección real importante: la granularidad de llamada de sesiones
-### anteriores era incorrecta — `ch` produce exactamente `ch×2` bytes,
-### no una fila ni la imagen completa
+### Important real correction: the call granularity of earlier sessions
+### was wrong — `ch` produces exactly `ch×2` bytes,
+### not a row nor the complete image
 
-La sesión anterior, al no ver un `ret` ni una reentrada en 6000
-instrucciones trazadas, infirió que una sola llamada a `FUN_00457d88`
-decodifica la imagen COMPLETA. Verificación real esta sesión (poniendo un
-breakpoint en la dirección de retorno real, calculada desde `*esp` al
-entrar a la función, en vez de asumir) muestra que **una llamada produce
-exactamente `ch×2` bytes de salida real** (`ch=32` en todos los archivos
-probados ⇒ 64 bytes = medio ancho de fila para una imagen de 128px) — ni
-una fila completa ni la imagen entera. Sesiones futuras que necesiten la
-imagen completa seguirán necesitando resolver `ScapePicTexture.
-makeTexture()` (ver más abajo) o entender cómo `getScanline` compone
-varias llamadas.
+The previous session, on not seeing a `ret` or a re-entry in 6000
+traced instructions, inferred that a single call to `FUN_00457d88`
+decodes the COMPLETE image. Real verification this session (placing a
+breakpoint at the real return address, computed from `*esp` on entering the
+function, instead of assuming) shows that **one call produces
+exactly `ch×2` bytes of real output** (`ch=32` in all the files
+tested ⇒ 64 bytes = half a row width for a 128px image) — neither
+a complete row nor the whole image. Future sessions that need the
+complete image will still need to resolve `ScapePicTexture.
+makeTexture()` (see below) or understand how `getScanline` composes
+several calls.
 
-### Espacio de símbolos completo, mapeado con evidencia real (viva y
-### estática)
+### Complete symbol space, mapped with real evidence (live and
+### static)
 
-Con el archivo variado (`4i.cmp`), una traza de 4000 instrucciones reveló
-**236 direcciones nuevas** nunca vistas en la traza plana de la sesión
-anterior. Analizadas con registros completos, revelan la estructura
-completa del árbol binario superior (2 bits reales, no 3 — el tercer
-salto que parecía un nivel adicional en realidad reevalúa el MISMO
-resultado de un único `add edx,edx`, leyendo el flag de acarreo y el
-flag de cero por separado):
+With the varied file (`4i.cmp`), a trace of 4000 instructions revealed
+**236 new addresses** never seen in the flat trace of the previous
+session. Analyzed with complete registers, they reveal the complete
+structure of the upper binary tree (2 real bits, not 3 — the third
+jump that seemed to be an additional level actually re-evaluates the SAME
+result of a single `add edx,edx`, reading the carry flag and the zero
+flag separately):
 
-- **bit1=0** → copia de predictor de 4 bytes (un índice, ya documentado
-  antes).
-- **bit1=1, bit2=0** → **copia de predictor DUAL de 2 bytes** (nueva):
-  dos índices independientes, uno por mitad de 2 píxeles del grupo de 4,
-  cada uno con su propia escritura de doble fila.
-- **bit1=1, bit2=1** → **rama de "byte de control"** (antes solo se había
-  visto el caso trivial de relleno de la fila plana): un byte de control
-  determina, según sus 3 bits bajos y los bits 3+, entre un par literal
-  directo, una referencia hacia atrás (`lookback`) dentro de la propia
-  fila de salida ya escrita, o una combinación de ambos.
+- **bit1=0** → 4-byte predictor copy (one index, already documented
+  before).
+- **bit1=1, bit2=0** → **DUAL 2-byte predictor copy** (new):
+  two independent indices, one per 2-pixel half of the group of 4,
+  each with its own double-row write.
+- **bit1=1, bit2=1** → **"control byte" branch** (before, only the trivial
+  fill case of the flat row had been seen): a control byte
+  determines, according to its low 3 bits and bits 3+, between a direct
+  literal pair, a back reference (`lookback`) inside the already written
+  output row itself, or a combination of both.
 
-**El byte centinela `0x24` (36 decimal) — buscado activamente, nunca
-apareció en vivo en los archivos probados (0 coincidencias en 58
-comparaciones reales), pero se resolvió con desensamblado estático
-fresco de Ghidra** de la dirección de destino (`0x00457fb0`): **NO es un
-marcador de fin de stream** como se sospechaba — es una **ruta de escape
-de literal crudo de 8 bytes**: lee 8 bytes directamente del stream de
-literales y los escribe como dos bloques de 4 bytes (uno por fila,
-mismo patrón de doble escritura que todo lo demás), sin pasar por la
-tabla de predictores en absoluto. Coherente con el resto del diseño: un
-mecanismo de escape genérico para contenido que no encaja en ningún
-patrón de predicción/relleno.
+**The sentinel byte `0x24` (36 decimal) — actively sought, never
+appeared live in the files tested (0 matches in 58 real
+comparisons), but resolved with fresh static disassembly from Ghidra** of
+the destination address (`0x00457fb0`): it is **NOT an end-of-stream
+marker** as suspected — it is an **8-byte raw literal escape path**: it reads
+8 bytes directly from the literal stream and writes them as two
+4-byte blocks (one per row, the same double-write pattern as
+everything else), without going through the predictor table at all.
+Consistent with the rest of the design: a generic escape mechanism for
+content that fits no prediction/fill pattern.
 
-**Hallazgo real no anticipado, encontrado depurando el primer intento de
-verificación fallido**: cada iteración de la rama "byte de control" que
-NO es `0x24` **también** consume, sin excepción, un byte del stream de
-índice de relleno (el mismo stream usado por el camino de relleno plano
-de la sesión anterior) y hace una escritura de difusión adicional (4
-copias del byte que acabó en la salida de esta iteración) hacia el
-historial — con el mismo patrón de doble fila que todo lo demás. Esto no
-se había documentado antes porque en el archivo plano de la sesión
-anterior era indistinguible de "no hacer nada" (el valor de difusión
-coincidía con el valor ya presente). Se encontró solo al verificar contra
-un archivo real con variación, cuando el decoder Java fallaba en TODOS
-los bytes hasta corregir esto.
+**Real unanticipated finding, found while debugging the first failed
+verification attempt**: every iteration of the "control byte" branch that
+is NOT `0x24` **also** consumes, without exception, a byte of the
+fill-index stream (the same stream used by the flat fill path of the
+previous session) and does an additional broadcast write (4
+copies of the byte that ended up in the output of this iteration) into the
+history — with the same double-row pattern as everything else. This had
+not been documented before because in the flat file of the previous
+session it was indistinguishable from "doing nothing" (the broadcast
+value matched the value already present). It was found only when
+verifying against a real file with variation, when the Java decoder
+failed on ALL the bytes until this was corrected.
 
-### Decoder Java implementado y verificado — parcialmente
+### Java decoder implemented and verified — partially
 
 `tools/gamma-dll-debug-harness/cmp-stage2-decoder/CmpStage2.java`
-implementa la Etapa 2 completa (símbolos ya decodificados por Huffman →
-píxeles reales) con toda la estructura de arriba. Verificado contra datos
-reales extraídos en vivo (streams + ventana de historial + salida real,
-todo del MISMO proceso en una sola ejecución, para evitar comparar entre
-ejecuciones distintas — un error real cometido y corregido durante esta
-sesión):
+implements the complete Stage 2 (symbols already Huffman-decoded →
+real pixels) with the whole structure above. Verified against
+real data extracted live (streams + history window + real output,
+all from the SAME process in a single run, to avoid comparing across
+different runs — a real mistake made and corrected during this
+session):
 
-- **`adworlds.cmp`**: 34/64 bytes exactos. Los 30 restantes son un único
-  bloque contiguo, y cada uno corresponde a una lectura de predictor con
-  desplazamiento >250 bytes hacia adelante — más allá de lo que un volcado
-  de memoria único puede capturar de forma fiable (el proceso real puede
-  seguir leyendo ahí sin fallar, probablemente por páginas comprometidas
-  de forma perezosa a medida que se escribe cerca; un volcado estático
-  de Python en un solo instante no puede reproducir eso). Limitación de
-  captura de datos, no evidencia de error de diseño — en este archivo
-  totalmente plano, CADA uno de esos bytes debería ser `0xAD` igual que
-  el resto, y el decoder los produce mal únicamamente porque mi
-  relleno-con-ceros ocupa el lugar de datos reales que no pude capturar.
-- **`4i.cmp`**: 55/64 bytes exactos. Los 9 restantes (posiciones 41-49)
-  se investigaron a fondo: la secuencia EXACTA de bytes de control y el
-  consumo de posición de stream de literales se verificaron, iteración
-  por iteración, contra una traza en vivo (26 iteraciones de "byte de
-  control" comparadas una a una, coincidencia perfecta), y el byte
-  literal específico que el decoder lee se confirmó en memoria viva en
-  la posición correcta — y aun así, el "ground truth" capturado para esas
-  posiciones concretas no coincide. No resuelto antes de que se agotara
-  el tiempo de esta sesión. Ver el método de captura de "ground truth" en
-  `tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md` — lo más
-  probable, dado lo demás verificado independientemente, es un problema
-  del propio método de captura, no del algoritmo, pero **no está
-  demostrado** y se documenta honestamente como abierto.
+- **`adworlds.cmp`**: 34/64 bytes exact. The remaining 30 are a single
+  contiguous block, and each one corresponds to a predictor read with an
+  offset >250 bytes forward — beyond what a single memory dump can
+  reliably capture (the real process may keep reading there without failing,
+  probably due to lazily committed pages as one writes nearby; a static
+  Python dump at a single instant cannot reproduce that). A data-capture
+  limitation, not evidence of a design error — in this completely flat
+  file, EACH of those bytes should be `0xAD` just like the rest, and the
+  decoder produces them wrong only because my zero-fill takes the place of
+  real data that I could not capture.
+- **`4i.cmp`**: 55/64 bytes exact. The remaining 9 (positions 41-49)
+  were investigated in depth: the EXACT sequence of control bytes and the
+  consumption of literal stream position were verified, iteration
+  by iteration, against a live trace (26 "control byte" iterations
+  compared one by one, perfect match), and the specific literal byte
+  that the decoder reads was confirmed in live memory at the correct
+  position — and even so, the "ground truth" captured for those specific
+  positions does not match. Not resolved before the time of this session
+  ran out. See the "ground truth" capture method in
+  `tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md` — the most
+  likely explanation, given everything else independently verified, is a
+  problem of the capture method itself, not of the algorithm, but **it has
+  not been demonstrated** and is honestly documented as open.
 
-### `ScapePicTexture.makeTexture()` — progreso real, sigue bloqueado
+### `ScapePicTexture.makeTexture()` — real progress, still blocked
 
-Se intentó de nuevo destrabar `makeTexture()` (necesario para decodificar
-una imagen completa, no solo 64 bytes) replicando con más fidelidad la
-jerarquía real de clases (`Texture` con `textureID`/`refs`/`classCookie`,
-`ScapePicMovie` con el tipo exacto). Esto SÍ avanzó el punto de fallo (de
-un `Assertion failed: line 98` a `line 99`, y finalmente a un
-`EXCEPTION_ACCESS_VIOLATION` real — más profundo en el código real que
-antes) pero no se resolvió del todo. No se investigó más allá por límite
-de tiempo de la sesión.
+An attempt was made again to unblock `makeTexture()` (needed to decode
+a complete image, not just 64 bytes) by replicating more faithfully the
+real class hierarchy (`Texture` with `textureID`/`refs`/`classCookie`,
+`ScapePicMovie` with the exact type). This DID advance the failure point (from
+`Assertion failed: line 98` to `line 99`, and finally to a real
+`EXCEPTION_ACCESS_VIOLATION` — deeper in the real code than
+before) but it was not fully resolved. It was not investigated further
+because of the session's time limit.
 
-### Por qué NO se conectó nada al pipeline de materiales esta sesión
+### Why nothing was connected to the materials pipeline this session
 
-Siguiendo la regla explícita del proyecto (nunca píxeles con aspecto
-plausible pero sin verificar), y dado que NINGÚN archivo real alcanzó
-verificación 100% byte-exacta (34/64 y 55/64, no 64/64), **no se conectó
-el decoder al pipeline de renderizado**. Habría sido fácil mostrar "algo"
-en pantalla, pero no se puede afirmar honestamente que sea la textura
-real hasta que la verificación sea completa. Próximo paso concreto y
-priorizado para una futura sesión: (1) mejorar el método de captura de
-ground truth (breakpoints reales en cada instrucción de escritura en vez
-de sondeo de `$pc` en cada `stepi` — más rápido y más fiable), (2)
-resolver el gap de 9 bytes de `4i.cmp` con datos más limpios, (3) una vez
-100% verificado en 2-3 archivos, conectar al pipeline y verificar por
-histograma de color que aparecen patrones de textura reales.
+Following the project's explicit rule (never plausible-looking but
+unverified pixels), and given that NO real file reached 100%
+byte-exact verification (34/64 and 55/64, not 64/64), **the decoder was
+not connected to the rendering pipeline**. It would have been easy to show
+"something" on screen, but it cannot honestly be claimed to be the
+real texture until the verification is complete. Concrete and prioritized next
+step for a future session: (1) improve the ground-truth capture method
+(real breakpoints at each write instruction instead of polling
+`$pc` on every `stepi` — faster and more reliable), (2)
+resolve the 9-byte gap of `4i.cmp` with cleaner data, (3) once
+100% verified on 2-3 files, connect to the pipeline and verify by
+color histogram that real texture patterns appear.
 
 ---
 
-## Sesión Stage 1 (2026-09-11): decodificador Huffman de verdad
-## desensamblado con evidencia real — arquitectura completa entendida,
-## el encadenado exacto entre "filas" sigue sin cerrar (NO funcional aún)
+## Stage 1 session (2026-09-11): the real Huffman decoder actually
+## disassembled with real evidence — complete architecture understood,
+## the exact chaining between "rows" is still not closed (NOT functional yet)
 
-Objetivo: implementar el Stage 1 real (bytes `.cmp` crudos → los 5
-streams de símbolos que `CmpStage2` ya consume byte-exacto), motivado
-por la necesidad de decodificar texturas reales de `GroundZero` (159
-archivos `.cmp` oficiales sin ninguna captura de streams previa — sin
-Stage 1, ninguno de ellos es decodificable). **No se cerró del todo**,
-pero se desensambló con evidencia real (Ghidra/`llvm-objdump`, sin
-adivinar) una cadena mucho más larga de lo que había antes, incluyendo
-**el decodificador de bits real completo**, y se documenta todo aquí con
-precisión byte a byte para que una sesión futura no tenga que repetir
-este trabajo.
+Goal: implement the real Stage 1 (raw `.cmp` bytes → the 5
+symbol streams that `CmpStage2` already consumes byte-exactly), motivated
+by the need to decode real `GroundZero` textures (159
+official `.cmp` files with no prior stream capture — without Stage 1, none
+of them is decodable). **It was not fully closed**,
+but a much longer chain than before was disassembled with real evidence
+(Ghidra/`llvm-objdump`, no guessing), including
+**the complete real bit decoder**, and everything is documented here with
+byte-by-byte precision so that a future session does not have to repeat
+this work.
 
-### Cabecera de 34 bytes — layout completo, verificado contra los 3
-### archivos reales conocidos
+### 34-byte header — complete layout, verified against the 3
+### known real files
 
-`FUN_00442750` (offset runtime confirmado, `0x03A82750` en este
-entorno) lee y valida 34 bytes (`0x22`) así:
+`FUN_00442750` (runtime offset confirmed, `0x03A82750` in this
+environment) reads and validates 34 bytes (`0x22`) as follows:
 
 ```
-[0..3]   "LzH2" (magic, comparado con memcmp contra 0x479324)
-[4]      "modo" (0x02 en los 3 archivos de prueba)
-[5]      flags: bit7 debe ser 1; bits 2,3,4,6 deben ser 0; bits 0,1,5 libres
-           (bit0=1 en test4b, 0 en rustwood/sball — candidato fuerte a ser
-           el flag "orientation" que `CmpTexture.java` ya vota por archivo
-           como `orient`, sin conocer su origen — esta sesión lo localiza
-           en la cabecera, sin conectarlo todavía)
-[6..7]   W (u16 LE)          -- ya usado por CmpTexture.java
-[8..9]   H (u16 LE)          -- ya usado por CmpTexture.java
-[10..18] sin decodificar (9 bytes, varían por archivo)
-[19]     debe ser 0 (verificado en los 3 archivos)
-[20..31] sin decodificar (12 bytes)
-[32..33] payload size = fileSize - 34 (u16 LE) — **verificado exacto en
-           los 3 archivos**: test4b 364, rustwood 6539, sball 3954,
-           cada uno = tamaño total del archivo menos 34.
+[0..3]   "LzH2" (magic, compared with memcmp against 0x479324)
+[4]      "mode" (0x02 in the 3 test files)
+[5]      flags: bit7 must be 1; bits 2,3,4,6 must be 0; bits 0,1,5 free
+           (bit0=1 in test4b, 0 in rustwood/sball — strong candidate to be
+           the "orientation" flag that `CmpTexture.java` already votes per file
+           as `orient`, without knowing its origin — this session locates it
+           in the header, without connecting it yet)
+[6..7]   W (u16 LE)          -- already used by CmpTexture.java
+[8..9]   H (u16 LE)          -- already used by CmpTexture.java
+[10..18] not decoded (9 bytes, they vary per file)
+[19]     must be 0 (verified in the 3 files)
+[20..31] not decoded (12 bytes)
+[32..33] payload size = fileSize - 34 (u16 LE) — **verified exact in
+           the 3 files**: test4b 364, rustwood 6539, sball 3954,
+           each = total file size minus 34.
 ```
 
-### Las 3 tablas de permutación de alfabeto fijo — extraídas byte a byte
-### directamente del binario (no de memoria de sesiones anteriores)
+### The 3 fixed-alphabet permutation tables — extracted byte by byte
+### directly from the binary (not from the memory of earlier sessions)
 
-`FUN_00442590(tableIndex, flag, &out)` es un switch de 4 vías (jump
-table real en VA `0x4792e8`, leído directamente del archivo):
+`FUN_00442590(tableIndex, flag, &out)` is a 4-way switch (real jump
+table at VA `0x4792e8`, read directly from the file):
 
-- índice 0 → 81 bytes en VA `0x47927c`:
+- index 0 → 81 bytes at VA `0x47927c`:
   `555657595a5b5d5e5f656667696a6b6d6e6f757677797a7b7d7e7f959697999a9b9d9e9fa5a6a7a9aaabadaeafb5b6b7b9babbbdbebfd5d6d7d9dadbdddedfe5e6e7e9eaebedeeeff5f6f7f9fafbfdfeff`
-  (permutación real, no secuencial)
-- índice 1 → 49 bytes en VA `0x479028`:
+  (real permutation, not sequential)
+- index 1 → 49 bytes at VA `0x479028`:
   `0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031`
-  (secuencial 1..49 — de facto identidad)
-- índice 2 → **degenerado**: el jump table apunta al mismo caso "fuera
-  de rango" que índice≥4 (`eax=0`, `*out` queda en 0 sin escribir) — el
-  canal de índice 2 no tiene tabla de permutación ni alfabeto fijo en
-  absoluto. Significado real NO resuelto (ver más abajo).
-- índice 3 → 22 bytes en VA `0x4792d0`:
+  (sequential 1..49 — de facto identity)
+- index 2 → **degenerate**: the jump table points to the same "out of
+  range" case as index≥4 (`eax=0`, `*out` stays at 0 without being
+  written) — the channel of index 2 has no permutation table nor fixed
+  alphabet at all. Real meaning NOT resolved (see below).
+- index 3 → 22 bytes at VA `0x4792d0`:
   `0001020304080a0b0c1011131418191a1c2021222324`
 
-### El bucle de 5 canales en `getScanline` (`FUN_00442bc0`) — mapeo
-### canal↔stream confirmado por desensamblado, no supuesto
+### The 5-channel loop in `getScanline` (`FUN_00442bc0`) — channel↔stream
+### mapping confirmed by disassembly, not assumed
 
-Desensamblado completo de `0x442e63`-`0x442f5b`: por cada "grupo"
-(llamado una vez antes de cada llamada a Stage 2, `FUN_00457d88`), lee
-un puntero `dec` de una estructura pequeña y, para `edi=0..4`, si
-`dec_orig[2+edi*2]` (u16) es no-cero, llama
+Complete disassembly of `0x442e63`-`0x442f5b`: for each "group"
+(called once before each call to Stage 2, `FUN_00457d88`), it reads
+a pointer `dec` from a small structure and, for `edi=0..4`, if
+`dec_orig[2+edi*2]` (u16) is non-zero, it calls
 `FUN_00426af0(this=tableHandle, compressedPtr, outputPtr, wantedLen)` —
-y **el resultado se guarda en un array local `[-0x28(ebp)+edi*4]` que
-es literalmente el mismo puntero (`structptr`) que luego se pasa como
-5º argumento a `FUN_00457d88`/Stage 2** — confirma con desensamblado
-real (no solo con `cmp_capture.py`, que ya lo había hallado
-empíricamente) el orden de canales: `edi=0→bits, 1→streamA,
-2→streamFillIdx, 3→streamCtrl, 4→streamLit`. **El canal 4 (`lit`) usa
-copia directa** (no pasa por `FUN_00426af0`), consistente con "1 de 5
-sin Huffman".
+and **the result is stored in a local array `[-0x28(ebp)+edi*4]` that
+is literally the same pointer (`structptr`) that is later passed as the
+5th argument to `FUN_00457d88`/Stage 2** — it confirms with real
+disassembly (not just with `cmp_capture.py`, which had already found it
+empirically) the channel order: `edi=0→bits, 1→streamA,
+2→streamFillIdx, 3→streamCtrl, 4→streamLit`. **Channel 4 (`lit`) uses
+a direct copy** (it does not go through `FUN_00426af0`), consistent with "1 of 5
+without Huffman".
 
-**Implicación intrigante, no resuelta**: el canal 2 (`streamFillIdx`)
-es exactamente el que tiene alfabeto degenerado (índice 2, sin
-permutación) según `FUN_00442590` — pero `streamFillIdx` SÍ tiene
-contenido real variado en los archivos verificados (es la máscara de 8
-bits que elige `al`/`ah` por carril, documentada en
-`cmp-stage2-decoder/README.md`). O el "degenerado" no significa "vacío"
-sino "usa longitudes de código de 1 byte sin permutar" (una
-interpretación alternativa de `FUN_00426640` no descartada), o el mapeo
-canal↔índice-de-alfabeto no es 1:1 con el mapeo canal↔stream-de-salida
-que se acaba de confirmar arriba — **abierto, marcado explícitamente
-para no inventar una explicación**.
+**Intriguing implication, unresolved**: channel 2 (`streamFillIdx`)
+is exactly the one that has a degenerate alphabet (index 2, no
+permutation) according to `FUN_00442590` — but `streamFillIdx` DOES have
+real, varied content in the verified files (it is the 8-bit mask that
+chooses `al`/`ah` per lane, documented in
+`cmp-stage2-decoder/README.md`). Either "degenerate" does not mean "empty"
+but "uses 1-byte code lengths without permuting" (an alternative
+interpretation of `FUN_00426640` not ruled out), or the
+channel↔alphabet-index mapping is not 1:1 with the channel↔output-stream
+mapping that was just confirmed above — **open, explicitly marked
+so as not to invent an explanation**.
 
-### El decodificador de bits real, `FUN_00426af0` — desensamblado
-### completo, algoritmo simple y ahora entendido con confianza alta
+### The real bit decoder, `FUN_00426af0` — completely disassembled,
+### simple algorithm and now understood with high confidence
 
-Contrario a lo asumido en sesiones anteriores ("árbol de Huffman de 2-3
-niveles"), el desensamblado real (VA `0x426af0`-`0x426bae`) muestra que
-**todos los códigos tienen longitud ≤ 8 bits** — no hace falta caminar
-ningún árbol, es una tabla de búsqueda directa de 256 entradas:
-
-```
-tabla: 512 bytes por canal = [0..255]=símbolo, [256..511]=longitud_de_código
-ventana = (byte[pos]<<8) | byte[pos+1]; pos += 2   # primera carga, 16 bits
-bitsDisponibles = 8   # contador con signo (ch, 1 byte)
-para cada uno de los `wantedLen` bytes de salida:
-    idx = (ventana >> 8) & 0xFF          # top byte de la ventana de 32 bits
-    símbolo = tabla[idx]; longitud = tabla[256+idx]
-    emitir(símbolo)
-    bitsViejos = bitsDisponibles
-    bitsDisponibles -= longitud
-    si bitsDisponibles < 0:              # hace falta recargar
-        ventana <<= bitsViejos            # consume los bits que SÍ había
-        nuevoByte = byte[pos++]
-        ventana = (ventana & ~0xFF) | nuevoByte   # solo el byte bajo
-        faltante = longitud - bitsViejos
-        bitsDisponibles += 8
-        ventana <<= faltante               # alinea el byte nuevo
-    si_no:
-        ventana <<= longitud
-devuelve: pos_final - pos_inicial   # bytes consumidos del stream comprimido
-```
-
-Esto reproduce exactamente el truco clásico LHA/LZH de acumulador de 32
-bits con recarga de 1 byte bajo demanda — pero SIN camino de "código
-largo" en absoluto (a diferencia de LHA genérico, que sí necesita
-manejar códigos >8 bits con una tabla de desbordamiento). Coincide con
-"cuenta de frecuencias por longitud 0-8" ya documentado.
-
-### Construcción de tabla (`FUN_00426640`/`FUN_004266f0`/`FUN_00426820`)
-### — reconocida como `make_table()` de LHA, PARCIALMENTE portada, con
-### un caso degenerado sin verificar
-
-`FUN_00426640` desempaqueta nibbles de 4 bits (2 por byte de entrada,
-uno por símbolo del alfabeto REDUCIDO de tamaño 81/49/22) y los
-dispersa en un array de 256 longitudes usando la tabla de permutación
-como índice destino — confirmado por desensamblado línea a línea.
-`FUN_004266f0` reconocida con alta confianza como el `make_table()`
-canónico de LHA (cuenta frecuencias por longitud, calcula
-`start[l+1]=(count[l]+start[l])·2`, asigna códigos en una 2ª pasada) —
-**con un caso especial degenerado** (`if sum<=1: return early`) cuyo
-comportamiento exacto en la fase de expansión (`FUN_00426820`) sólo se
-desensambló parcialmente: hay una rama "simple" (`[ebp+0xc]<=1`) que
-rellena la tabla de símbolos entera con el valor `0` — pero el caso
-GENERAL (>1 símbolo real) de `FUN_00426820`, que expande los códigos
-canónicos asignados en la tabla directa de 256 entradas, **se
-implementó siguiendo el patrón LHA de libro de texto (rellenar
-`2^(8-longitud)` ranuras consecutivas desde el código alineado a 8
-bits), no una traducción literal instrucción a instrucción del
-desensamblado** — riesgo real de estar sutilmente equivocado.
-
-### Intento de implementación Java: NO funcional todavía — el "avance
-### entre grupos" del bucle externo es la pieza que falla
-
-Con todo lo anterior, un prototipo en Java (no incluido en el repo,
-vivió en `/tmp` durante esta sesión) construyó las 4 tablas Huffman
-correctamente (el conteo de bytes consumidos para desempaquetar las
-longitudes — 41+25+0+11=77 bytes — coincide exacto con lo esperado para
-alfabetos 81/49/0/22), pero el bucle externo que debería leer, grupo a
-grupo, 5 campos de longitud (u16) y decodificar cada canal, **diverge
-después de 3-4 grupos**: los primeros grupos leen longitud 0 en los 5
-canales (plausible para un archivo casi todo plano como `test4b.cmp`,
-pero no verificado como correcto), y hacia el grupo 3-5 aparecen
-longitudes que exceden el presupuesto total de bytes del archivo
-(`lit=252` cuando sólo quedan ~287 bytes en todo el payload para
-`outer=16` grupos) — señal clara de que el avance de puntero entre
-grupos (asumido `+0x10=16` bytes, tomado literal del desensamblado de
-`getScanline`) y/o la posición exacta de los 5 campos de longitud
-dentro de esa estructura de 16 bytes **no está bien modelada todavía**
-— quedan 6 de los 16 bytes por grupo sin explicar (posiblemente más
-metadatos, o el conteo `outer=H/2` no es el número real de grupos).
-
-### Qué queda para la próxima sesión, con evidencia ya en mano
-
-1. Trazar en vivo (winedbg/gdb, entorno ya probado y funcional esta
-   sesión: `Xvfb` + `wineserver -k` + `winedbg --gdb` con breakpoints
-   temporales en la dirección de retorno, NO usar `finish` — no se
-   comporta como en gdb nativo bajo el proxy de winedbg, confirmado
-   esta sesión) un breakpoint en el TOPE del bucle externo de
-   `getScanline` (`0x442e05`/`0x442fab` en runtime, delta variable —
-   ver la nota de "gamma.dll's load base is NOT fixed" en el README del
-   harness) para capturar en vivo cuántos grupos se ejecutan de verdad
-   y qué contiene exactamente cada bloque de 16 bytes (los 2 campos u16
-   ya identificados en offsets 0 y 0xc de `dec_orig`, además de los 5
-   de longitud en offsets 2-11 — falta decodificar offsets 12-15 y
-   confirmar los 0/0xc).
-2. Verificar `FUN_00426820`'s caso general con desensamblado línea a
-   línea completo (esta sesión sólo lo leyó parcialmente) en vez de la
-   implementación de libro de texto usada en el prototipo.
-3. Resolver la anomalía del canal 2 (`streamFillIdx`) con alfabeto
-   degenerado — probablemente necesita trazarse en vivo para ver qué
-   construye realmente `FUN_00426930` cuando `alphabetSize=0`.
-4. Una vez el prototipo decodifique `test4b.cmp` byte-exacto contra
-   `assets/gammatutorial-samples/test4b.cmp` (comparando contra sus
-   streams ya verificados en `tools/gamma-dll-debug-harness/
-   cmp-stage2-decoder/test4b_stream_*.bin`), repetir contra
-   `rustwood.cmp`/`sball.cmp`, y sólo entonces intentar los 159
-   archivos reales de `assets/WorldsPlayer/GroundZero/content.zip`.
-
-**Nada de esto se conecta al pipeline de materiales** — ni un solo byte
-de las 159 texturas reales de GroundZero se decodificó esta sesión; el
-prototipo no llegó a producir salida verificable contra ningún archivo
-conocido. Documentado honestamente como investigación real pero
-incompleta, no como progreso funcional.
-
-### Ronda 2 (2026-09-11, la misma sesión continuada): el bucle externo
-### tiene UN SOLO grupo, no 16 — y se descubre un problema arquitectónico
-### más profundo (lector de stream con buffer, no un puntero plano al
-### archivo)
-
-Trazado en vivo (`winedbg`/`gdb`, breakpoint auto-continuo en
-`0x442e66` — justo DESPUÉS de que `eax` cargue el puntero `dec_orig`,
-no en `0x442e63` como en el primer intento, que capturaba el valor
-VIEJO de `eax` antes de la propia instrucción de carga) contra
-`test4b.cmp`:
-
-**Hallazgo 1 — sólo hay UN grupo, no `h/2=16`**: el breakpoint (que
-auto-continúa, así que habría capturado cualquier repetición real) sólo
-disparó **una vez** en todo el `loadImage()`. El contenido real de esos
-16 bytes fue `10 00 20 00 7c 00 04 00 04 00 05 00 00 00 00 00` —
-interpretados con el layout ya conocido (offset 0 y 0xc = campos sin
-identificar, offsets 2-11 = 5 longitudes u16): `bits=32 streamA=124
-streamFillIdx=4 streamCtrl=4 streamLit=5`. **Confirmación cruzada
-fuerte, no coincidencia**: `streamA=124` y `streamCtrl=4` coinciden
-EXACTO con el censo de ramas ya establecido independientemente en una
-sesión `.cmp` anterior para este mismo archivo ("real: 124 SINGLE + 4
-CTRL + 0 DUAL") — SINGLE consume un índice de `streamA` por iteración,
-CTRL un byte de `streamCtrl` — validando que la interpretación semántica
-de estos 5 campos es correcta. Esto también resuelve una duda antigua
-de sesiones `.cmp` anteriores ("¿por qué sólo una llamada real a
-`FUN_00457d88`?"): `FUN_00457d88` recibe TODOS los datos de canal de
-una vez (un solo grupo cubre la imagen entera) y loopea internamente
-sus `outer` pases usando ese buffer ya completo — no hace falta más de
-una llamada.
-
-**Hallazgo 2 — el mapeo dirección-de-memoria→offset-de-archivo NO es
-lineal, arquitectura más compleja de lo asumido**: buscando el
-contenido exacto de esos 16 bytes dentro del propio archivo
-`test4b.cmp`, aparece en el **offset 359** (de 398 totales) —
-confirmando que el grupo SÍ vive en algún lugar correlacionable con el
-archivo real. Pero al intentar la MISMA correlación para los punteros
-usados en la construcción de las tablas Huffman (capturados con un
-breakpoint en `FUN_00426640` y en el sitio de llamada a `FUN_004269c0`
-dentro del bucle de `FUN_00442750`), **los offsets calculados dan
-negativos** (usando `fileBase = addr_grupo - 359` como referencia) —
-es decir, esos punteros NO caen dentro del mismo espacio de direcciones
-lineal que el puntero del grupo. Esto indica que **los datos
-comprimidos no se leen como un buffer plano mapeado 1:1 con el
-archivo** — la cadena de llamadas ya documentada (`FUN_00442750` llama
-a `0x42f460`, identificado en sesiones anteriores como un
-`ReadBytes(readerObject, dest, size)`, no un simple `memcpy`) confirma
-que hay un **objeto lector de stream con su propio buffer interno**
-(probablemente `ReadFile` de Win32 con buffering), y las distintas
-fases (construcción de tablas, luego decodificación de canales) leen a
-través de ese lector, no de un array plano — así que "posición X en el
-puntero visto en memoria" y "offset X en el archivo" sólo coinciden
-quiere por casualidad de contenido (como con el grupo, encontrado por
-búsqueda de contenido, no por aritmética de punteros).
-
-**Implicación honesta**: mi modelo de "un `pos` que avanza linealmente
-sobre los bytes del archivo, consumido tanto por la construcción de
-tablas como por la decodificación de canales" (usado en el prototipo
-Java de la ronda 1) es **estructuralmente incorrecto** — no es sólo un
-offset mal calculado, es una arquitectura de lectura por stream con
-buffer que no se ha investigado todavía. Cerrar esto de verdad requiere
-entender el objeto lector (`0x42f460` y su contraparte de refill/buffer
-interno) antes de poder traducir "cuántos bytes consumió esta fase" en
-"dónde sigue el archivo" de forma fiable — no es una corrección menor
-de offsets, es una pieza nueva de ingeniería inversa.
-
-**Qué SÍ queda genuinamente ganado esta ronda**: el mapeo semántico de
-los 5 campos de longitud por grupo (con evidencia cruzada real e
-independiente para 2 de los 5: `streamA` y `streamCtrl`), y la
-confirmación de que sólo hay un grupo por imagen (no un grupo por par
-de filas) — ambos hechos reales y útiles para la próxima sesión,
-aunque el objeto lector de stream siga sin desensamblarse.
-
-**No se intentó** verificar `FUN_00426820` en detalle ni decodificar
-ningún archivo real de GroundZero — el hallazgo del lector de stream
-volvió esos pasos prematuros (siguiendo la instrucción explícita de no
-perseguir el canal 2 degenerado especulativamente antes de resolver lo
-anterior). Próximo paso concreto y acotado: desensamblar `0x42f460` (el
-lector) y su mecanismo de buffer/refill, con trazado en vivo del valor
-real de posición-de-archivo que mantiene internamente, ANTES de
-retomar la traducción puntero→offset.
-
-## Sesión Stage 1 real (2026-09-12): el "lector con buffer" era un
-## espejismo, Stage 1 implementado de verdad — 4/5 streams byte-exactos,
-## paleta embebida descubierta, un bug de mapeo de color sin resolver
-
-Objetivo de la sesión: resolver el bloqueo del "lector de stream con
-buffer" (encontrado la sesión anterior) y conseguir que Stage 1 funcione
-contra archivos reales del juego, no solo los 3 de prueba. Se construyó
-primero un arnés de verificación contra el corpus real completo (ver
-`docs/cmp-stage1-coverage.md`), y luego se resolvió el bloqueo con 3
-subagentes de solo lectura en paralelo.
-
-### El "lector de stream con buffer" no existe — era una comparación entre
-### punteros de dos allocaciones de heap distintas
-
-Tres subagentes de solo lectura, cada uno investigando una hipótesis
-distinta (estructura/inicialización del lector; mecanismo de refill;
-comparación cruzada entre los 3 archivos conocidos), confirmaron de forma
-independiente y consistente:
-
-- `FUN_0042f460` es literalmente `std::istream::read(buf, count)` de
-  MSVC/Dinkumware — sin complejidad de buffering propia más allá de lo que
-  ya hace la streambuf estándar. No hace falta modelar ningún objeto lector
-  especial.
-- Para `test4b.cmp` (398 bytes) hay exactamente 3 llamadas de lectura,
-  verificadas en vivo byte a byte: 34 bytes (cabecera, offset archivo
-  `[0,34)`), 325 bytes (región de construcción de tablas, `[34,359)`), y 39
-  bytes (región del grupo, `[359,398)`) — contiguas, sin huecos, sin
-  solapamiento.
-- La "paradoja del offset negativo" de la sesión anterior (punteros de
-  construcción de tablas no correlacionaban linealmente con el puntero del
-  grupo) se explica completamente: son dos allocaciones de heap
-  DIFERENTES (la región de 325 bytes va a un buffer, la región de 39 bytes
-  del grupo a otro) — nunca hubo un lector con ventana compleja, solo se
-  estaban restando punteros de memoria no relacionados.
-
-### Cabecera de 34 bytes — 2 campos nuevos decodificados con evidencia real
+Contrary to what was assumed in earlier sessions ("2-3 level Huffman
+tree"), the real disassembly (VA `0x426af0`-`0x426bae`) shows that
+**all codes have length ≤ 8 bits** — there is no need to walk
+any tree, it is a direct lookup table of 256 entries:
 
 ```
-[28..29] tableRegionSize (u16 LE) — tamaño exacto de la 2ª lectura
-           (325 para test4b, 34+325=359 coincide exacto con el offset de
-           grupo ya conocido por búsqueda de contenido)
-[30..31] groupRegionSize (u16 LE) — tamaño exacto de la 3ª lectura (39
-           para test4b); tableRegionSize+groupRegionSize == payloadSize
-           siempre, verificado exacto
-[14..18] 5 bytes, uno por canal (0=bits,1=streamA,2=streamFillIdx,
-           3=streamCtrl,4=streamLit): byteLen exacto que ese canal
-           consume durante la construcción de su tabla Huffman en la
-           región de tablas — verificado exacto contra captura en vivo
-           (28,16,1,7,32 para test4b)
+table: 512 bytes per channel = [0..255]=symbol, [256..511]=code_length
+window = (byte[pos]<<8) | byte[pos+1]; pos += 2   # first load, 16 bits
+bitsAvailable = 8   # signed counter (ch, 1 byte)
+for each one of the `wantedLen` output bytes:
+    idx = (window >> 8) & 0xFF          # top byte of the 32-bit window
+    symbol = table[idx]; length = table[256+idx]
+    emit(symbol)
+    oldBits = bitsAvailable
+    bitsAvailable -= length
+    if bitsAvailable < 0:              # a reload is needed
+        window <<= oldBits            # consumes the bits that WERE there
+        newByte = byte[pos++]
+        window = (window & ~0xFF) | newByte   # only the low byte
+        missing = length - oldBits
+        bitsAvailable += 8
+        window <<= missing               # aligns the new byte
+    else:
+        window <<= length
+returns: final_pos - initial_pos   # bytes consumed from the compressed stream
 ```
 
-### El "lector con buffer" desapareció, pero apareció un preámbulo de
-### verdad: una paleta de color embebida, nunca antes decodificada
+This reproduces exactly the classic LHA/LZH trick of a 32-bit
+accumulator with a 1-low-byte reload on demand — but with NO "long
+code" path at all (unlike generic LHA, which does need to
+handle codes >8 bits with an overflow table). It matches the
+"frequency count per length 0-8" already documented.
 
-Antes de las 4 construcciones de tabla Huffman, la región de tablas tiene
-un preámbulo (239 de 325 bytes para test4b) que se pensaba de ~7 bytes en
-sesiones anteriores. Desensamblado real de `FUN_00442750` (el tramo entre
-la 2ª lectura y el bucle de construcción de tablas) revela que es una
-**paleta de color embebida**, decodificada por `FUN_004426b0`:
+### Table construction (`FUN_00426640`/`FUN_004266f0`/`FUN_00426820`)
+### — recognized as LHA's `make_table()`, PARTIALLY ported, with
+### an unverified degenerate case
+
+`FUN_00426640` unpacks 4-bit nibbles (2 per input byte,
+one per symbol of the REDUCED alphabet of size 81/49/22) and
+scatters them into an array of 256 lengths using the permutation table
+as the destination index — confirmed by line-by-line disassembly.
+`FUN_004266f0` recognized with high confidence as the canonical
+`make_table()` of LHA (counts frequencies per length, computes
+`start[l+1]=(count[l]+start[l])·2`, assigns codes in a 2nd pass) —
+**with a special degenerate case** (`if sum<=1: return early`) whose exact
+behavior in the expansion phase (`FUN_00426820`) was only partially
+disassembled: there is a "simple" branch (`[ebp+0xc]<=1`) that
+fills the whole symbol table with the value `0` — but the GENERAL case
+(>1 real symbol) of `FUN_00426820`, which expands the canonical codes
+assigned into the direct 256-entry table, **was implemented following the
+textbook LHA pattern (filling `2^(8-length)` consecutive slots from the code
+aligned to 8 bits), not a literal instruction-by-instruction translation of
+the disassembly** — a real risk of being subtly wrong.
+
+### Java implementation attempt: NOT functional yet — the "advance
+### between groups" of the outer loop is the piece that fails
+
+With everything above, a Java prototype (not included in the repo,
+it lived in `/tmp` during this session) built the 4 Huffman tables
+correctly (the count of bytes consumed to unpack the lengths —
+41+25+0+11=77 bytes — matches exactly what is expected for
+alphabets 81/49/0/22), but the outer loop that should read, group by
+group, 5 length fields (u16) and decode each channel, **diverges
+after 3-4 groups**: the first groups read length 0 in the 5
+channels (plausible for an almost entirely flat file such as `test4b.cmp`,
+but not verified as correct), and by group 3-5 lengths appear
+that exceed the total byte budget of the file
+(`lit=252` when only ~287 bytes remain in the whole payload for
+`outer=16` groups) — a clear sign that the pointer advance between
+groups (assumed `+0x10=16` bytes, taken literally from the disassembly of
+`getScanline`) and/or the exact position of the 5 length fields
+within that 16-byte structure **is not yet well modeled**
+— 6 of the 16 bytes per group remain unexplained (possibly more metadata,
+or the count `outer=H/2` is not the real number of groups).
+
+### What remains for the next session, with evidence already in hand
+
+1. Trace live (winedbg/gdb, an environment already tested and working this
+   session: `Xvfb` + `wineserver -k` + `winedbg --gdb` with temporary
+   breakpoints at the return address, do NOT use `finish` — it does not
+   behave as in native gdb under the winedbg proxy, confirmed
+   this session) a breakpoint at the TOP of the outer loop of
+   `getScanline` (`0x442e05`/`0x442fab` at runtime, variable delta —
+   see the note "gamma.dll's load base is NOT fixed" in the README of the
+   harness) to capture live how many groups actually run
+   and what exactly each 16-byte block contains (the 2 u16 fields
+   already identified at offsets 0 and 0xc of `dec_orig`, besides the 5
+   lengths at offsets 2-11 — offsets 12-15 remain to be decoded and the
+   0/0xc to be confirmed).
+2. Verify the general case of `FUN_00426820` with complete line-by-line
+   disassembly (this session only read it partially) instead of the
+   textbook implementation used in the prototype.
+3. Resolve the anomaly of channel 2 (`streamFillIdx`) with a degenerate
+   alphabet — it probably needs to be traced live to see what
+   `FUN_00426930` really builds when `alphabetSize=0`.
+4. Once the prototype decodes `test4b.cmp` byte-exactly against
+   `assets/gammatutorial-samples/test4b.cmp` (comparing against its already
+   verified streams in `tools/gamma-dll-debug-harness/
+   cmp-stage2-decoder/test4b_stream_*.bin`), repeat against
+   `rustwood.cmp`/`sball.cmp`, and only then attempt the 159
+   real files of `assets/WorldsPlayer/GroundZero/content.zip`.
+
+**None of this is connected to the materials pipeline** — not a single byte
+of the 159 real GroundZero textures was decoded this session; the
+prototype did not manage to produce verifiable output against any known
+file. Honestly documented as real but incomplete research, not as
+functional progress.
+
+### Round 2 (2026-09-11, the same session continued): the outer loop
+### has A SINGLE group, not 16 — and a deeper architectural problem is
+### discovered (buffered stream reader, not a flat pointer into the
+### file)
+
+Live trace (`winedbg`/`gdb`, auto-continuing breakpoint at
+`0x442e66` — right AFTER `eax` loads the `dec_orig` pointer, not
+at `0x442e63` as in the first attempt, which captured the OLD value of
+`eax` before the load instruction itself) against `test4b.cmp`:
+
+**Finding 1 — there is only ONE group, not `h/2=16`**: the breakpoint (which
+auto-continues, so it would have captured any real repetition) fired
+only **once** in the whole `loadImage()`. The real content of those
+16 bytes was `10 00 20 00 7c 00 04 00 04 00 05 00 00 00 00 00` —
+interpreted with the already known layout (offset 0 and 0xc = unidentified
+fields, offsets 2-11 = 5 u16 lengths): `bits=32 streamA=124
+streamFillIdx=4 streamCtrl=4 streamLit=5`. **Strong cross-confirmation,
+not a coincidence**: `streamA=124` and `streamCtrl=4` match
+EXACTLY the branch census independently established in an earlier
+`.cmp` session for this same file ("real: 124 SINGLE + 4
+CTRL + 0 DUAL") — SINGLE consumes one `streamA` index per iteration,
+CTRL one `streamCtrl` byte — validating that the semantic
+interpretation of these 5 fields is correct. This also resolves an old doubt
+from earlier `.cmp` sessions ("why only one real call to
+`FUN_00457d88`?"): `FUN_00457d88` receives ALL the channel data at
+once (a single group covers the whole image) and loops internally over
+its `outer` passes using that already complete buffer — no more than
+one call is needed.
+
+**Finding 2 — the memory-address→file-offset mapping is NOT linear,
+architecture more complex than assumed**: searching for the exact
+content of those 16 bytes inside the `test4b.cmp` file itself, it appears at
+**offset 359** (of 398 total) —
+confirming that the group DOES live somewhere correlatable with the
+real file. But when attempting the SAME correlation for the pointers
+used in building the Huffman tables (captured with a breakpoint at
+`FUN_00426640` and at the call site of `FUN_004269c0`
+inside the loop of `FUN_00442750`), **the computed offsets come out
+negative** (using `fileBase = addr_group - 359` as a reference) —
+that is, those pointers do NOT fall within the same linear address space
+as the group pointer. This indicates that **the compressed data
+is not read as a flat buffer mapped 1:1 with the
+file** — the already documented call chain (`FUN_00442750` calls
+`0x42f460`, identified in earlier sessions as a
+`ReadBytes(readerObject, dest, size)`, not a simple `memcpy`) confirms
+that there is a **stream reader object with its own internal buffer**
+(probably Win32 `ReadFile` with buffering), and the different
+phases (table construction, then channel decoding) read
+through that reader, not from a flat array — so "position X in the
+pointer seen in memory" and "offset X in the file" only coincide
+by chance of content (as with the group, found by
+content search, not by pointer arithmetic).
+
+**Honest implication**: my model of "a `pos` that advances linearly
+over the bytes of the file, consumed both by the table construction and by
+the channel decoding" (used in the Java prototype of round 1) is
+**structurally incorrect** — it is not just a wrongly computed
+offset, it is a buffered stream-reading architecture that has not been
+investigated yet. Really closing this requires
+understanding the reader object (`0x42f460` and its refill/internal
+buffer counterpart) before being able to translate "how many bytes
+this phase consumed" into "where the file continues" reliably — it is not
+a minor correction of offsets, it is a new piece of reverse engineering.
+
+**What IS genuinely gained this round**: the semantic mapping of
+the 5 length fields per group (with real and independent
+cross-evidence for 2 of the 5: `streamA` and `streamCtrl`), and the
+confirmation that there is only one group per image (not one group per pair
+of rows) — both real and useful facts for the next session,
+even though the stream reader object remains undisassembled.
+
+**No attempt was made** to verify `FUN_00426820` in detail or to decode
+any real GroundZero file — the finding about the stream reader
+made those steps premature (following the explicit instruction not to
+speculatively chase the degenerate channel 2 before resolving the
+above). Concrete and bounded next step: disassemble `0x42f460` (the
+reader) and its buffer/refill mechanism, with live tracing of the
+real file-position value that it keeps internally, BEFORE
+resuming the pointer→offset translation.
+
+## Real Stage 1 session (2026-09-12): the "buffered reader" was a
+## mirage, Stage 1 actually implemented — 4/5 streams byte-exact,
+## embedded palette discovered, one unresolved color-mapping bug
+
+Goal of the session: resolve the blocker of the "buffered stream reader"
+(found in the previous session) and get Stage 1 working against real
+files from the game, not just the 3 test ones. A verification
+harness against the complete real corpus was built first (see
+`docs/cmp-stage1-coverage.md`), and then the blocker was resolved with 3
+read-only subagents in parallel.
+
+### The "buffered stream reader" does not exist — it was a comparison between
+### pointers of two different heap allocations
+
+Three read-only subagents, each investigating a different hypothesis
+(structure/initialization of the reader; refill mechanism; cross-comparison
+among the 3 known files), independently and consistently confirmed:
+
+- `FUN_0042f460` is literally MSVC/Dinkumware's
+  `std::istream::read(buf, count)` — with no buffering complexity of its own
+  beyond what the standard streambuf already does. There is no need to model
+  any special reader object.
+- For `test4b.cmp` (398 bytes) there are exactly 3 read calls,
+  verified live byte by byte: 34 bytes (header, file offset
+  `[0,34)`), 325 bytes (table-construction region, `[34,359)`), and 39
+  bytes (group region, `[359,398)`) — contiguous, with no gaps, with no
+  overlap.
+- The "negative offset paradox" of the previous session (table-construction
+  pointers did not correlate linearly with the group pointer) is
+  completely explained: they are two DIFFERENT heap allocations
+  (the 325-byte region goes to one buffer, the 39-byte region of the
+  group to another) — there was never a reader with a complex window, unrelated
+  memory pointers were just being subtracted.
+
+### 34-byte header — 2 new fields decoded with real evidence
 
 ```
-count = header[12] (si es 0, 256)   -- 64 para test4b
-para cada una de las `count` entradas:
-    para cada uno de los 3 componentes (R,G,B en ese orden):
-        leer 6 bits del stream (MSB primero, acumulador de 1 byte con
-        refill por byte, igual mecanismo que FUN_00426af0 pero para 1
-        bit en vez de código completo)
-        componente = valor_6_bits << 2   (escala 6→8 bits)
-    escribir 3 bytes reales + 1 byte nulo de relleno (no cuenta para el
-    stream de bits, es solo el layout de memoria de gamma.dll)
+[28..29] tableRegionSize (u16 LE) — exact size of the 2nd read
+           (325 for test4b, 34+325=359 matches exactly the group offset
+           already known by content search)
+[30..31] groupRegionSize (u16 LE) — exact size of the 3rd read (39
+           for test4b); tableRegionSize+groupRegionSize == payloadSize
+           always, verified exact
+[14..18] 5 bytes, one per channel (0=bits,1=streamA,2=streamFillIdx,
+           3=streamCtrl,4=streamLit): exact byteLen that this channel
+           consumes during the construction of its Huffman table in the
+           table region — verified exact against live capture
+           (28,16,1,7,32 for test4b)
 ```
 
-Verificado bit a bit a mano contra los bytes crudos del archivo (no solo
-con el propio código): las 4 entradas reales de test4b (58→verde,
-60→rojo, 62→amarillo, 63→azul) coinciden exactamente extrayendo los bits
-manualmente con Python, confirmando que la extracción de bits es 100%
-correcta contra el archivo real — el problema (ver más abajo) no está en
-esta extracción.
+### The "buffered reader" disappeared, but a real preamble appeared: an
+### embedded color palette, never decoded before
 
-Después de la paleta, el cursor avanza condicionalmente según bits del
-byte de **modo** (offset 4, no flags) y del byte de **flags** (offset 5):
+Before the 4 Huffman table constructions, the table region has
+a preamble (239 of 325 bytes for test4b) that was thought to be ~7 bytes in
+earlier sessions. Real disassembly of `FUN_00442750` (the stretch between
+the 2nd read and the table-construction loop) reveals that it is an
+**embedded color palette**, decoded by `FUN_004426b0`:
 
 ```
-cursor = bytesConsumidos_por_paleta
-si (modo & 0x02) == 0: cursor += count
-si header[13] != 0: cursor += floor((header[13]*18+7)/8)
-si (flags & 0x01) != 0: cursor += floor(count/2) + count - 1
-si (modo & 0x08) != 0: cursor += 4
-si (modo & 0x80) != 0: groupCount = u16(cursor); cursor += 14
-si_no: groupCount = 1   (siempre el caso en los 3 archivos conocidos)
+count = header[12] (if 0, 256)   -- 64 for test4b
+for each one of the `count` entries:
+    for each one of the 3 components (R,G,B in that order):
+        read 6 bits from the stream (MSB first, 1-byte accumulator with
+        per-byte refill, same mechanism as FUN_00426af0 but for 1
+        bit instead of a complete code)
+        component = value_6_bits << 2   (scale 6→8 bits)
+    write 3 real bytes + 1 null padding byte (does not count for the
+    bit stream, it is only the memory layout of gamma.dll)
 ```
 
-Para test4b: bit1 de modo=1 (no suma), header[13]=0 (no suma), bit0 de
-flags=1 (suma 95), bit3/bit7 de modo=0 (no suma) → cursor=144+95=239,
-exacto.
+Verified bit by bit by hand against the raw bytes of the file (not just
+with the code itself): the 4 real entries of test4b (58→green,
+60→red, 62→yellow, 63→blue) match exactly when extracting the bits
+manually with Python, confirming that the bit extraction is 100%
+correct against the real file — the problem (see below) is not in
+this extraction.
 
-### Las 4 tablas Huffman — algoritmo completo verificado con datos reales,
-### 2 bugs de implementación encontrados y corregidos
+After the palette, the cursor advances conditionally according to bits of
+the **mode** byte (offset 4, not flags) and of the **flags** byte (offset 5):
 
-`FUN_00426640` (desempaquetado de nibbles) desensamblado instrucción a
-instrucción: `effectiveCount = min(alphabetSize, 2*byteLen)` nibbles se
-leen (NO siempre `alphabetSize` nibbles como se asumía) — los símbolos del
-alfabeto reducido que quedan fuera de `effectiveCount` simplemente
-conservan longitud 0 (sin código). Confirmado exacto contra los 4
-`byteLen` reales de test4b.
+```
+cursor = bytesConsumedByPalette
+if (mode & 0x02) == 0: cursor += count
+if header[13] != 0: cursor += floor((header[13]*18+7)/8)
+if (flags & 0x01) != 0: cursor += floor(count/2) + count - 1
+if (mode & 0x08) != 0: cursor += 4
+if (mode & 0x80) != 0: groupCount = u16(cursor); cursor += 14
+else: groupCount = 1   (always the case in the 3 known files)
+```
 
-`FUN_004266f0`/`FUN_00426820` (asignación canónica + expansión a tabla
-directa de 256 entradas) — 2 bugs reales encontrados esta sesión al
-implementar en Java, ambos con síntomas claros:
+For test4b: mode bit1=1 (does not add), header[13]=0 (does not add), flags
+bit0=1 (adds 95), mode bit3/bit7=0 (does not add) → cursor=144+95=239,
+exact.
 
-1. **Off-by-one en el array `start[]`**: `start[1] = 0` directamente (no
-   derivado de `count[0]`, que nunca participa — los símbolos de longitud
-   0 no tienen código). La implementación inicial calculaba
-   `start[1] = count[0]*2`, produciendo códigos que desbordaban la tabla
-   de 256 entradas (`ArrayIndexOutOfBoundsException` inmediato al
-   probar).
-2. **Longitud incorrecta en el caso degenerado** (un solo símbolo real):
-   la implementación inicial ponía `length=0` para todas las 256 entradas
-   de la tabla degenerada — pero la longitud real debe ser la del ÚNICO
-   símbolo real (ej. 1 bit), no 0. El síntoma fue invisible en el canal
-   degenerado mismo (`streamFillIdx`, que da el símbolo constante 0 sin
-   importar cuántos bits se consuman), pero desincronizaba el cursor de
-   bits COMPARTIDO para el siguiente canal (`streamCtrl`), que entonces
-   fallaba con síntomas que parecían un problema de alineación de bits.
+### The 4 Huffman tables — complete algorithm verified with real data,
+### 2 implementation bugs found and fixed
 
-### El decodificador de bits necesita estado COMPARTIDO entre canales
+`FUN_00426640` (nibble unpacking) disassembled instruction by
+instruction: `effectiveCount = min(alphabetSize, 2*byteLen)` nibbles are
+read (NOT always `alphabetSize` nibbles as was assumed) — the symbols of
+the reduced alphabet that fall outside `effectiveCount` simply
+keep length 0 (no code). Confirmed exact against the 4
+real `byteLen` of test4b.
 
-Confirmado empíricamente (no solo por lectura de la documentación previa,
-que era ambigua sobre esto): la ventana de 16 bits y el contador de bits
-disponibles de `FUN_00426af0` deben persistir entre las 5 llamadas por
-canal dentro de un grupo — SOLO el primer canal (`bits`) hace la carga
-fresca inicial de 16 bits; los canales 2-5 continúan desde donde el
-anterior dejó el estado (incluidos bits sueltos a mitad de byte). Probado
-explícitamente contra ambos modelos (recarga fresca por canal vs.
-continuación compartida) — solo el modelo compartido reproduce
-`streamA` (124 símbolos, con muchos refills reales) byte a byte exacto.
+`FUN_004266f0`/`FUN_00426820` (canonical assignment + expansion into the
+direct 256-entry table) — 2 real bugs found this session when
+implementing in Java, both with clear symptoms:
 
-### El misterio del "alfabeto degenerado" del canal 2 — resuelto
+1. **Off-by-one in the `start[]` array**: `start[1] = 0` directly (not
+   derived from `count[0]`, which never participates — length-0 symbols
+   have no code). The initial implementation computed
+   `start[1] = count[0]*2`, producing codes that overflowed the
+   256-entry table (an immediate `ArrayIndexOutOfBoundsException` when
+   tested).
+2. **Incorrect length in the degenerate case** (a single real symbol):
+   the initial implementation set `length=0` for all 256 entries
+   of the degenerate table — but the real length must be that of the ONLY
+   real symbol (e.g. 1 bit), not 0. The symptom was invisible in the
+   degenerate channel itself (`streamFillIdx`, which yields the constant
+   symbol 0 no matter how many bits are consumed), but it desynchronized
+   the SHARED bit cursor for the next channel (`streamCtrl`), which then
+   failed with symptoms that looked like a bit-alignment problem.
 
-Confirmado por desensamblado estático completo (subagente de solo
-lectura): NO es un canal vacío. `FUN_004269c0` comprueba
-`permTablePtr==0 || alphabetSize==0` y en ese caso sintetiza una
-permutación identidad de 256 símbolos (`0,1,2,...,255`) y fuerza
-`alphabetSize=256` ANTES de construir la tabla — así que el canal 2
-(`streamFillIdx`) se codifica con Huffman sobre el alfabeto COMPLETO de
-256 bytes en vez de uno de los 3 alfabetos reducidos (81/49/22), lo cual
-encaja perfectamente con que sea el único canal que necesita representar
-cualquier valor de byte (la máscara de selección de carril al/ah), no un
-opcode/escape de un conjunto pequeño y cerrado.
+### The bit decoder needs SHARED state across channels
 
-### Verificado byte a byte contra los streams ya capturados de test4b.cmp
+Confirmed empirically (not just by reading the previous documentation,
+which was ambiguous about this): the 16-bit window and the
+available-bits counter of `FUN_00426af0` must persist across the 5
+per-channel calls within a group — ONLY the first channel (`bits`) does the
+initial fresh 16-bit load; channels 2-5 continue from where the
+previous one left the state (including loose bits in the middle of a byte).
+Explicitly tested against both models (fresh reload per channel vs. shared
+continuation) — only the shared model reproduces
+`streamA` (124 symbols, with many real refills) byte-exact.
 
-`bits`, `streamA`, `streamFillIdx`, `streamCtrl`: **0 discrepancias**,
-byte exacto contra `tools/gamma-dll-debug-harness/cmp-stage2-decoder/
-test4b_stream_*.bin` (captura en vivo de sesiones anteriores, ground
-truth independiente). `streamLit` (canal 4, el mecanismo de escape
-literal, poco usado): muy cerca pero NO exacto — ver limitación abajo.
+### The mystery of channel 2's "degenerate alphabet" — resolved
 
-### Dos limitaciones honestas, documentadas explícitamente en el código
-### (`CmpStage1.java`), NO resueltas esta sesión
+Confirmed by complete static disassembly (read-only subagent): it is NOT
+an empty channel. `FUN_004269c0` checks
+`permTablePtr==0 || alphabetSize==0` and in that case synthesizes an
+identity permutation of 256 symbols (`0,1,2,...,255`) and forces
+`alphabetSize=256` BEFORE building the table — so channel 2
+(`streamFillIdx`) is Huffman-coded over the FULL alphabet of
+256 bytes instead of one of the 3 reduced alphabets (81/49/22), which
+fits perfectly with it being the only channel that needs to represent
+any byte value (the al/ah lane selection mask), not an
+opcode/escape from a small closed set.
 
-1. **`streamLit` (canal 4)**: el mecanismo real de construcción de su
-   tabla usa `FUN_0044df50` (un memcpy plano de 32 bytes), no
-   `FUN_004269c0` como los canales 0-3 — tratarlo igual que el caso
-   degenerado del canal 2 (alfabeto identidad de 256) da una salida MUY
-   cercana a la real (los mismos 4 valores de símbolo, mismas longitudes
-   de código) pero rotada exactamente una posición de código respecto al
-   valor esperado. Se probaron varias hipótesis (recarga fresca en vez de
-   continuar; intercambiar el orden con `ctrl`; tabla de índice directo de
-   5 bits) sin éxito — queda abierto.
-2. **Mapeo de índice de píxel decodificado → entrada de paleta**: la
-   extracción de bits de la paleta embebida se verificó 100% exacta
-   contra los bytes crudos del archivo (a mano, con Python, byte a byte),
-   y las regiones espaciales de la imagen decodifican perfectamente
-   (prueba independiente de que los streams de símbolos son correctos) —
-   pero el color final asignado a cada índice sale ROTADO entre las 4
-   entradas reales usadas (58,60,62,63 para test4b): el índice 58
-   necesita mostrar rojo pero `palette[58]` contiene verde (que
-   pertenece a otro índice). Se probaron varias hipótesis de
-   transformación (desplazamiento uniforme de índice, XOR, resta, orden
-   de lectura invertido, reordenación de componentes R/G/B) — ninguna
-   explica la rotación exacta observada. Documentado en detalle en el
-   comentario `KNOWN LIMITATION` de `CmpStage1.java`, no oculto.
+### Verified byte by byte against the already captured streams of test4b.cmp
 
-### `CmpTexture.loadRaw(File)` — integración real, sin regresión
+`bits`, `streamA`, `streamFillIdx`, `streamCtrl`: **0 discrepancies**,
+byte-exact against `tools/gamma-dll-debug-harness/cmp-stage2-decoder/
+test4b_stream_*.bin` (live capture from earlier sessions, independent
+ground truth). `streamLit` (channel 4, the literal escape mechanism,
+little used): very close but NOT exact — see the limitation below.
 
-Se añadió `CmpTexture.loadRaw(File cmpFile)`, que decodifica un `.cmp`
-real usando `CmpStage1` y reutiliza el pipeline YA VERIFICADO de
-`CmpStage2` (el mismo código que `load()` ya usaba con streams
-precapturados). El path original `load()` (streams precapturados +
-`palette.txt` a mano) se probó sin cambios contra `sball.cmp` — sigue
-funcionando exacto, cero regresión.
+### Two honest limitations, explicitly documented in the code
+### (`CmpStage1.java`), NOT resolved this session
 
-### Verificación contra el corpus real (criterio de cierre de esta sesión)
+1. **`streamLit` (channel 4)**: the real mechanism of building its table
+   uses `FUN_0044df50` (a flat 32-byte memcpy), not
+   `FUN_004269c0` like channels 0-3 — treating it the same as the
+   degenerate case of channel 2 (identity alphabet of 256) gives an output
+   VERY close to the real one (the same 4 symbol values, same code lengths)
+   but rotated by exactly one code position with respect to the
+   expected value. Several hypotheses were tried (fresh reload instead of
+   continuing; swapping the order with `ctrl`; direct-index table of
+   5 bits) without success — it remains open.
+2. **Mapping of decoded pixel index → palette entry**: the bit
+   extraction of the embedded palette was verified 100% exact
+   against the raw bytes of the file (by hand, with Python, byte by byte),
+   and the spatial regions of the image decode perfectly
+   (independent proof that the symbol streams are correct) —
+   but the final color assigned to each index comes out ROTATED among the 4
+   real entries used (58,60,62,63 for test4b): index 58
+   needs to show red but `palette[58]` contains green (which
+   belongs to another index). Several transformation hypotheses were
+   tried (uniform index shift, XOR, subtraction, reversed
+   read order, reordering of the R/G/B components) — none
+   explains the exact rotation observed. Documented in detail in the
+   `KNOWN LIMITATION` comment of `CmpStage1.java`, not hidden.
 
-Ver `docs/cmp-stage1-coverage.md` para el resultado numérico completo
-contra los 159 archivos reales de `content.zip` usando `loadRaw()` — dado
-el bug de mapeo de paleta sin resolver arriba, se espera que la mayoría
-de archivos NO decodifiquen a píxeles correctos todavía, pero el corpus
-completo se corrió igualmente para tener el número real, no una
-estimación.
+### `CmpTexture.loadRaw(File)` — real integration, no regression
 
-## Continuación (misma sesión, 2026-09-12): la paleta SÍ era correcta —
-## el bug real estaba en `streamLit`; `test4b.cmp` ya decodifica
-## píxel-exacto de punta a punta
+`CmpTexture.loadRaw(File cmpFile)` was added, which decodes a
+real `.cmp` using `CmpStage1` and reuses the ALREADY VERIFIED pipeline of
+`CmpStage2` (the same code that `load()` already used with
+pre-captured streams). The original path `load()` (pre-captured streams +
+hand-made `palette.txt`) was tested unchanged against `sball.cmp` — it still
+works exactly, zero regression.
 
-El "bug de mapeo de paleta" de la sección anterior era un diagnóstico
-equivocado. Lo real:
+### Verification against the real corpus (closing criterion of this session)
 
-1. **La paleta (lectura secuencial directa, `palette[i]` = i-ésima
-   entrada leída, sin desplazamiento) era correcta desde el principio.**
-   Verificado de dos formas independientes: extracción manual bit a bit
-   contra `test4b.cmp`, y comparación índice por índice contra el
-   `sball.palette.txt` ya votado a mano (16/16 entradas coinciden
-   exactas con indexación de identidad simple). Un intento de "+1"
-   dentro de esta misma sesión fue un callejón sin salida — coincidía
-   por poco con la evidencia dispersa de test4b pero no con la evidencia
-   densa de sball.
-2. **El bug real estaba en el canal 4 (`streamLit`)**: desensamblado
-   completo de `FUN_0044df50` (el "memcpy" de 32 bytes) y su llamador
-   diferido `FUN_00442bc0`/`FUN_00442bee` confirma que el canal 4 usa
-   MECÁNICAMENTE el mismo camino que el canal 2 (`FUN_004269c0` con
-   `permTablePtr=0`, `alphabetSize=0` → alfabeto identidad de 256), solo
-   que la construcción de tabla ocurre de forma diferida. Con eso
-   establecido, una búsqueda por fuerza bruta (deslizar la ventana de
-   símbolos decodificados contra el píxel real de `test4b.bmp`, probando
-   también las 4 combinaciones de orientación) encontró una única
-   respuesta con 0 diferencias: **descartar el primer símbolo decodificado
-   del canal LIT** (decodificar `wanted[4]+1` símbolos, quedarse con los
-   últimos `wanted[4]`). Confirmado como la ÚNICA combinación con 0
-   diferencias entre todos los desplazamientos y orientaciones probados,
-   no una coincidencia.
-3. **Este arreglo NO generaliza**: la misma búsqueda por fuerza bruta
-   contra `sball.cmp` (alfabeto LIT mucho más rico — `byteLen[4]=128`
-   contra los 32 de test4b) nunca llega a 0 diferencias en ningún
-   desplazamiento 0-6 ni orientación (mejor resultado: ~74% de píxeles
-   todavía incorrectos). El mecanismo real para alfabetos ricos sigue sin
-   resolverse — ver investigación en curso abajo. Es posible que el canal
-   2 (`streamFillIdx`) tenga el mismo bug latente para alfabetos ricos
-   (para `sball.cmp` también tiene `byteLen[2]=128`), nunca antes puesto a
-   prueba porque en `test4b.cmp` ese canal es degenerado.
-4. **Orientación (`pass0Top`) también estaba mal derivada**: la sesión
-   anterior la ligó al bit 0 de `flags`, ajuste hecho contra el decode de
-   LIT todavía roto. Con LIT arreglado, `test4b.cmp` necesita
-   `pass0Top=false` (lo opuesto de lo que ese bit daría) — igual que
-   `sball.cmp`. Ninguno de los 2 casos conocidos correlaciona con ese bit
-   bajo el entendimiento correcto, así que `CmpTexture.loadRaw` lo fija a
-   `false` por ahora, pendiente de más ejemplos reales.
+See `docs/cmp-stage1-coverage.md` for the complete numerical result
+against the 159 real files of `content.zip` using `loadRaw()` — given
+the unresolved palette mapping bug above, it is expected that most
+files will NOT decode to correct pixels yet, but the
+complete corpus was run anyway to have the real number, not an
+estimate.
 
-**Resultado verificado**: `test4b.cmp` decodifica byte-exacto (0/3072
-bytes, 0/1024 píxeles) de punta a punta contra el render real de
-`cmpview.exe`, a través del pipeline completo `loadRaw()` — sin streams
-precapturados, sin `palette.txt` a mano. `sball.cmp` y alfabetos LIT
-ricos en general quedan sin resolver — no se reclama cierre de corpus
-todavía; investigación activa vía trazado en vivo contra `sball.cmp` en
-curso al momento de escribir esto.
+## Continuation (same session, 2026-09-12): the palette WAS correct —
+## the real bug was in `streamLit`; `test4b.cmp` now decodes
+## pixel-exact end to end
 
-También se corrigió el harness de cobertura: `compare -metric AE` de
-ImageMagick daba valores imposibles en este entorno (4.4e7 "píxeles"
-distintos para una imagen de 1024 píxeles) — reemplazado por comparación
-directa de bytes en Python en `cmp_stage1_coverage.py`, que sí da
-números confiables (confirmado: `test4b.cmp` reporta 0/1024 a través del
-harness, coincidiendo con la verificación independiente).
+The "palette mapping bug" of the previous section was a wrong diagnosis.
+What is real:
 
-## Continuación (misma sesión): baseline real del corpus (7/159) señala
-## la causa raíz, subagente de trazado en vivo la encuentra — 2 bugs
-## reales, `sball.cmp` también byte-exacto
+1. **The palette (direct sequential reading, `palette[i]` = i-th entry
+   read, no shift) was correct from the start.**
+   Verified in two independent ways: manual bit-by-bit extraction
+   against `test4b.cmp`, and index-by-index comparison against the
+   `sball.palette.txt` already voted by hand (16/16 entries match
+   exactly with simple identity indexing). An attempt at "+1"
+   within this same session was a dead end — it narrowly matched the sparse
+   evidence of test4b but not the dense evidence of sball.
+2. **The real bug was in channel 4 (`streamLit`)**: complete disassembly
+   of `FUN_0044df50` (the 32-byte "memcpy") and its deferred caller
+   `FUN_00442bc0`/`FUN_00442bee` confirms that channel 4 MECHANICALLY uses
+   the same path as channel 2 (`FUN_004269c0` with
+   `permTablePtr=0`, `alphabetSize=0` → identity alphabet of 256), only
+   that the table construction happens in a deferred way. With that
+   established, a brute-force search (sliding the window of decoded
+   symbols against the real pixel of `test4b.bmp`, also trying
+   the 4 orientation combinations) found a single
+   answer with 0 differences: **discard the first decoded symbol
+   of the LIT channel** (decode `wanted[4]+1` symbols, keep the
+   last `wanted[4]`). Confirmed as the ONLY combination with 0
+   differences among all the shifts and orientations tried,
+   not a coincidence.
+3. **This fix does NOT generalize**: the same brute-force search
+   against `sball.cmp` (a much richer LIT alphabet — `byteLen[4]=128`
+   versus the 32 of test4b) never reaches 0 differences at any
+   shift 0-6 nor orientation (best result: ~74% of pixels
+   still incorrect). The real mechanism for rich alphabets remains
+   unresolved — see the ongoing research below. It is possible that channel
+   2 (`streamFillIdx`) has the same latent bug for rich alphabets
+   (for `sball.cmp` it also has `byteLen[2]=128`), never before put to
+   the test because in `test4b.cmp` that channel is degenerate.
+4. **Orientation (`pass0Top`) was also wrongly derived**: the previous
+   session tied it to bit 0 of `flags`, an adjustment made against the
+   still broken LIT decode. With LIT fixed, `test4b.cmp` needs
+   `pass0Top=false` (the opposite of what that bit would give) — just like
+   `sball.cmp`. Neither of the 2 known cases correlates with that bit
+   under the correct understanding, so `CmpTexture.loadRaw` sets it to
+   `false` for now, pending more real examples.
 
-Con `test4b.cmp` cerrado, se corrió el corpus completo de 159 archivos
-reales de `content.zip` como baseline real (no estimado): **7/159 OK,
-152 FAIL** (de los cuales solo 2 son excepciones/crashes —
-`roofb.cmp` y `vendside2.cmp`, `ArrayIndexOutOfBoundsException`, sin
-investigar todavía; el resto decodifica sin fallar pero con píxeles
-incorrectos). `groupCount` fue 1 para los 159 archivos — el camino
-`mode&0x80` (múltiples grupos) sigue sin ejercitarse por ningún archivo
-real conocido.
+**Verified result**: `test4b.cmp` decodes byte-exact (0/3072
+bytes, 0/1024 pixels) end to end against the real render of
+`cmpview.exe`, through the complete `loadRaw()` pipeline — with no
+pre-captured streams, no hand-made `palette.txt`. `sball.cmp` and rich
+LIT alphabets in general remain unresolved — no corpus closure is claimed
+yet; active research via live tracing against `sball.cmp` was
+ongoing at the time of writing this.
 
-Cruce de los campos de cabecera de los 7 archivos que SÍ pasaron contra
-una muestra de 8 que fallaron reveló el patrón real: los 7 que pasan
-tienen `streamFillIdx` (canal 2) degenerado (`byteLen=1`, igual que
-`test4b.cmp`); los 8 que fallan tienen `streamFillIdx` RICO
-(`byteLen≈127-128`, igual que `sball.cmp`) — independientemente del
-`byteLen` de `streamLit` (canal 4), que es 128 en ambos grupos. Esto
-apuntaba a un bug latente en el canal 2 para alfabetos ricos, no
-(solo) en el canal 4 como se pensaba.
+The coverage harness was also fixed: ImageMagick's `compare -metric AE`
+gave impossible values in this environment (4.4e7 different "pixels"
+for an image of 1024 pixels) — replaced by a direct byte
+comparison in Python in `cmp_stage1_coverage.py`, which does give reliable
+numbers (confirmed: `test4b.cmp` reports 0/1024 through the
+harness, matching the independent verification).
 
-Un subagente de trazado en vivo (gdb + wine, mismo método que
-`cmp_capture_stage1.py`) confirmó y resolvió esto con capturas reales de
-memoria de `gamma.dll` contra `sball.cmp`, encontrando **2 bugs reales**
-(no el parche "+1" anterior, que quedó superado):
+## Continuation (same session): real corpus baseline (7/159) points to
+## the root cause, live-tracing subagent finds it — 2 real bugs,
+## `sball.cmp` also byte-exact
 
-1. **La tabla de longitudes debe indexarse por VALOR DE SÍMBOLO, no por
-   la ranura de la ventana de lookup.** Captura en vivo de la tabla real
-   de 512 bytes (`[obj+4]`, 256 bytes símbolo + 256 bytes longitud) para
-   los 5 canales de `sball.cmp` confirma que la mitad de longitudes solo
-   tiene valores no-cero en los índices que son VALORES DE SÍMBOLO real
-   (ej. `table[256+0x55]=4` para el primer símbolo real de PERM0), nunca
-   en las muchas ranuras que aliasan a ese símbolo. Desensamblado real de
-   `FUN_00426af0` (`0x426b74-0x426b7b`) explica por qué: `mov bl,[ebx]`
-   carga el símbolo en BL — el byte bajo de EBX, que es el puntero de
-   tabla alineado a 256 bytes OR'd con el índice de lookup — así que esa
-   misma instrucción MUTA el byte bajo de EBX al valor del símbolo, y la
-   instrucción siguiente `mov cl,[ebx+0x100]` termina leyendo
-   `length[symbol]`, no `length[lookupIndex]`. Invisible contra
-   `test4b.cmp` (cuyos alfabetos reales son degenerados o lo bastante
-   pequeños para que ranura==símbolo en los códigos realmente usados)
-   pero rompía cualquier archivo real con alfabeto más rico — exactamente
-   la correlación con `streamFillIdx` encontrada en el baseline del
+With `test4b.cmp` closed, the complete corpus of 159 real files of
+`content.zip` was run as a real baseline (not estimated): **7/159 OK,
+152 FAIL** (of which only 2 are exceptions/crashes —
+`roofb.cmp` and `vendside2.cmp`, `ArrayIndexOutOfBoundsException`, not yet
+investigated; the rest decode without failing but with
+incorrect pixels). `groupCount` was 1 for all 159 files — the
+`mode&0x80` path (multiple groups) remains unexercised by any known
+real file.
+
+Cross-checking the header fields of the 7 files that DID pass against
+a sample of 8 that failed revealed the real pattern: the 7 that pass
+have a degenerate `streamFillIdx` (channel 2) (`byteLen=1`, like
+`test4b.cmp`); the 8 that fail have a RICH `streamFillIdx`
+(`byteLen≈127-128`, like `sball.cmp`) — regardless of the
+`byteLen` of `streamLit` (channel 4), which is 128 in both groups. This
+pointed to a latent bug in channel 2 for rich alphabets, not
+(only) in channel 4 as was thought.
+
+A live-tracing subagent (gdb + wine, same method as
+`cmp_capture_stage1.py`) confirmed and resolved this with real memory
+captures of `gamma.dll` against `sball.cmp`, finding **2 real bugs**
+(not the earlier "+1" patch, which was superseded):
+
+1. **The length table must be indexed by SYMBOL VALUE, not by
+   the slot of the lookup window.** A live capture of the real table
+   of 512 bytes (`[obj+4]`, 256 symbol bytes + 256 length bytes) for
+   the 5 channels of `sball.cmp` confirms that the length half only has
+   non-zero values at the indices that are real SYMBOL VALUES
+   (e.g. `table[256+0x55]=4` for the first real symbol of PERM0), never
+   at the many slots that alias to that symbol. Real disassembly of
+   `FUN_00426af0` (`0x426b74-0x426b7b`) explains why: `mov bl,[ebx]`
+   loads the symbol into BL — the low byte of EBX, which is the
+   256-byte-aligned table pointer OR'd with the lookup index — so that
+   same instruction MUTATES the low byte of EBX to the symbol value, and the
+   next instruction `mov cl,[ebx+0x100]` ends up reading
+   `length[symbol]`, not `length[lookupIndex]`. Invisible against
+   `test4b.cmp` (whose real alphabets are degenerate or small enough for
+   slot==symbol in the codes actually used)
+   but it broke any real file with a richer alphabet — exactly
+   the correlation with `streamFillIdx` found in the baseline of the
    corpus.
-2. **La transición de bits entre canales está condicionada por el bit 0
-   de `flags`, no es siempre "continuar a mitad de byte":** con
-   `flags&1==1` (`test4b.cmp`) cada canal continúa la ventana del canal
-   anterior exactamente (el modelo `BitCursor` "primed" original, sin
-   cambios). Con `flags&1==0` (`sball.cmp`) el llamador real de
-   `gamma.dll` en cambio realinea a byte completo antes de cada canal
-   siguiente (retrocede 1 byte, recarga fresca de 16 bits). Confirmado en
-   ambos sentidos contra captura en vivo: aplicar el realineado a
-   `test4b.cmp` rompe `ctrl`/`lit`; no aplicarlo a `sball.cmp` deja
-   `streamA`/`fillIdx`/`ctrl` 50-97% incorrectos.
+2. **The bit transition between channels is conditioned by bit 0
+   of `flags`, it is not always "continue in mid-byte":** with
+   `flags&1==1` (`test4b.cmp`) each channel continues the window of the
+   previous channel exactly (the original "primed" `BitCursor` model,
+   unchanged). With `flags&1==0` (`sball.cmp`) the real caller in
+   `gamma.dll` instead realigns to a full byte before each following
+   channel (steps back 1 byte, fresh 16-bit reload). Confirmed in
+   both directions against live capture: applying the realignment to
+   `test4b.cmp` breaks `ctrl`/`lit`; not applying it to `sball.cmp` leaves
+   `streamA`/`fillIdx`/`ctrl` 50-97% incorrect.
 
-Con ambos bugs corregidos, la peculiaridad de "símbolo extra al
-principio" del canal LIT (documentada como limitación honesta antes) se
-convierte en una constante limpia y verificada: **1 símbolo extra en
-modo continuación, 2 en modo realineado** — encontrado por búsqueda de
-fuerza bruta contra ground truth capturado en vivo para ambos archivos,
-no explicado mecanísticamente todavía (no se identificó la lectura extra
-correspondiente en el desensamblado de `FUN_00442750`), pero exacto y
-reproducible en ambos casos.
+With both bugs fixed, the peculiarity of the "extra symbol at the
+beginning" of the LIT channel (documented as an honest limitation before)
+becomes a clean, verified constant: **1 extra symbol in
+continuation mode, 2 in realigned mode** — found by brute-force
+search against ground truth captured live for both files,
+not yet explained mechanistically (the corresponding extra read
+in the disassembly of `FUN_00442750` was not identified), but exact and
+reproducible in both cases.
 
-**Resultado verificado**: `sball.cmp` ahora decodifica byte-exacto en
-los 5 streams de símbolos (bits 0/512, streamA 0/1940, fillIdx 0/593,
-ctrl 0/593, lit 0/997 discrepancias) contra ground truth capturado en
-vivo, y píxel-exacto de punta a punta contra el render real de
-`cmpview.exe` — igual que `test4b.cmp`. Alcance de la verificación: 2
-archivos (uno por cada valor de `flags` bit 0), con alta confianza por
-estar basado en desensamblado y coincidir exacto con volcados de
-memoria reales, pero pendiente de correr contra el corpus completo antes
-de reclamar cierre — ver `docs/cmp-stage1-coverage.md` para el número
-real actualizado.
+**Verified result**: `sball.cmp` now decodes byte-exact in
+all 5 symbol streams (bits 0/512, streamA 0/1940, fillIdx 0/593,
+ctrl 0/593, lit 0/997 discrepancies) against ground truth captured live,
+and pixel-exact end to end against the real render of
+`cmpview.exe` — just like `test4b.cmp`. Scope of the verification: 2
+files (one for each value of `flags` bit 0), with high confidence because
+it is based on disassembly and matches real memory dumps exactly, but
+pending running against the complete corpus before
+claiming closure — see `docs/cmp-stage1-coverage.md` for the real
+updated number.
 
-## Sesión siguiente: LIT pasa de "constante ajustada a 2 archivos" a
-## regla real de alineado a byte, harness de captura tenía fuga de
-## procesos wine, corpus completo alcanza 159/159
+## Next session: LIT goes from a "constant fitted to 2 files" to a
+## real byte-alignment rule, the capture harness had a wine process leak,
+## the complete corpus reaches 159/159
 
-La constante "1 símbolo extra en modo continuación, 2 en modo
-realineado" para el canal LIT (arriba) resultó estar ajustada a solo 2
-puntos de datos y se rompió al verificar contra más archivos reales:
+The constant "1 extra symbol in continuation mode, 2 in realigned mode"
+for the LIT channel (above) turned out to be fitted to only 2
+data points and broke when verified against more real files:
 
-- `avdoor.cmp` (modo realineado) solo necesitaba 1 símbolo extra, no 2 —
-  refutando la constante fija. La regla real (primer reemplazo):
-  descartar símbolos completos, uno a la vez, decodificándolos a través
-  de la tabla Huffman real, hasta que la SUMA de sus longitudes de
-  código reales alcance `bc.bitsAvail`. Verificado contra 3 archivos.
-- `rkgrnd.cmp` y `unexit.cmp` (encontrados independientemente por dos
-  subagentes de investigación en paralelo) rompieron ESA regla también:
-  `rkgrnd.cmp` tiene símbolos LIT en longitudes mixtas 7 y 8 — descartar
-  por símbolo completo puede pasarse del límite de byte (un símbolo de 7
-  bits seguido de uno de 8 bits se pasa por 7 bits del objetivo de 8),
-  comiéndose datos reales de `wanted[4]`. `unexit.cmp` usa códigos de
-  5 bits exclusivamente, que nunca suman exactamente 8 con símbolos
-  completos. **Fix final**: `skipRawBits(bc, n)` — un descarte de bits
-  crudos que nunca pasa por la tabla Huffman en absoluto, sin ese caso
-  límite. Verificado byte-exacto contra 5 archivos reales independientes
-  que cubren ambos modos de `flags` bit0 y distribuciones de longitud de
-  código uniformes y mixtas: `test4b.cmp`, `sball.cmp`, `avdoor.cmp`,
-  `rkgrnd.cmp`, `unexit.cmp`.
+- `avdoor.cmp` (realigned mode) only needed 1 extra symbol, not 2 —
+  refuting the fixed constant. The real rule (first replacement):
+  discard whole symbols, one at a time, decoding them through the real
+  Huffman table, until the SUM of their real code lengths reaches
+  `bc.bitsAvail`. Verified against 3 files.
+- `rkgrnd.cmp` and `unexit.cmp` (found independently by two research
+  subagents in parallel) broke THAT rule too:
+  `rkgrnd.cmp` has LIT symbols with mixed lengths 7 and 8 — discarding
+  by whole symbol can overshoot the byte boundary (a 7-bit symbol
+  followed by an 8-bit one overshoots by 7 bits the target of 8), eating
+  real data of `wanted[4]`. `unexit.cmp` uses exclusively
+  5-bit codes, which never add up to exactly 8 with whole symbols. **Final
+  fix**: `skipRawBits(bc, n)` — a raw bit discard that never goes
+  through the Huffman table at all, without that edge case. Verified
+  byte-exact against 5 independent real files that cover both modes of
+  `flags` bit0 and uniform and mixed code-length distributions:
+  `test4b.cmp`, `sball.cmp`, `avdoor.cmp`, `rkgrnd.cmp`, `unexit.cmp`.
 
-Con eso commiteado, se encontró y arregló un bug real y serio en el
-propio harness de verificación: `cmp_ground_truth.py` solo mataba
-confiablemente el proceso launcher `wine`, nunca el `cmpview.exe` (ni el
-`start.exe` interno que a veces lo envuelve) que realmente genera. A lo
-largo de una corrida de 159 archivos estos procesos huérfanos se
-acumulan, terminan dejando varias ventanas superpuestas en la sesión X —
-lo cual rompe silenciosamente el supuesto de "una sola ventana en el
-origen" del módulo y corrompe las capturas de pantalla (confirmado
-directamente: una captura completamente negra, y `ps aux` mostrando
-procesos de HORAS antes todavía vivos). Fix: `pkill -9 -f cmpview.exe` /
-`pkill -9 -f "start.exe /exec"` tanto antes como después de cada
-captura, no solo al final. **Toda cifra de cobertura del corpus medida
-antes de este fix en la misma sesión es sospechosa y no debe
-confiarse** — quedó re-medida honestamente después.
+With that committed, a real and serious bug was found and fixed in the
+verification harness itself: `cmp_ground_truth.py` only reliably killed the
+`wine` launcher process, never the `cmpview.exe` (nor the internal
+`start.exe` that sometimes wraps it) that it actually spawns. Over
+the course of a 159-file run these orphaned processes accumulate,
+ending up leaving several overlapping windows in the X session —
+which silently breaks the module's assumption of "a single window at the
+origin" and corrupts the screen captures (confirmed
+directly: a completely black capture, and `ps aux` showing processes from
+HOURS earlier still alive). Fix: `pkill -9 -f cmpview.exe` /
+`pkill -9 -f "start.exe /exec"` both before and after each
+capture, not just at the end. **Every corpus coverage figure measured
+before this fix in the same session is suspect and must not be
+trusted** — it was honestly re-measured afterwards.
 
-Con el harness corregido, el corpus completo subió a 156/159, y tras
-descartar 2 fallas transitorias por contención de procesos wine
-concurrentes (`avdrrl.cmp`, `avflr1.cmp` — ambas OK al re-probarse
-aisladas) quedó en **158/159**, con `vendside2.cmp` como única falla
-real restante.
+With the harness fixed, the complete corpus rose to 156/159, and after
+discarding 2 transient failures due to contention among concurrent wine
+processes (`avdrrl.cmp`, `avflr1.cmp` — both OK when re-tested in
+isolation) it stood at **158/159**, with `vendside2.cmp` as the only
+remaining real failure.
 
-### `vendside2.cmp`: el bug del alfabeto de un solo símbolo
+### `vendside2.cmp`: the single-symbol alphabet bug
 
-Investigación directa (streams `bits`/`streamA`/`streamFillIdx`/
-`streamCtrl` byte-exactos, solo `streamLit` divergía desde el byte 0) y
-fuerza bruta sobre el punto de entrada de LIT (desplazamiento de byte
-×  bits descartados, 81 combinaciones) no encontró ninguna alineación
-simple que funcionara — señal de que el bug no era de alineación de LIT
-en sí, sino algo estructural aguas arriba.
+Direct investigation (streams `bits`/`streamA`/`streamFillIdx`/
+`streamCtrl` byte-exact, only `streamLit` diverged from byte 0) and
+brute force over the LIT entry point (byte shift
+×  discarded bits, 81 combinations) found no simple alignment that
+worked — a sign that the bug was not one of the LIT alignment itself, but
+something structural upstream.
 
-Causa real: el canal `streamCtrl` (canal 3) de este archivo cae en el
-caso degenerado de un solo símbolo de `buildFromLengths` (`sum<=1`) —
-un alfabeto Huffman de un solo símbolo real. El código emitía la
-longitud de código EXACTAMENTE como se leía del nibble de cabecera
-(siempre 1 en cada ocurrencia real del corpus), cuando un alfabeto de un
-solo símbolo necesita **0 bits** por código — no hay nada que
-desambiguar. Un escaneo del corpus completo mostró que 9/159 archivos
-caen en este caso exacto (`byteLen=1`, `onlyLen=1`, `flags=0x80`), pero
-en 8 de ellos el canal solo pide 1 símbolo (`wanted[3]=1`) — ni 0 ni 1
-bit de costo alcanza nunca a disparar una recarga de byte, así que el
-bug es matemáticamente invisible ahí. `vendside2.cmp` pide 63 símbolos
-(`wanted[3]=63`) — con longitud 1 (bug), decodificarlos avanza el cursor
-de bits compartido ~7 bytes que nunca debieron consumirse, corrompiendo
-cada símbolo LIT siguiente.
+Real cause: the `streamCtrl` channel (channel 3) of this file falls into the
+degenerate single-symbol case of `buildFromLengths` (`sum<=1`) —
+a Huffman alphabet of a single real symbol. The code emitted the code
+length EXACTLY as it was read from the header nibble (always 1 in every real
+occurrence in the corpus), when a single-symbol alphabet needs
+**0 bits** per code — there is nothing to disambiguate. A scan of the
+complete corpus showed that 9/159 files fall into this exact case
+(`byteLen=1`, `onlyLen=1`, `flags=0x80`), but in 8 of them the channel
+only asks for 1 symbol (`wanted[3]=1`) — neither 0 nor 1 bit of cost ever
+manages to trigger a byte reload, so the bug is mathematically invisible
+there. `vendside2.cmp` asks for 63 symbols (`wanted[3]=63`) — with length
+1 (bug), decoding them advances the shared bit cursor ~7 bytes that
+should never have been consumed, corrupting every following LIT symbol.
 
-Fix de dos partes: (1) el caso degenerado de un solo símbolo emite
-longitud 0, no `lengths[only]`. (2) un campo nuevo
-`reloadedDuringChannel` en `BitCursor`, marcado cuando el bucle interno
-de `decodeChannel` realmente recarga un byte — un canal que consume
-verdaderamente 0 bits nunca toca su propio prefetch de 2 bytes, así que
-el retroceso estándar de "1 byte" antes del siguiente canal se pasa por
-1 byte en ese caso; necesita retroceder 2. La transición específica
-LIT-tras-ctrl ya tenía un retroceso doble preexistente y verificado
-("LIT necesita 1 byte extra más allá de lo normal") — ese se dejó sin
-tocar (sigue siendo `-1` incondicional) y el ajuste condicional se
-aplicó solo a la transición normal justo antes, para no duplicar la
-corrección.
+Two-part fix: (1) the degenerate single-symbol case emits length
+0, not `lengths[only]`. (2) a new field
+`reloadedDuringChannel` in `BitCursor`, set when the inner loop of
+`decodeChannel` actually reloads a byte — a channel that truly consumes
+0 bits never touches its own 2-byte prefetch, so the standard "1 byte"
+step back before the next channel overshoots by 1 byte in that case; it
+needs to step back 2. The specific LIT-after-ctrl transition already had a
+pre-existing, verified double step back ("LIT needs 1 extra byte beyond
+the normal") — that one was left untouched (it is still an unconditional
+`-1`) and the conditional adjustment was applied only to the normal
+transition right before it, so as not to duplicate the correction.
 
-**Verificado**: `vendside2.cmp` byte-exacto en `streamLit` (0/126) y en
-los 16384 píxeles finales contra el render real de `cmpview.exe`. Corpus
-completo re-confirmado en 4 lotes de ~40 archivos (correr los 159 de una
-sola vez resultó intermitentemente inestable esta sesión —
-probablemente contención de recursos de Wine/X bajo ejecuciones largas,
-no relacionado con el decodificador — los lotes de ~40 archivos
-resultaron confiables): **159/159 OK, byte-exacto, 0 regresiones.**
+**Verified**: `vendside2.cmp` byte-exact in `streamLit` (0/126) and in
+the final 16384 pixels against the real render of `cmpview.exe`. Complete
+corpus re-confirmed in 4 batches of ~40 files (running all 159 at
+once turned out to be intermittently unstable this session —
+probably Wine/X resource contention under long runs,
+unrelated to the decoder — batches of ~40 files proved
+reliable): **159/159 OK, byte-exact, 0 regressions.**
 
-## Estado final: cobertura completa del corpus real (159/159)
+## Final state: complete coverage of the real corpus (159/159)
 
-El decodificador Stage 1 de `.cmp` (`CmpStage1.java` +
-`CmpStage2.java`) decodifica byte-exacto, píxel a píxel, contra el
-render real de `cmpview.exe` para los 159 archivos `.cmp` reales de
-`GroundZero/content.zip` — no una muestra, no una estimación, el corpus
-completo. El camino `mode&0x80` (grupos múltiples, `groupCount>1`)
-YA está ejercitado y verificado — por los `.mov` (ver sección
-siguiente); en `.cmp` ningún archivo real conocido lo activa y se
-mantiene el `IOException` explícito para ese caso.
+The `.cmp` Stage 1 decoder (`CmpStage1.java` +
+`CmpStage2.java`) decodes byte-exact, pixel by pixel, against the
+real render of `cmpview.exe` for the 159 real `.cmp` files of
+`GroundZero/content.zip` — not a sample, not an estimate, the complete
+corpus. The `mode&0x80` path (multiple groups, `groupCount>1`)
+IS now exercised and verified — by the `.mov` files (see next
+section); in `.cmp` no known real file triggers it and the
+explicit `IOException` is kept for that case.
 
-## `.mov`: mismo códec, contenedor multi-frame (2026-09-13)
+## `.mov`: same codec, multi-frame container (2026-09-13)
 
-Los 13 `.mov` reales de `content.zip` (`tex/*.mov`, referenciados
-desde Rects con sufijos de animación `2h*2v*`) son LzH2 con los
-mismos offsets de cabecera que `.cmp`, modos `0x82`/`0x86`, paleta
-`byte12=0xFF` (=255 genuino, probado: forzar 256 desincroniza).
-Diferencias: región de tablas mucho mayor (tablas multi-frame; el
-u16 de 28 NO es su tamaño) — se localiza por firma de header de
-grupo (`field0==64`, único por archivo, incl. `windr3` con
-`wanted[0]=624`, `h=154`) — y `groupCount>1` (frames): solo se
-decodifica el grupo 0 (frame estático para el visor; el tiling
-`2h*2v*`/multi-archivo f1-f8 es animación por UV/tiempo, fuera de
-alcance). Índice 255 = fondo transparente → blanco (canvas de
-cmpview; solo `.mov`, los `.cmp` conservan su entrada real).
-Verificación contra `cmpview.exe`: `windr1` y `cbirda4`
-16384/16384 byte-exactos; resto con artwork real correcto (banderas
-f1-f8 en fases de onda sucesivas, pájaro, logos, interiores).
-Implementación: `CmpStage1.decodeMovFrame0` + `CmpTexture.loadMov`.
-Límites honestos: frame 0 estático (sin animación temporal);
-ventana de película de cmpview incluye UI propia (poste/seek) que no
-es contenido — no confundir al verificar.
+The 13 real `.mov` files of `content.zip` (`tex/*.mov`, referenced
+from Rects with animation suffixes `2h*2v*`) are LzH2 with the
+same header offsets as `.cmp`, modes `0x82`/`0x86`, palette
+`byte12=0xFF` (=255 genuine, proven: forcing 256 desynchronizes).
+Differences: a much larger table region (multi-frame tables; the
+u16 at 28 is NOT their size) — it is located by group header signature
+(`field0==64`, unique per file, incl. `windr3` with
+`wanted[0]=624`, `h=154`) — and `groupCount>1` (frames): only
+group 0 is decoded (static frame for the viewer; the tiling
+`2h*2v*`/multi-file f1-f8 is animation by UV/time, out of
+scope). Index 255 = transparent background → white (canvas of
+cmpview; `.mov` only, the `.cmp` keep their real entry).
+Verification against `cmpview.exe`: `windr1` and `cbirda4`
+16384/16384 byte-exact; the rest with correct real artwork (flags
+f1-f8 in successive wave phases, bird, logos, interiors).
+Implementation: `CmpStage1.decodeMovFrame0` + `CmpTexture.loadMov`.
+Honest limits: static frame 0 (no temporal animation);
+cmpview's movie window includes its own UI (post/seek) that is not
+content — do not confuse it when verifying.
 
-### Corrección (2026-09-22): el "frame 0" de arriba era el ÚLTIMO frame
+### Correction (2026-09-22): the "frame 0" above was the LAST frame
 
-La sección anterior queda superada en dos puntos, medidos sobre los 52
-`.mov` y los 159 `.cmp` de `content.zip`:
+The previous section is superseded on two points, measured on the 52
+`.mov` and the 159 `.cmp` of `content.zip`:
+1. **The group signature was finding the last frame, not the first.** The
+   frames go in the file in the order of the frame table that
+   `gamma.dll` reads (`FUN_00442750` header, `FUN_00442bc0` per frame): after
+   the table region (`u16@28` bytes from 34) and the palette cursor,
+   entries of 20 bytes (absolute offset u32, size u16, next u16,
+   reference u16 or `0xFFFF`). The groups are contiguous and the last one ends
+   at the end of the file (e.g. `windr3`: 1037+2012 = 3049, …,
+   8555+3074 = 11629 bytes). The signature scan (`field0==64` and zeros at
+   +12/+14) does not match the group header of frame 0 and stopped at the
+   last group in the 52 files. Result of the old path: 49 `.mov` showed
+   exactly the last frame (34 of 4 frames, 15 of 2); 2
+   (`logo256`, `splashscreen`) decoded the last group without its reference
+   frame (it matches no frame); `windr3` also came out transposed.
+2. **Width = `u16@8`, height = `u16@6`.** `windr3.mov` is 154 wide by
+   128 high (64 row pairs, 39 nibble columns); the old path
+   gave it as 128×154. In the `.cmp` files it is not noticeable because
+   all 159 are square.
 
-1. **La firma de grupo encontraba el último frame, no el primero.** Los
-   frames van en el fichero en el orden de la tabla de frames que lee
-   `gamma.dll` (`FUN_00442750` cabecera, `FUN_00442bc0` por frame): tras
-   la región de tablas (`u16@28` bytes desde 34) y el cursor de paleta,
-   entradas de 20 bytes (offset absoluto u32, tamaño u16, siguiente u16,
-   referencia u16 o `0xFFFF`). Los grupos son contiguos y el último acaba
-   en el final del fichero (p. ej. `windr3`: 1037+2012 = 3049, …,
-   8555+3074 = 11629 bytes). El escaneo por firma (`field0==64` y ceros en
-   +12/+14) no casa con la cabecera de grupo del frame 0 y se paraba en el
-   último grupo en los 52 ficheros. Resultado de la ruta vieja: 49 `.mov`
-   mostraban exactamente el último frame (34 de 4 frames, 15 de 2); 2
-   (`logo256`, `splashscreen`) decodificaban el último grupo sin su frame
-   de referencia (no coincide con ningún frame); `windr3` además salía
-   traspuesto.
-2. **Ancho = `u16@8`, alto = `u16@6`.** `windr3.mov` es 154 de ancho por
-   128 de alto (64 pares de filas, 39 columnas de nibbles); la ruta vieja
-   lo daba como 128×154. En los `.cmp` no se nota porque los 159 son
-   cuadrados.
-
-`CmpTexture.loadRaw`/`loadMov`/`loadMovFrames` usan ya `CmpFrames` (la
-misma decodificación que usa el puente); `CmpStage1.decodeMovFrame0` y
-`CmpStage1.decode` se han retirado. Medido: **159/159 `.cmp` con el
-mismo RGB que antes, 52/52 `.mov` cambian de frame 0** (y los 52 decodifican
-todos sus frames). Fuera de `content.zip`, los `.mov` de avatar
-(21 en `base-avatars/`, 31 en `cachedir/`) pasan de 37/52 ficheros
-decodificables a 52/52: los 15 que fallaban tienen tamaños distintos de 128 (104×135,
-118×100, 150×150, 160×150…) o hasta 16 frames. Comprobación:
+`CmpTexture.loadRaw`/`loadMov`/`loadMovFrames` now use `CmpFrames` (the
+same decoding that the bridge uses); `CmpStage1.decodeMovFrame0` and
+`CmpStage1.decode` have been retired. Measured: **159/159 `.cmp` with the
+same RGB as before, 52/52 `.mov` change from frame 0** (and all 52 decode
+all their frames). Outside `content.zip`, the avatar `.mov` files
+(21 in `base-avatars/`, 31 in `cachedir/`) go from 37/52 decodable files
+to 52/52: the 15 that failed have sizes other than 128 (104×135,
+118×100, 150×150, 160×150…) or up to 16 frames. Check:
 `formats/test/net/openworlds/cmp/CmpTextureCheck.java`.
 
-La verificación "byte-exacta contra `cmpview.exe`" de `windr1` y
-`cbirda4` de 2026-09-13 comparaba, por tanto, el **último** frame (si aquella comparación era
-correcta, `cmpview` enseña el final de la película). No es una referencia
-del frame 0, y no es reproducible en este Mac (sin Wine).
+The "byte-exact against `cmpview.exe`" verification of `windr1` and
+`cbirda4` of 2026-09-13 was comparing, therefore, the **last** frame (if
+that comparison was correct, `cmpview` shows the end of the movie). It is not
+a reference for frame 0, and it is not reproducible on this Mac (no Wine).
 
-### Para qué usa el cliente los frames de un `.mov` (2026-09-22)
+### What the client uses the frames of a `.mov` for (2026-09-22)
 
-Un `.mov` **no se reproduce en el tiempo** por sí mismo. En el Java
-original (`NET/worlds/scape`) sus frames son:
+A `.mov` is **not played back over time** by itself. In the original Java
+(`NET/worlds/scape`) its frames are:
 
-- **Celdas de un Material** (`Material.calcRes`/`loadTextures`/
-  `syncBackgroundLoad`): el nombre `x2h*2v*.mov` pide 2×2 texturas del
-  fichero `x.mov`; la textura `k*hRes + c` es el frame
-  `hRes*vRes*sPos + (vRes-1-k)*hRes + c`, y el Rect se parte en esas celdas
-  (`Surface.addSubPolys`, gamma.dll `0x004206d0`; polígono *i* ←
+- **Cells of a Material** (`Material.calcRes`/`loadTextures`/
+  `syncBackgroundLoad`): the name `x2h*2v*.mov` asks for 2×2 textures from
+  the file `x.mov`; texture `k*hRes + c` is frame
+  `hRes*vRes*sPos + (vRes-1-k)*hRes + c`, and the Rect is split into those
+  cells (`Surface.addSubPolys`, gamma.dll `0x004206d0`; polygon *i* ←
   material *i* mod *hRes·vRes*, `Surface.nativeSetMaterial` `0x00420500`).
-  Con un Rect de u = v = 1 queda el frame 0 arriba a la izquierda y los
-  demás en orden de lectura. `Ns*` elige el N-ésimo grupo de
-  *hRes·vRes* frames. En GroundZero **todos** los `.mov` se usan así, y
-  su número de frames es justo *hRes·vRes*: 34 de 4 frames con `2h*2v*`,
-  y los de 2 frames con `2h*` (banderas `f1`–`f8`, `signa&a`, `signtel`,
-  `time`) o `2v*` (`drs1`, `drs5`). Así, por ejemplo, los 14 `sky*.mov`
-  del fondo de `ReceptionView1` forman un único panorama continuo de
-  montañas: antes el visor del motor nuevo estiraba sobre cada panel una
-  sola celda.
-- **Caras de un Hologram** según el ángulo de vista
-  (`Hologram.setActiveSide`, nativo).
-- **Subimágenes de avatar** (`PosableShape`, fuera de este documento).
+  With a Rect of u = v = 1, frame 0 ends up at the top left and the
+  others in reading order. `Ns*` chooses the N-th group of
+  *hRes·vRes* frames. In GroundZero **all** the `.mov` files are used this way, and
+  their number of frames is exactly *hRes·vRes*: 34 of 4 frames with `2h*2v*`,
+  and those of 2 frames with `2h*` (flags `f1`–`f8`, `signa&a`, `signtel`,
+  `time`) or `2v*` (`drs1`, `drs5`). Thus, for example, the 14 `sky*.mov`
+  of the background of `ReceptionView1` form a single continuous panorama of
+  mountains: before, the new engine's viewer stretched a
+  single cell over each panel.
+- **Faces of a Hologram** depending on the viewing angle
+  (`Hologram.setActiveSide`, native).
+- **Avatar sub-images** (`PosableShape`, outside this document).
 
-Lo que sí cambia con el tiempo es el **Material entero**, con una
-`AnimateAction` disparada por un sensor (ver
-`docs/world-format-reference.md`, "Acciones que cambian texturas"): la
-bandera de `ReceptionView1` alterna `f12h*.mov` … `f82h*.mov` (8 fases
-en 1000 ms) y el cartel del probador `drs12v*.mov`/`drs52v*.mov` cada
+What does change over time is the **entire Material**, with an
+`AnimateAction` fired by a sensor (see
+`docs/world-format-reference.md`, "Actions that change textures"): the
+flag of `ReceptionView1` alternates `f12h*.mov` … `f82h*.mov` (8 phases
+in 1000 ms) and the dressing-room sign `drs12v*.mov`/`drs52v*.mov` every
 3 s.
 
-En el puente las celdas las hace `NativeScene.addSubPolys` (casos a mano en
-`bridge/test/SubPolysCheck.java`).
+In the bridge the cells are done by `NativeScene.addSubPolys` (hand-computed
+cases in `bridge/test/SubPolysCheck.java`).
 
-### Varios grupos por fotograma, el byte 13 y el salto de `idx == 0` (2026-09-26)
+### Several groups per frame, byte 13 and the skip of `idx == 0` (2026-09-26)
 
-Tres cosas que no salían en el corpus de GroundZero y sí en mundos
-descargados del espejo (muestras y procedencia en `assets/cmp-verified/`,
-test en `formats/test/net/openworlds/cmp/CmpGroupsCheck.java`):
+Three things that did not show up in the GroundZero corpus and did in worlds
+downloaded from the mirror (samples and provenance in `assets/cmp-verified/`,
+test in `formats/test/net/openworlds/cmp/CmpGroupsCheck.java`):
 
-- **Un fotograma puede ser varios grupos de filas.** `FUN_00442bc0` es un
-  bucle `while (filas < alto)`: cada grupo trae su cabecera de 16 bytes
-  (`u16` pares de filas, 5 longitudes de flujo, `u16` tamaño del
-  **siguiente** grupo y un `u16` que debe ser 0), sus cinco flujos
-  decodificados con las mismas tablas de Huffman y su llamada a
-  `FUN_00457d88` con `edi = ((alto par − 1) − filas hechas) · pitch + base`,
-  es decir, justo donde acabó el grupo anterior. El tamaño del primer grupo
-  sale de la tabla de fotogramas y el de los siguientes, de la cabecera del
-  anterior. `tex/mug.cmp` de The Blair Witch World (213×233) va en dos
-  grupos de 76 y 41 pares; 943 + 2 071 + 1 674 = 4 688, el final exacto del
-  fichero, y cada grupo gasta sus flujos exactos. En las `.mov` el campo
-  "siguiente" da el tamaño del fotograma que sigue (su primer grupo).
-- **La fila `esi` es una sola por fichero.** `FUN_00442750` la reserva una
-  vez (`this+0x3c`, `(ancho+3>>2)·2` bytes, sin borrar) y `FUN_00442bc0` la
-  pasa a todos los grupos y fotogramas. Una mirada atrás al empezar un
-  fotograma lee lo que dejó el último pase del anterior. Guardarla cambió
-  el fotograma 3 de `logo256.mov` y el 1 de `splashscreen.mov` de GroundZero,
-  y ningún fotograma 0.
-- **Byte 13 de la cabecera distinto de 0**: en la región de tablas,
-  gamma.dll salta `(byte13·18+7)>>3` bytes **y además** el número de
-  colores (0x442963..0x442983). Solo `kcl.mov` (vestuario de avatares:
-  caleidoscopio de 8 fotogramas, modo `0xc2`) lo usa; antes se descuadraba
-  256 bytes y se caía construyendo las tablas.
-- **`idx == 0` en el camino de copia simple de `FUN_00457d88`**
-  (0x457e22 `and ebx,0xff` / `je 0x457e0c`) no escribe nada. Consume el bit
-  de relleno (0x457e0c `add edx,edx` / `je` recarga) y avanza `edi += 4` y
-  `esi += 2`, de modo que el bloque 2×4 conserva lo que había. ⚠️ VERIFICAR:
-  traducido del ensamblador, sin ningún fichero conocido que lo use.
-  `mug.cmp` solo llegaba ahí porque el lector viejo leía el relleno de ceros
-  tras el primer grupo.
+- **A frame can be several groups of rows.** `FUN_00442bc0` is a
+  `while (rows < height)` loop: each group brings its 16-byte header
+  (`u16` row pairs, 5 stream lengths, `u16` size of the
+  **next** group and a `u16` that must be 0), its five streams
+  decoded with the same Huffman tables and its call to
+  `FUN_00457d88` with `edi = ((even height − 1) − rows done) · pitch + base`,
+  that is, right where the previous group ended. The size of the first group
+  comes from the frame table and that of the following ones from the header
+  of the previous one. `tex/mug.cmp` of The Blair Witch World (213×233) is in
+  two groups of 76 and 41 pairs; 943 + 2,071 + 1,674 = 4,688, the exact end of
+  the file, and each group spends its streams exactly. In the `.mov` files
+  the "next" field gives the size of the frame that follows (its first group).
+- **The `esi` row is a single one per file.** `FUN_00442750` allocates it
+  once (`this+0x3c`, `(width+3>>2)·2` bytes, not cleared) and `FUN_00442bc0`
+  passes it to all the groups and frames. A look-back when starting a
+  frame reads what the last pass of the previous one left. Preserving it
+  changed frame 3 of `logo256.mov` and frame 1 of `splashscreen.mov` of
+  GroundZero, and no frame 0.
+- **Header byte 13 different from 0**: in the table region,
+  gamma.dll skips `(byte13·18+7)>>3` bytes **and also** the number of
+  colors (0x442963..0x442983). Only `kcl.mov` (avatar dressing room:
+  kaleidoscope of 8 frames, mode `0xc2`) uses it; before, it was
+  256 bytes off and crashed while building the tables.
+- **`idx == 0` in the simple copy path of `FUN_00457d88`**
+  (0x457e22 `and ebx,0xff` / `je 0x457e0c`) writes nothing. It consumes the
+  fill bit (0x457e0c `add edx,edx` / `je` reload) and advances `edi += 4` and
+  `esi += 2`, so that the 2×4 block keeps what it had. ⚠️ VERIFY:
+  translated from assembly, with no known file that uses it.
+  `mug.cmp` only got there because the old reader read the zero padding
+  after the first group.

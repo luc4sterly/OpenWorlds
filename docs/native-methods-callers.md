@@ -1,17 +1,17 @@
-# Mapa de llamadas a métodos `native` (previo al mock JNI)
+# Call map of `native` methods (before the JNI mock)
 
-Generado antes de convertir cada `native` en un stub con logging, para saber qué rutas de código realmente los ejercitan en tiempo de ejecución. `(self)` = llamada sin calificar dentro del propio archivo que declara el método.
+Generated before converting each `native` into a logging stub, to find out which code paths actually exercise them at run time. `(self)` = unqualified call inside the file that declares the method itself.
 
-⚠️ **Limitación conocida, léase antes de sacar conclusiones**: esto es un grep por texto (`Clase.metodo(` calificado, o `metodo(` sin calificar dentro del mismo archivo). No entiende polimorfismo (llamar a través de una interfaz o una referencia de la superclase), ni `this.metodo()` invocado desde una subclase, ni reflection. Con esta heurística, **167 de los 365** métodos salen como "sin llamadas encontradas" — eso NO significa que los 167 sean código muerto, solo que esta herramienta no les encontró un call site de forma trivial. Los únicos dos casos confirmados como código muerto de verdad (`PendingCacheDrone.nativeDestroy`, `Console.getVolumeInfo`) se verificaron aparte, cruzando además contra los exports reales de `gamma.dll` — ver `docs/native-methods-map.md`. Para cualquier otro método de esta lista, "sin llamadas encontradas" es una pista para investigar, no una conclusión.
+⚠️ **Known limitation, read before drawing conclusions**: this is a text grep (`Class.method(` qualified, or `method(` unqualified inside the same file). It does not understand polymorphism (calling through an interface or a superclass reference), nor `this.method()` invoked from a subclass, nor reflection. With this heuristic, **167 of the 365** methods come out as "no calls found" — that does NOT mean that all 167 are dead code, only that this tool did not trivially find a call site for them. The only two cases confirmed as truly dead code (`PendingCacheDrone.nativeDestroy`, `Console.getVolumeInfo`) were verified separately, also cross-checking against the real exports of `gamma.dll` — see `docs/native-methods-map.md`. For any other method in this list, "no calls found" is a lead to investigate, not a conclusion.
 
-Total de declaraciones `native`: **365**
+Total `native` declarations: **365**
 
 ### `ASFSoundPlayer.nativePlay`
 - ASFThread:27
 - ASFThread:74
 
 ### `ActiveX.getClass`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `ActiveX.getClassFClsID`
 - IUnknown:30
@@ -66,7 +66,7 @@ Total de declaraciones `native`: **365**
 - CDPlayerAction:107 (self)
 
 ### `CDPlayerAction.pauseAudio`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `CDPlayerAction.playAudio`
 - CDAudio:276
@@ -74,10 +74,10 @@ Total de declaraciones `native`: **365**
 - CDPlayerAction:86 (self)
 
 ### `CDPlayerAction.resumeAudio`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `CDPlayerAction.setNTAutoPlayCode`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `CDPlayerAction.stopAudio`
 - CDAudio:288
@@ -90,7 +90,7 @@ Total de declaraciones `native`: **365**
 - Camera:345 (self)
 
 ### `Camera.nDrawText`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Camera.renderScene`
 - Camera:103 (self)
@@ -102,19 +102,19 @@ Total de declaraciones `native`: **365**
 - Console:580 (self)
 
 ### `Console.getVolumeInfo`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Cursor.destroyCursor`
 - Cursor:114 (self)
 
 ### `Cursor.getSystemCursorDepth`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Cursor.getSystemCursorHeight`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Cursor.getSystemCursorWidth`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Cursor.loadCursor`
 - Cursor:128 (self)
@@ -123,19 +123,19 @@ Total de declaraciones `native`: **365**
 - Cursor:101 (self)
 
 ### `DDEMLClass.Poke`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DDEMLClass.Request`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DDEMLClass.create`
 - DDEMLClass:9 (self)
 
 ### `DDEMLClass.destroy`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DDEMLClass.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DNSLookup.gethostbyname`
 - DNSLookup:98 (self)
@@ -145,13 +145,13 @@ Total de declaraciones `native`: **365**
 - DirectShow:19 (self)
 
 ### `DirectShow.nOpen`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DirectShow.nPause`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DirectShow.nPlay`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DirectShow.nRenderTo`
 - DirectShow:29 (self)
@@ -166,7 +166,7 @@ Total de declaraciones `native`: **365**
 - DirectShow:23 (self)
 
 ### `DirectShow.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DroneAnimator.CreateRep`
 - DroneAnimator:55 (self)
@@ -178,22 +178,22 @@ Total de declaraciones `native`: **365**
 - PosableShape:130
 
 ### `DroneAnimator.animate`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DroneAnimator.deltype`
 - DroneAnimator:48 (self)
 
 ### `DroneAnimator.endanimations`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DroneAnimator.getActionList`
 - PosableShape:1207
 
 ### `DroneAnimator.getAnimationTime`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DroneAnimator.getindexgeom`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DroneAnimator.getnameindex`
 - PosableShape:150
@@ -207,17 +207,17 @@ Total de declaraciones `native`: **365**
 - PendingDrone:192
 
 ### `DroneAnimator.moveby`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DroneAnimator.moveto`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `DroneAnimator.prepFigure`
 - PosableShape:132
 - PosableShape:1225
 
 ### `DroneAnimator.update`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `EventQueue.addEvent`
 - EventQueue:77 (self)
@@ -229,59 +229,59 @@ Total de declaraciones `native`: **365**
 - EventQueue:85 (self)
 
 ### `EventQueue.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.close`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.read`
 - FastDataInput:11 (self)
 
 ### `FastDataInput.readBoolean`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.readByte`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.readChar`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.readDouble`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.readFloat`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.readFully`
 - FastDataInput:16 (self)
 - FastDataInput:17 (self)
 
 ### `FastDataInput.readInt`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.readLong`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.readShort`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.readUTF`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.readUnsignedByte`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.readUnsignedShort`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FastDataInput.skipBytes`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FileSysDialog.nativeRun`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `FileTexture.dictLookup`
 - TextureDecoder:44
@@ -291,19 +291,19 @@ Total de declaraciones `native`: **365**
 - FileTexture:37 (self)
 
 ### `FileTexture.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Hologram.makeTemporarilyInvisible`
 - Hologram:251 (self)
 
 ### `Hologram.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Hologram.postrender`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Hologram.prerender`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IClassFactory.nActivate`
 - IClassFactory:30 (self)
@@ -312,55 +312,55 @@ Total de declaraciones `native`: **365**
 - IClassFactory:43 (self)
 
 ### `IDispatch.Invoke`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IEWebControlImp.nativeAddToolbar`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IEWebControlImp.nativeDestroy`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IEWebControlImp.nativeGetHWND`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IEWebControlImp.nativeGoBack`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IEWebControlImp.nativeGoForward`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IEWebControlImp.nativeHome`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IEWebControlImp.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IEWebControlImp.nativePrint`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IEWebControlImp.nativeRefresh`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IEWebControlImp.nativeResize`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IEWebControlImp.nativeSetURL`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IEWebControlImp.nativeStop`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `INetscapeRegistry.RegisterProtocol`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `INetscapeRegistry.RegisterViewer`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IUnknown.QueryInterface`
 - IUnknown:90 (self)
 
 ### `IUnknown.getPtr`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IUnknown.true_AddRef`
 - IUnknown:144 (self)
@@ -369,19 +369,19 @@ Total de declaraciones `native`: **365**
 - IUnknown:111 (self)
 
 ### `IWebBrowserApp.Navigate`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IWebBrowserApp.Quit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IWebBrowserApp.put_MenuBar`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IWebBrowserApp.put_StatusBar`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IWebBrowserApp.put_Visible`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `ImageConverter.cleanup`
 - ImageConverter:49 (self)
@@ -390,7 +390,7 @@ Total de declaraciones `native`: **365**
 - ImageConverter:46 (self)
 
 ### `ImageConverter.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `ImageConverter.prepareDIB`
 - ImageConverter:93 (self)
@@ -402,19 +402,19 @@ Total de declaraciones `native`: **365**
 - ImageConverter:126 (self)
 
 ### `IniFile.getIniInt`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IniFile.getIniString`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IniFile.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IniFile.setIniInt`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `IniFile.setIniString`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Light.destroyLight`
 - Light:17 (self)
@@ -427,16 +427,16 @@ Total de declaraciones `native`: **365**
 - CDAudio:380
 
 ### `MCISoundPlayer.nativeIsFinished`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `MCISoundPlayer.nativeStart`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `MCISoundPlayer.nativeStop`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `MCISoundPlayer.nativeVolume`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `MCISoundPlayer.shutdown`
 - MCIThread:38
@@ -452,10 +452,10 @@ Total de declaraciones `native`: **365**
 - Material:358 (self)
 
 ### `Material.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Material.nativeSetTexture`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Material.paramChange`
 - Material:425 (self)
@@ -473,10 +473,10 @@ Total de declaraciones `native`: **365**
 - NetUpdate:767 (self)
 
 ### `PendingCacheDrone.nativeDestroy`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `PendingCacheDrone.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `PendingCacheDrone.notifySeqLoaded`
 - PendingCacheDrone:28 (self)
@@ -484,29 +484,29 @@ Total de declaraciones `native`: **365**
 - SeqFile:14
 
 ### `Pilot.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Point3Temp.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Point3Temp.times`
 - Point3Temp:120 (self)
 - Point3Temp:127 (self)
 
 ### `Point3Temp.vectorTimes`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Polygon.nativeSetVertex`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Portal.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Portal.postrender`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Portal.prerender`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Portal.setTransform`
 - Portal:97 (self)
@@ -525,40 +525,40 @@ Total de declaraciones `native`: **365**
 - Portal:798 (self)
 
 ### `RegKey.close`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `RegKey.createKey`
 - RegKey:19 (self)
 
 ### `RegKey.getIntValue`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `RegKey.getReservedKey`
 - RegKey:14 (self)
 
 ### `RegKey.getStringValue`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `RegKey.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `RegKey.openKey`
 - RegKey:21 (self)
 
 ### `RegKey.setIntValue`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `RegKey.setStringValue`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `RenderCanvasOverlay.nativeKillChild`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `RenderCanvasOverlay.nativeMakeChild`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `RenderCanvasOverlay.nativeResizeChild`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `RenderWare.get3DHardwareAvailable`
 - DefaultConsole:911
@@ -583,7 +583,7 @@ Total de declaraciones `native`: **365**
 - RightMenu:89 (self)
 
 ### `RightMenu.nativeAdd`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `RightMenu.show`
 - RightMenu:84 (self)
@@ -601,7 +601,7 @@ Total de declaraciones `native`: **365**
 - Room:365 (self)
 
 ### `Room.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Room.setLightColor`
 - Room:220 (self)
@@ -640,7 +640,7 @@ Total de declaraciones `native`: **365**
 - RoomEnvironment:67 (self)
 
 ### `RoomEnvironment.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `ScapePicCanvas.bitBlt`
 - ScapePicCanvas:25 (self)
@@ -653,7 +653,7 @@ Total de declaraciones `native`: **365**
 - ScapePicImage:12 (self)
 
 ### `ScapePicImage.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `ScapePicMovie.lookupTextures`
 - ScapePicMovie:78 (self)
@@ -662,14 +662,14 @@ Total de declaraciones `native`: **365**
 - ScapePicMovie:82 (self)
 
 ### `ScapePicMovie.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `ScapePicTexture.makeTexture`
 - ScapePicTexture:17 (self)
 - ScapePicTexture:77 (self)
 
 ### `ScapePicTexture.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `SendURLAction.launchViaRegistry`
 - SendURLAction:231 (self)
@@ -690,10 +690,10 @@ Total de declaraciones `native`: **365**
 - Shape:319 (self)
 
 ### `Shape.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Shape.nativeSetMaterial`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Shape.releasePendingShape`
 - Shape:161 (self)
@@ -728,7 +728,7 @@ Total de declaraciones `native`: **365**
 - Gamma:115
 
 ### `StatMemNode.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `StatMemNode.updateMemoryStatus`
 - StatMemNode:61 (self)
@@ -746,7 +746,7 @@ Total de declaraciones `native`: **365**
 - Sharer:511
 
 ### `Std.checkNativeHeap`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Std.exit`
 - Std:17 (self)
@@ -768,10 +768,10 @@ Total de declaraciones `native`: **365**
 - WorldServer:24
 
 ### `Std.getPerformanceCount`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Std.getPerformanceFrequency`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Std.getTimeZero`
 - EventQueue:77
@@ -787,20 +787,20 @@ Total de declaraciones `native`: **365**
 - WorldScriptToolkitImp:176
 
 ### `Std.getenv`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Std.instanceOf`
 - ObjectSelectorDialog:63
 
 ### `Std.nativeGetMillis`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `StringTexture.makeStringTexture`
 - StringTexture:24 (self)
 - StringTexture:55 (self)
 
 ### `StringTexture.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Surface.addPolygon`
 - Surface:52 (self)
@@ -809,13 +809,13 @@ Total de declaraciones `native`: **365**
 - Surface:54 (self)
 
 ### `Surface.addVertex`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Surface.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Surface.nativeSetMaterial`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Surface.uvOutOfRange`
 - Surface:43 (self)
@@ -853,44 +853,44 @@ Total de declaraciones `native`: **365**
 - SystemInfo:66 (self)
 
 ### `Texture.nativeCopyFrom`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Texture.nativeGetH`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Texture.nativeGetW`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Texture.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Texture.nativeRelease`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `TextureSurface.nativeDestroyDC`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `TextureSurface.nativeGetDC`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `TextureSurface.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `TextureSurface.nativeLeftClick`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `TextureSurface.nativeMakeDC`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `TextureSurface.nativeReleaseDC`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Transform.getGuts`
 - Transform:258 (self)
 - Transform:325 (self)
 
 ### `Transform.getPitch`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Transform.getSpin`
 - Motion:64
@@ -910,7 +910,7 @@ Total de declaraciones `native`: **365**
 - Transform:53 (self)
 
 ### `Transform.getYaw`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Transform.getZ`
 - HoloPilot:408
@@ -920,7 +920,7 @@ Total de declaraciones `native`: **365**
 - Transform:227 (self)
 
 ### `Transform.isTransformEqual`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Transform.makeIdentity`
 - HoloPilot:329
@@ -953,10 +953,10 @@ Total de declaraciones `native`: **365**
 - Transform:148 (self)
 
 ### `Transform.nativeFinalize`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Transform.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Transform.postHelper`
 - Transform:125 (self)
@@ -970,10 +970,10 @@ Total de declaraciones `native`: **365**
 - Transform:201 (self)
 
 ### `Transform.pre`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Transform.premoveBy`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Transform.scale`
 - Motion:150
@@ -1009,37 +1009,37 @@ Total de declaraciones `native`: **365**
 - Transform:207 (self)
 
 ### `VehicleShape.nativeAnalyzeShape`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `VehicleShape.nativeGetCogX`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `VehicleShape.nativeGetCogY`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `VehicleShape.nativeGetCogZ`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `VehicleShape.nativeGetMoiX`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `VehicleShape.nativeGetMoiY`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `VehicleShape.nativeGetMoiZ`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `VehicleShape.nativeGetTirePosX`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `VehicleShape.nativeGetTirePosY`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `VehicleShape.nativeGetTirePosZ`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `VoiceChat.terminateVC`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `WObject.addChildToClump`
 - WObject:314 (self)
@@ -1048,10 +1048,10 @@ Total de declaraciones `native`: **365**
 - WObject:308 (self)
 
 ### `WObject.doneWithEditing`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `WObject.extractClump`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `WObject.getClumpBBox`
 - WObject:413 (self)
@@ -1062,10 +1062,10 @@ Total de declaraciones `native`: **365**
 - WObject:760 (self)
 
 ### `WObject.getJointedObjectToWorldMatrix`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `WObject.getNumVerts`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `WObject.getObjectToWorldMatrix`
 - WObject:382 (self)
@@ -1091,10 +1091,10 @@ Total de declaraciones `native`: **365**
 - WObject:334 (self)
 
 ### `WObject.nativeInCamSpace`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `WObject.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `WObject.setClumpMatrix`
 - WObject:249 (self)
@@ -1112,16 +1112,16 @@ Total de declaraciones `native`: **365**
 - WObject:285 (self)
 
 ### `WavSoundPlayer.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `WavSoundPlayer.nativePlay`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `WavSoundPlayer.nativeStop`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `WavSoundPlayer.nativeVolume`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `WebBrowser.browse`
 - WebBrowser:71 (self)
@@ -1130,16 +1130,16 @@ Total de declaraciones `native`: **365**
 - WebBrowser:162 (self)
 
 ### `WebBrowser.closeBrowser`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `WebBrowser.openBrowser`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.allowFGJavaPalette`
 - GammaFrame:43
 
 ### `Window.dispose`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.doMicrosoftVMHacks`
 - Gamma:112
@@ -1154,10 +1154,10 @@ Total de declaraciones `native`: **365**
 - Window:26 (self)
 
 ### `Window.fullHeight`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.fullWidth`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.getActivated`
 - InternetExplorer:33
@@ -1167,7 +1167,7 @@ Total de declaraciones `native`: **365**
 - Console:1107
 
 ### `Window.getDeltaMode`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.getFrameWindow`
 - FileSysDialog:32
@@ -1179,7 +1179,7 @@ Total de declaraciones `native`: **365**
 - ToolBar:132
 
 ### `Window.getHwnd`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.getSystemMetrics`
 - DefaultConsole:1752
@@ -1226,22 +1226,22 @@ Total de declaraciones `native`: **365**
 - Window:42 (self)
 
 ### `Window.nativeFindChildWindow`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.nativeFindOrMakeChildWindow`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.nativeHideChildWindow`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.nativeInit`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.nativeIsLastLineVisible`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.nativeShowChildWindow`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.playVideoClip`
 - AnimationButton:42
@@ -1250,7 +1250,7 @@ Total de declaraciones `native`: **365**
 - Window:175 (self)
 
 ### `Window.reShape`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.resetVoiceChatMsg`
 - GammaPhoneMonitor:51
@@ -1263,7 +1263,7 @@ Total de declaraciones `native`: **365**
 - Cursor:63
 
 ### `Window.setDeltaMode`
-- *(sin llamadas encontradas en el código decompilado)*
+- *(no calls found in the decompiled code)*
 
 ### `Window.setForegroundWindow`
 - NSProtocolHandler:31

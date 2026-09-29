@@ -1,98 +1,96 @@
-# Login con cuenta real en `worlds.worlio.com:6650` — qué hace falta
+# Login with a real account on `worlds.worlio.com:6650` — what is needed
 
-No ejecutado (regla del proyecto: nunca credenciales inventadas/hardcodeadas,
-nunca crear cuentas). Solo lectura del código real (`LoginWizard.java`,
-`Galaxy.setAuthInfo`, `AutoServer`/`UserServer`) + lo ya verificado en
-sesiones anteriores (`tools/net-probe/README.md`, sección "Servidor
-primario") para dejar EXACTAMENTE claro qué tendría que aportar un
-humano y cómo pasarlo a la sonda existente.
+Not executed (project rule: never invented/hardcoded credentials,
+never create accounts). Only a reading of the real code
+(`LoginWizard.java`, `Galaxy.setAuthInfo`, `AutoServer`/`UserServer`) plus
+what was already verified in earlier sessions (`tools/net-probe/README.md`,
+"Primary server" section) to make EXACTLY clear what a human would have to
+provide and how to pass it to the existing probe.
 
-## 1. Por qué hace falta una cuenta (evidencia)
+## 1. Why an account is needed (evidence)
 
-`worlds.worlio.com:6650` responde al PROPREQ con `#15 = "1"`
-(`docs/net-handshake-trace.log`, ya capturado). `AutoServer.
-state_XMIT_SI` mapea `#15=1` a `Class.forName("NET.worlds.network.
-UserServer").newInstance()` — a diferencia de `AnonRoomServer`
-(`#15=4`, el guest), `UserServer` exige autenticación real: no acepta
-un `sessionInit` con solo nickname.
+`worlds.worlio.com:6650` answers the PROPREQ with `#15 = "1"`
+(`docs/net-handshake-trace.log`, already captured). `AutoServer.state_XMIT_SI`
+maps `#15=1` to `Class.forName("NET.worlds.network.UserServer").newInstance()`
+— unlike `AnonRoomServer` (`#15=4`, the guest), `UserServer` requires real
+authentication: it does not accept a `sessionInit` with only a nickname.
 
 `Galaxy.setAuthInfo(username, newUsername, password, newPassword,
-serial, mode)` (`NET/worlds/network/Galaxy.java:516`), para
-`_serverType == 1` (UserServer), soporta tres modos (switch en la misma
-función):
+serial, mode)` (`NET/worlds/network/Galaxy.java:516`), for
+`_serverType == 1` (UserServer), supports three modes (a switch in the same
+function):
 
-- **mode 1 REGISTER**: usuario nuevo. Usa `username`, `password`,
-  `serial` (el `serial` NO se limpia a null en este caso — línea 534
-  solo lo limpia para `mode==2`). El `serial` es el "Codeword" que la
-  UI real pide tras registrarse por web (`LoginWizard.
-  buildRegWaitCommon`, campo `codewordField`).
-- **mode 2 AUTHENTICATE**: usuario YA registrado. Usa `username` +
-  `password`; `serial` se pone a `null` explícitamente (línea 534).
-  Es el modo que usa `LoginWizard.validateKnownUserInfo()`
-  (`LoginWizard.java:446-453`) cuando el usuario teclea nombre+password
-  conocidos y pulsa Sign-In — y es también el modo que
-  `GuestLoginProbe` ya usa hoy (hardcodeado a `mode=2` en su
-  `main`, línea 172: `galaxy.setAuthInfo(nick, null, pass, null, null,
+- **mode 1 REGISTER**: new user. Uses `username`, `password`,
+  `serial` (the `serial` is NOT cleared to null in this case — line 534
+  only clears it for `mode==2`). The `serial` is the "Codeword" that the
+  real UI asks for after registering on the web
+  (`LoginWizard.buildRegWaitCommon`, field `codewordField`).
+- **mode 2 AUTHENTICATE**: ALREADY-registered user. Uses `username` +
+  `password`; `serial` is explicitly set to `null` (line 534).
+  It is the mode used by `LoginWizard.validateKnownUserInfo()`
+  (`LoginWizard.java:446-453`) when the user types a known name+password
+  and presses Sign-In — and it is also the mode that
+  `GuestLoginProbe` already uses today (hardcoded to `mode=2` in its
+  `main`, line 172: `galaxy.setAuthInfo(nick, null, pass, null, null,
   2)`).
-- **mode 3**: `password` y `serial` se limpian a `null` — variante sin
-  contraseña (recuperación/cambio), no relevante aquí.
+- **mode 3**: `password` and `serial` are cleared to `null` — a
+  passwordless variant (recovery/change), not relevant here.
 
-## 2. Qué tiene que aportar el humano, en orden
+## 2. What the human has to provide, in order
 
-1. **Registrarse en la web real** (no simulable, no hay atajo de
-   protocolo): `https://worlds.worlio.com/register` — ya verificado
-   accesible en una sesión anterior (`tools/net-probe/README.md`,
-   sección "Servidor primario"), y la portada `https://worlds.worlio.
-   com/` lo confirma como el flujo de alta. El formulario pide, como
-   mínimo, un **email** (verificado). Presumiblemente también
-   **nickname** y **password** deseados (formulario web estándar de
-   registro; no verificado campo a campo sin rellenarlo de verdad, y
-   esta sesión NO lo ha rellenado — sería crear una cuenta, fuera de
-   alcance sin permiso explícito del usuario humano).
-2. Tras registrarse, el humano tiene: **nickname**, **password**, y
-   opcionalmente el **serial/codeword** que la web le muestre (solo
-   hace falta si se quisiera ejercitar el modo 1 REGISTER contra el
-   servidor por protocolo en vez de por la web; para AUTHENTICATE
-   normal, mode 2, el serial no se usa).
-3. Ningún fichero `.ini` adicional hace falta: `worlds.ini` real del
-   proyecto (`assets/WorldsPlayer/worlds.ini`) ya apunta a
-   `RestartAt=home:GroundZero/GroundZero.world` y no tiene
-   `WorldServer=` fijado (usa el server que se le pase); el
-   `clientVersion` real (`2004080500`) ya es el default de la sonda
-   (verificado por `objdump` sobre `gamma.dll`, ver
+1. **Register on the real website** (cannot be simulated, there is no
+   protocol shortcut): `https://worlds.worlio.com/register` — already
+   verified as reachable in an earlier session (`tools/net-probe/README.md`,
+   "Primary server" section), and the front page `https://worlds.worlio.
+   com/` confirms it as the sign-up flow. The form asks for, at a minimum,
+   an **email** (verified). Presumably also the desired
+   **nickname** and **password** (a standard web registration form;
+   not verified field by field without actually filling it in, and
+   this session has NOT filled it in — that would be creating an account,
+   out of scope without explicit permission from the human user).
+2. After registering, the human has: **nickname**, **password**, and
+   optionally the **serial/codeword** that the website shows them (only
+   needed if one wanted to exercise mode 1 REGISTER against the
+   server over the protocol instead of through the web; for a normal
+   AUTHENTICATE, mode 2, the serial is not used).
+3. No additional `.ini` file is needed: the project's real `worlds.ini`
+   (`assets/WorldsPlayer/worlds.ini`) already points to
+   `RestartAt=home:GroundZero/GroundZero.world` and has no
+   `WorldServer=` set (it uses whichever server it is given); the real
+   `clientVersion` (`2004080500`) is already the probe's default
+   (verified with `objdump` on `gamma.dll`, see
    `tools/net-probe/README.md`).
 
-## 3. Cómo se pasaría a la sonda existente
+## 3. How it would be passed to the existing probe
 
-`GuestLoginProbe` YA acepta usuario+password reales por argv, sin
-ningún cambio de código — están pensados para esto desde que se
-escribió (comentario en la cabecera del fichero: "El 4º argv opcional
-permite pasar un password SOLO para una cuenta que uno mismo haya
-registrado a mano en esa web"):
+`GuestLoginProbe` ALREADY accepts a real username+password through argv,
+without any code change — they have been meant for this since it was
+written (comment in the file header: "The optional 4th argv allows passing
+a password ONLY for an account that one has registered by hand on that
+website"):
 
 ```
 tools/net-probe/run-guest-login.sh <workdir> worlds.worlio.com 6650 <nickname> <password>
 ```
 
-(`clientVersion`, 6º argumento, se puede omitir — usa el default real
-`2004080500`). Con `mode=2` (AUTHENTICATE, ya hardcodeado en la
-sonda) y una cuenta ya registrada, el camino esperado por código es
-`AutoServer` → `UserServer` → `sessionInit` con `VAR_ERROR=0` → estado
-12 MAINLOOP, igual que con el guest pero con `_serverType=1`.
+(`clientVersion`, the 6th argument, can be omitted — it uses the real
+default `2004080500`). With `mode=2` (AUTHENTICATE, already hardcoded in
+the probe) and an already-registered account, the path expected from the
+code is `AutoServer` → `UserServer` → `sessionInit` with `VAR_ERROR=0` →
+state 12 MAINLOOP, just like with the guest but with `_serverType=1`.
 
-**Si se quisiera además ejercitar el registro por protocolo (mode 1)**
-en vez de por la web, `GuestLoginProbe.main` tendría que dejar de
-hardcodear `2` en la llamada a `setAuthInfo` (línea 172) y aceptar el
-`serial`/modo por argv — cambio de código pequeño y acotado al harness
-(no toca `source/`), pero no hecho en esta sesión porque no hay cuenta
-con la que probarlo y el objetivo del punto 3 de la tarea era solo
-determinar el requisito, no ejecutarlo.
+**If one also wanted to exercise registration over the protocol (mode 1)**
+instead of through the web, `GuestLoginProbe.main` would have to stop
+hardcoding `2` in the call to `setAuthInfo` (line 172) and accept the
+`serial`/mode through argv — a small code change, confined to the harness
+(it does not touch `source/`), but not made in this session because there
+is no account to test it with and the goal of point 3 of the task was only
+to determine the requirement, not to execute it.
 
-## 4. Lo que esta sesión NO ha hecho (a propósito)
+## 4. What this session has NOT done (on purpose)
 
-No se ha abierto el formulario de registro, no se ha inventado ningún
-nickname/password/email, no se ha creado ninguna cuenta. Esta nota
-documenta el camino real leído en el código; ejecutarlo depende de que
-el usuario humano registre una cuenta y decida compartir sus
-credenciales (vía argv, nunca hardcodeadas en el repo) para una sesión
-futura.
+The registration form has not been opened, no nickname/password/email has
+been invented, no account has been created. This note documents the real
+path read from the code; running it depends on the human user registering
+an account and deciding to share their credentials (via argv, never
+hardcoded in the repo) for a future session.

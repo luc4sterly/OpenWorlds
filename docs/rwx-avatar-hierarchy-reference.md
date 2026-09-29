@@ -1,50 +1,50 @@
-# Jerarquía de joints en RWX (avatares articulados), reconstruida desde bytes reales
+# Joint hierarchy in RWX (articulated avatars), reconstructed from real bytes
 
-> **2026-09-26:** el motor nuevo se quitó del repositorio y con él su
-> lector de `.rwx` en Java (`RwxJoint`, `RwxSkeletonParser`, `RwxViewer`...)
-> y las capturas de `docs/renders/`; lo que se cita abajo está en el
-> historial de git, hasta el commit `8cd795d`. El cliente original lee los
-> `.rwx` con el lector del puente (`bridge/NET/worlds/core/RwxReader.java`,
-> traducido de RWL21).
+> **2026-09-26:** the new engine was removed from the repository, and with it
+> its Java `.rwx` reader (`RwxJoint`, `RwxSkeletonParser`, `RwxViewer`...)
+> and the captures in `docs/renders/`; what is cited below is in the
+> git history, up to commit `8cd795d`. The original client reads the
+> `.rwx` files with the bridge's reader (`bridge/NET/worlds/core/RwxReader.java`,
+> translated from RWL21).
 
-⚠️ **Esto es RWX (texto), no `.rwg`/`.bod`.** La búsqueda de esta sesión
-partió de la instrucción de avanzar en avatares multi-joint reales. Tras
-confirmar (ver `docs/rwg-bod-format-reference.md`) que ninguno de los 5
-`.rwg` reales del proyecto tiene más de un `ATOM`, y que el cliente Java
-decompilado no expone ninguna estructura de huesos visible (todo lo
-articulado vive en `gamma.dll`, nativo, no descifrado), se encontró la
-única pieza de evidencia real disponible por otra vía: el registro de
-animación real (`assets/WorldsPlayer/cachedir/45.dat`, "animation registry
-version 0.3") confirma que los avatares de red reales (p.ej. "Achoo",
-"Aggie") declaran `geometry=<nombre>.rwx` — el formato FUENTE de un avatar
-es RWX texto, no `.rwg` (que solo aparece en el proyecto como formato local
-trivial para `AVATAR.RWG`/`IDLE.RWG`, ambos placeholders de un solo clump).
-Buscando por convención de nombres de joints (`pelvis`, `lfshoulder`,
-`rthip`, `lfelbow`...) en los 119 `.rwx` reales del proyecto
-(`grep -liE "pelvis|lfshoulder|rthip|lfelbow"`), apareció exactamente un
-archivo: **`assets/GROUNDZERO/SPIN.RWX`** (con copia idéntica en
-`assets/WorldsPlayer/GroundZero/tex/spin.rwx`) — ya presente en el proyecto
-y usado en una sesión anterior como prop decorativo genérico, sin saber que
-era un rig articulado real.
+⚠️ **This is RWX (text), not `.rwg`/`.bod`.** This session's search
+started from the instruction to advance on real multi-joint avatars. After
+confirming (see `docs/rwg-bod-format-reference.md`) that none of the
+project's 5 real `.rwg` files has more than one `ATOM`, and that the
+decompiled Java client exposes no visible bone structure (everything
+articulated lives in `gamma.dll`, native, not deciphered), the only piece
+of real evidence available was found by another route: the real animation
+registry (`assets/WorldsPlayer/cachedir/45.dat`, "animation registry
+version 0.3") confirms that real network avatars (e.g. "Achoo",
+"Aggie") declare `geometry=<name>.rwx` — the SOURCE format of an avatar
+is text RWX, not `.rwg` (which only appears in the project as a trivial
+local format for `AVATAR.RWG`/`IDLE.RWG`, both single-clump placeholders).
+Searching by joint-name convention (`pelvis`, `lfshoulder`,
+`rthip`, `lfelbow`...) in the project's 119 real `.rwx` files
+(`grep -liE "pelvis|lfshoulder|rthip|lfelbow"`), exactly one file turned
+up: **`assets/GROUNDZERO/SPIN.RWX`** (with an identical copy at
+`assets/WorldsPlayer/GroundZero/tex/spin.rwx`) — already present in the
+project and used in an earlier session as a generic decorative prop,
+without knowing it was a real articulated rig.
 
-## El archivo: `SPIN.RWX`, 19 clumps nombrados, jerarquía real verificada
+## The file: `SPIN.RWX`, 19 named clumps, real hierarchy verified
 
-Formato: RWX texto estándar, el mismo ya verificado 118/118 contra
-`three-rwx-loader` en la sesión 1 (`docs/rwx-format-reference.md`) — no
-hace falta ningún parser nuevo para la geometría en sí, solo preservar la
-jerarquía de `ClumpBegin`/`ClumpEnd` que el parser existente
-(`RwxParser.java`) descarta al aplanar todo a un único mesh.
+Format: standard text RWX, the same one already verified 118/118 against
+`three-rwx-loader` in session 1 (`docs/rwx-format-reference.md`) — no new
+parser is needed for the geometry itself, only preserving the
+`ClumpBegin`/`ClumpEnd` hierarchy that the existing parser
+(`RwxParser.java`) discards when flattening everything into a single mesh.
 
-Convención de nombres: cada joint tiene un comentario `# nombre` justo
-antes de su bloque `TransformBegin`/`Transform`/`ClumpBegin`. Los 19
-nombres encontrados coinciden EXACTAMENTE con la tabla oficial de
-GammaDocs (`Gamma_Advanced.html`, sección "Articulated Avatars" — ver
-`docs/rwg-bod-format-reference.md` para la cita completa): pelvis, back,
-neck, head, lfshoulder/lfelbow/lfwrist, rtshoulder/rtelbow/rtwrist,
-lfhip/lfknee/lfankle, rthip/rtknee/rtankle, lffingers, rtfingers.
+Naming convention: each joint has a comment `# name` right before its
+`TransformBegin`/`Transform`/`ClumpBegin` block. The 19 names found match
+EXACTLY the official GammaDocs table (`Gamma_Advanced.html`, section
+"Articulated Avatars" — see `docs/rwg-bod-format-reference.md` for the full
+citation): pelvis, back, neck, head, lfshoulder/lfelbow/lfwrist,
+rtshoulder/rtelbow/rtwrist, lfhip/lfknee/lfankle, rthip/rtknee/rtankle,
+lffingers, rtfingers.
 
-Árbol real (reconstruido y verificado programáticamente — ver
-`RwxSkeletonDumpMain`, sección siguiente):
+Real tree (reconstructed and verified programmatically — see
+`RwxSkeletonDumpMain`, next section):
 
 ```
 pelvis  [v=139 t=260]
@@ -67,20 +67,20 @@ pelvis  [v=139 t=260]
         rtwrist  [v=14 t=24]
 ```
 
-(`v`/`t` = vértices/triángulos propios de ESE clump, en su marco local —
-no acumulados de hijos.)
+(`v`/`t` = vertices/triangles of THAT clump itself, in its local frame —
+not accumulated from its children.)
 
-**Nota real, no "corregida"**: `rtfingers` anida como HIJO de `lffingers`
-en los bytes reales (su `ClumpBegin`/`ClumpEnd` cae enteramente dentro del
-rango de `lffingers`), algo anatómicamente inesperado (uno esperaría que
-ambos fueran hermanos bajo `pelvis`, o que cada uno colgara de su propia
-muñeca). Se dejó tal cual — es lo que dicen los bytes reales, no se
-"arregló" para que pareciera más sensato. 18 nodos en total (no 19 —
-GammaDocs lista 17 códigos de letra única incluyendo `tail`, que este
-archivo no usa; a cambio tiene `lffingers`/`rtfingers`, que GammaDocs sí
-lista en su tabla de tags numéricos pero no en la de códigos de letra).
+**Real note, not "corrected"**: `rtfingers` nests as a CHILD of `lffingers`
+in the real bytes (its `ClumpBegin`/`ClumpEnd` falls entirely within the
+range of `lffingers`), something anatomically unexpected (one would expect
+both to be siblings under `pelvis`, or each to hang from its own wrist).
+It was left as is — it is what the real bytes say, it was not
+"fixed" to look more sensible. 18 nodes in total (not 19 —
+GammaDocs lists 17 single-letter codes including `tail`, which this
+file does not use; in exchange it has `lffingers`/`rtfingers`, which GammaDocs
+does list in its table of numeric tags but not in the one of letter codes).
 
-Evidencia cruda (números de línea reales, `grep -n`):
+Raw evidence (real line numbers, `grep -n`):
 
 ```
 3:    # pelvis
@@ -90,102 +90,102 @@ Evidencia cruda (números de línea reales, `grep -n`):
 952:                                ClumpBegin  # lfankle (947)
 1157-1161: ClumpEnd x3 (closes lfankle/lfknee/lfhip)
 1163:            # rthip
-1168-1570: análogo a lfhip (rtknee 1259/1264, rtankle 1356/1361)
+1168-1570: analogous to lfhip (rtknee 1259/1264, rtankle 1356/1361)
 1572:            # lffingers  →  1577 ClumpBegin
-1795:                # rtfingers  →  1800 ClumpBegin  (anidado DENTRO de lffingers, cierra en 1935, antes de que lffingers cierre en 1937)
+1795:                # rtfingers  →  1800 ClumpBegin  (nested INSIDE lffingers, closes at 1935, before lffingers closes at 1937)
 1939:        # back  →  1944 ClumpBegin
 2156:            # neck  →  2161 ClumpBegin
-2739:                # head  →  2744 ClumpBegin, cierra 3288, neck cierra 3290
+2739:                # head  →  2744 ClumpBegin, closes 3288, neck closes 3290
 3292:            # lfshoulder → 3297 ClumpBegin
 3389:                # lfelbow → 3394 ClumpBegin
-3446:                    # lfwrist → 3451 ClumpBegin, cierra 3503, lfelbow cierra 3505, lfshoulder cierra 3507
-3509:            # rtshoulder → 3514 ClumpBegin (análogo: rtelbow 3596/3601, rtwrist 3653/3658)
+3446:                    # lfwrist → 3451 ClumpBegin, closes 3503, lfelbow closes 3505, lfshoulder closes 3507
+3509:            # rtshoulder → 3514 ClumpBegin (analogous: rtelbow 3596/3601, rtwrist 3653/3658)
 3718: ClumpEnd (pelvis)
 ```
 
-## Parser: `RwxSkeletonParser`/`RwxJoint` (nuevo, no toca `RwxParser`)
+## Parser: `RwxSkeletonParser`/`RwxJoint` (new, does not touch `RwxParser`)
 
-`RwxParser.java` (el parser aplanado, 118/118 verificado) no se modificó
-— sigue produciendo exactamente el mismo `RwxModel` de antes. En su lugar
-se añadió un parser hermano, `RwxSkeletonParser` (+ `RwxJoint` como nodo
-de salida), que reutiliza EXACTAMENTE las mismas reglas de
-transform/clump/material (copiadas literalmente del comportamiento ya
-verificado — ver el javadoc de clase de ambos archivos) pero en vez de
-aplanar todo a un mesh único en espacio raíz, produce un árbol:
+`RwxParser.java` (the flattened parser, verified 118/118) was not modified
+— it still produces exactly the same `RwxModel` as before. Instead, a
+sibling parser was added, `RwxSkeletonParser` (+ `RwxJoint` as the output
+node), which reuses EXACTLY the same transform/clump/material rules
+(copied literally from the already-verified behavior — see the class
+javadoc of both files) but instead of flattening everything into a single
+mesh in root space, produces a tree:
 
-- Cada `RwxJoint` tiene: `name` (del comentario `# nombre` que precede a
-  su `ClumpBegin` — capturado ANTES de que el bucle de líneas descarte los
-  comentarios, ya que ahí es exactamente donde el parser aplanado los tira),
-  `localTransform` (la matriz que `ClumpBegin` "congela" para ese clump,
-  relativa al padre — el mismo valor que el parser aplanado usa para
-  `groupWorld`, pero SIN componerlo con la cadena de padres), y su propia
-  geometría (`vertices`/`triangles`) en su marco local.
-- Un detalle real replicado con cuidado: el buffer de índices de vértice
-  de RWX se reinicia tanto en `ClumpBegin` COMO en `ClumpEnd` (comportamiento
-  ya documentado y verificado en `RwxParser`) — es decir, un mismo clump
-  puede tener geometría "antes" y "después" de un hijo anidado, con
-  índices de archivo que se reinician a 1 en cada segmento aunque el
-  clump sea el mismo. `RwxSkeletonParser` reproduce esto exactamente
-  (mapa de índice-local-de-segmento → índice-persistente-del-joint), no
-  solo el caso simple de un único segmento por clump.
+- Each `RwxJoint` has: `name` (from the `# name` comment that precedes
+  its `ClumpBegin` — captured BEFORE the line loop discards the
+  comments, since that is exactly where the flattened parser throws them
+  away), `localTransform` (the matrix that `ClumpBegin` "freezes" for that
+  clump, relative to the parent — the same value the flattened parser uses
+  for `groupWorld`, but WITHOUT composing it with the parent chain), and its
+  own geometry (`vertices`/`triangles`) in its local frame.
+- A real detail replicated with care: the RWX vertex index buffer
+  is reset both at `ClumpBegin` AND at `ClumpEnd` (behavior
+  already documented and verified in `RwxParser`) — that is, a single clump
+  can have geometry "before" and "after" a nested child, with file
+  indices that restart at 1 in each segment even though the clump is
+  the same. `RwxSkeletonParser` reproduces this exactly
+  (map of segment-local-index → joint-persistent-index), not
+  just the simple case of a single segment per clump.
 
-### Verificación (no solo "compila y no explota")
+### Verification (not just "it compiles and does not blow up")
 
-1. **Estructura**: `RwxSkeletonDumpMain` sobre `SPIN.RWX` reproduce
-   EXACTAMENTE el árbol de 18 nodos reconstruido a mano arriba (mismos
-   nombres, mismo anidamiento, incluyendo la anomalía real
-   `rtfingers`-dentro-de-`lffingers`), sin warnings.
-2. **Geometría — coincidencia byte a byte con el parser ya verificado**:
-   se comparó, para los 119 archivos `.rwx` reales del proyecto (no solo
-   `SPIN.RWX`), el conjunto de puntos únicos en espacio mundo producidos
-   por (a) `RwxParser` (aplanado, ya verificado 118/118 contra
-   `three-rwx-loader`) y (b) recorrer el árbol de `RwxSkeletonParser`
-   componiendo `world = padre.world × joint.localTransform` y aplicando
-   eso a los vértices locales de cada joint. **Los 119 archivos dan
-   conjuntos de puntos idénticos** (0 discrepancias) — evidencia fuerte
-   de que la jerarquía capturada es matemáticamente equivalente a la
-   geometría ya verificada, no una reconstrucción aproximada.
-   Adicionalmente, el conteo de triángulos coincide exacto (1201 en
-   ambos caminos para `SPIN.RWX`); el conteo de vértices difiere (3603
-   aplanado vs. 698 en árbol) solo porque `RwxModel.addVertex` duplica un
-   vértice por cada uso en un triángulo (sin deduplicar) mientras que el
-   árbol guarda cada vértice local una sola vez — comportamiento
-   esperado, no un error.
-3. **Visual**: `SPIN.RWX` renderizado con el `RwxViewer` existente (que
-   usa el parser aplanado — geometría ya probada idéntica al árbol, ver
-   punto 2) produce una figura articulada coherente, no basura
-   geométrica: piernas con pies, cadera, torso, cabeza, sin triángulos
-   degenerados. Ver `docs/renders/rwx_spin_avatar.png`.
+1. **Structure**: `RwxSkeletonDumpMain` on `SPIN.RWX` reproduces
+   EXACTLY the 18-node tree reconstructed by hand above (same
+   names, same nesting, including the real anomaly
+   `rtfingers`-inside-`lffingers`), with no warnings.
+2. **Geometry — byte-for-byte match with the already-verified parser**:
+   for the project's 119 real `.rwx` files (not just
+   `SPIN.RWX`), the set of unique world-space points produced
+   by (a) `RwxParser` (flattened, already verified 118/118 against
+   `three-rwx-loader`) and (b) walking the `RwxSkeletonParser` tree
+   composing `world = parent.world × joint.localTransform` and applying
+   that to each joint's local vertices was compared. **All 119 files give
+   identical point sets** (0 discrepancies) — strong evidence
+   that the captured hierarchy is mathematically equivalent to the
+   already-verified geometry, not an approximate reconstruction.
+   Additionally, the triangle count matches exactly (1201 on
+   both paths for `SPIN.RWX`); the vertex count differs (3603
+   flattened vs. 698 in the tree) only because `RwxModel.addVertex` duplicates a
+   vertex for each use in a triangle (without deduplicating) while the
+   tree stores each local vertex only once — expected behavior,
+   not an error.
+3. **Visual**: `SPIN.RWX` rendered with the existing `RwxViewer` (which
+   uses the flattened parser — geometry already proven identical to the
+   tree, see point 2) produces a coherent articulated figure, not
+   geometric garbage: legs with feet, hip, torso, head, no
+   degenerate triangles. See `docs/renders/rwx_spin_avatar.png`.
 
-### Qué NO resuelve esto (límites honestos)
+### What this does NOT solve (honest limits)
 
-- **`.bod`, el formato real de transporte de red, sigue sin descifrar.**
-  El pipeline documentado en GammaDocs es `.rwx` fuente → herramienta
-  `rwxtobod` → `.bod` compilado. Este trabajo verifica el lado FUENTE
-  (`.rwx` con jerarquía de joints), no el binario comprimido que el
-  cliente realmente descarga y anima (`PendingDrone.java` confirmado en
-  sesión anterior). Seguiría haciendo falta Ghidra sobre `gamma.dll` para
-  eso, igual que con `.cmp`.
-- **No hay animación real reconstruida** — solo la geometría estática en
-  bind pose (la pose en la que `SPIN.RWX` fue exportado). No se inventó
-  ningún sistema de animación/huesos adicional: por la regla de alcance
-  de esta sesión (los avatares deben verse/comportarse EXACTAMENTE como
-  el original, nada de sistemas mejorados), este trabajo se limita a
-  extraer la jerarquía que el propio archivo YA contiene.
-- **`SPIN.RWX` es un único ejemplar** — no se verificó que TODOS los
-  avatares reales usen esta misma convención de 19 nombres (aunque
-  GammaDocs la documenta como estándar del pipeline oficial, así que es
-  razonable asumirlo para cualquier avatar exportado con el mismo
-  proceso).
+- **`.bod`, the real network transport format, is still not deciphered.**
+  The pipeline documented in GammaDocs is source `.rwx` → `rwxtobod`
+  tool → compiled `.bod`. This work verifies the SOURCE side
+  (`.rwx` with a joint hierarchy), not the compressed binary that the
+  client actually downloads and animates (`PendingDrone.java` confirmed in
+  an earlier session). Ghidra on `gamma.dll` would still be needed for
+  that, just like with `.cmp`.
+- **No real animation has been reconstructed** — only the static geometry in
+  bind pose (the pose in which `SPIN.RWX` was exported). No additional
+  animation/bone system was invented: by the scope rule of
+  this session (avatars must look/behave EXACTLY like
+  the original, no improved systems), this work is limited to
+  extracting the hierarchy that the file itself ALREADY contains.
+- **`SPIN.RWX` is a single specimen** — it was not verified that ALL real
+  avatars use this same 19-name convention (although
+  GammaDocs documents it as the standard of the official pipeline, so it is
+  reasonable to assume it for any avatar exported with the same
+  process).
 
-## Archivos
+## Files
 
-- `client/src/net/openworlds/rwx/RwxJoint.java` — nodo del árbol (nombre,
-  transform local, geometría local, hijos).
-- `client/src/net/openworlds/rwx/RwxSkeletonParser.java` — parser
-  hermano de `RwxParser`, mismo comportamiento de transform/clump/material,
-  produce el árbol en vez de aplanar.
-- `client/src/net/openworlds/rwx/RwxSkeletonDumpMain.java` — CLI de
-  verificación (`java -cp out net.openworlds.rwx.RwxSkeletonDumpMain
-  <file.rwx>`), imprime el árbol indentado con conteos de vértices/
-  triángulos por joint.
+- `client/src/net/openworlds/rwx/RwxJoint.java` — tree node (name,
+  local transform, local geometry, children).
+- `client/src/net/openworlds/rwx/RwxSkeletonParser.java` — sibling parser
+  of `RwxParser`, same transform/clump/material behavior,
+  produces the tree instead of flattening.
+- `client/src/net/openworlds/rwx/RwxSkeletonDumpMain.java` — verification
+  CLI (`java -cp out net.openworlds.rwx.RwxSkeletonDumpMain
+  <file.rwx>`), prints the indented tree with vertex/
+  triangle counts per joint.

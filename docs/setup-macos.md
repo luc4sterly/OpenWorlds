@@ -1,104 +1,106 @@
-# Desarrollo en macOS
+# Development on macOS
 
-Guía para seguir el desarrollo de OpenWorlds en un Mac (Intel o Apple Silicon).
-El repo ya está subido a Codeberg: `git@codeberg.org:JoseAntonio/OpenWorlds.git`.
+Guide to following OpenWorlds development on a Mac (Intel or Apple Silicon).
+The repo has already been pushed to Codeberg: `git@codeberg.org:JoseAntonio/OpenWorlds.git`.
 
-**Sin Homebrew**: Homebrew ya no soporta Macs Intel, así que el setup no lo
-usa. El JDK se descarga portable dentro del repo, en un directorio
-gitignored, sin `sudo`.
+**No Homebrew**: Homebrew no longer supports Intel Macs, so the setup does
+not use it. The JDK is downloaded as a portable copy inside the repo, into a
+gitignored directory, without `sudo`.
 
-## 1. Clonar
+## 1. Clone
 
 ```bash
 git clone git@codeberg.org:JoseAntonio/OpenWorlds.git
 cd OpenWorlds
 ```
 
-> HTTPS alternativo: `https://codeberg.org/JoseAntonio/OpenWorlds.git`
+> Alternative over HTTPS: `https://codeberg.org/JoseAntonio/OpenWorlds.git`
 
-## 2. Setup automático
+## 2. Automatic setup
 
-Requisito previo: Command Line Tools (traen `git` y `python3`). Si faltan:
-`xcode-select --install`.
+Prerequisite: Command Line Tools (they bring `git` and `python3`). If they
+are missing: `xcode-select --install`.
 
 ```bash
 tools/setup-macos.sh
 ```
 
-Hace, en orden (idempotente):
+It does, in order (idempotent):
 
-1. Comprueba `python3` (Command Line Tools).
-2. Descarga **JDK 25 Temurin** (tar.gz de `api.adoptium.net`, arquitectura
-   del Mac) a `tools/jdk/`, verificando el SHA-256 que publica Adoptium.
-3. Compila los lectores de `formats/src` → `formats/out/` y el cliente
-   original con el puente (`build_gamma.sh` → `editor/.build-gamma/out`).
+1. Checks for `python3` (Command Line Tools).
+2. Downloads **JDK 25 Temurin** (tar.gz from `api.adoptium.net`, for the
+   Mac's architecture) into `tools/jdk/`, verifying the SHA-256 that
+   Adoptium publishes.
+3. Compiles the readers in `formats/src` → `formats/out/` and the original
+   client with the bridge (`build_gamma.sh` → `editor/.build-gamma/out`).
 
-## 3. Jugar / desarrollar
+## 3. Play / develop
 
-Para jugar, el paquete con el lanzador:
+To play, the package with the launcher:
 
 ```bash
-tools/build-dist.sh                              # build/dist/OpenWorlds (+ .zip portable)
-open build/dist/OpenWorlds/OpenWorlds.command    # o doble clic en Finder
-tools/build-dist.sh --app-image                  # además OpenWorlds.app con su propio Java
+tools/build-dist.sh                              # build/dist/OpenWorlds (+ portable .zip)
+open build/dist/OpenWorlds/OpenWorlds.command    # or double-click in Finder
+tools/build-dist.sh --app-image                  # plus OpenWorlds.app with its own Java
 ```
 
-O el de cada push en GitHub (Artifacts de la CI; `OpenWorlds-<ver>-macOS-X64`
-en un Mac Intel).
+Or the one from each push on GitHub (CI Artifacts; `OpenWorlds-<ver>-macOS-X64`
+on an Intel Mac).
 
-Para diagnóstico, el cliente original directo (admite `JAVA_OPTS`, ver
+For diagnostics, the original client directly (it accepts `JAVA_OPTS`, see
 `editor/worldsplayer_source_editor-main/bridge/README.md`):
 
 ```bash
 editor/worldsplayer_source_editor-main/run_gamma.sh home:GroundZero/groundzero.world
 ```
 
-Verificación (todo con el JDK de `tools/jdk`):
+Verification (all with the JDK in `tools/jdk`):
 
 ```bash
-tools/run-checks.sh      # los *Check de formats/test y bridge/test
-tools/verify-corpus.sh   # .seq 231, .bod 51, .cmp 159, .mov 52 y luego run-checks
+tools/run-checks.sh      # the *Check classes of formats/test and bridge/test
+tools/verify-corpus.sh   # .seq 231, .bod 51, .cmp 159, .mov 52 and then run-checks
 
-# .seq: parsea todo el corpus y resume version/joints/extras
+# .seq: parses the whole corpus and summarizes version/joints/extras
 java -cp formats/out net.openworlds.bod.SeqExtractMain -q \
   assets/gammatutorial-samples/base-avatars/*.seq assets/WorldsPlayer/cachedir/*.seq
 
-# .bod / .rwg: resumen estructural
+# .bod / .rwg: structural summary
 java -cp formats/out net.openworlds.bod.BodExtractMain  assets/gammatutorial-samples/base-avatars/*.bod
 java -cp formats/out net.openworlds.rwg.RwgExtractMain  assets/gammatutorial-samples/cube.rwg
 ```
 
-Notas macOS:
+macOS notes:
 
-- **JDK portable**: `build_gamma.sh`, `run_gamma.sh` y los scripts de
-  `tools/` ponen `tools/jdk/Contents/Home/bin` por delante si existe
-  (`/usr/bin/java` en macOS es un stub que falla sin JDK instalado).
-- **`bring_to_front.py`** es X11-only y no hace falta en Mac.
-- `tools/run-original.sh` (cliente 2004 bajo Wine) **no funciona en Mac
-  modernos** (x86 Win32 + `gamma.dll`): Wine vanilla no corre eso en Apple
-  Silicon. El script lo dice y sale con código 2 salvo `--force-macos` con
-  tu Wine (CrossOver/Whisky/Parallels) ya configurado. En Mac se juega con
-  el lanzador (o `run_gamma.sh`): el mismo cliente con el puente portable,
-  sin Wine.
+- **Portable JDK**: `build_gamma.sh`, `run_gamma.sh` and the scripts in
+  `tools/` put `tools/jdk/Contents/Home/bin` at the front if it exists
+  (`/usr/bin/java` on macOS is a stub that fails when no JDK is installed).
+- **`bring_to_front.py`** is X11-only and is not needed on Mac.
+- `tools/run-original.sh` (2004 client under Wine) **does not work on modern
+  Macs** (x86 Win32 + `gamma.dll`): vanilla Wine does not run that on Apple
+  Silicon. The script says so and exits with code 2 unless you pass
+  `--force-macos` with your own Wine (CrossOver/Whisky/Parallels) already
+  configured. On Mac you play with the launcher (or `run_gamma.sh`): the same
+  client with the portable bridge, without Wine.
 
-## 4. Qué NO se versiona (ya en `.gitignore`)
+## 4. What is NOT versioned (already in `.gitignore`)
 
-| Ruta | Por qué |
+| Path | Why |
 |---|---|
-| `tools/jdk/` | JDK portable por arquitectura |
-| `formats/out/`, `editor/.build-gamma/`, `build/`, `analysis/` | generados |
-| `.DS_Store`, `._*`, etc. | ruido Finder/macOS |
+| `tools/jdk/` | Portable JDK per architecture |
+| `formats/out/`, `editor/.build-gamma/`, `build/`, `analysis/` | generated |
+| `.DS_Store`, `._*`, etc. | Finder/macOS noise |
 
-Siguen ignorados, por si quedan de antes del 2026-09-26, `tools/lwjgl/`,
-`tools/node*/`, `tools/rwx-harness/`, `client/` y `logs/`: son restos del
-motor nuevo, ya quitado, y se pueden borrar a mano.
+The following are still ignored, in case they are left over from before
+2026-09-26: `tools/lwjgl/`, `tools/node*/`, `tools/rwx-harness/`, `client/`
+and `logs/`: they are leftovers of the new engine, now removed, and can be
+deleted by hand.
 
-## 5. Requisitos manuales (si no usas el script)
+## 5. Manual requirements (if you do not use the script)
 
-- JDK 17+ (probado con 25): tar.gz de Temurin desde
-  `https://adoptium.net/temurin/releases/` (macOS, x64 o aarch64),
-  descomprimido en `tools/jdk/` (debe quedar `tools/jdk/Contents/Home/bin/java`)
-- Compilar: `bash editor/worldsplayer_source_editor-main/build_gamma.sh`
-  (usa `python3` y `patch`, que ya trae macOS)
-- Jugar: `editor/worldsplayer_source_editor-main/run_gamma.sh home:GroundZero/groundzero.world`,
-  o el paquete de `tools/build-dist.sh`
+- JDK 17+ (tested with 25): Temurin tar.gz from
+  `https://adoptium.net/temurin/releases/` (macOS, x64 or aarch64),
+  unpacked into `tools/jdk/` (it must end up as `tools/jdk/Contents/Home/bin/java`)
+- Compile: `bash editor/worldsplayer_source_editor-main/build_gamma.sh`
+  (uses `python3` and `patch`, which macOS already includes)
+- Play: `editor/worldsplayer_source_editor-main/run_gamma.sh home:GroundZero/groundzero.world`,
+  or the package from `tools/build-dist.sh`

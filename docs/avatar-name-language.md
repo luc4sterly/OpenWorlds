@@ -1,66 +1,66 @@
-# Lenguaje de nombre de avatar (`avatar:<base>.0<programa>.rwg`)
+# Avatar name language (`avatar:<base>.0<program>.rwg`)
 
-Reconstruido del Java decompilado del cliente,
+Reconstructed from the client's decompiled Java,
 `editor/worldsplayer_source_editor-main/source/NET/worlds/scape/PosableShape.java`
-(abreviado `PS`). El cliente original lo ejecuta con su propio
-`PosableShape`. La traducción a Java de este documento
-(`client/src/net/openworlds/avatar/`, con `AvatarNameMain --todos`) era del
-motor nuevo y se quitó con él el 2026-09-26: está en el historial de git
-hasta el commit `8cd795d`.
+(abbreviated `PS`). The original client runs it with its own
+`PosableShape`. The Java translation of this document
+(`client/src/net/openworlds/avatar/`, with `AvatarNameMain --todos`) belonged
+to the new engine and was removed along with it on 2026-09-26: it is in the
+git history up to commit `8cd795d`.
 
-## Origen de las tablas
+## Origin of the tables
 
-`permittedList`, `faceList`, `humanList`, etc. salen de `tables/tables.dat`
-(`ServerTableManager.java:99-245`): `int32` big-endian con la longitud +
-payload con XOR encadenado sobre el cifrado (`dec[i]=enc[i]^enc[i-1]`) →
-texto UTF-8 con bloques `private static String[] <n> = {...};`.
-`assets/WorldsPlayer/tables/tables.dat`: VERSION 2, 12 tablas,
-permittedList 296 entradas (148 pares).
+`permittedList`, `faceList`, `humanList`, etc. come from `tables/tables.dat`
+(`ServerTableManager.java:99-245`): a big-endian `int32` with the length +
+a payload with XOR chained over the ciphertext (`dec[i]=enc[i]^enc[i-1]`) →
+UTF-8 text with blocks `private static String[] <n> = {...};`.
+`assets/WorldsPlayer/tables/tables.dat`: VERSION 2, 12 tables,
+permittedList 296 entries (148 pairs).
 
-## Cabecera (`createSubparts`, PS:1054-1090)
+## Header (`createSubparts`, PS:1054-1090)
 
-- `avatar:<base>.rwg` (tras el punto no hay `0`): se busca `<base>` en
-  `permittedHash` (PS:1324-1335) y se sustituye por el nombre codificado;
-  si no está, no hay programa: 17 limbs por defecto de `<base>.bod`.
-- `avatar:<base>.0<programa>.rwg`: el programa va en la propia URL.
-- Otra cosa: base `aura`, sin programa.
+- `avatar:<base>.rwg` (no `0` after the dot): `<base>` is looked up in
+  `permittedHash` (PS:1324-1335) and replaced by the encoded name;
+  if it is not there, there is no program: 17 default limbs from `<base>.bod`.
+- `avatar:<base>.0<program>.rwg`: the program is in the URL itself.
+- Anything else: base `aura`, no program.
 
-## Fase 1: `findStarts` (PS:636-687)
+## Phase 1: `findStarts` (PS:636-687)
 
-Recorre el programa entero. Cada mayúscula en posición de limb anota
-`starts[letra]` (la última aparición gana). Dentro de la limb:
+Walks the whole program. Each uppercase letter in limb position records
+`starts[letter]` (the last occurrence wins). Inside the limb:
 
-| token | efecto en findStarts |
+| token | effect in findStarts |
 |---|---|
-| `G` int nombre | se salta |
-| `S` c c c | se salta (3 chars) |
+| `G` int name | skipped |
+| `S` c c c | skipped (3 chars) |
 | `Q` | no-op |
-| `D` c | se salta (1 char) |
-| `A` nombre | se salta |
-| `T` int nombre | **material textura** → paleta; nombre vacío hereda el último (inicialmente `<base>`) |
-| `C` `_`L / `C` b64 b64 b64 | **material color** → paleta |
-| `[a-z0-9]` | se salta |
-| otra mayúscula | fin de limb, empieza otra |
-| otro carácter | trunca el programa ahí |
+| `D` c | skipped (1 char) |
+| `A` name | skipped |
+| `T` int name | **texture material** → palette; an empty name inherits the last one (initially `<base>`) |
+| `C` `_`L / `C` b64 b64 b64 | **color material** → palette |
+| `[a-z0-9]` | skipped |
+| other uppercase letter | end of limb, another one starts |
+| any other character | truncates the program there |
 
-Cada `T`/`C` se reescribe en la cadena como `Q<'a'+índice>` (PS:646-661):
-la paleta es **global y en orden de aparición**, y las minúsculas sueltas
-del nombre original son índices de esa paleta.
+Each `T`/`C` is rewritten in the string as `Q<'a'+index>` (PS:646-661):
+the palette is **global and in order of appearance**, and the loose
+lowercase letters of the original name are indices into that palette.
 
-- Textura (`scanTexture`, PS:248-258): `n<=0` → `avatar:<x>.cmp`;
+- Texture (`scanTexture`, PS:248-258): `n<=0` → `avatar:<x>.cmp`;
   `n>0` → `avatar:<x><n>s*.mov`. `Material.calcRes/loadTextures`
-  (Material.java:265-325) interpreta `<n>s*` como subimagen `n-1` del
-  fichero `<x>.mov`.
-- Color (`readColor`, PS:294-315): `_`+letra → `colorTable[letra-'A']`
-  (PS:37-65, 26 colores); fuera de rango (p.ej. `C__`) → `origMat`, que
-  `getLimb` no aplica (se queda el color del `.bod`). Si no, RGB =
-  `4*base64(c)` por componente, base64 = `-0-9a-zA-Z+` (PS:69).
+  (Material.java:265-325) interprets `<n>s*` as sub-image `n-1` of the
+  file `<x>.mov`.
+- Color (`readColor`, PS:294-315): `_`+letter → `colorTable[letter-'A']`
+  (PS:37-65, 26 colors); out of range (e.g. `C__`) → `origMat`, which
+  `getLimb` does not apply (the color of the `.bod` stays). Otherwise, RGB =
+  `4*base64(c)` per component, base64 = `-0-9a-zA-Z+` (PS:69).
 
-## Fase 2: 17 limbs (`getLimb`, PS:355-470; tabla PS:1094-1110)
+## Phase 2: 17 limbs (`getLimb`, PS:355-470; table PS:1094-1110)
 
-| letra | tag | padre | | letra | tag | padre |
+| letter | tag | parent | | letter | tag | parent |
 |---|---|---|---|---|---|---|
-| P | 01 | (figura) | | R | 06 | B |
+| P | 01 | (figure) | | R | 06 | B |
 | B | 02 | P | | U | 07 | R |
 | N | 03 | B | | V | 08 | U |
 | H | 04 | N | | I | 19 | P |
@@ -70,63 +70,64 @@ del nombre original son índices de esa paleta.
 | Z | 24 | P | | X | 16 | W |
 | | | | | Y | 17 | X |
 
-`A C D E F G Q S T` nunca se instancian: `E` es, en 147/148 nombres, el
-bloque donde se declara la paleta.
+`A C D E F G Q S T` are never instantiated: `E` is, in 147/148 names, the
+block where the palette is declared.
 
-Cada limb: URL `avatar:<base><tag 2 dígitos>.bod` (PS:361). La raíz usa
-`<base>`; el resto hereda la base del `.bod` del padre (`Shape.getBodBase`,
-Shape.java:270). El fichero real es `<base>.bod` y el tag es el número de
-parte (`Shape.addRwChildren/getBodPartNum`, Shape.java:276-313).
-Tokens dentro de la limb (sobre la cadena reescrita):
+Each limb: URL `avatar:<base><2-digit tag>.bod` (PS:361). The root uses
+`<base>`; the rest inherit the `.bod` base of the parent (`Shape.getBodBase`,
+Shape.java:270). The real file is `<base>.bod` and the tag is the part
+number (`Shape.addRwChildren/getBodPartNum`, Shape.java:276-313).
+Tokens inside the limb (over the rewritten string):
 
-| token | efecto |
+| token | effect |
 |---|---|
-| `G` n nombre | nodo actual → `avatar:<nombre><n o tag>.bod`; nombre vacío → **se descarta la limb** (y sus hijos pierden la base) |
-| `S` x y z | escala por eje: `a..z` → `1-(k)*0.025615385`, `A..Z` → inversa, otro → 1; `SZZZ` desactiva prepFigure (PS:386-393) |
+| `G` n name | current node → `avatar:<name><n or tag>.bod`; an empty name → **the limb is discarded** (and its children lose the base) |
+| `S` x y z | per-axis scale: `a..z` → `1-(k)*0.025615385`, `A..Z` → inverse, other → 1; `SZZZ` disables prepFigure (PS:386-393) |
 | `Q` | no-op |
-| `D` c | retardo += `1000*(1.0932^b64(c) - 0.9)` ms |
-| `A` nombre | nombre de animación |
-| `[a-z]` | material de paleta para el nodo actual; si ya había uno, se programan cambios temporizados (retardo por defecto 50 ms) → expresiones faciales (PS:410-433, 472-492) |
-| dígitos | nuevo `SubclumpShape` `system:subclump<n - subclumps ya creados>` (relativo porque `extractSubclump` va sacando partes, Shape.java:286-301) |
-| otra mayúscula | fin de limb |
-| `T`/`C` residuales | "Illegal av" / assert (no pasa en el corpus) |
+| `D` c | delay += `1000*(1.0932^b64(c) - 0.9)` ms |
+| `A` name | animation name |
+| `[a-z]` | palette material for the current node; if there was already one, timed changes are scheduled (default delay 50 ms) → facial expressions (PS:410-433, 472-492) |
+| digits | new `SubclumpShape` `system:subclump<n - subclumps already created>` (relative because `extractSubclump` keeps extracting parts, Shape.java:286-301) |
+| other uppercase letter | end of limb |
+| leftover `T`/`C` | "Illegal av" / assert (does not happen in the corpus) |
 
-Ejemplo `willy`: `C__`×6 (origMat en todo el cuerpo) y la cabeza
-`HDgT2willyT3T2T1`: cara `willy.mov` subimagen 0 en reposo con parpadeo
-2-3-2-1 cada 3648 ms (+50 ms por fotograma).
-`avatar:aura.0PG.rwg` (URL por defecto): `G` sin nombre descarta la raíz
-y, en cascada, todas las limbs → figura vacía.
+Example `willy`: `C__`×6 (origMat over the whole body) and the head
+`HDgT2willyT3T2T1`: face `willy.mov` sub-image 0 at rest with a blink
+2-3-2-1 every 3648 ms (+50 ms per frame).
+`avatar:aura.0PG.rwg` (default URL): `G` without a name discards the root
+and, in cascade, all the limbs → empty figure.
 
-## Verificación sobre el corpus (permittedList, 148 nombres)
+## Verification against the corpus (permittedList, 148 names)
 
-- 146/148 sin anomalías; 0 excepciones. Las 2 anomalías son erratas
-  reales de la tabla, reproducidas tal como las trata el cliente:
-  - `achoo`: espacio tras `T4achoo` → `findStarts` trunca; el avatar
-    queda sin materiales en sus limbs.
-  - `tas`: `Lh`/`Mh` referencian el material 7 con una paleta de 7
-    (a..g) → `getMat` devuelve null y no se aplica.
-- Limbs instanciadas: 2514/2516; `craig` U y V descartadas (`G` sin
-  nombre en `RGUGVG`; la R posterior sobrescribe el arranque de R).
-- Paleta: 2132 materiales; 387 colores `origMat`.
-- Texturas referenciadas (ficheros distintos): 210; en el repo 14
+- 146/148 without anomalies; 0 exceptions. The 2 anomalies are real typos
+  in the table, reproduced as the client treats them:
+  - `achoo`: a space after `T4achoo` → `findStarts` truncates; the avatar
+    ends up with no materials on its limbs.
+  - `tas`: `Lh`/`Mh` reference material 7 with a palette of 7
+    (a..g) → `getMat` returns null and it is not applied.
+- Limbs instantiated: 2514/2516; `craig` U and V discarded (`G` without a
+  name in `RGUGVG`; the later R overwrites the start of R).
+- Palette: 2132 materials; 387 `origMat` colors.
+- Textures referenced (distinct files): 210; in the repo 14
   (`aggie aura axel barbra chloe death dude john monster ogre shanubia
-  sonya tina willy .mov`, todas en base-avatars); faltan 196.
-- `.bod` referenciados: 141; en el repo 25 (los de base-avatars);
-  faltan 116.
-- `cachedir/` no se puede atribuir por nombre: faltan `cache.index`,
-  así que los ficheros numerados no cuentan como presentes.
+  sonya tina willy .mov`, all in base-avatars); 196 are missing.
+- `.bod` files referenced: 141; in the repo 25 (those of base-avatars);
+  116 are missing.
+- `cachedir/` cannot be attributed by name: `cache.index` is missing,
+  so the numbered files do not count as present.
 
-## Límites
+## Limits
 
-- Subimagen `n-1` de un `.mov`: `CmpFrames` decodifica todos los
-  fotogramas por la tabla de frames de gamma.dll (2026-09-25); antes solo
-  el 0 (`CmpStage1.decodeMovFrame0`). Probado 128×128 en willy/aura/tina.
-- `faceList`/`getFace` y `humanList`/`getHuman` los usan `WearWall` y
-  `AvMenu` (personalización) y la sustitución por humano; no los usa
-  `createSubparts`, así que no afectan a la geometría/material del nombre.
-- Que la parte N del `.bod` y su UV encajen con la subimagen resuelta solo
-  se vio en `willy`, con el visor del motor nuevo (2026-09-16, ya
-  retirado): la cara cae derecha y en la parte frontal de la cabeza.
-  `ogre` pide la subimagen 3 de su `.mov` en 10 partes.
-- ⚠️ Con textura el cliente pone `colorTable[3]` como color base; si
-  RenderWare 2 tiñe la textura con él no está verificado.
+- Sub-image `n-1` of a `.mov`: `CmpFrames` decodes all the frames through
+  the frame table of gamma.dll (2026-09-25); before, only frame 0
+  (`CmpStage1.decodeMovFrame0`). Tested at 128×128 on willy/aura/tina.
+- `faceList`/`getFace` and `humanList`/`getHuman` are used by `WearWall` and
+  `AvMenu` (customization) and by the substitution by a human; they are not
+  used by `createSubparts`, so they do not affect the geometry/material of
+  the name.
+- That part N of the `.bod` and its UV fit the resolved sub-image was only
+  seen on `willy`, with the new engine's viewer (2026-09-16, now
+  retired): the face falls upright and on the front of the head.
+  `ogre` asks for sub-image 3 of its `.mov` on 10 parts.
+- ⚠️ With a texture the client sets `colorTable[3]` as the base color; whether
+  RenderWare 2 tints the texture with it has not been verified.

@@ -1,36 +1,36 @@
-# Mapeador de métodos `native` — WorldsPlayer client vs. `gamma.dll`
-Generado automáticamente cruzando los métodos `native` del código Java
-decompilado (`editor/worldsplayer_source_editor-main/source/`) contra la
-tabla de exports de `move/bin/gamma.dll` (372 símbolos JNI).
+# `native` method mapper — WorldsPlayer client vs. `gamma.dll`
+Generated automatically by cross-referencing the `native` methods of the
+decompiled Java code (`editor/worldsplayer_source_editor-main/source/`)
+against the export table of `move/bin/gamma.dll` (372 JNI symbols).
 
-- Total declaraciones `native` encontradas: **365**
-- Con export JNI correspondiente en `gamma.dll`: **363**
-- Sin coincidencia: **2**
+- Total `native` declarations found: **365**
+- With a matching JNI export in `gamma.dll`: **363**
+- Without a match: **2**
 
-## Investigación de los métodos originalmente sin mapear (2026-09-08)
+## Investigation of the originally unmapped methods (2026-09-08)
 
-La primera pasada del mapeador (heurística simple: JNI escapa `_` como `_1` en el nombre exportado, y una regex de modificadores que solo aceptaba `static` en una posición fija) dejó 2 de 360 sin match, y de paso se saltó 5 declaraciones reales por tener modificadores en otro orden (`static final native`, `static synchronized native`). Con la regex corregida el total real es **365**, de las cuales quedan **2** sin mapear. Investigados con evidencia real, no suposición:
+The mapper's first pass (simple heuristic: JNI escapes `_` as `_1` in the exported name, and a modifiers regex that only accepted `static` in a fixed position) left 2 of 360 without a match, and in passing skipped 5 real declarations because they have their modifiers in a different order (`static final native`, `static synchronized native`). With the regex fixed the real total is **365**, of which **2** remain unmapped. Investigated with real evidence, not assumption:
 
-1. **`NET.worlds.scape.sendURL.silent_get`** — ✅ **RESUELTO, era un falso negativo del script.** El símbolo sí existe en `gamma.dll`:
+1. **`NET.worlds.scape.sendURL.silent_get`** — ✅ **RESOLVED, it was a false negative of the script.** The symbol does exist in `gamma.dll`:
    ```
    ?Java_NET_worlds_scape_sendURL_silent_get@@YGJPAUJNIEnv_@@PAV_jclass@@PAV_jstring@@@Z
    ```
-   `gamma.dll` mezcla dos convenciones de export: la mayoría son funciones `extern "C" __stdcall` (`_Java_...@N`, siguiendo el escape JNI estándar `_`→`_1`), pero un puñado se exportaron con mangling C++ de MSVC (`?Java_...@@YG...@Z`), donde el nombre JNI se envolvió como identificador C++ **sin** aplicar el escape `_1`. El script ya se actualizó para probar ambas formas (columna *Mangling* en la tabla de abajo).
+   `gamma.dll` mixes two export conventions: most are `extern "C" __stdcall` functions (`_Java_...@N`, following the standard JNI escape `_`→`_1`), but a handful were exported with MSVC C++ mangling (`?Java_...@@YG...@Z`), where the JNI name was wrapped as a C++ identifier **without** applying the `_1` escape. The script has already been updated to try both forms (*Mangling* column in the table below).
 
-2. **`NET.worlds.scape.PendingCacheDrone.nativeDestroy`** — ⚠️ **confirmado código muerto, no una laguna de ingeniería inversa.** Evidencia:
-   - No aparece en ningún export de `gamma.dll` bajo ninguna de las dos convenciones (`grep -i destroy` sobre las 372 entradas no lo encuentra; sí aparecen `PendingCacheDrone_nativeInit` y `PendingCacheDrone_notifySeqLoaded`, las otras dos natives de la misma clase).
-   - **0 call sites** en los 722 archivos decompilados — ni `nativeDestroy()` dentro de la propia clase, ni `PendingCacheDrone.nativeDestroy()` desde ninguna otra. Compárese con `nativeInit()`, que sí se invoca desde el bloque `static {}` de la misma clase.
-   - La clase es real y activa (`PendingCacheDrone` se usa desde `DroneAnimator`/`SeqFile`), así que no es un archivo huérfano — es específicamente este método el que quedó sin usar, probablemente declarado por simetría con `nativeInit()` (init/destroy) pero nunca conectado a un `finalize()`/`shutdown()` real.
-   - **Conclusión práctica**: no hace falta reimplementarlo. Si en la fase de reimplementación del renderer se detecta necesidad de un cleanup path para el caché de avatares, es la pista de dónde debería ir — pero no bloquea nada del cliente actual.
+2. **`NET.worlds.scape.PendingCacheDrone.nativeDestroy`** — ⚠️ **confirmed dead code, not a reverse-engineering gap.** Evidence:
+   - It does not appear in any export of `gamma.dll` under either of the two conventions (`grep -i destroy` over the 372 entries does not find it; `PendingCacheDrone_nativeInit` and `PendingCacheDrone_notifySeqLoaded` do appear, the other two natives of the same class).
+   - **0 call sites** in the 722 decompiled files — neither `nativeDestroy()` inside the class itself, nor `PendingCacheDrone.nativeDestroy()` from any other. Compare with `nativeInit()`, which is invoked from the `static {}` block of the same class.
+   - The class is real and active (`PendingCacheDrone` is used from `DroneAnimator`/`SeqFile`), so it is not an orphan file — it is specifically this method that was left unused, probably declared for symmetry with `nativeInit()` (init/destroy) but never wired to a real `finalize()`/`shutdown()`.
+   - **Practical conclusion**: there is no need to reimplement it. If during the renderer reimplementation phase a need for a cleanup path for the avatar cache is detected, this is the hint of where it should go — but it blocks nothing in the current client.
 
-3. **`NET.worlds.console.Console.getVolumeInfo`** — ⚠️ **también código muerto, mismo patrón que el anterior.** Evidencia:
-   - Existe un método **gemelo** en otra clase, `NET.worlds.console.Startup.getVolumeInfo()`, que sí está exportado (`_Java_NET_worlds_console_Startup_getVolumeInfo@8`) y sí se llama realmente desde `LoginWizard.java:702`.
-   - La versión de `Console` no tiene export bajo su propio nombre calificado (`grep` sobre las 372 entradas de `gamma.dll` solo encuentra la de `Startup`) y **0 call sites** en todo el código decompilado.
-   - Lectura más probable: la funcionalidad se movió de `Console` a `Startup` en algún momento del desarrollo original (2000-2004) y quedó la declaración vieja sin limpiar en `Console`.
+3. **`NET.worlds.console.Console.getVolumeInfo`** — ⚠️ **also dead code, same pattern as the previous one.** Evidence:
+   - There is a **twin** method in another class, `NET.worlds.console.Startup.getVolumeInfo()`, which is exported (`_Java_NET_worlds_console_Startup_getVolumeInfo@8`) and is actually called from `LoginWizard.java:702`.
+   - The `Console` version has no export under its own qualified name (a `grep` over the 372 entries of `gamma.dll` only finds the `Startup` one) and **0 call sites** in the whole decompiled code.
+   - Most likely reading: the functionality was moved from `Console` to `Startup` at some point in the original development (2000-2004) and the old declaration was left uncleaned in `Console`.
 
-## ✅ Coinciden con un export de gamma.dll
+## ✅ Matched to a gamma.dll export
 
-| Clase | Método | Firma | Export(s) en gamma.dll | Mangling |
+| Class | Method | Signature | Export(s) in gamma.dll | Mangling |
 |---|---|---|---|---|
 | `NET.worlds.console.ActiveX` | `initActiveX` | `void initActiveX()` | `_Java_NET_worlds_console_ActiveX_initActiveX@8` | JNI-escaped (_1) |
 | `NET.worlds.console.ActiveX` | `uninitActiveX` | `void uninitActiveX()` | `_Java_NET_worlds_console_ActiveX_uninitActiveX@8` | JNI-escaped (_1) |
@@ -396,17 +396,17 @@ La primera pasada del mapeador (heurística simple: JNI escapa `_` como `_1` en 
 | `NET.worlds.scape.sendURL` | `get` | `int get(String var0)` | `_Java_NET_worlds_scape_sendURL_get@12` | JNI-escaped (_1) |
 | `NET.worlds.scape.sendURL` | `silent_get` | `int silent_get(String var0)` | `?Java_NET_worlds_scape_sendURL_silent_get@@YGJPAUJNIEnv_@@PAV_jclass@@PAV_jstring@@@Z` | C++ mangled, unescaped |
 
-## Sin export directo encontrado en gamma.dll
+## No direct export found in gamma.dll
 
 ### `NET.worlds.console.Console.getVolumeInfo`
 
-- Firma: `int getVolumeInfo()`
-- Prefijo JNI esperado (escapado): `Java_NET_worlds_console_Console_getVolumeInfo`
-- Ocurrencias de `getVolumeInfo(` como *llamada* en el resto del código decompilado (excluyendo la propia declaración): **0**
+- Signature: `int getVolumeInfo()`
+- Expected JNI prefix (escaped): `Java_NET_worlds_console_Console_getVolumeInfo`
+- Occurrences of `getVolumeInfo(` as a *call* in the rest of the decompiled code (excluding the declaration itself): **0**
 
 ### `NET.worlds.scape.PendingCacheDrone.nativeDestroy`
 
-- Firma: `void nativeDestroy()`
-- Prefijo JNI esperado (escapado): `Java_NET_worlds_scape_PendingCacheDrone_nativeDestroy`
-- Ocurrencias de `nativeDestroy(` como *llamada* en el resto del código decompilado (excluyendo la propia declaración): **0**
+- Signature: `void nativeDestroy()`
+- Expected JNI prefix (escaped): `Java_NET_worlds_scape_PendingCacheDrone_nativeDestroy`
+- Occurrences of `nativeDestroy(` as a *call* in the rest of the decompiled code (excluding the declaration itself): **0**
 

@@ -1,524 +1,525 @@
-# Referencia del formato RWG/BOD, reconstruida desde bytes reales
+# RWG/BOD format reference, reconstructed from real bytes
 
-> **2026-09-26:** el motor nuevo se quitó del repositorio. Sus visores
-> (`RwgViewer`, `BodViewer`) y las capturas de `docs/renders/` que se citan
-> abajo están en el historial de git, hasta el commit `8cd795d`.
-> `RwgParser` y el lector de `.bod` siguen en `formats/`, porque los usa el
-> puente del cliente original.
+> **2026-09-26:** the new engine was removed from the repository. Its viewers
+> (`RwgViewer`, `BodViewer`) and the captures in `docs/renders/` cited
+> below are in the git history, up to commit `8cd795d`.
+> `RwgParser` and the `.bod` reader remain in `formats/`, because the
+> bridge of the original client uses them.
 
-⚠️ **A diferencia de RWX, no existe ninguna biblioteca ni documentación
-externa que documente el formato binario exacto de `.rwg`/`.bod`** —
-confirmado con investigación real, no asumido (ver sección "Investigación
-externa" más abajo). Todo lo de aquí viene de: (1) hex dumps de archivos
-reales del proyecto, (2) `Gamma_Advanced.html` (documentación OFICIAL de
-Worlds Inc., sección "Articulated Avatars" — aportada por el usuario en
-esta sesión como parte de `GammaDocs.zip`; la documentación completa NO
-está versionada en este repo por su volumen — ver sección 3.4 de
-`docs/worlds-chat-project.md` para los mirrors públicos conocidos:
-`archive.org/details/gammadocs`, Worlio, Wayback Machine — los hechos
-citados aquí están parafraseados/entrecomillados con atribución, así que
-no hace falta el HTML completo para verificarlos), y (3) el código Java
-decompilado del cliente real (que confirma qué NO hace el propio
-cliente, ver más abajo). **No se inventó ningún dato** — donde la
-evidencia es insuficiente está marcado ⚠️ VERIFICAR explícitamente, no
-rellenado con suposiciones.
+⚠️ **Unlike RWX, there is no library or external documentation that
+documents the exact binary format of `.rwg`/`.bod`** —
+confirmed with real research, not assumed (see the "External research"
+section below). Everything here comes from: (1) hex dumps of real
+files from the project, (2) `Gamma_Advanced.html` (OFFICIAL documentation
+from Worlds Inc., "Articulated Avatars" section — provided by the user in
+this session as part of `GammaDocs.zip`; the full documentation is NOT
+versioned in this repo because of its volume — see section 3.4 of
+`docs/worlds-chat-project.md` for the known public mirrors:
+`archive.org/details/gammadocs`, Worlio, Wayback Machine — the facts
+cited here are paraphrased/quoted with attribution, so the full HTML is
+not needed to verify them), and (3) the decompiled Java code of the real
+client (which confirms what the client itself does NOT do, see below). **No
+data was invented** — where the evidence is insufficient it is explicitly
+marked ⚠️ VERIFY, not filled in with assumptions.
 
-> **Correcciones de la auditoría 2026-09-15 — prevalecen sobre el texto
-> histórico de abajo:**
+> **Corrections from the 2026-09-15 audit — they take precedence over the
+> historical text below:**
 >
-> 1. **`VLST[0..7]` no son vértices: son las 8 esquinas de la bounding
->    box local del clump**, y los índices 1-based de `PLST` cuentan a
->    partir del registro 8. Evidencia: en `RWL21.DLL`,
->    `RwGetClumpNumVertices` (0x10003fe0) devuelve count−8 y
->    `RwGetClumpVertex` (0x100319f0, helper 0x10041c90) direcciona el
->    registro n+7; en los 8 `.rwg` del repo las 8 primeras entradas son
->    exactamente la bbox del resto (error 0), y contando desde 8 la normal
->    geométrica en orden de abanico coincide con la normal de cara de
->    `PLST` en 3466/3466 polígonos (167 si se cuenta desde 0).
->    Consecuencias: `cube.rwg` tiene 24 vértices (no 32), `e3.rwg` 1371
->    (no 1379); `AVATAR.RWG` no es "un cubo de centinelas" sino un clump
->    vacío con bbox ±FLT_MAX; el "orden de rejilla" de los quads, las
->    "normales (0,0,0)" y el "bobinado inconsistente" de `cube.rwg` eran
->    efectos del mismo error: los polígonos son lazos convexos (abanico) y
->    el bobinado es consistente. Corregido en `RwgParser` (commit
->    `1cc135b5`); render en `docs/renders/cube_rwg_bbox_fix_lit.png`.
-> 2. **`.bod` está resuelto** (la sección final "NO resuelto" es
->    histórica): ver `docs/bod-format-reference.md`.
-> 3. Hay **8 `.rwg` reales** en el repo (incluye `e3.rwg` y las copias de
->    `AVATAR`/`IDLE` en `assets/WorldsPlayer/`), todos de un solo `ATOM`.
+> 1. **`VLST[0..7]` are not vertices: they are the 8 corners of the local
+>    bounding box of the clump**, and the 1-based indices of `PLST` count
+>    from record 8. Evidence: in `RWL21.DLL`,
+>    `RwGetClumpNumVertices` (0x10003fe0) returns count−8 and
+>    `RwGetClumpVertex` (0x100319f0, helper 0x10041c90) addresses
+>    record n+7; in the 8 `.rwg` files of the repo the first 8 entries are
+>    exactly the bbox of the rest (error 0), and counting from 8 the
+>    geometric normal in fan order matches the face normal of
+>    `PLST` in 3466/3466 polygons (167 if counting from 0).
+>    Consequences: `cube.rwg` has 24 vertices (not 32), `e3.rwg` 1371
+>    (not 1379); `AVATAR.RWG` is not "a cube of sentinels" but an
+>    empty clump with a bbox of ±FLT_MAX; the "grid order" of the quads, the
+>    "(0,0,0) normals" and the "inconsistent winding" of `cube.rwg` were
+>    effects of the same error: the polygons are convex loops (fan) and
+>    the winding is consistent. Fixed in `RwgParser` (commit
+>    `1cc135b5`); render in `docs/renders/cube_rwg_bbox_fix_lit.png`.
+> 2. **`.bod` is solved** (the final "NOT solved" section is
+>    historical): see `docs/bod-format-reference.md`.
+> 3. There are **8 real `.rwg`** files in the repo (including `e3.rwg` and the
+>    copies of `AVATAR`/`IDLE` in `assets/WorldsPlayer/`), all with a single
+>    `ATOM`.
 
-> **Traducción desde los binarios (2026-09-24) — prevalece sobre todo lo
-> de abajo.** El formato ya no se deduce de bytes: se ha traducido del
-> lector real, `RwReadStreamChunk` de `RWL21.DLL` (0x10039e40, leído en
-> ensamblador con `objdump`, el C de Ghidra de esa función está roto) y de
-> la parte de `gamma.dll` que abre el fichero. Implementado en
-> `formats/src/net/openworlds/rwg/RwgParser.java`, comprobado en
-> `formats/test/net/openworlds/rwg/RwgTablesCheck.java`. Ver la sección
-> "Formato según el binario" justo debajo.
+> **Translation from the binaries (2026-09-24) — takes precedence over
+> everything below.** The format is no longer deduced from bytes: it has been
+> translated from the real reader, `RwReadStreamChunk` of `RWL21.DLL`
+> (0x10039e40, read in assembly with `objdump`, the C from Ghidra for that
+> function is broken) and from the part of `gamma.dll` that opens the file.
+> Implemented in
+> `formats/src/net/openworlds/rwg/RwgParser.java`, checked in
+> `formats/test/net/openworlds/rwg/RwgTablesCheck.java`. See the section
+> "Format according to the binary" right below.
 
-## Formato según el binario (RWL21 + gamma.dll)
+## Format according to the binary (RWL21 + gamma.dll)
 
-Todo big-endian. Un chunk es `[tag][longitud][contenido]`. RW **no** lee
-los hijos por posición: cada lector busca el chunk que quiere con un
-bucle (p. ej. 0x1003a205) que lee un tag y, si no es el buscado, salta
-ese chunk con `RwSkipStreamChunk` (0x10039cd0); nunca salta al final del
-chunk padre. Un `STRT` se lee con un máximo: se leen min(longitud, máx)
-bytes y se salta (longitud − máx) con signo (0x1003b17a). gamma abre el
-fichero en memoria (`RwOpenStream(3,1,…)`, FUN_004181d0): leer o saltar
-más allá del final es el error 0x58 y una lectura de 0 bytes es un error.
-Cualquier FALSE aborta el CLUM entero y `finishLoadingBinaryFile`
-devuelve −1.
+All big-endian. A chunk is `[tag][length][content]`. RW does **not** read
+the children by position: each reader looks for the chunk it wants with a
+loop (e.g. 0x1003a205) that reads a tag and, if it is not the one sought,
+skips that chunk with `RwSkipStreamChunk` (0x10039cd0); it never jumps to the
+end of the parent chunk. A `STRT` is read with a maximum: min(length, max)
+bytes are read and (length − max) is skipped, signed (0x1003b17a). gamma opens
+the file in memory (`RwOpenStream(3,1,…)`, FUN_004181d0): reading or skipping
+past the end is error 0x58 and a read of 0 bytes is an error.
+Any FALSE aborts the whole CLUM and `finishLoadingBinaryFile`
+returns −1.
 
-**Cabecera (gamma.dll, no RW).** `FUN_00419af0`: tag `ZZZ[`, longitud L
-(tiene que ser > 8), y las palabras `0x13765342`, `1`. Los L−8 bytes
-siguientes (`FUN_00419a20`) **no son el nombre del objeto**: son la
-**lista de texturas** que `FUN_0041c970` (el constructor de
-`ShapeLoader.loadBinaryFile` 0x0041e5d0) pide a Java *antes* de leer el
-CLUM, cadena a cadena hasta una vacía, con `.cmp` (DAT_00470a7c) si el
-nombre no tiene punto, vía `ShapeLoader.startTextureLoad`. Solo si la
-lista acaba en la cadena vacía se marca la carga como buena (`this+0xc`,
-que `finishLoadingBinaryFile` 0x0041e630 exige). IDLE → `idle.cmp`, e3 →
-`earthkin.cmp`, AVATAR/ball/table → nada.
+**Header (gamma.dll, not RW).** `FUN_00419af0`: tag `ZZZ[`, length L
+(must be > 8), and the words `0x13765342`, `1`. The next L−8 bytes
+(`FUN_00419a20`) **are not the name of the object**: they are the
+**texture list** that `FUN_0041c970` (the constructor of
+`ShapeLoader.loadBinaryFile` 0x0041e5d0) requests from Java *before* reading
+the CLUM, string by string until an empty one, with `.cmp` (DAT_00470a7c) if the
+name has no dot, via `ShapeLoader.startTextureLoad`. Only if the
+list ends in the empty string is the load marked as good (`this+0xc`,
+which `finishLoadingBinaryFile` 0x0041e630 requires). IDLE → `idle.cmp`, e3 →
+`earthkin.cmp`, AVATAR/ball/table → nothing.
 
-**CLUM** (0x1003a03d): crea un contexto con cinco listas y busca, en este
-orden, `RALT`, `TELT`, `MALT` y el `ATOM` raíz.
+**CLUM** (0x1003a03d): creates a context with five lists and looks for, in
+this order, `RALT`, `TELT`, `MALT` and the root `ATOM`.
 
-| Chunk | Contenido | Dirección |
+| Chunk | Contents | Address |
 |---|---|---|
-| `RALT` | STRT(12) `[n, ?, ?]` y n chunks `RAST` (STRT de 10 enteros: ancho, alto, ?, paso, formato; y un `DATA` con los píxeles) | 0x1003c4e3, RAST 0x1003c72a. ⚠️ sin muestra real: todo el corpus tiene n = 0 |
-| `TELT` | STRT(12) `[n, tamaño de registro, ?]`; por entrada **siempre** lee 0x14 bytes = 5 enteros `[raster, raster del mipmap, ?, ?, ?]` y, si el tamaño de registro es **menor** que 0x14, salta además (0x14 − tamaño) hacia delante; luego busca un `STNG` con el nombre | 0x1003cb3f, 0x1003cc68 |
-| `MALT` | STRT(12) `[n, tamaño de registro, ?]`; por material lee 0x28 bytes = 10 enteros y, si el tamaño es mayor, salta el resto | 0x1003bfce, 0x1003c0ab |
-| `ATOM` | STRT(0x34) de 13 enteros, 2 `MATX`, `VLST`, `PLST` y los ATOM hijos | 0x1003b569 |
+| `RALT` | STRT(12) `[n, ?, ?]` and n `RAST` chunks (STRT of 10 integers: width, height, ?, stride, format; and a `DATA` with the pixels) | 0x1003c4e3, RAST 0x1003c72a. ⚠️ no real sample: the whole corpus has n = 0 |
+| `TELT` | STRT(12) `[n, record size, ?]`; per entry it **always** reads 0x14 bytes = 5 integers `[raster, mipmap raster, ?, ?, ?]` and, if the record size is **smaller** than 0x14, it also skips forward (0x14 − size); then it looks for a `STNG` with the name | 0x1003cb3f, 0x1003cc68 |
+| `MALT` | STRT(12) `[n, record size, ?]`; per material it reads 0x28 bytes = 10 integers and, if the size is larger, skips the rest | 0x1003bfce, 0x1003c0ab |
+| `ATOM` | STRT(0x34) of 13 integers, 2 `MATX`, `VLST`, `PLST` and the child ATOMs | 0x1003b569 |
 
-**Entrada de TELT → textura.** Raster 0 (el único caso del corpus):
-textura con nombre (0x1003cde9): se busca en el diccionario de texturas
-actual (FUN_100184d0) y, si no está y existe un fichero con ese nombre en
-la ruta de formas (FUN_10021270: tal cual y con `.ras`, `.tex`, `.env`,
-`.bmp`, `.rle`, leídas en DAT_1005ad00..1005ace0), `RwGetNamedTexture`;
-si no hay textura, error 0x5e y **el CLUM falla**. Raster ≠ 0
-(0x1003cd40): textura nueva sobre ese raster de RALT (y el del mipmap si
-≠ 0) y al diccionario con el nombre (⚠️ sin muestra real). La textura se
-añade a la lista **solo si no estaba ya** (0x1003ce42), así que dos
-entradas que den la misma textura ocupan un solo índice.
+**TELT entry → texture.** Raster 0 (the only case in the corpus):
+named texture (0x1003cde9): it is looked up in the current texture dictionary
+(FUN_100184d0) and, if it is not there and a file with that name exists in
+the shape path (FUN_10021270: as is and with `.ras`, `.tex`, `.env`,
+`.bmp`, `.rle`, read from DAT_1005ad00..1005ace0), `RwGetNamedTexture`;
+if there is no texture, error 0x5e and **the CLUM fails**. Raster ≠ 0
+(0x1003cd40): a new texture over that raster of RALT (and that of the mipmap if
+≠ 0) and into the dictionary with the name (⚠️ no real sample). The texture is
+added to the list **only if it was not already there** (0x1003ce42), so two
+entries that yield the same texture take up a single index.
 
-**Registro de MALT → material** (RwCreateMaterial y 0x1003c119..c180):
+**MALT record → material** (RwCreateMaterial and 0x1003c119..c180):
 
-| Campo | Destino |
+| Field | Destination |
 |---|---|
-| [0] | textura: índice base 1 en la lista de TELT (0 o fuera de rango = ninguna) → `RwSetMaterialTexture` |
-| [1] | palabra 0 del material: muestreo. Geometría = 1 si < 4, 2 si < 8, 3 si < 0xc, si no 4 (RwGetMaterialGeometrySampling 0x10019e40); luz = 2 si bit 0, si no 1 (0x10019ea0) |
-| [2] | byte de material+0x30: `& 0x1f` modos de textura (1 lit, 2 foreshorten, 4 filter, 0x10 trilinear), `& 0xc0` modos de material (0x80 doble cara) |
-| [3..5] | color r, g, b (reales) → `RwSetMaterialColor` |
-| [6] | opacidad → `RwSetMaterialOpacity` |
-| [7..9] | ambiente, difusa, especular → `RwSetMaterialSurface` |
+| [0] | texture: 1-based index into the TELT list (0 or out of range = none) → `RwSetMaterialTexture` |
+| [1] | word 0 of the material: sampling. Geometry = 1 if < 4, 2 if < 8, 3 if < 0xc, otherwise 4 (RwGetMaterialGeometrySampling 0x10019e40); light = 2 if bit 0, otherwise 1 (0x10019ea0) |
+| [2] | byte of material+0x30: `& 0x1f` texture modes (1 lit, 2 foreshorten, 4 filter, 0x10 trilinear), `& 0xc0` material modes (0x80 double-sided) |
+| [3..5] | color r, g, b (reals) → `RwSetMaterialColor` |
+| [6] | opacity → `RwSetMaterialOpacity` |
+| [7..9] | ambient, diffuse, specular → `RwSetMaterialSurface` |
 
-Valores reales: IDLE `[1, 0x14, 2, 0.96875, 0.984375, 0.96875, 1, 0.75,
-0, 0]` (textura "idle", sólido, faceta, foreshorten sin lit, ambiente
-0.75 = el "autoiluminado" de gamma FUN_00417950); e3 `[1, 0x15, 2, 0.5,
-0.5, 0.5, 1, 0.1, 0.5, 0.9]` (por vértice); ball 512 materiales rojos
-`[0, 0xd, 1, …]`, uno por triángulo; table uno naranja.
+Real values: IDLE `[1, 0x14, 2, 0.96875, 0.984375, 0.96875, 1, 0.75,
+0, 0]` (texture "idle", solid, facet, foreshorten without lit, ambient
+0.75 = gamma's "self-lit" FUN_00417950); e3 `[1, 0x15, 2, 0.5,
+0.5, 0.5, 1, 0.1, 0.5, 0.9]` (per vertex); ball 512 red materials
+`[0, 0xd, 1, …]`, one per triangle; table a single orange one.
 
-**ATOM, STRT de 13:** [0] → clump+0x8c y [1] → clump+0x90 (⚠️
-significado sin determinar), [2] tag (+0xe8), [3..7] sin leer, [8]
-hints, [9] alineación de ejes (+0x18c), [10] estado (+0x190, 1 OFF 2 ON),
-[11] **número de ATOM hijos** (se leen tras PLST y se cuelgan con
-`RwAddChildToClump`; ⚠️ sin muestra real, todo el corpus tiene 0), [12]
-frecuencia de muestreo de luz (real). Los dos MATX van a clump+0xec y
+**ATOM, STRT of 13:** [0] → clump+0x8c and [1] → clump+0x90 (⚠️
+meaning undetermined), [2] tag (+0xe8), [3..7] not read, [8]
+hints, [9] axis alignment (+0x18c), [10] state (+0x190, 1 OFF 2 ON),
+[11] **number of child ATOMs** (they are read after PLST and attached with
+`RwAddChildToClump`; ⚠️ no real sample, the whole corpus has 0), [12]
+light sampling frequency (real). The two MATX go to clump+0xec and
 clump+0x130.
 
-**VLST** (0x1003b1be): STRT `[n, tamaño, banderas]`. Registro: x,y,z;
-bandera 1 normal (marca el vértice con 0x40, normal puesta); bandera 2
-u,v; bandera 4 tres reales (vértice +0x10..+0x18, ⚠️ significado sin
-determinar). UV y bandera 4 se guardan a 16.16 (× 65536.0 =
-DAT_10052298, `__ftol`). Los 8 primeros registros son la caja local
-(ver corrección de la auditoría, abajo).
+**VLST** (0x1003b1be): STRT `[n, size, flags]`. Record: x,y,z;
+flag 1 normal (marks the vertex with 0x40, normal set); flag 2
+u,v; flag 4 three reals (vertex +0x10..+0x18, ⚠️ meaning
+undetermined). UV and flag 4 are stored as 16.16 (× 65536.0 =
+DAT_10052298, `__ftol`). The first 8 records are the local box
+(see the audit correction, below).
 
-**PLST** (0x1003a583): STRT `[n, tamaño, banderas]`. Registro:
-**material** (índice base 1 en MALT; es el campo que antes se llamó
-"id/flag" y que en ball cuenta 1..512), número de vértices, índices;
-bandera 1 normal de cara (polígono +0x10); bandera 4 tres reales a 16.16
-(polígono +0x04..+0x0c, ⚠️ sin determinar); bandera 0x10 tag (16 bits en
-+0x38). El "número de campos finales por fichero" (6 en cube/ball/table,
-7 en IDLE) es esto: banderas 7 → 3+3, banderas 0x17 → 3+3+1. Cada
-polígono pasa por FUN_10001220, que quita índices repetidos seguidos y el
-último si repite el primero; con menos de 3 el PLST entero falla.
+**PLST** (0x1003a583): STRT `[n, size, flags]`. Record:
+**material** (1-based index into MALT; it is the field that used to be called
+"id/flag" and that in ball counts 1..512), number of vertices, indices;
+flag 1 face normal (polygon +0x10); flag 4 three reals at 16.16
+(polygon +0x04..+0x0c, ⚠️ undetermined); flag 0x10 tag (16 bits at
++0x38). The "number of trailing fields per file" (6 in cube/ball/table,
+7 in IDLE) is this: flags 7 → 3+3, flags 0x17 → 3+3+1. Each
+polygon goes through FUN_10001220, which removes consecutive repeated indices and
+the last one if it repeats the first; with fewer than 3 the whole PLST fails.
 
-**Callback de gamma tras leer** (FUN_00419a60 → `RwForAllClumpsInHierarchy`
-con 0x004187e0 sin 3D por hardware): tag < 0x4000000 → `RwSetClumpHints(2)`;
-si no, `RwSetClumpState(OFF)`. Lo mismo tras un `.rwx` (FUN_004199c0).
+**gamma callback after reading** (FUN_00419a60 → `RwForAllClumpsInHierarchy`
+with 0x004187e0 without hardware 3D): tag < 0x4000000 → `RwSetClumpHints(2)`;
+otherwise `RwSetClumpState(OFF)`. The same after an `.rwx` (FUN_004199c0).
 
-**Consecuencias medidas en el corpus:**
+**Consequences measured in the corpus:**
 
-- **`cube.rwg` no lo lee RW 2.1 de WorldsPlayer.** Su TELT tiene registros
-  de 16 bytes (`[0,1,0,1]`); RW lee 20 (se come el tag `STNG`), salta 4
-  más (su longitud) y la búsqueda del STNG acaba fuera del stream (0x5a).
-  Seguramente lo generó otra versión de RWX2RWG; ⚠️ confirmarlo exigiría
-  cargarlo en el original bajo Wine.
-- `AVATAR.RWG` (el `xShape` por defecto) es un clump **válido y vacío**:
-  0 vértices, 0 polígonos, tag 0, estado ON.
-- IDLE y e3 **exigen** su textura en el diccionario (o un fichero
-  `.ras/.tex/.env/.bmp/.rle` con ese nombre): en el cliente la pone ahí
-  la carga previa de la cabecera (`idle.cmp` está en `WorldsPlayer/`).
-- `table.rwg`: 524 vértices (532 registros − 8).
+- **`cube.rwg` is not read by the RW 2.1 of WorldsPlayer.** Its TELT has
+  16-byte records (`[0,1,0,1]`); RW reads 20 (it eats the `STNG` tag), skips 4
+  more (its length) and the STNG search ends outside the stream (0x5a).
+  It was probably generated by another version of RWX2RWG; ⚠️ confirming it would
+  require loading it in the original under Wine.
+- `AVATAR.RWG` (the default `xShape`) is a **valid, empty** clump:
+  0 vertices, 0 polygons, tag 0, state ON.
+- IDLE and e3 **require** their texture in the dictionary (or a
+  `.ras/.tex/.env/.bmp/.rle` file with that name): in the client the earlier
+  load of the header puts it there (`idle.cmp` is in `WorldsPlayer/`).
+- `table.rwg`: 524 vertices (532 records − 8).
 
-## Actualización importante: se encontró un corpus real más grande dentro
-## del tutorial oficial de GammaDocs (`cube.rwg`, `ball.rwg`, `table.rwg` +
-## `table.rwx` fuente, ahora en `assets/gammatutorial-samples/`)
+## Important update: a larger real corpus was found inside the official
+## GammaDocs tutorial (`cube.rwg`, `ball.rwg`, `table.rwg` +
+## `table.rwx` source, now in `assets/gammatutorial-samples/`)
 
-Estos 3 archivos venían empaquetados en la documentación oficial
-(`GammaDocs.zip`, aportada por el usuario, carpeta `GammaTutorial/tex/`),
-no son sintéticos — son datos binarios de formato real, no documentación,
-así que se movieron a `assets/gammatutorial-samples/` y SÍ están
-versionados (a diferencia del resto de GammaDocs). Al probarlos contra el
-parser recién escrito con solo `AVATAR.RWG`/`IDLE.RWG` como evidencia,
-**rompieron la hipótesis inicial de `PLST`** (que solo se había
-verificado contra UN polígono) — lo cual es exactamente la señal de que
-la primera hipótesis era insuficiente, y se corrigió con evidencia real
-en vez de mantenerse. Resultado, con el `PLST` corregido:
+These 3 files came packaged in the official documentation
+(`GammaDocs.zip`, provided by the user, folder `GammaTutorial/tex/`),
+they are not synthetic — they are binary data in the real format, not
+documentation, so they were moved to `assets/gammatutorial-samples/` and ARE
+versioned (unlike the rest of GammaDocs). When tested against the
+freshly written parser with only `AVATAR.RWG`/`IDLE.RWG` as evidence,
+they **broke the initial hypothesis about `PLST`** (which had only been
+verified against ONE polygon) — which is exactly the signal that
+the first hypothesis was insufficient, and it was corrected with real evidence
+instead of being kept. Result, with the corrected `PLST`:
 
-- **`cube.rwg`** (2168 bytes, un cubo de 6 caras/32 vértices) — **parsea
-  limpio** y aporta la evidencia más fuerte de toda la sesión: cada uno
-  de los 6 registros de `PLST` tiene un campo de normal de cara
-  `(nx,ny,nz)` con un único eje en `~±1.0` — **los 6 ejes posibles
-  aparecen exactamente una vez cada uno** (+X,-X,+Y,-Y,+Z,-Z),
-  coincidiendo perfectamente con las 6 caras de un cubo axis-aligned.
-  Esto también reveló que los campos del vértice que antes estaban
-  "sin determinar" (floats[3:6)) **son la normal por vértice**, no un
-  misterio — confirmado porque coincide exactamente con la normal de cara
-  de `PLST` en cada caso.
-- **`ball.rwg`** (55108 bytes, 512 triángulos, ~258 vértices) — también
-  **parsea limpio** con la misma estructura (vertCount=3 en vez de 4,
-  generalizando correctamente el algoritmo).
-- **`table.rwg`** (49692 bytes, 546 polígonos, mezcla real de triángulos y
-  cuadriláteros) — inicialmente **no parseaba** (rompía la asunción de
-  "tamaño de registro uniforme derivado por división"); **resuelto** en
-  la sesión de avatares articulados (2026-09-09) sin necesitar esa
-  asunción — ver detalle en la sección de `PLST` más abajo.
+- **`cube.rwg`** (2168 bytes, a 6-face/32-vertex cube) — **parses
+  cleanly** and provides the strongest evidence of the whole session: each
+  of the 6 `PLST` records has a face normal field
+  `(nx,ny,nz)` with a single axis at `~±1.0` — **all 6 possible axes
+  appear exactly once each** (+X,-X,+Y,-Y,+Z,-Z),
+  matching perfectly the 6 faces of an axis-aligned cube.
+  This also revealed that the vertex fields that were previously
+  "undetermined" (floats[3:6)) **are the per-vertex normal**, not a
+  mystery — confirmed because it matches exactly the face normal
+  of `PLST` in every case.
+- **`ball.rwg`** (55108 bytes, 512 triangles, ~258 vertices) — also
+  **parses cleanly** with the same structure (vertCount=3 instead of 4,
+  correctly generalizing the algorithm).
+- **`table.rwg`** (49692 bytes, 546 polygons, a real mix of triangles and
+  quadrilaterals) — initially **did not parse** (it broke the assumption of
+  "uniform record size derived by division"); **resolved** in
+  the articulated-avatar session (2026-09-09) without needing that
+  assumption — see details in the `PLST` section below.
 
-## ⚠️ Hallazgo central de esta sesión: el corpus real es degenerado para
-## el objetivo de "articulación"
+## ⚠️ Central finding of this session: the real corpus is degenerate for
+## the goal of "articulation"
 
-El corpus real disponible (`assets/FIRST/{AVATAR,IDLE}.RWG`,
-`assets/WorldsPlayer/cachedir/*.bod`, y ahora también
-`assets/gammatutorial-samples/{cube,ball,table}.rwg`) es real — no
-inventado — pero:
+The available real corpus (`assets/FIRST/{AVATAR,IDLE}.RWG`,
+`assets/WorldsPlayer/cachedir/*.bod`, and now also
+`assets/gammatutorial-samples/{cube,ball,table}.rwg`) is real — not
+invented — but:
 
-- **Los 5 `.rwg` reales disponibles (`AVATAR.RWG`, `IDLE.RWG`, y los 3 de
+- **The 5 real `.rwg` files available (`AVATAR.RWG`, `IDLE.RWG`, and the 3 of
   `assets/gammatutorial-samples/`: `cube.rwg`, `ball.rwg`, `table.rwg`)
-  tienen exactamente un solo `ATOM` cada uno** (verificado contando el tag
-  en los 5 archivos). Ninguno es un avatar propiamente dicho — son props
-  de tutorial de un solo clump (un cubo, una pelota, una mesa) o
-  placeholders. `AVATAR.RWG` es un cubo degenerado usando centinelas
-  `Float.MAX_VALUE`/`-Float.MAX_VALUE` como vértices (0 polígonos) — un
-  placeholder, no geometría real. **Ninguno de los 5 demuestra una
-  jerarquía real de múltiples joints** — que es justamente el objetivo
-  declarado de esta sesión ("avatares ARTICULADOS"). No se pudo verificar
-  con evidencia real cómo se anidan/referencian varios `ATOM` entre sí
-  para formar un esqueleto completo (pelvis→torso→cuello→cabeza...). Sí
-  se logró, en cambio, verificar sólidamente la geometría estática de UN
-  clump (posición, normal por vértice, UV, polígonos con normal de cara)
-  contra 4 de los 5 archivos, incluyendo un cubo de 6 caras y una pelota
-  de 512 triángulos — mucho más robusto que la verificación inicial de
-  un único polígono.
-- **Los 26 `.bod` reales de `cachedir/`** (confirmado con
-  `PendingDrone.java:91` que sí son avatares descargados de
-  `AvatarUpgrades/<nombre>.zip`, no animaciones — ver sección BOD más
-  abajo) probablemente SÍ contienen articulación real (son más grandes,
-  2-10KB vs. los ~750-1050 bytes de los .rwg triviales) — pero usan una
-  codificación binaria **completamente distinta**, sin ningún tag ASCII
-  reconocible, y no se logró descifrar su estructura con la evidencia y el
-  tiempo disponibles esta sesión.
+  have exactly a single `ATOM` each** (verified by counting the tag
+  in the 5 files). None is an avatar properly speaking — they are
+  single-clump tutorial props (a cube, a ball, a table) or
+  placeholders. `AVATAR.RWG` is a degenerate cube using sentinels
+  `Float.MAX_VALUE`/`-Float.MAX_VALUE` as vertices (0 polygons) — a
+  placeholder, not real geometry. **None of the 5 demonstrates a real
+  hierarchy of multiple joints** — which is precisely the declared goal
+  of this session ("ARTICULATED avatars"). It was not possible to verify
+  with real evidence how several `ATOM`s nest/reference each other
+  to form a complete skeleton (pelvis→torso→neck→head...). What was
+  achieved, on the other hand, was a solid verification of the static geometry
+  of ONE clump (position, per-vertex normal, UV, polygons with face normal)
+  against 4 of the 5 files, including a 6-face cube and a ball
+  of 512 triangles — much more robust than the initial verification of
+  a single polygon.
+- **The 26 real `.bod` files of `cachedir/`** (confirmed with
+  `PendingDrone.java:91` that they are indeed avatars downloaded from
+  `AvatarUpgrades/<name>.zip`, not animations — see the BOD section further
+  below) probably DO contain real articulation (they are larger,
+  2-10KB vs. the ~750-1050 bytes of the trivial .rwg files) — but they use
+  a **completely different** binary encoding, with no recognizable ASCII
+  tag, and their structure could not be deciphered with the evidence and
+  time available this session.
 
-**Conclusión honesta**: lo que sigue de este documento es una
-reconstrucción SÓLIDA y VERIFICADA de la geometría de un único
-clump/ATOM en formato `.rwg` (posición de vértices + polígonos) — útil y
-reutilizable — pero **no constituye una solución completa al problema de
-"avatar articulado"**, porque el corpus real no permitió verificar la
-jerarquía de huesos con evidencia. Implementarlo IGUAL habría significado
-inventar la parte de jerarquía sin evidencia, violando el principio de
-verificación del proyecto — se optó por documentar el límite real en vez
-de rellenar el hueco con una suposición.
-
----
-
-## Investigación externa (subagente, resumen)
-
-- **aw-sequence-parser** (Blaxar): formato NO relacionado — magia de
-  archivo `[0x7f,0x7f,0x7f,0x79/0x7a]`, sin tags ASCII de 4 letras, es
-  para animaciones `.seq` (quaternion por frame), no geometría estática.
-  Confirma big-endian (coincide con lo que se ve en los bytes reales de
-  `.rwg`), pero nada más aplicable.
-- **RenderWare Binary Stream estándar** (el que documentan
-  kaitai-struct/gtamods.com, usado por GTA y derivados): usa **IDs
-  numéricos de sección little-endian**, NO tags ASCII, y es
-  **little-endian** — lo opuesto a lo que se observa en los bytes reales
-  de `.rwg` (tags ASCII literales como "CLUM"/"ATOM", big-endian).
-  **Evidencia de que el binario de Worlds.com NO es el mismo formato RW
-  binario "estándar" documentado para RenderWare 3.x/GTA** — puede ser una
-  variante propia de RenderWare 2.x (anterior, sin documentación pública
-  conocida) o un formato completamente propio de Worlds Inc.
-- **kangworlds.net** y la wiki de Worlds Chat: confirman nombres de joints
-  (Pelvis→Torso→Cuello→Cabeza, Cadera→Rodilla→Tobillo,
-  Hombro→Codo→Muñeca) — coincide con los nombres EXACTOS encontrados en
-  GammaDocs (ver abajo), pero sin detalle de formato binario.
+**Honest conclusion**: what follows in this document is a SOLID and VERIFIED
+reconstruction of the geometry of a single clump/ATOM in `.rwg` format
+(vertex position + polygons) — useful and reusable — but it **does not
+constitute a complete solution to the "articulated avatar" problem**,
+because the real corpus did not allow verifying the bone hierarchy with
+evidence. Implementing it ANYWAY would have meant inventing the hierarchy
+part without evidence, violating the project's verification principle — it
+was decided to document the real limit instead of filling the gap with an
+assumption.
 
 ---
 
-## Fuente oficial: `Gamma_Advanced.html` (GammaDocs), sección "Articulated
-## Avatars" (documentación real de Worlds Inc., no de terceros)
+## External research (subagent, summary)
 
-Hechos confirmados textualmente en la documentación oficial:
+- **aw-sequence-parser** (Blaxar): UNRELATED format — file magic
+  `[0x7f,0x7f,0x7f,0x79/0x7a]`, no 4-letter ASCII tags, it is
+  for `.seq` animations (quaternion per frame), not static geometry.
+  It confirms big-endian (matches what is seen in the real bytes of
+  `.rwg`), but nothing else applicable.
+- **Standard RenderWare Binary Stream** (the one documented by
+  kaitai-struct/gtamods.com, used by GTA and derivatives): uses **little-endian
+  numeric section IDs**, NOT ASCII tags, and is
+  **little-endian** — the opposite of what is observed in the real bytes
+  of `.rwg` (literal ASCII tags such as "CLUM"/"ATOM", big-endian).
+  **Evidence that the Worlds.com binary is NOT the same "standard" binary RW
+  format documented for RenderWare 3.x/GTA** — it may be a proprietary variant
+  of RenderWare 2.x (earlier, with no known public documentation) or a format
+  entirely proprietary to Worlds Inc.
+- **kangworlds.net** and the Worlds Chat wiki: confirm joint names
+  (Pelvis→Torso→Neck→Head, Hip→Knee→Ankle,
+  Shoulder→Elbow→Wrist) — matches the EXACT names found in
+  GammaDocs (see below), but with no binary format detail.
 
-- **`.bod` se genera desde `.rwx` con la herramienta `rwxtobod`** (p. ej.
-  `rwxtobod amy` → `amy.bod` desde `amy.rwx`). El `.rwx` fuente debe usar Y
-  como eje de altura, 1 unidad = 10 metros (convención de ActiveWorlds).
-- **Jerarquía de clumps requerida en el `.rwx` fuente**, cada uno
-  identificado por un comentario `# nombre` (convención del exportador de
-  3DS Max), con letra de código para el "lenguaje de avatar personalizado":
+---
+
+## Official source: `Gamma_Advanced.html` (GammaDocs), section "Articulated
+## Avatars" (real Worlds Inc. documentation, not third-party)
+
+Facts confirmed verbatim in the official documentation:
+
+- **`.bod` is generated from `.rwx` with the `rwxtobod` tool** (e.g.
+  `rwxtobod amy` → `amy.bod` from `amy.rwx`). The source `.rwx` must use Y
+  as the height axis, 1 unit = 10 meters (ActiveWorlds convention).
+- **Clump hierarchy required in the source `.rwx`**, each one
+  identified by a comment `# name` (3DS Max exporter convention), with a
+  code letter for the "custom avatar language":
   `P pelvis, B back, N neck, H head, L lfshoulder, M lfelbow, O lfwrist,
   R rtshoulder, U rtelbow, V rtwrist, I lfhip, J lfknee, K lfankle,
   W rthip, X rtknee, Y rtankle, Z tail`.
-- **Números de tag** (usados en el lenguaje de nombre de avatar, comando
-  `G`): pelvis=1, back=2, neck=3, head=4, rtsternum=5, rtshoulder=6,
+- **Tag numbers** (used in the avatar name language, `G` command):
+  pelvis=1, back=2, neck=3, head=4, rtsternum=5, rtshoulder=6,
   rtelbow=7, rtwrist=8, rtfingers=9, lfsternum=10, lfshoulder=11,
   lfelbow=12, lfwrist=13, lffingers=14, rthip=15, rtknee=16, rtankle=17,
   rttoes=18, lfhip=19, lfknee=20, lfankle=21, lftoes=22, back2=23,
   tail=24, mouth=25, nose=26, lfear=27, rtear=28, back3=29, tail2=30,
   tail3=31, tail4=32.
-  - ⚠️ Posible pista sin confirmar: en los `.rwg` reales, el valor `23`
-    (=0x17) aparece como constante en TODAS las secciones RALT/TELT/MALT/
-    PLST de ambos archivos de prueba — casualmente `back2=23` en esta
-    tabla. Podría ser coincidencia (ambos archivos son un solo clump sin
-    tag explícito) o podría ser un campo de tag real puesto a un valor por
-    defecto. **No se pudo confirmar ni descartar** — ninguno de los 2
-    archivos de prueba usa un tag distinto de 23 para comparar.
-- **"Todas las matrices de joint deben ser matrices identidad, ya que el
-  sistema las sobreescribe internamente al animar"** — coincide EXACTO
-  con lo observado: ambos `MATX` de cada `ATOM` en ambos archivos son
-  matrices identidad 4x4 (16 floats, ver más abajo).
-- El avatar mínimo válido es solo el clump `pelvis` (los demás son
-  opcionales, pero no se puede saltar uno intermedio).
-- `.bod`, al momento de escribir esta documentación oficial (~2000-2001),
-  "no son actualmente cargables por red" — **pero el código Java
-  decompilado real confirma que en una versión posterior SÍ lo son**
-  (`PendingDrone.java`, ver más abajo) — la doc oficial puede estar
-  desactualizada respecto al build real que tenemos, o "cargable por red"
-  se refería a una ruta distinta (referencia directa en URL de un mundo)
-  frente al mecanismo de "paquete de actualización de avatar" que sí
-  existe en el cliente real.
+  - ⚠️ Possible unconfirmed lead: in the real `.rwg` files, the value `23`
+    (=0x17) appears as a constant in ALL the RALT/TELT/MALT/
+    PLST sections of both test files — coincidentally `back2=23` in this
+    table. It could be a coincidence (both files are a single clump with no
+    explicit tag) or it could be a real tag field set to a
+    default value. **It could be neither confirmed nor ruled out** — neither of
+    the 2 test files uses a tag other than 23 to compare.
+- **"All joint matrices must be identity matrices, since the system
+  overwrites them internally when animating"** — matches EXACTLY
+  what was observed: both `MATX` of each `ATOM` in both files are
+  4x4 identity matrices (16 floats, see below).
+- The minimal valid avatar is just the `pelvis` clump (the others are
+  optional, but an intermediate one cannot be skipped).
+- `.bod`, at the time this official documentation was written (~2000-2001),
+  "are not currently loadable over the network" — **but the real
+  decompiled Java code confirms that in a later version they ARE**
+  (`PendingDrone.java`, see below) — the official doc may be out of
+  date with respect to the real build we have, or "loadable over the network"
+  referred to a different route (direct reference in a world URL) as opposed
+  to the "avatar update package" mechanism that does exist in the real
+  client.
 
 ---
 
-## Lo que confirma el cliente Java decompilado (sin parsear el formato él
-## mismo — importante)
+## What the decompiled Java client confirms (without parsing the format
+## itself — important)
 
-- `PendingDrone.java` descarga avatares como
-  `AvatarUpgrades/<nombre>.zip` desde el upgrade server, extrae el zip, y
-  copia cualquier archivo `.bod`/`.seq`/`.dat`/`.cmp`/`.mov` a
-  `avatars/`. Confirma que **`.bod` es geometría de avatar real, `.seq` es
-  animación — dos cosas distintas**, y que los 26 `.bod` reales de
-  `cachedir/` (nombres de caché ofuscados tipo `3.bod`, `33.bod`) sí son
-  avatares descargados de verdad.
-- **Ninguna clase relacionada con avatares
-  (`PosableDroneLoader`/`DroneLoader`/`PosableDrone`/`PosableShape`) tiene
-  métodos `native` propios ni parsea el binario `.rwg`/`.bod` en Java** —
-  coincide con lo que ya sabíamos de RWX/RenderWare (sección 2 del
-  documento maestro): la carga real de geometría 3D pasa por RenderWare
-  nativo (`gamma.dll`/DLLs de RenderWare), no por código Java. Esto
-  confirma que, igual que con RWX, **no hay ningún atajo en el código
-  decompilado** — la única vía es reconstruir el formato desde los bytes.
+- `PendingDrone.java` downloads avatars as
+  `AvatarUpgrades/<name>.zip` from the upgrade server, extracts the zip, and
+  copies any `.bod`/`.seq`/`.dat`/`.cmp`/`.mov` file to
+  `avatars/`. It confirms that **`.bod` is real avatar geometry, `.seq` is
+  animation — two different things**, and that the 26 real `.bod` files of
+  `cachedir/` (obfuscated cache names like `3.bod`, `33.bod`) are indeed
+  genuinely downloaded avatars.
+- **No avatar-related class
+  (`PosableDroneLoader`/`DroneLoader`/`PosableDrone`/`PosableShape`) has
+  `native` methods of its own or parses the binary `.rwg`/`.bod` in Java** —
+  it matches what we already knew about RWX/RenderWare (section 2 of the
+  master document): the real loading of 3D geometry goes through native
+  RenderWare (`gamma.dll`/RenderWare DLLs), not through Java code. This
+  confirms that, just as with RWX, **there is no shortcut in the decompiled
+  code** — the only way is to reconstruct the format from the bytes.
 
 ---
 
-## Formato `.rwg`: estructura de chunks (VERIFICADO con hex dumps reales)
+## `.rwg` format: chunk structure (VERIFIED with real hex dumps)
 
-### Contenedor
-- Magic: 4 bytes ASCII literal **`"ZZZ["`** (`5A 5A 5A 5B`).
-- Luego un campo de 4 bytes big-endian que da la **longitud del bloque de
-  cabecera variable** que sigue.
-- Bloque de cabecera: 4 bytes constante `13 76 53 42` (igual en ambos
-  archivos de prueba — ⚠️ VERIFICAR qué es exactamente: ¿versión? ¿magic
-  secundario?) + 4 bytes `00 00 00 01` (constante también, ⚠️ VERIFICAR) +
-  una **cadena ASCII con el nombre del objeto**, con padding a ceros
-  (`AVATAR.RWG` tiene nombre vacío de 4 bytes; `IDLE.RWG` tiene
-  `"idle\0\0\0\0"`, 8 bytes). El tamaño de este campo de nombre =
-  `longitud_de_cabecera - 8`.
-- A partir de ahí: chunks anidados, cada uno
-  `[tag ASCII de 4 bytes][longitud de 4 bytes big-endian = tamaño exacto
-  del payload, NO incluye el propio campo de longitud][payload]`.
-  **Verificado matemáticamente**: sumando cabecera + cada chunk de nivel
-  superior con esta convención, el offset final coincide EXACTO con el
-  tamaño real del archivo en ambos archivos de prueba (748 y 1056 bytes).
+### Container
+- Magic: 4 literal ASCII bytes **`"ZZZ["`** (`5A 5A 5A 5B`).
+- Then a 4-byte big-endian field giving the **length of the variable
+  header block** that follows.
+- Header block: 4 constant bytes `13 76 53 42` (the same in both
+  test files — ⚠️ VERIFY what exactly it is: version? secondary
+  magic?) + 4 bytes `00 00 00 01` (also constant, ⚠️ VERIFY) +
+  an **ASCII string with the name of the object**, zero-padded
+  (`AVATAR.RWG` has an empty 4-byte name; `IDLE.RWG` has
+  `"idle\0\0\0\0"`, 8 bytes). The size of this name field =
+  `header_length - 8`.
+- From there on: nested chunks, each
+  `[4-byte ASCII tag][4-byte big-endian length = exact size
+  of the payload, does NOT include the length field itself][payload]`.
+  **Mathematically verified**: adding up the header + each top-level chunk
+  with this convention, the final offset matches EXACTLY the real size of the
+  file in both test files (748 and 1056 bytes).
 
-### Chunks encontrados, en orden, dentro de un `CLUM` (nivel superior)
+### Chunks found, in order, inside a `CLUM` (top level)
 
-| Tag | Contenido verificado | Estado |
+| Tag | Verified contents | Status |
 |---|---|---|
-| `RALT` | Un `STRT` con 3 enteros de 4 bytes: `[0, 0, 23]` en ambos archivos | ⚠️ VERIFICAR propósito — solo 12 bytes de datos puramente numéricos, sin texto ni geometría |
-| `TELT` | `STRT` de `[?, N, 23]` + datos extra. **Hallazgo**: en IDLE.RWG los datos extra contienen un sub-chunk anidado `STNG` (`53 54 4E 47`) = `[longitud=8]["idle\0\0\0\0"]` — el string **literalmente es "idle", el mismo nombre del objeto** que ya aparece en la cabecera del archivo. Posible tabla de nombres/etiquetas (Texture ELemenT? STring tag?). En AVATAR.RWG (nombre vacío) el STRT de TELT es `[0,0,23]` y no hay datos extra — consistente con "sin nombre → sin STNG". | ⚠️ VERIFICAR significado exacto de TELT, pero el sub-chunk STNG=nombre está bien evidenciado |
-| `MALT` | `STRT` de `[?, N, 23]` + datos extra: en IDLE.RWG, 5 floats `[0.969, 0.984, 0.969, 1.0, 0.75]` seguidos de 2 ceros. Podría ser una caja delimitadora/escala o un color — valores en rango [0,1] son sugerentes de color RGB+algo, pero 5 valores no encaja limpio en RGB(A). | ⚠️ VERIFICAR — sin datos suficientes para confirmar |
-| `ATOM` | El contenido real: un joint/segmento con transform + geometría | ✅ Estructura interna verificada, ver abajo |
-| `PLST` (a veces aparece también fuera, como en AVATAR/IDLE de nivel superior) | Lista de polígonos, ver abajo | ✅ |
+| `RALT` | A `STRT` with 3 integers of 4 bytes: `[0, 0, 23]` in both files | ⚠️ VERIFY purpose — only 12 bytes of purely numeric data, no text or geometry |
+| `TELT` | `STRT` of `[?, N, 23]` + extra data. **Finding**: in IDLE.RWG the extra data contains a nested sub-chunk `STNG` (`53 54 4E 47`) = `[length=8]["idle\0\0\0\0"]` — the string **is literally "idle", the same object name** that already appears in the file header. Possibly a table of names/labels (Texture ELemenT? STring tag?). In AVATAR.RWG (empty name) the STRT of TELT is `[0,0,23]` and there is no extra data — consistent with "no name → no STNG". | ⚠️ VERIFY the exact meaning of TELT, but the sub-chunk STNG = name is well evidenced |
+| `MALT` | `STRT` of `[?, N, 23]` + extra data: in IDLE.RWG, 5 floats `[0.969, 0.984, 0.969, 1.0, 0.75]` followed by 2 zeros. It could be a bounding box/scale or a color — values in the range [0,1] suggest RGB color plus something, but 5 values do not fit cleanly into RGB(A). | ⚠️ VERIFY — not enough data to confirm |
+| `ATOM` | The actual content: a joint/segment with transform + geometry | ✅ Internal structure verified, see below |
+| `PLST` (sometimes it also appears outside, as in the top-level AVATAR/IDLE) | Polygon list, see below | ✅ |
 
-El "23" (`0x17`) constante en RALT/TELT/MALT/PLST podría coincidir con el
-tag `back2=23` de la tabla oficial de GammaDocs — **coincidencia sin
-confirmar**, ver nota arriba.
+The constant "23" (`0x17`) in RALT/TELT/MALT/PLST could coincide with the
+`back2=23` tag of the official GammaDocs table — **unconfirmed
+coincidence**, see the note above.
 
-### `ATOM` (un joint/segmento — lo mejor entendido del formato)
+### `ATOM` (a joint/segment — the best-understood part of the format)
 
-1. **`STRT` propio, 52 bytes = 13 enteros de 4 bytes.** Primeros dos
-   valores en ambos archivos: `[1, 4, ...]`. El resto varía. ⚠️ VERIFICAR
-   significado exacto de cada campo — se decodificaron como enteros y como
-   floats pero ninguna interpretación dio una señal tan clara como la de
-   `VLST`/`PLST` (ver abajo). Posible: contador de hijos, flags, tag
-   number del joint (relacionado con la tabla oficial de arriba).
-2. **Dos bloques `MATX`, cada uno con un `STRT` de 64 bytes = 16 floats =
-   una matriz 4x4.** **Verificado: en ambos archivos, ambas matrices son
-   la matriz identidad** (`1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1`) —
-   coincide EXACTO con la documentación oficial ("todas las matrices de
-   joint deben ser identidad, el sistema las sobreescribe al animar").
-   Layout de la matriz (row-major vs column-major) **no se pudo
-   determinar** con una matriz identidad, que es igual en ambas
-   convenciones — ⚠️ VERIFICAR con un archivo real que tenga una matriz
-   no-identidad (ninguno de los 2 disponibles la tiene).
-3. **`VLST`** (lista de vértices) — **la parte mejor verificada de todo el
-   formato**:
-   - `STRT` propio de 12 bytes = 3 enteros: `[cuenta_de_vértices,
-     bytes_por_vértice, 23]`. **Verificado matemáticamente en ambos
-     archivos**: `cuenta × bytes_por_vértice` coincide exacto con el resto
-     del payload de `VLST` (8×44=352 en AVATAR, 12×44=528 en IDLE).
-   - Cada registro de vértice = **44 bytes = 11 floats big-endian**.
-     - **Floats[0:3] = posición (x, y, z)** — verificado con altísima
-       confianza: en `AVATAR.RWG` los 8 vértices son exactamente las 8
-       esquinas de un cubo usando centinelas `Float.MAX_VALUE`/
-       `-Float.MAX_VALUE` (0x7F7FFFFF/0xFF7FFFFF) — un patrón de
-       "bounding box sin inicializar", confirma que es un placeholder sin
-       geometría real. En `IDLE.RWG` son coordenadas pequeñas y
-       coherentes (±0.4, 0/-0.8) formando un plano — dimensiones
-       plausibles para un avatar (unidades ~ metros/decímetros).
-     - **Floats[3:6) = normal por vértice (nx, ny, nz)** — ✅ resuelto con
-       `cube.rwg` (un cubo real de 6 caras/32 vértices): para cada una de
-       las 6 caras, los 4 vértices de esa cara comparten el mismo eje
-       ±1.0 en esta posición, y coincide exactamente con la normal de
-       cara verificada en `PLST` (ver abajo). Antes de tener `cube.rwg`
-       esto se había marcado erróneamente como "sin determinar" (con solo
-       IDLE.RWG disponible, un único quad, no se podía distinguir "normal"
-       de "flag booleano").
-     - **Floats[6:8] parecen ser UV de textura** — en `IDLE.RWG` y
-       `cube.rwg`, los vértices "duplicados" por cara (patrón clásico de
-       "vértice duplicado por costura de UV", igual que se vio en RWX
-       esta misma sesión) tienen valores como `0.0039` y `0.9961` en
-       estas posiciones — coincide con el patrón típico de coordenadas UV
-       en los bordes de una textura (≈0 y ≈1 con un pelín de margen de
-       cuantización). **Confianza media-alta, no absoluta.**
-     - **Floats[8:11]: sin determinar.** Siempre cero en los 5 archivos
-       de prueba disponibles — sin evidencia de qué representan
-       (posiblemente reservado, o un campo de skinning que ningún archivo
-       de prueba real ejercita porque ninguno tiene más de un joint).
-4. **`PLST`** (lista de polígonos) — ✅ **estructura general resuelta y
-   verificada contra los 5 archivos reales** (`AVATAR.RWG` con 0
-   polígonos, `IDLE.RWG` con 1 quad, `cube.rwg` con 6 quads, `ball.rwg`
-   con 512 triángulos, y `table.rwg` con 546 polígonos de tipo mixto):
-   - `STRT` propio de 12 bytes = 3 enteros: `[cuenta_de_polígonos,
-     campo2, campo3]`. Ninguno de los dos últimos es constante entre
-     archivos: `campo2` es 36 en AVATAR/IDLE pero 32 en cube/ball/table;
-     `campo3` es 23 en AVATAR/IDLE pero **7** en cube/ball/table (se
-     documentó antes como "siempre 23" con solo 2 archivos de evidencia —
-     corregido al re-verificar contra los 3 restantes esta sesión). ⚠️
-     VERIFICAR su significado exacto (podría relacionarse con el tamaño
-     de registro, pero no coincide limpiamente con los bytes reales de
-     ningún archivo).
-   - **Cada registro de polígono = `[id/flag][vertexCount][vertexCount
-     índices 1-based][campos finales]`.** El primer campo se documentó
-     inicialmente como "flag, siempre 1" (cierto en AVATAR/IDLE/cube, que
-     solo tienen 0/1/6 registros) pero **no es constante**: en
-     `ball.rwg` (512 registros) cuenta 1..512, uno por polígono — es
-     algún tipo de id/contador por registro, no un booleano. El parser
-     (`RwgParser.parsePlst`) ya no lo valida, solo lo descarta.
-   - **Los primeros 3 campos finales = normal de cara (nx, ny, nz)** — ✅
-     confirmado con altísima confianza en `cube.rwg`: sus 6 registros
-     (uno por cara) tienen cada uno un único eje en `~±1.0000863` (no
-     exactamente 1.0 — error de redondeo típico de exportación desde 3DS
-     Max) y los otros dos ejes en 0, y **los 6 ejes posibles aparecen
-     exactamente una vez cada uno** — imposible que sea coincidencia.
-     También verificado indirectamente en `ball.rwg` (normales no
-     axis-aligned, coherentes con una esfera triangulada) e `IDLE.RWG`
-     (normal `(0,0,~1.0)`, coincide con que su único quad mira a +Z).
-   - **El número exacto de campos finales VARÍA entre archivos** — 6 en
-     `cube.rwg`/`ball.rwg` pero 7 en `IDLE.RWG` (un campo extra de
-     relleno sin explicar). El parser (`RwgParser.parsePlst`) lo resuelve
-     calculando el tamaño de registro dividiendo el payload total entre
-     el número de polígonos — funciona porque cada `PLST` observado hasta
-     ahora tiene un `vertexCount` uniforme para todos sus registros.
-   - ✅ **`table.rwg` RESUELTO (sesión de avatares articulados,
-     2026-09-09)**: la asunción de "tamaño de registro uniforme derivado
-     por división" nunca hacía falta — cada registro YA declara su propio
-     `vertexCount` en el segundo campo, que se lee directamente sin
-     asumir nada. Lo único que hacía falta resolver era la cantidad de
-     ints finales ("trailing") tras los índices, que SÍ es constante,
-     pero por archivo, no por registro (6 en `cube.rwg`, 6 en `ball.rwg`,
-     7 en `IDLE.RWG`). `RwgParser.resolvePlstTrailingCount()` ahora prueba
-     candidatos pequeños (0..16) y se queda con el que hace que leer los
-     `polyCount` registros — usando el `vertexCount` real de cada uno,
-     sin asumir uniformidad — cierre exactamente en el byte final del
-     `PLST`. Con esto, `table.rwg` (546 polígonos, mezcla real de
-     triángulos y cuadriláteros confirmada byte a byte, p.ej. los
-     registros 541-544 tienen 4 índices y el 545 tiene 3) resuelve
-     `trailingCount=6` y parsea limpio — verificado además
-     renderizando el resultado (`RwgViewer`, ver
-     `docs/renders/rwg_table_fixed.png`): una mesa coherente (tapa
-     circular + patas cruzadas), no basura geométrica.
-   - **Efecto colateral, corrección importante**: el primer campo de cada
-     registro de `PLST`, hasta ahora documentado como "`flag`, siempre
-     1", **NO es constante** — al re-verificar contra los bytes reales de
-     `ball.rwg` (512 registros) resultó ser un contador 1..512, uno por
-     polígono, no un booleano. `cube.rwg`/`IDLE.RWG` sí lo tienen fijo en
-     1 (con solo 6 y 1 registros respectivamente no bastaba para notar el
-     patrón). El parser ya no valida ni depende de este campo — lo lee y
-     lo descarta. Significado real: desconocido (¿id de polígono?
-     ¿smoothing group?) — no se inventó una interpretación sin evidencia.
-   - ✅ **Verificado por renderizado real** (`RwgViewer.java` +
-     inspección de píxeles): los 4 índices `[0,1,2,3]` del quad de
-     IDLE.RWG están en **orden de rejilla** (0=arriba-izq, 1=arriba-der,
-     2=abajo-izq, 3=abajo-der), NO en orden de lazo perimetral. Un
-     fan-triangulation ingenuo `(0,1,2)+(0,2,3)` produjo un "chevron"
-     cóncavo visiblemente incorrecto; la triangulación correcta para 4
-     vértices en este orden es `(0,1,2)+(1,3,2)` (orden de "strip"), que
-     sí produjo un rectángulo plano sólido — confirmado por captura de
-     pantalla real. ⚠️ VERIFICAR con más quads reales si esta convención
-     de orden se mantiene siempre, o si es específica de cómo el
-     exportador de 3DS Max (mencionado en GammaDocs) emite quads.
-   - ✅ **Verificado además con `cube.rwg` y `ball.rwg` completos**
-     (`docs/renders/cube_rwg_3d.png`, `docs/renders/ball_rwg_3d.png`): el
-     cubo real renderiza como un cubo 3D reconocible desde un ángulo
-     (3 caras visibles, silueta correcta) y la pelota como una esfera
-     facetada — ambos usando únicamente los datos que salen del parser
-     (posición + índices), sin ningún ajuste manual por archivo.
+1. **Its own `STRT`, 52 bytes = 13 integers of 4 bytes.** First two
+   values in both files: `[1, 4, ...]`. The rest varies. ⚠️ VERIFY the
+   exact meaning of each field — they were decoded as integers and as
+   floats but no interpretation gave a signal as clear as that of
+   `VLST`/`PLST` (see below). Possible: child counter, flags, tag
+   number of the joint (related to the official table above).
+2. **Two `MATX` blocks, each with a 64-byte `STRT` = 16 floats =
+   a 4x4 matrix.** **Verified: in both files, both matrices are
+   the identity matrix** (`1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1`) —
+   matches EXACTLY the official documentation ("all joint matrices
+   must be identity, the system overwrites them when animating").
+   The matrix layout (row-major vs column-major) **could not be
+   determined** with an identity matrix, which is the same in both
+   conventions — ⚠️ VERIFY with a real file that has a
+   non-identity matrix (neither of the 2 available has one).
+3. **`VLST`** (vertex list) — **the best-verified part of the whole
+   format**:
+   - Its own 12-byte `STRT` = 3 integers: `[vertex_count,
+     bytes_per_vertex, 23]`. **Mathematically verified in both
+     files**: `count × bytes_per_vertex` matches exactly the rest
+     of the `VLST` payload (8×44=352 in AVATAR, 12×44=528 in IDLE).
+   - Each vertex record = **44 bytes = 11 big-endian floats**.
+     - **Floats[0:3] = position (x, y, z)** — verified with very high
+       confidence: in `AVATAR.RWG` the 8 vertices are exactly the 8
+       corners of a cube using the sentinels `Float.MAX_VALUE`/
+       `-Float.MAX_VALUE` (0x7F7FFFFF/0xFF7FFFFF) — an "uninitialized
+       bounding box" pattern, confirming that it is a placeholder with no
+       real geometry. In `IDLE.RWG` they are small, coherent coordinates
+       (±0.4, 0/-0.8) forming a plane — plausible dimensions for an
+       avatar (units ~ meters/decimeters).
+     - **Floats[3:6) = per-vertex normal (nx, ny, nz)** — ✅ solved with
+       `cube.rwg` (a real 6-face/32-vertex cube): for each of the
+       6 faces, the 4 vertices of that face share the same ±1.0 axis in
+       this position, and it matches exactly the face normal
+       verified in `PLST` (see below). Before having `cube.rwg`
+       this had been wrongly marked as "undetermined" (with only
+       IDLE.RWG available, a single quad, "normal" could not be distinguished
+       from "boolean flag").
+     - **Floats[6:8] appear to be texture UVs** — in `IDLE.RWG` and
+       `cube.rwg`, the vertices "duplicated" per face (the classic pattern of
+       "vertex duplicated per UV seam", the same as was seen in RWX
+       this same session) have values such as `0.0039` and `0.9961` in
+       these positions — it matches the typical pattern of UV coordinates
+       at the edges of a texture (≈0 and ≈1 with a slight margin of
+       quantization). **Medium-high confidence, not absolute.**
+     - **Floats[8:11]: undetermined.** Always zero in the 5 test files
+       available — no evidence of what they represent
+       (possibly reserved, or a skinning field that no real test file
+       exercises because none has more than one joint).
+4. **`PLST`** (polygon list) — ✅ **general structure solved and
+   verified against the 5 real files** (`AVATAR.RWG` with 0
+   polygons, `IDLE.RWG` with 1 quad, `cube.rwg` with 6 quads, `ball.rwg`
+   with 512 triangles, and `table.rwg` with 546 polygons of mixed type):
+   - Its own 12-byte `STRT` = 3 integers: `[polygon_count,
+     field2, field3]`. Neither of the last two is constant across
+     files: `field2` is 36 in AVATAR/IDLE but 32 in cube/ball/table;
+     `field3` is 23 in AVATAR/IDLE but **7** in cube/ball/table (it was
+     documented earlier as "always 23" with only 2 files of evidence —
+     corrected on re-verifying against the remaining 3 this session). ⚠️
+     VERIFY its exact meaning (it could be related to the record
+     size, but it does not match cleanly the real bytes of any
+     file).
+   - **Each polygon record = `[id/flag][vertexCount][vertexCount
+     1-based indices][trailing fields]`.** The first field was documented
+     initially as "flag, always 1" (true in AVATAR/IDLE/cube, which
+     only have 0/1/6 records) but it is **not constant**: in
+     `ball.rwg` (512 records) it counts 1..512, one per polygon — it is
+     some kind of id/counter per record, not a boolean. The parser
+     (`RwgParser.parsePlst`) no longer validates it, it just discards it.
+   - **The first 3 trailing fields = face normal (nx, ny, nz)** — ✅
+     confirmed with very high confidence in `cube.rwg`: its 6 records
+     (one per face) each have a single axis at `~±1.0000863` (not
+     exactly 1.0 — a rounding error typical of an export from 3DS
+     Max) and the other two axes at 0, and **all 6 possible axes appear
+     exactly once each** — it cannot be a coincidence.
+     Also verified indirectly in `ball.rwg` (non axis-aligned normals,
+     coherent with a triangulated sphere) and `IDLE.RWG`
+     (normal `(0,0,~1.0)`, which matches its only quad facing +Z).
+   - **The exact number of trailing fields VARIES between files** — 6 in
+     `cube.rwg`/`ball.rwg` but 7 in `IDLE.RWG` (an extra unexplained
+     padding field). The parser (`RwgParser.parsePlst`) solves it by
+     computing the record size by dividing the total payload by
+     the number of polygons — it works because every `PLST` observed so
+     far has a uniform `vertexCount` for all its records.
+   - ✅ **`table.rwg` SOLVED (articulated-avatar session,
+     2026-09-09)**: the assumption of "uniform record size derived
+     by division" was never needed — each record ALREADY declares its own
+     `vertexCount` in the second field, which is read directly without
+     assuming anything. The only thing that needed solving was the number of
+     trailing ints after the indices, which IS constant,
+     but per file, not per record (6 in `cube.rwg`, 6 in `ball.rwg`,
+     7 in `IDLE.RWG`). `RwgParser.resolvePlstTrailingCount()` now tries
+     small candidates (0..16) and keeps the one that makes reading the
+     `polyCount` records — using the real `vertexCount` of each one,
+     without assuming uniformity — end exactly at the final byte of the
+     `PLST`. With this, `table.rwg` (546 polygons, a real mix of
+     triangles and quadrilaterals confirmed byte by byte, e.g. records 541-544
+     have 4 indices and 545 has 3) resolves `trailingCount=6` and parses
+     cleanly — additionally verified by rendering the result
+     (`RwgViewer`, see
+     `docs/renders/rwg_table_fixed.png`): a coherent table (circular
+     top + crossed legs), not geometric garbage.
+   - **Side effect, important correction**: the first field of each
+     `PLST` record, documented until now as "`flag`, always
+     1", is **NOT constant** — on re-verifying against the real bytes of
+     `ball.rwg` (512 records) it turned out to be a 1..512 counter, one per
+     polygon, not a boolean. `cube.rwg`/`IDLE.RWG` do have it fixed at
+     1 (with only 6 and 1 records respectively it was not enough to notice the
+     pattern). The parser no longer validates or depends on this field — it reads it and
+     discards it. Real meaning: unknown (polygon id?
+     smoothing group?) — no interpretation was invented without evidence.
+   - ✅ **Verified by real rendering** (`RwgViewer.java` +
+     pixel inspection): the 4 indices `[0,1,2,3]` of the quad of
+     IDLE.RWG are in **grid order** (0=top-left, 1=top-right,
+     2=bottom-left, 3=bottom-right), NOT in perimeter loop order. A naive
+     fan-triangulation `(0,1,2)+(0,2,3)` produced a visibly incorrect
+     concave "chevron"; the correct triangulation for 4
+     vertices in this order is `(0,1,2)+(1,3,2)` ("strip" order), which
+     did produce a solid flat rectangle — confirmed by a real screen
+     capture. ⚠️ VERIFY with more real quads whether this ordering
+     convention always holds, or whether it is specific to how the
+     3DS Max exporter (mentioned in GammaDocs) emits quads.
+   - ✅ **Also verified with the full `cube.rwg` and `ball.rwg`**
+     (`docs/renders/cube_rwg_3d.png`, `docs/renders/ball_rwg_3d.png`): the
+     real cube renders as a recognizable 3D cube from an angle
+     (3 visible faces, correct silhouette) and the ball as a
+     faceted sphere — both using only the data that comes out of the parser
+     (position + indices), with no manual per-file adjustment.
 
 ---
 
-## Formato `.bod`: NO resuelto esta sesión
+## `.bod` format: NOT solved this session
 
-Confirmado con evidencia (no asumido):
-- Magic de 4 bytes **constante e idéntico en los 26 archivos reales**:
-  `01 10 01 00`, seguido de 2 bytes más también constantes `00 02` — un
-  header fijo de 6 bytes, **completamente distinto** al `"ZZZ["` de
+Confirmed with evidence (not assumed):
+- 4-byte magic **constant and identical in all 26 real files**:
+  `01 10 01 00`, followed by 2 more bytes that are also constant `00 02` — a
+  fixed 6-byte header, **completely different** from the `"ZZZ["` of
   `.rwg`.
-- Sin tags ASCII reconocibles en ningún punto de los archivos
-  inspeccionados — no es el mismo esquema de chunks.
-- Tras el header, los bytes no siguen ningún patrón de enteros de 32 bits
-  ni floats obviamente sensato en los primeros cientos de bytes
-  inspeccionados — podría ser una codificación delta/comprimida (con
-  sentido dado que `.bod` se distribuye por red, donde el ancho de banda
-  importaba en 1999-2004) o un formato de registros de tamaño variable.
-- **No se encontró ninguna referencia externa ni lógica en el cliente
-  Java decompilado que revele el layout exacto** (ver arriba: la carga
-  real ocurre en RenderWare nativo, fuera de nuestro alcance sin
-  desensamblar las DLLs).
+- No recognizable ASCII tags at any point in the files
+  inspected — it is not the same chunk scheme.
+- After the header, the bytes do not follow any obviously sensible pattern of
+  32-bit integers or floats in the first few hundred bytes
+  inspected — it could be a delta/compressed encoding (which would make
+  sense given that `.bod` is distributed over the network, where bandwidth
+  mattered in 1999-2004) or a variable-size record format.
+- **No external reference or logic was found in the decompiled Java
+  client that reveals the exact layout** (see above: the real loading
+  happens in native RenderWare, out of our reach without
+  disassembling the DLLs).
 
-**Siguiente paso lógico para resolver `.bod`** (no intentado esta sesión,
-esfuerzo mayor): desensamblar con Ghidra la función de `gamma.dll` que
-lee archivos `.bod` (ya tenemos Ghidra instalado y usado en sesiones
-anteriores para `gamma.dll`) — es un trabajo de ingeniería inversa a nivel
-de ASM x86, más parecido a lo que se hizo para mapear los métodos
-`native`, que a "seguir leyendo bytes con más paciencia".
+**Logical next step to solve `.bod`** (not attempted this session,
+bigger effort): disassemble with Ghidra the function of `gamma.dll` that
+reads `.bod` files (we already have Ghidra installed and used in earlier
+sessions for `gamma.dll`) — it is reverse-engineering work at the level of
+x86 ASM, more like what was done to map the `native` methods
+than like "continuing to read bytes with more patience".
