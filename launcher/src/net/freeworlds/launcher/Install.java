@@ -439,6 +439,19 @@ final class Install {
       return out;
    }
 
+   /**
+    * The world package of a "home:Folder/file.world#..." URL: its top folder,
+    * as for the map entries of {@link #worlds}; null for any other URL.
+    */
+   static String packageOf(String url) {
+      if (url == null || !url.regionMatches(true, 0, "home:", 0, 5)) {
+         return null;
+      }
+      String p = url.substring(5).replaceFirst("^/+", "");
+      int slash = p.indexOf('/');
+      return slash > 0 ? p.substring(0, slash) : null;
+   }
+
    /** A world package is installed when its folder (any case) has its ver.txt, in the copy or in the template. */
    static boolean installed(Layout l, String pkg) {
       for (File base : new File[]{l.workDir, l.template}) {

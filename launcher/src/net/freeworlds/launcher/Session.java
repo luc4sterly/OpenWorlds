@@ -19,7 +19,8 @@ import java.util.List;
  * request in gdkup.pending. The session then runs the Java gdkup
  * (NET.worlds.core.GdkUp) on the install copy and, as gdkup does with
  * "run.exe world:restart", starts the client again, with the same local
- * upgrade server and log.
+ * upgrade server and log (in the world the session was started for, if the
+ * update has just installed it: {@link #restartWith}).
  *
  * <p>With a world server on this machine ("whirl local") the session also
  * starts whirl if nothing listens there yet, and stops it at the end
@@ -34,6 +35,8 @@ final class Session {
    private UpgradeServer upgrade;
    private LocalWhirl whirl;
    private volatile boolean stopping;
+   /** The world asked for when its package was not installed yet; null once the restart has gone there. */
+   private String awaitedWorld;
 
    Session(Layout layout, Settings settings) {
       this.layout = layout;
@@ -67,6 +70,10 @@ final class Session {
       LocalWhirl.prefillLogin(layout, settings.server, settings.user, log);
       log.line("[lanzador] FreeWorlds " + Layout.versionLong() + ", java " + System.getProperty("java.version")
          + " (" + System.getProperty("os.name") + " " + System.getProperty("os.arch") + ")");
+      // un mundo de la lista aun sin instalar: el cliente lo descarga y se
+      // reinicia con world:restart, que no lleva a el (ver restartWith)
+      String pkg = Install.packageOf(settings.world);
+      awaitedWorld = pkg != null && !Install.installed(layout, pkg) ? settings.world : null;
       launch(settings.world);
    }
 
@@ -145,6 +152,7 @@ final class Session {
          if (restart != null && !stopping) {
             try {
                synchronized (this) {
+                  restart = restartWith(restart);
                   log.line("[lanzador] reinicio tras la actualizacion: " + restart);
                   launch(restart);
                }
@@ -200,6 +208,26 @@ final class Session {
          log.line("[lanzador] no se pudo aplicar la actualizacion: " + e);
          return null;
       }
+   }
+
+   /**
+    * The URL for the restart after an update. gdkup restarts the client with
+    * "world:restart" (NetUpdate.getRestartCmd), which the client resolves to
+    * [Gamma] RestartAt (TeleportAction.toURLString): where the pilot was when it
+    * quit (Gamma.RecordPosition). A world picked in the launcher before it
+    * was installed is never reached that way: the client could not load it,
+    * went to its fallback (GroundZero) and offered the download from there,
+    * so RestartAt is the fallback. When the update has just installed that
+    * world, the restart goes to it instead, once.
+    */
+   private String restartWith(String restart) {
+      String w = awaitedWorld;
+      if (w != null && restart.equals("world:restart") && Install.installed(layout, Install.packageOf(w))) {
+         awaitedWorld = null;
+         log.line("[lanzador] " + Install.packageOf(w) + " ya esta instalado: se reinicia en el mundo pedido");
+         return w;
+      }
+      return restart;
    }
 
    boolean isRunning() {
