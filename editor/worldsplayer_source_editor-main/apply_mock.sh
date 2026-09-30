@@ -407,8 +407,8 @@ PYEOF
 # indexing and arithmetic, never stored or serialized as a byte anywhere -
 # safe to widen uniformly. Found via:
 #   grep -rn "for (byte " --include="*.java" source
-# perl -pi en vez de sed -i: `sed -i 's/..'` es sintaxis GNU y en el sed BSD
-# de macOS aborta el script aqui (set -e) con el mock a medio aplicar.
+# perl -pi instead of sed -i: `sed -i 's/..'` is GNU syntax, and macOS's BSD
+# sed aborts the script here (set -e) with the mock half applied.
 grep -rl "for (byte " --include="*.java" source | xargs perl -pi -e 's/for \(byte /for (int /g'
 echo "Patched 11 byte-typed loop counters -> int (Vineflower decompiler bug, see docs/worlds-chat-project.md sec. 4)"
 
@@ -528,20 +528,20 @@ public class IniFile {
       return var1;
    }
 
-   // GetPrivateProfileString/WritePrivateProfileString (kernel32) no
-   // distinguen mayusculas en nombres de seccion ni de clave: worlds.ini
-   // trae "LogFile=Gamma.Log" y el cliente pide getIniString("logfile").
-   // Los valores se conservan tal cual.
+   // GetPrivateProfileString/WritePrivateProfileString (kernel32) are
+   // case-insensitive in section and key names: worlds.ini has
+   // "LogFile=Gamma.Log" and the client asks for getIniString("logfile").
+   // Values are kept as they are.
    private static String k(String var0) {
       return var0.toLowerCase(java.util.Locale.ROOT);
    }
 
-   // WritePrivateProfileString escribe en el fichero en el momento: sin
-   // esto, lo que el cliente guarda (usuario, "Remember password" con la
-   // contrasena cifrada por Console.encrypt) se perdia al salir. Seccion y
-   // clave sin distinguir mayusculas; si la clave existe se cambia solo el
-   // valor, si no se anade al final de su seccion, y si la seccion no existe
-   // se crea al final. Se conservan los finales de linea del fichero.
+   // WritePrivateProfileString writes to the file right away: without
+   // this, what the client saves (user name, "Remember password" with the
+   // password encrypted by Console.encrypt) was lost on exit. Section and
+   // key are case-insensitive; if the key exists only its value changes,
+   // otherwise it is appended at the end of its section, and a missing
+   // section is created at the end. The file's line endings are preserved.
    private void persist(String var1, String var2) {
       File var3 = NativeMock.resolveCaseInsensitive(this.resolveFileName());
       java.util.List<String> var4 = new java.util.ArrayList<>();

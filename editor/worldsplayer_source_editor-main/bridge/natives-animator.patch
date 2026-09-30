@@ -60,7 +60,7 @@ diff a/NET/worlds/scape/DroneAnimator.java b/NET/worlds/scape/DroneAnimator.java
  
     public void update(WObject var1, WObject var2, int var3, float var4, boolean var5) {
        NET.worlds.core.NativeMock.log("DroneAnimator", "update", new Object[]{var1, var2, var3, var4, var5});
-+      // 0x00416740 -> FUN_00435520: FUN_00412cf0 lee clumpID de cada WObject (0 si null)
++      // 0x00416740 -> FUN_00435520: FUN_00412cf0 reads the clumpID of each WObject (0 if null)
 +      NET.worlds.core.NativeAnimator.update(this._rep, var1 == null ? 0 : var1.getID(), var2 == null ? 0 : var2.getID(), var3, var4, var5);
     }
  
@@ -106,7 +106,7 @@ diff a/NET/worlds/scape/PendingCacheDrone.java b/NET/worlds/scape/PendingCacheDr
  
     public static void nativeDestroy() {
        NET.worlds.core.NativeMock.log("PendingCacheDrone", "nativeDestroy", new Object[0]);
-+      // sin export en gamma.dll (docs/gamma-dll-exports.txt) y sin llamadas en el Java
++      // no export in gamma.dll (docs/gamma-dll-exports.txt) and no callers in the Java
     }
  
     public static synchronized void notifySeqLoaded(int var0, String var1) {
