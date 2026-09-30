@@ -1,1607 +1,1607 @@
-# Worlds Chat — Preservación e Ingeniería Inversa (registro histórico)
+# Worlds Chat — Preservation and Reverse Engineering (historical record)
 
-> ⚠️ **Archivo histórico.** El estado actual del proyecto, condensado y al
-> día, vive en [`CLAUDE.md`](../CLAUDE.md) — empieza ahí. Esto es el diario
-> de sesión por sesión desde el arranque del proyecto (2026-09-08 en
-> adelante): se conserva completo porque varios comentarios en el código
-> citan secciones concretas como evidencia de decisiones no obvias, y
-> porque es la prueba de cómo se verificó cada hallazgo. No se ha editado
-> el contenido de abajo al archivar esto — sigue tal cual se escribió
-> sesión a sesión, con sus referencias internas a "sección N" originales.
-
----
-
-## 1. Qué es esto y por qué
-
-**Worlds Chat / WorldsPlayer** (Worlds.com) fue uno de los primeros clientes de
-chat social 3D/VR, de mediados de los años 90 (empresa: Worlds Inc., nacida de
-una escisión de Knowledge Adventure Worlds). Los dominios oficiales
-(`worlds.com`, `worlds.net`) expiraron alrededor de octubre de 2025 y ahora
-muestran una página de aparcamiento. El software original está en riesgo real
-de perderse si nadie lo preserva.
-
-**Objetivo del proyecto:**
-1. Decompilar el cliente Java original (`worlds.jar` / `gammacls.zip`)
-2. Documentarlo y hacerlo open source
-3. Portarlo a plataformas modernas — objetivo final: **Linux / OpenBSD / PSvita / macOS**, con
-   stack **SDL2/OpenGL**
-4. Sustituir las dependencias nativas de Windows (motor gráfico RenderWare vía
-   JNI) por una implementación portable equivalente
-
-**Alcance actual: solo el cliente.** El protocolo de red ya está documentado
-por terceros y ya existe un servidor open source (`whirl`, ver sección 3). No
-hace falta reinventar el servidor.
+> ⚠️ **Historical file.** The current state of the project, condensed and
+> up to date, lives in [`CLAUDE.md`](../CLAUDE.md) — start there. This is the
+> session-by-session diary since the start of the project (2026-09-08
+> onwards): it is kept in full because several comments in the code
+> cite specific sections as evidence for non-obvious decisions, and
+> because it is the proof of how each finding was verified. The content
+> below has not been edited when archiving this — it stays exactly as it was written
+> session by session, with its original internal references to "section N".
 
 ---
 
-## 2. Contexto técnico del cliente
+## 1. What this is and why
 
-- El cliente (`worlds.jar`) hay que decompilarlo uno mismo — **no existe
-  ninguna versión pre-decompilada publicada** en ningún repo público.
-- Usa una versión modificada de **RenderWare 2** (motor gráfico de Criterion
-  Software) para el renderizado 3D, accedido vía **JNI** desde Java a DLLs de
-  Windows. Esto es lo que obliga a usar Wine en Linux hoy en día.
-  - Confirmado por dos fuentes independientes: tutorial de kangworlds.net y el
-    repo `Sgeo/rwg_to_rwx`, que distingue explícitamente entre **RenderWare
-    2.0** (Worlds antiguo) y **RenderWare 2.1** ("modern WorldsPlayer" — la
-    versión probablemente relevante para nosotros).
-  - ✅ **Confirmado** (ver sección 10): es RenderWare **2.1**, por los
-    nombres y las tablas de exports de las DLLs reales
-    (`docs/renderware21-api-exports.txt`). Desde 2026-09-15 hay además
-    desensamblado propio de `RWL21.DLL` (composición de matrices de
-    clump/joint, ver `docs/seq-animation-reference.md` §5).
-- **No existe SDK ni fuente de RenderWare 2 preservado en ningún sitio.** Solo
-  hay abundante material de RenderWare 3.x (el de GTA), que es un formato
-  binario **incompatible** con RWX — no sirve como atajo directo.
-- Formatos de archivo propios:
-  - **RWX** — geometría estática. Texto ASCII plano, ejecutado como un script
-    (comandos tipo `ClumpBegin`/`ClumpEnd`, `ModelBegin`/`ModelEnd`, etc.). El
-    intérprete ignora comandos que no reconoce. Sin shaders ni normal maps:
-    solo textura de color (albedo), luz difusa/especular monodireccional muy
-    básica, ambiente simple, y transparencia limitada.
-  - **RWG / BOD** — avatares articulados (con jerarquía de huesos/joints).
-    Formato **binario**, más complejo. Empezar por RWX, dejar esto para
-    después.
-  - Avatares custom: texturas **BMP de 24-bit**, extensiones válidas `.rwg` /
+**Worlds Chat / WorldsPlayer** (Worlds.com) was one of the first 3D/VR social
+chat clients, from the mid-1990s (company: Worlds Inc., born from a
+spin-off of Knowledge Adventure Worlds). The official domains
+(`worlds.com`, `worlds.net`) expired around October 2025 and now
+show a parking page. The original software is at real risk
+of being lost if nobody preserves it.
+
+**Project goal:**
+1. Decompile the original Java client (`worlds.jar` / `gammacls.zip`)
+2. Document it and make it open source
+3. Port it to modern platforms — final goal: **Linux / OpenBSD / PSvita / macOS**, with
+   an **SDL2/OpenGL** stack
+4. Replace the native Windows dependencies (the RenderWare graphics engine via
+   JNI) with an equivalent portable implementation
+
+**Current scope: the client only.** The network protocol is already documented
+by third parties and an open source server already exists (`whirl`, see section 3). There is
+no need to reinvent the server.
+
+---
+
+## 2. Technical context of the client
+
+- The client (`worlds.jar`) has to be decompiled by ourselves — **no
+  pre-decompiled version has been published** in any public repo.
+- It uses a modified version of **RenderWare 2** (Criterion
+  Software's graphics engine) for 3D rendering, accessed via **JNI** from Java to
+  Windows DLLs. This is what forces the use of Wine on Linux today.
+  - Confirmed by two independent sources: a tutorial on kangworlds.net and the
+    `Sgeo/rwg_to_rwx` repo, which explicitly distinguishes between **RenderWare
+    2.0** (old Worlds) and **RenderWare 2.1** ("modern WorldsPlayer" — the
+    version that is probably relevant for us).
+  - ✅ **Confirmed** (see section 10): it is RenderWare **2.1**, from the
+    names and export tables of the real DLLs
+    (`docs/renderware21-api-exports.txt`). Since 2026-09-15 there is also
+    our own disassembly of `RWL21.DLL` (clump/joint matrix composition,
+    see `docs/seq-animation-reference.md` §5).
+- **No RenderWare 2 SDK or source has been preserved anywhere.** There is only
+  abundant RenderWare 3.x material (the GTA one), which is a binary format
+  **incompatible** with RWX — it is not a direct shortcut.
+- Proprietary file formats:
+  - **RWX** — static geometry. Plain ASCII text, executed as a script
+    (commands like `ClumpBegin`/`ClumpEnd`, `ModelBegin`/`ModelEnd`, etc.). The
+    interpreter ignores commands it does not recognize. No shaders or normal maps:
+    only color texture (albedo), very basic single-direction diffuse/specular
+    light, simple ambient, and limited transparency.
+  - **RWG / BOD** — articulated avatars (with a bone/joint hierarchy).
+    **Binary** format, more complex. Start with RWX, leave this for
+    later.
+  - Custom avatars: **24-bit BMP** textures, valid extensions `.rwg` /
     `.bod`.
-- **WorldsPlayer no soporta SSL/TLS** — todo el tráfico (incluido el que
-  reimplementemos) tiene que ir por HTTP plano.
-- Worlds Chat original (antes de RenderWare) usaba un motor propio más
-  primitivo llamado **Accomplish**. No es relevante para la versión moderna
-  del cliente, pero es dato histórico útil si aparecen referencias a él en el
-  código decompilado.
+- **WorldsPlayer does not support SSL/TLS** — all traffic (including what we
+  reimplement) has to go over plain HTTP.
+- The original Worlds Chat (before RenderWare) used a more primitive proprietary
+  engine called **Accomplish**. It is not relevant for the modern version
+  of the client, but it is a useful historical fact if references to it appear in the
+  decompiled code.
 
 ---
 
-## 3. Mapa completo del ecosistema (todo lo encontrado)
+## 3. Complete map of the ecosystem (everything found)
 
-### 3.1 Whirlsplash (github.com/Whirlsplash) — el más útil y activo
+### 3.1 Whirlsplash (github.com/Whirlsplash) — the most useful and active
 
-| Repo | Qué es | Estado | Por qué importa |
+| Repo | What it is | Status | Why it matters |
 |---|---|---|---|
-| `worldsplayer_source_editor` | Decompila/edita/recompila WorldsPlayer en Linux (Make + Vineflower + Java 6) | ✅ Activo | **Esta es la herramienta con la que arrancamos el proyecto.** |
-| `whirl` | Servidor WorldServer open source, en Rust | ✅ Activo (marzo 2026), 12★ | Protocolo de red ya resuelto — no hace falta escribir servidor propio |
-| `LibreWorlds` (a.k.a. `OpenWorlds`) | Ingeniería inversa del protocolo, cliente multiplataforma desde cero | ❌ Archivado 2017–2021 | Se quedó en documentación del protocolo, nunca terminó el cliente gráfico. Útil como referencia histórica |
-| `LibreWorlds-wiki` | Wiki asociada al repo anterior | ❌ Archivado | Documentación del protocolo |
-| `terra` | Framework de bots ("Structured bots for Worlds") | 🚧 Preview muy temprana, 2 commits | Reestructuración de `munch` |
-| `munch` | Bot en Go con integración Discord | — | Otra implementación independiente del protocolo (en Go), útil para validar cruzado |
-| `frontend` | Panel web de gestión/estadísticas de servidor + bot Discord | — | Secundario |
-| `worldsy` | Cliente de Discord Rich Presence para Worlds (Python) | — | Secundario, curiosidad |
-| `cloworlds`, `node-worlds`, `deno_worlds` | Librerías cliente en Clojure, Node.js, Deno | ❌ Archivadas | Implementaciones de referencia del protocolo en varios lenguajes |
-| `assets` | Recursos gráficos compartidos | — | Secundario |
+| `worldsplayer_source_editor` | Decompiles/edits/recompiles WorldsPlayer on Linux (Make + Vineflower + Java 6) | ✅ Active | **This is the tool we started the project with.** |
+| `whirl` | Open source WorldServer server, in Rust | ✅ Active (March 2026), 12★ | Network protocol already solved — no need to write our own server |
+| `LibreWorlds` (a.k.a. `OpenWorlds`) | Protocol reverse engineering, cross-platform client from scratch | ❌ Archived 2017–2021 | Stopped at protocol documentation, never finished the graphical client. Useful as a historical reference |
+| `LibreWorlds-wiki` | Wiki associated with the previous repo | ❌ Archived | Protocol documentation |
+| `terra` | Bot framework ("Structured bots for Worlds") | 🚧 Very early preview, 2 commits | Restructuring of `munch` |
+| `munch` | Bot in Go with Discord integration | — | Another independent implementation of the protocol (in Go), useful for cross-validation |
+| `frontend` | Web panel for server management/statistics + Discord bot | — | Secondary |
+| `worldsy` | Discord Rich Presence client for Worlds (Python) | — | Secondary, curiosity |
+| `cloworlds`, `node-worlds`, `deno_worlds` | Client libraries in Clojure, Node.js, Deno | ❌ Archived | Reference implementations of the protocol in several languages |
+| `assets` | Shared graphical resources | — | Secondary |
 
-Documentación general del ecosistema Whirlsplash centralizada en
-`whirlsplash.org` (incluye una página de recursos que enlaza también a GammaDocs).
+General documentation of the Whirlsplash ecosystem is centralized at
+`whirlsplash.org` (includes a resources page that also links to GammaDocs).
 
-### 3.2 Ecosistema de Blaxar (Julien Bardagi) — el más útil para renderizado
+### 3.2 Blaxar's ecosystem (Julien Bardagi) — the most useful for rendering
 
-| Repo | Qué es | Lenguaje |
+| Repo | What it is | Language |
 |---|---|---|
-| `three-rwx-loader` | **Parser + renderer de RWX completo y funcional**, con soporte de texturas y máscaras | JavaScript (three.js/WebGL) |
-| `WideWorlds` | Cliente + servidor web completo, estilo Active Worlds ("Metaverse accesible desde tu navegador, siguiendo los pasos de Active Worlds") — backend Node.js/HTTP+WS, frontend Vue.js, SQLite3, importador de dumps de mundos AW | JavaScript |
-| `rwx2blender` | Add-on de Blender para importar RWX | Python |
-| `aw-sequence-parser` | Parser de animaciones/secuencias de avatares de Active Worlds | JavaScript |
+| `three-rwx-loader` | **Complete and working RWX parser + renderer**, with support for textures and masks | JavaScript (three.js/WebGL) |
+| `WideWorlds` | Complete web client + server, Active Worlds style ("Metaverse accessible from your browser, following in the footsteps of Active Worlds") — Node.js/HTTP+WS backend, Vue.js frontend, SQLite3, AW world dump importer | JavaScript |
+| `rwx2blender` | Blender add-on to import RWX | Python |
+| `aw-sequence-parser` | Parser for Active Worlds avatar animations/sequences | JavaScript |
 
-⚠️ **Nota importante**: no existe ningún parser RWX ya hecho en **Java**. Todo
-lo reutilizable de Blaxar está en JavaScript — hay que **traducir la lógica**,
-no copiar-pegar código directamente.
+⚠️ **Important note**: there is no ready-made RWX parser in **Java**. Everything
+reusable from Blaxar is in JavaScript — the **logic has to be translated**,
+not copy-pasted directly.
 
-### 3.3 Otras herramientas sueltas
+### 3.3 Other loose tools
 
-- **`Bloyteg/RWXViewer`** — visor web de archivos RWX para ActiveWorlds/Virtual
+- **`Bloyteg/RWXViewer`** — web viewer of RWX files for ActiveWorlds/Virtual
   Paradise. Apache 2.0.
-- **`adamaig/blender_rwx_importer`** — otro importador RWX a Blender (más
-  antiguo, Blender 2.49).
-- **`Sgeo/rwg_to_rwx`** — conversor RWG→RWX, confirma la distinción entre
-  RenderWare 2.0 y 2.1 en distintas versiones de WorldsPlayer.
+- **`adamaig/blender_rwx_importer`** — another RWX importer for Blender (older,
+  Blender 2.49).
+- **`Sgeo/rwg_to_rwx`** — RWG→RWX converter, confirms the distinction between
+  RenderWare 2.0 and 2.1 in different versions of WorldsPlayer.
 
-### 3.4 Documentación
+### 3.4 Documentation
 
-- **GammaDocs** — documentación **OFICIAL de Worlds Inc.** para
-  desarrolladores, preservada:
+- **GammaDocs** — **OFFICIAL Worlds Inc. documentation** for
+  developers, preserved:
   - Internet Archive: `archive.org/details/gammadocs`
-  - Espejo en Worlio: `files.worlio.com/files/WorldsPlayer/guides/GammaDocs/`
-  - Wayback Machine: copias de `dev.worlds.net/private/GammaDocs/`
-  - Contenido: `WorldServer.html` (arquitectura del servidor: RoomServer,
-    UserServer — para sysadmins con conocimientos de Unix/Oracle/Web),
+  - Mirror at Worlio: `files.worlio.com/files/WorldsPlayer/guides/GammaDocs/`
+  - Wayback Machine: copies of `dev.worlds.net/private/GammaDocs/`
+  - Contents: `WorldServer.html` (server architecture: RoomServer,
+    UserServer — for sysadmins with Unix/Oracle/Web knowledge),
     `Gamma_Overview.html`, `Gamma_Procedures.html`, `Gamma_Advanced.html`
-    (instalación del Shaper, empaquetado de mundos)
-- **`kangworlds.net`** (de bonkmaykr, webmaster de Worlio) — tutoriales de
-  creación de avatares RWX/RWG, compresión de texturas, y una página
-  *"Creating a WorldsPlayer Interface"* basada explícitamente en documentación
-  oficial de Worlds Inc.
-- **Wiki de Active Worlds** (`wiki.activeworlds.com`) — documentación completa
-  de todos los comandos del script RWX, incluidas extensiones propias de AW
-  (prefijo `#!`)
-- **Worlds Chat Wiki** — dos espejos de comunidad:
+    (Shaper installation, world packaging)
+- **`kangworlds.net`** (by bonkmaykr, webmaster of Worlio) — tutorials on
+  creating RWX/RWG avatars, texture compression, and a page
+  *"Creating a WorldsPlayer Interface"* explicitly based on official
+  Worlds Inc. documentation.
+- **Active Worlds wiki** (`wiki.activeworlds.com`) — complete documentation
+  of all the RWX script commands, including AW's own extensions
+  (`#!` prefix)
+- **Worlds Chat Wiki** — two community mirrors:
   - `worldschat.fandom.com`
   - `worldschat.miraheze.org`
-  - Contenido útil: página "Avatars" (BMP 24-bit, sin SSL/TLS, extensiones
-    `.rwg`/`.bod`), página "Worlds Chat" (genealogía compartida con Active
-    Worlds y **Starbright World** — posible tercer proyecto hermano, sin
-    investigar aún)
+  - Useful content: "Avatars" page (24-bit BMP, no SSL/TLS, `.rwg`/`.bod`
+    extensions), "Worlds Chat" page (genealogy shared with Active
+    Worlds and **Starbright World** — possible third sibling project, not
+    yet investigated)
 
-### 3.5 Comunidad y servidores vivos hoy
+### 3.5 Community and live servers today
 
-- **WorlioWorlds** (`worlds.worlio.com`) — servidor revival gratuito,
-  ~8 usuarios online / 116 registrados. Requiere editar `override.ini`
-  (`WorldServer`, `UpgradeServer`, `ScriptServer` → dominios de Worlio),
-  registro por web.
-- **Worlio** (`worlio.com`) — proyecto general de preservación de "Web 1.0"
-  (foro, archivo, Jabber/XMPP, Mumble, IRC, radio). Organización detrás:
-  **Canithesis Interactive** (de bonkmaykr).
-  - 13 mayo 2025: **Wirlaburla dejó el puesto de webmaster** de Worlio tras
-    años de rumores/acoso de un miembro rival de la comunidad de Worlds.
-    Desarrollo de todos los proyectos de Worlio quedó congelado desde
-    entonces (explica los 404 en repos que antes vivían en `git.worlio.com`).
-    Worlio pasó a ser propiedad de Canithesis Interactive GP.
-- **LibreWorlds** (`libreworlds.org`) — comunidad/servidor de prueba activo,
-  Discord propio, infraestructura gestionada por **Electric Jungle** (colectivo
-  que da hosting/soporte best-effort a varios proyectos).
-- **OMEGA** — mod de cliente hecho por Wirla, reescritura de "Worlds+".
-  Compatible desde la build 1890 en adelante. Se instala reemplazando
-  `gammacls.zip`/`worlds.jar` en la carpeta `lib` del cliente. Código fuente
-  no publicado públicamente (se distribuye como ZIP compilado).
-  - Wirlaburla sí tiene repos públicos en su propia instancia Gitea
-    (`wirlaburla.com/git`), incluyendo `Worlds-Organizer` (herramienta Java
-    para organizar archivos/recursos de WorldsPlayer, con un
-    `IMGTranscoder.java` para transcodificar imágenes).
-  - ⚠️ Enlaces a `git.worlio.com` / `git.canithesis.org` con repos específicos
-    de Wirlaburla (`WorldsMods`, `P3NG0`, `WorldsTerminal`) dieron 404 al
-    intentar acceder — puede que se hayan movido, renombrado, o no
-    sobrevivido la migración. Revisar manualmente en el navegador si hace
-    falta, el buscador no pudo confirmar su estado actual.
+- **WorlioWorlds** (`worlds.worlio.com`) — free revival server,
+  ~8 users online / 116 registered. Requires editing `override.ini`
+  (`WorldServer`, `UpgradeServer`, `ScriptServer` → Worlio domains),
+  web registration.
+- **Worlio** (`worlio.com`) — general "Web 1.0" preservation project
+  (forum, archive, Jabber/XMPP, Mumble, IRC, radio). Organization behind it:
+  **Canithesis Interactive** (bonkmaykr's).
+  - 13 May 2025: **Wirlaburla stepped down as webmaster** of Worlio after
+    years of rumors/harassment from a rival member of the Worlds community.
+    Development of all of Worlio's projects has been frozen since
+    then (which explains the 404s on repos that used to live on `git.worlio.com`).
+    Worlio became the property of Canithesis Interactive GP.
+- **LibreWorlds** (`libreworlds.org`) — active community/test server,
+  its own Discord, infrastructure managed by **Electric Jungle** (a collective
+  that gives best-effort hosting/support to several projects).
+- **OMEGA** — client mod made by Wirla, a rewrite of "Worlds+".
+  Compatible from build 1890 onwards. Installed by replacing
+  `gammacls.zip`/`worlds.jar` in the client's `lib` folder. Source code
+  not publicly published (distributed as a compiled ZIP).
+  - Wirlaburla does have public repos on their own Gitea instance
+    (`wirlaburla.com/git`), including `Worlds-Organizer` (a Java tool
+    for organizing WorldsPlayer files/resources, with an
+    `IMGTranscoder.java` for transcoding images).
+  - ⚠️ Links to `git.worlio.com` / `git.canithesis.org` with Wirlaburla's
+    specific repos (`WorldsMods`, `P3NG0`, `WorldsTerminal`) returned 404 when
+    trying to access them — they may have been moved, renamed, or not
+    survived the migration. Check manually in the browser if
+    needed, the search tool could not confirm their current status.
 
 ---
 
-## 4. Herramientas y entorno de trabajo
+## 4. Tools and working environment
 
-> ⚠️ **Entorno actual (desde 2026-09-15): macOS 15.7 en un MacBook
-> Intel** (i5-7360U), sin Homebrew (ya no soporta Intel), sin Wine y sin
-> node. El JDK es portable (`tools/jdk`, lo instala
-> `tools/setup-macos.sh`) y `bash` es el 3.2 del sistema. Ver
-> `docs/setup-macos.md`. Lo de abajo es el entorno Linux/WSL2 histórico,
-> que sigue siendo válido en esa máquina.
+> ⚠️ **Current environment (since 2026-09-15): macOS 15.7 on an Intel
+> MacBook** (i5-7360U), no Homebrew (it no longer supports Intel), no Wine and no
+> node. The JDK is portable (`tools/jdk`, installed by
+> `tools/setup-macos.sh`) and `bash` is the system's 3.2. See
+> `docs/setup-macos.md`. What follows is the historical Linux/WSL2 environment,
+> which is still valid on that machine.
 
-- **Hardware**: Xeon 28 núcleos LGA2011, GTX 1060 6GB, 16GB RAM + zram/swap
-- **WSL2** — entorno principal de trabajo (histórico)
-  - ⚠️ Si el repo se clona en el filesystem de Windows, aparece un error de
-    fin de línea CRLF (`env: $'bash\r'`) al ejecutar `bin/decompile`. Fix:
-    `dos2unix bin/decompile` (y cualquier otro script bash del repo si da el
-    mismo error)
-- **Decompilación**: `worldsplayer_source_editor`
-  - Requiere: **Java 6** (JDK, del Oracle Java Archive — ya no se distribuye
-    normalmente), **Vineflower** (decompilador, debe estar en el `PATH`), y
-    el propio `worlds.jar` original
-  - Flujo:
+- **Hardware**: Xeon 28-core LGA2011, GTX 1060 6GB, 16GB RAM + zram/swap
+- **WSL2** — main working environment (historical)
+  - ⚠️ If the repo is cloned onto the Windows filesystem, a CRLF
+    line-ending error (`env: $'bash\r'`) shows up when running `bin/decompile`. Fix:
+    `dos2unix bin/decompile` (and any other bash script in the repo if it gives the
+    same error)
+- **Decompilation**: `worldsplayer_source_editor`
+  - Requires: **Java 6** (JDK, from the Oracle Java Archive — no longer normally
+    distributed), **Vineflower** (decompiler, must be on the `PATH`), and
+    the original `worlds.jar` itself
+  - Flow:
     ```bash
-    # Decompilar
-    WORLDSPLAYER_JAR=/ruta/a/worlds.jar make decompile
-    # → vuelca las fuentes en /source
+    # Decompile
+    WORLDSPLAYER_JAR=/path/to/worlds.jar make decompile
+    # → dumps the sources into /source
 
-    # Editar libremente en /source
+    # Edit freely in /source
 
-    # Recompilar
-    JAVAC=/ruta/al/compilador/java6 make compile
-    # → genera out/worlds.jar
+    # Recompile
+    JAVAC=/path/to/java6/compiler make compile
+    # → generates out/worlds.jar
 
-    # Instalar directo en el cliente (opcional)
-    WORLDSPLAYER_JAR=/ruta/a/worlds.jar make install
+    # Install directly into the client (optional)
+    WORLDSPLAYER_JAR=/path/to/worlds.jar make install
     ```
-  - Trae parches de ejemplo en `patches/optional/`: `free_vip.patch`,
+  - Ships example patches in `patches/optional/`: `free_vip.patch`,
     `bypass_assert_fail_exit.patch`
-- **Análisis binario**: Ghidra (disassembly/decompilación de las DLLs
-  nativas), IDA Free (cross-reference de ASM)
-- **Inferencia local (Ollama)**: Qwen 2.5/3 7B o DeepSeek distillates —
-  **solo para tareas mecánicas de bajo riesgo** (renombrado masivo,
-  clasificación de patrones, formateo). Nunca para interpretación de lógica
-  compleja, reconstrucción de structs, o mapeo de protocolo — ahí los errores
-  se propagan en silencio.
-- **Claude Code** — copiloto para interpretar pseudo-C, reconstruir structs, y
-  mapear la documentación del protocolo contra el código decompilado. El
-  agente debe leer los archivos exportados directamente del disco, no que
-  se le pase código copiado a mano.
+- **Binary analysis**: Ghidra (disassembly/decompilation of the native
+  DLLs), IDA Free (ASM cross-reference)
+- **Local inference (Ollama)**: Qwen 2.5/3 7B or DeepSeek distillates —
+  **only for mechanical, low-risk tasks** (mass renaming,
+  pattern classification, formatting). Never for interpreting complex
+  logic, reconstructing structs, or protocol mapping — errors
+  propagate silently there.
+- **Claude Code** — copilot for interpreting pseudo-C, reconstructing structs, and
+  mapping the protocol documentation against the decompiled code. The
+  agent must read the exported files directly from disk, not have code
+  copied by hand passed to it.
 
-### Groundwork ya hecho
-- `.jar` objetivo localizado: extraído de un instalador Wise Installation
-  System de 2004. `GAMMACLS.ZIP` dentro del paquete `FIRST` contiene las
-  clases Java bajo `NET.worlds.{br, console, core, network, scape}` —
-  confirmado como el código del cliente WorldsPlayer. Plan: copiarlo como
-  `worlds.jar` para el Makefile.
-- **✅ HECHO (2026-09-08)**: `GAMMACLS.ZIP` extraído de `assets/FIRST.EXE`
-  (que es un ZIP SFX legible directamente con `zipfile`/`unzip`, sin
-  necesitar Wine) y copiado a `assets/worlds.jar`. Vineflower 1.12.0
-  descargado en `tools/vineflower.jar` con un shim ejecutable en
-  `tools/vineflower` (solo hace falta un JVM moderno para *decompilar* —
-  Java 6 solo es necesario para *recompilar* con `make compile`).
-  `make decompile` corrido con éxito en `editor/worldsplayer_source_editor-main`
-  → **722 archivos `.java` en `editor/worldsplayer_source_editor-main/source/`**
-  (paquete real: `NET.worlds.*`, con NET en mayúsculas). Los patches del
-  editor (`patches/fix_compilation_errors.patch`) **no aplicaron limpio**
-  (probablemente por diferencia de versión de Vineflower vs. la que usó el
-  autor del tool) — pendiente de resolver antes de intentar `make compile`.
-  Reconocimiento rápido: 64 métodos `native` detectados con grep simple
+### Groundwork already done
+- Target `.jar` located: extracted from a 2004 Wise Installation
+  System installer. `GAMMACLS.ZIP` inside the `FIRST` package contains the
+  Java classes under `NET.worlds.{br, console, core, network, scape}` —
+  confirmed as the WorldsPlayer client code. Plan: copy it as
+  `worlds.jar` for the Makefile.
+- **✅ DONE (2026-09-08)**: `GAMMACLS.ZIP` extracted from `assets/FIRST.EXE`
+  (which is a ZIP SFX readable directly with `zipfile`/`unzip`, with no need
+  for Wine) and copied to `assets/worlds.jar`. Vineflower 1.12.0
+  downloaded to `tools/vineflower.jar` with an executable shim at
+  `tools/vineflower` (only a modern JVM is needed to *decompile* —
+  Java 6 is only necessary to *recompile* with `make compile`).
+  `make decompile` ran successfully in `editor/worldsplayer_source_editor-main`
+  → **722 `.java` files in `editor/worldsplayer_source_editor-main/source/`**
+  (actual package: `NET.worlds.*`, with NET in uppercase). The editor's patches
+  (`patches/fix_compilation_errors.patch`) **did not apply cleanly**
+  (probably due to a Vineflower version difference vs. the one the
+  tool's author used) — pending resolution before attempting `make compile`.
+  Quick reconnaissance: 64 `native` methods detected with a simple grep
   (`GetDiskFreeSpace`, `GetTotalPhysicalMemory`, `instanceOf`, `getBuildInfo`,
-  etc.) — punto de partida real para la herramienta #1 (sección 7).
+  etc.) — real starting point for tool #1 (section 7).
 
-### ⚠️ Hallazgo crítico (2026-09-08): el scaffold previo apuntaba al binario equivocado
-Antes de esta sesión, alguien (sesión anterior de Claude Code, a juzgar por el
-`README.md` recuperado del commit inicial) había reverseado `Worlds1900.exe`
-con Ghidra + IDA (`Worlds1900.exe.{asm,c,gzf,i64,map}`) y había montado un
-wrapper CMake/C (`src/`, `include/`, `build/`) asumiendo que era el cliente
-WorldsPlayer.
+### ⚠️ Critical finding (2026-09-08): the previous scaffold pointed at the wrong binary
+Before this session, someone (a previous Claude Code session, judging by the
+`README.md` recovered from the initial commit) had reverse engineered `Worlds1900.exe`
+with Ghidra + IDA (`Worlds1900.exe.{asm,c,gzf,i64,map}`) and had set up a
+CMake/C wrapper (`src/`, `include/`, `build/`) assuming it was the WorldsPlayer
+client.
 
-**`Worlds1900.exe` NO es el cliente — es el stub del instalador Wise.**
-Confirmado con `strings Worlds1900.exe`: contiene literalmente `"WiseMain"`,
-`"WISE0001.DLL"`, `"Windows Self-Installing Executable"`, `"GLBSInstall"`. Las
-funciones decompiladas (`FUN_00401177`, `FUN_00401583`, `FUN_00401810`, etc.)
-son el algoritmo Huffman/LZ de descompresión del instalador (mismo motor que
-extrae `FIRST.EXE`), no lógica del cliente 3D. Todo ese trabajo era válido
-como ingeniería inversa del instalador, pero no aportaba nada al objetivo real
-del proyecto (el cliente Java + JNI/RenderWare).
+**`Worlds1900.exe` is NOT the client — it is the Wise installer stub.**
+Confirmed with `strings Worlds1900.exe`: it literally contains `"WiseMain"`,
+`"WISE0001.DLL"`, `"Windows Self-Installing Executable"`, `"GLBSInstall"`. The
+decompiled functions (`FUN_00401177`, `FUN_00401583`, `FUN_00401810`, etc.)
+are the installer's Huffman/LZ decompression algorithm (the same engine that
+extracts `FIRST.EXE`), not 3D client logic. All that work was valid
+as reverse engineering of the installer, but contributed nothing to the real goal
+of the project (the Java client + JNI/RenderWare).
 
-Ese scaffold se movió a `legacy/installer-reversing/` para no estorbar,
-conservando el trabajo por si algún día interesa (p. ej. para extraer más
-paquetes empotrados en otros instaladores Wise sin depender de Python/zipfile).
-**El objetivo real a decompilar es `assets/worlds.jar` (ex `GAMMACLS.ZIP`) vía
-`editor/worldsplayer_source_editor-main`, no ningún `.exe` nativo.**
+That scaffold was moved to `legacy/installer-reversing/` so it would not be in the way,
+keeping the work in case it is of interest some day (e.g. to extract more
+packages embedded in other Wise installers without depending on Python/zipfile).
+**The real target to decompile is `assets/worlds.jar` (formerly `GAMMACLS.ZIP`) via
+`editor/worldsplayer_source_editor-main`, not any native `.exe`.**
 
-### ✅ Ciclo completo decompile → fix → recompile verificado (2026-09-08)
-El pedido explícito fue "decompilar el juego", así que until el final: el
-código decompilado (722 `.java`) **no compilaba** con ningún JDK moderno
-(`javac --release 8`, el `-source 1.6` del `Makefile` original ya ni siquiera
-existe en JDKs actuales). Se arregló en la copia de trabajo
-(`editor/worldsplayer_source_editor-main/source/`, commit `e719a84` en su
-repo git anidado) y se regeneró `patches/fix_compilation_errors.patch` a
-partir del diff real (el patch viejo del tool, escrito para otra versión de
-Vineflower, ya no aplicaba limpio). Categorías de arreglos, de más a menos
-frecuente:
+### ✅ Full decompile → fix → recompile cycle verified (2026-09-08)
+The explicit request was "decompile the game", so I went all the way through: the decompiled
+code (722 `.java`) **did not compile** with any modern JDK
+(`javac --release 8`; the `-source 1.6` in the original `Makefile` no longer even
+exists in current JDKs). It was fixed in the working copy
+(`editor/worldsplayer_source_editor-main/source/`, commit `e719a84` in its
+nested git repo) and `patches/fix_compilation_errors.patch` was regenerated from
+the real diff (the tool's old patch, written for another version of
+Vineflower, no longer applied cleanly). Categories of fixes, from most to least
+frequent:
 
-1. **`assert`/`enum` como identificador** — el código es de ~2000-2001,
-   antes de que Java 1.4 (`assert`, 2002) y 1.5 (`enum`, 2004) reservaran esas
-   palabras. `Debug.assert(...)` → `Debug.assert_(...)` (114 call sites, 91
-   archivos) y `Property enum()` → `enum_()`.
-2. **Campos sintéticos `this$0`/`val$X` y bridges `access$NNN` no
-   reconstruidos por Vineflower** en 14 clases anónimas/internas
+1. **`assert`/`enum` as identifiers** — the code dates from ~2000-2001,
+   before Java 1.4 (`assert`, 2002) and 1.5 (`enum`, 2004) reserved those
+   words. `Debug.assert(...)` → `Debug.assert_(...)` (114 call sites, 91
+   files) and `Property enum()` → `enum_()`.
+2. **Synthetic `this$0`/`val$X` fields and `access$NNN` bridges not
+   reconstructed by Vineflower** in 14 anonymous/inner classes
    (`MCISoundPlayer$1-4`, `DefaultConsole$1-3`, `TradeDialog$1-2`, etc.) —
-   Vineflower emitió el uso pero no la declaración. Se dedujeron los tipos
-   por el contexto (parámetro del constructor) y, para los `access$NNN`, por
-   la firma de uso en el call site cruzada contra los miembros `private` de
-   la clase contenedora (ver `MCISoundPlayer.java`, `LogFile.java`,
+   Vineflower emitted the usage but not the declaration. The types were deduced
+   from context (constructor parameter) and, for the `access$NNN`, from
+   the usage signature at the call site cross-checked against the `private` members of
+   the containing class (see `MCISoundPlayer.java`, `LogFile.java`,
    `ActionsPart.java`).
-3. **Idioma pre-1.5 de `Foo.class` no colapsado** (`class$NET$worlds$...
-   == null ? (class$... = class$("...")) : class$...`) en `WObject.java` (6
-   ocurrencias) — reemplazado por el literal `.class` directo.
-4. **Pérdidas de tipo del decompilador** (`Object`↔`String`,
-   `WObject`↔`Surface`, `Persister`↔`Persister[]`, unboxing de `Integer`
-   faltante en `+=`/`-=`) — en `DefaultConsole.java` se verificó con
-   evidencia dura (`javap -c -p` sobre el `.class` original en
-   `assets/worlds.jar`, no una suposición) que el bug real era el tipo
-   declarado de la variable, no la expresión de construcción.
-5. `sun.misc.BASE64Encoder` (eliminado del JDK hace años) → `java.util.Base64`.
+3. **Pre-1.5 `Foo.class` idiom not collapsed** (`class$NET$worlds$...
+   == null ? (class$... = class$("...")) : class$...`) in `WObject.java` (6
+   occurrences) — replaced by the direct `.class` literal.
+4. **Decompiler type losses** (`Object`↔`String`,
+   `WObject`↔`Surface`, `Persister`↔`Persister[]`, missing `Integer` unboxing in
+   `+=`/`-=`) — in `DefaultConsole.java` it was verified with hard
+   evidence (`javap -c -p` on the original `.class` in
+   `assets/worlds.jar`, not an assumption) that the real bug was the declared
+   type of the variable, not the construction expression.
+5. `sun.misc.BASE64Encoder` (removed from the JDK years ago) → `java.util.Base64`.
 
-**Resultado: 0 errores de compilación.** `jar` empaquetado en
-`editor/worldsplayer_source_editor-main/out/worlds.jar` (no versionado,
-regenerable — ver `.gitignore`), 736 clases, 1.3MB. Verificación de que el
-recompilado es funcionalmente fiel: corre en un JVM real
-(`java -cp out/worlds.jar NET.worlds.console.Gamma`), imprime su propio
-banner de arranque, y falla exactamente donde se espera —
-`UnsatisfiedLinkError` al intentar `System.load("gamma.dll")` porque es un
-DLL de Windows x86 corriendo en Linux sin Wine. Es la prueba de que el
-puente JNI hacia RenderWare (sección 2, herramienta #1 de la sección 7) está
-intacto y es el próximo punto de ataque real para la fase 2 (renderer
-portable).
+**Result: 0 compilation errors.** `jar` packaged at
+`editor/worldsplayer_source_editor-main/out/worlds.jar` (not versioned,
+regenerable — see `.gitignore`), 736 classes, 1.3MB. Verification that the
+recompiled result is functionally faithful: it runs on a real JVM
+(`java -cp out/worlds.jar NET.worlds.console.Gamma`), prints its own
+startup banner, and fails exactly where expected —
+`UnsatisfiedLinkError` when trying to `System.load("gamma.dll")` because it is a
+Windows x86 DLL running on Linux without Wine. It is proof that the JNI
+bridge to RenderWare (section 2, tool #1 of section 7) is
+intact and is the next real point of attack for phase 2 (portable
+renderer).
 
-### ✅ Herramienta #1 construida (2026-09-08): mapeador de métodos `native`
-El usuario aportó `assets/WorldsPlayer/` — el árbol **real de una instalación
-ya hecha** del cliente (no solo el paquete del instalador): `bin/` con todas
-las DLLs nativas (incluidas las de RenderWare y `gamma.dll`, el puente JNI
-real), `lib/gammacls.zip` + `rt.jar` (JRE de Sun 1.4.2_05 completo), logs
-reales de ejecución (`Gamma.Log`, `GroundZero.log`) y config (`worlds.ini`,
-`override.ini`). De los logs reales: el cliente se lanza con
-`java.class.path=.;lib\gammacls.zip` y
-`sun.boot.class.path=lib\i18ncls.zip;lib\rt.jar`, y el servidor original al
-que intentaba conectar tras el arranque es `www.3dcd.com:6650` (muerto hoy,
-como se esperaba).
+### ✅ Tool #1 built (2026-09-08): `native` method mapper
+The user contributed `assets/WorldsPlayer/` — the **real tree of an
+already-done installation** of the client (not just the installer package): `bin/` with all the native
+DLLs (including the RenderWare ones and `gamma.dll`, the real JNI bridge),
+`lib/gammacls.zip` + `rt.jar` (complete Sun 1.4.2_05 JRE), real execution
+logs (`Gamma.Log`, `GroundZero.log`) and config (`worlds.ini`,
+`override.ini`). From the real logs: the client is launched with
+`java.class.path=.;lib\gammacls.zip` and
+`sun.boot.class.path=lib\i18ncls.zip;lib\rt.jar`, and the original server
+it tried to connect to after startup is `www.3dcd.com:6650` (dead today,
+as expected).
 
-También trajo Ghidra 12.1.3 (headless, `analyzeHeadless` funciona con el
-Java 25 del sistema — el mínimo que pide Ghidra es Java 21). Con eso:
+It also brought Ghidra 12.1.3 (headless, `analyzeHeadless` works with the
+system's Java 25 — the minimum Ghidra asks for is Java 21). With that:
 
-1. Analicé `gamma.dll` con `analyzeHeadless` (proyecto en `analysis/`, no
-   versionado — regenerable, ver `.gitignore`).
-2. Parseé la tabla de exports de `gamma.dll` y `RWL21.DLL` a mano (script
-   Python sin dependencias — `objdump -T`/`pip` no estaban disponibles o no
-   funcionaban con estos PE32 antiguos) → **372 exports JNI en `gamma.dll`**,
-   volcados en `docs/gamma-dll-exports.txt`.
-3. Escribí un script que recorre los 722 `.java` decompilados, extrae cada
-   declaración `native`, calcula el símbolo JNI esperado (con el mangling
-   real de guiones bajos `_` → `_1`) y lo cruza contra los exports reales →
+1. I analyzed `gamma.dll` with `analyzeHeadless` (project in `analysis/`, not
+   versioned — regenerable, see `.gitignore`).
+2. I parsed the export table of `gamma.dll` and `RWL21.DLL` by hand (dependency-free
+   Python script — `objdump -T`/`pip` were not available or did not
+   work with these old PE32s) → **372 JNI exports in `gamma.dll`**,
+   dumped into `docs/gamma-dll-exports.txt`.
+3. I wrote a script that walks the 722 decompiled `.java` files, extracts each
+   `native` declaration, computes the expected JNI symbol (with the real
+   underscore mangling `_` → `_1`) and cross-checks it against the real exports →
    **`docs/native-methods-map.md`**.
 
-**Resultado inicial de esta sesión: 360 declaraciones `native` encontradas,
-358 casan con un export real de `gamma.dll`.** (Números corregidos al día
-siguiente — ver el bloque de 2026-09-09 más abajo: la regex tenía un bug de
-modificadores y se saltaba 5 declaraciones reales; el total correcto es 365.)
-Esto confirma con evidencia dura que `gamma.dll` es *el* puente JNI del
-cliente — no hay que buscar la implementación nativa en ningún otro sitio.
+**Initial result of this session: 360 `native` declarations found,
+358 match a real export of `gamma.dll`.** (Numbers corrected the next
+day — see the 2026-09-09 block further below: the regex had a modifiers bug
+and skipped 5 real declarations; the correct total is 365.)
+This confirms with hard evidence that `gamma.dll` is *the* JNI bridge of the
+client — there is no need to look for the native implementation anywhere else.
 
-**Reorganización de archivos de esta sesión:**
-- `move/` (aportado por el usuario) → `assets/WorldsPlayer/`.
-- `tools/vineflower.jar` + shim `tools/vineflower` (descargado de GitHub,
-  release 1.12.0) — hace falta para repetir `make decompile`.
-- `.gitignore` nuevo: excluye la instalación de Ghidra (~1.4GB, herramienta
-  externa reinstalable) y `analysis/` (proyecto Ghidra, regenerable).
+**File reorganization of this session:**
+- `move/` (contributed by the user) → `assets/WorldsPlayer/`.
+- `tools/vineflower.jar` + shim `tools/vineflower` (downloaded from GitHub,
+  release 1.12.0) — needed to repeat `make decompile`.
+- New `.gitignore`: excludes the Ghidra installation (~1.4GB, reinstallable
+  external tool) and `analysis/` (Ghidra project, regenerable).
 
-### ✅ Los 2 métodos sin mapear investigados + Bridge JNI mock construido (2026-09-09)
+### ✅ The 2 unmapped methods investigated + JNI mock bridge built (2026-09-09)
 
-**1) Investigación de los 2 `native` sin export en `gamma.dll`** (con
-evidencia real, no suposición — ver `docs/native-methods-map.md` para el
-detalle completo):
+**1) Investigation of the 2 `native` methods with no export in `gamma.dll`** (with
+real evidence, not assumption — see `docs/native-methods-map.md` for the
+full detail):
 
-- De paso se encontró un bug en la regex del mapeador: solo aceptaba
-  `static` en una posición fija antes de `native`, y se saltaba
-  declaraciones con orden distinto (`public static final native`, `public
-  static synchronized native`). Corregido → el total real de declaraciones
-  `native` es **365**, no 360.
-- **`sendURL.silent_get`** — ✅ resuelto, era un falso negativo del script:
-  el export existe (`?Java_NET_worlds_scape_sendURL_silent_get@@YGJ...`)
-  pero con mangling **C++ de MSVC**, no el `_Java_...@N` estándar con escape
-  `_`→`_1` que usa la mayoría. El mapeador ya prueba ambas formas.
-- **`PendingCacheDrone.nativeDestroy`** — ⚠️ confirmado código muerto: 0
-  exports posibles en `gamma.dll` bajo ningún mangling, y 0 llamadas en los
-  722 archivos decompilados (comparar con `nativeInit()`, que sí se llama
-  desde el `static {}` de la misma clase).
-- **`Console.getVolumeInfo`** — ⚠️ mismo patrón: existe un gemelo
-  `Startup.getVolumeInfo()` que sí está exportado y sí se usa desde
-  `LoginWizard.java:702`; la versión de `Console` es un duplicado obsoleto,
-  0 llamadas, sin export propio.
-- **Resultado final: 365 declaraciones, 363 (99.5%) mapeadas contra
-  `gamma.dll`, 2 confirmadas como código muerto** (no bloquean nada).
+- In passing, a bug was found in the mapper's regex: it only accepted
+  `static` at a fixed position before `native`, and skipped
+  declarations with a different order (`public static final native`, `public
+  static synchronized native`). Fixed → the real total of `native` declarations
+  is **365**, not 360.
+- **`sendURL.silent_get`** — ✅ resolved, it was a false negative of the script:
+  the export exists (`?Java_NET_worlds_scape_sendURL_silent_get@@YGJ...`)
+  but with **MSVC C++** mangling, not the standard `_Java_...@N` with the escape
+  `_`→`_1` that most use. The mapper now tries both forms.
+- **`PendingCacheDrone.nativeDestroy`** — ⚠️ confirmed dead code: 0
+  possible exports in `gamma.dll` under any mangling, and 0 calls in the
+  722 decompiled files (compare with `nativeInit()`, which is called
+  from the `static {}` of the same class).
+- **`Console.getVolumeInfo`** — ⚠️ same pattern: a twin
+  `Startup.getVolumeInfo()` exists that is exported and is used from
+  `LoginWizard.java:702`; the `Console` version is an obsolete duplicate,
+  0 calls, no export of its own.
+- **Final result: 365 declarations, 363 (99.5%) mapped against
+  `gamma.dll`, 2 confirmed as dead code** (they block nothing).
 
-**2) Bridge JNI mock (herramienta #4, sección 7)** — implementado con
+**2) JNI mock bridge (tool #4, section 7)** — implemented with
 `tools/jni_mock.py`:
-- Reemplaza cada método `native` por un cuerpo que llama a
-  `NET.worlds.core.NativeMock.log(clase, método, args)` (clase nueva) y
-  devuelve un valor por defecto. Política de defaults (documentada en el
-  propio script, no es "la verdad", es una elección para maximizar cuánto
-  avanza el cliente): `boolean`→`true` (para pasar los guards `if
-  (!check()) exit/bail` de arranque en vez de cortar en el primero),
-  numéricos→`0`, referencias→`null` **salvo** que el último parámetro sea
-  del mismo tipo que el retorno (patrón `getIniString(key, default)`), en
-  cuyo caso se devuelve ese parámetro — evita `NullPointerException` en
-  cascada por defaults que en realidad el propio cliente ya sabía resolver.
-- También se envolvieron en `try/catch` los 2 `System.load(...)` de
-  `Gamma.java` (arranque principal + `dllLoad()`), que si no abortarían el
-  proceso entero al no encontrar la DLL de Windows.
-- Genera además `docs/native-methods-callers.md`: qué clase llama a cada
-  `native`, útil para saber qué ruta de código dispara cada stub. ⚠️
-  **Limitación documentada en el propio archivo**: es grep por texto, no
-  entiende polimorfismo/reflection — 167/365 salen como "sin llamadas
-  encontradas" y **eso no significa código muerto**, salvo los 2 casos de
-  arriba que sí se verificaron aparte cruzando contra `gamma.dll`.
-- Todo el flujo (regenerar `source/` limpio → aplicar el mock → recompilar)
-  quedó en `editor/worldsplayer_source_editor-main/apply_mock.sh`, para no
-  tener que rehacerlo a mano cada vez (el `source/` decompilado no se
-  versiona — ver `.gitignore` — así que hay que re-generarlo y re-mockear en
-  cada sesión nueva antes de poder correr el cliente).
+- Replaces every `native` method with a body that calls
+  `NET.worlds.core.NativeMock.log(class, method, args)` (a new class) and
+  returns a default value. Defaults policy (documented in the
+  script itself, it is not "the truth", it is a choice to maximize how far
+  the client gets): `boolean`→`true` (to get past the startup guards `if
+  (!check()) exit/bail` instead of stopping at the first one),
+  numerics→`0`, references→`null` **unless** the last parameter is
+  of the same type as the return (the `getIniString(key, default)` pattern), in
+  which case that parameter is returned — avoids cascading `NullPointerException`s
+  from defaults that the client itself actually already knew how to resolve.
+- The 2 `System.load(...)` calls in `Gamma.java` (main startup + `dllLoad()`)
+  were also wrapped in `try/catch`; otherwise they would abort the
+  whole process when the Windows DLL is not found.
+- It also generates `docs/native-methods-callers.md`: which class calls each
+  `native`, useful for knowing which code path each stub triggers. ⚠️
+  **Limitation documented in the file itself**: it is a text grep, it does not
+  understand polymorphism/reflection — 167/365 come out as "no calls
+  found" and **that does not mean dead code**, except for the 2 cases above,
+  which were verified separately by cross-checking against `gamma.dll`.
+- The whole flow (regenerate clean `source/` → apply the mock → recompile)
+  is in `editor/worldsplayer_source_editor-main/apply_mock.sh`, so as not to
+  have to redo it by hand every time (the decompiled `source/` is not
+  versioned — see `.gitignore` — so it has to be regenerated and re-mocked in
+  every new session before the client can be run).
 
-**Resultado en runtime** (headless, `java -cp out/worlds-mock.jar
-NET.worlds.console.Gamma`, log completo en
-`docs/jni-mock-runtime-trace.log`): el cliente **arranca de verdad sin
-ninguna DLL de Windows** — pasa el check de instancia única
-(`Startup.synchronizeStartup`), carga `worlds.ini`, resuelve el
-`ResourceBundle` de mensajes (detectó locale `es_ES` del sistema) — y llega
-hasta la construcción de la `MenuBar` real de Swing/AWT en
-`Console.<clinit>`, donde revienta con `java.awt.HeadlessException`. **Este
-ya no es un problema de mocking de nativos — es que no hay servidor X en
-esta máquina.**
+**Runtime result** (headless, `java -cp out/worlds-mock.jar
+NET.worlds.console.Gamma`, full log in
+`docs/jni-mock-runtime-trace.log`): the client **really starts without
+any Windows DLL** — it passes the single-instance check
+(`Startup.synchronizeStartup`), loads `worlds.ini`, resolves the message
+`ResourceBundle` (it detected the system's `es_ES` locale) — and reaches
+the construction of the real Swing/AWT `MenuBar` in
+`Console.<clinit>`, where it blows up with `java.awt.HeadlessException`. **This
+is no longer a native mocking problem — it is that there is no X server on
+this machine.**
 
-### ✅ Probado con Xvfb (2026-09-09) — dos hallazgos más, ninguno del bridge JNI
+### ✅ Tested with Xvfb (2026-09-09) — two more findings, neither from the JNI bridge
 
-Con Xvfb (`Xvfb :99 -screen 0 1024x768x24`, `DISPLAY=:99`) el cliente pasó el
-punto de `HeadlessException` y llegó bastante más lejos, hasta topar con dos
-problemas reales — ninguno de los dos es un hueco del mock, los dos están
-aislados y confirmados con evidencia, no supuestos:
+With Xvfb (`Xvfb :99 -screen 0 1024x768x24`, `DISPLAY=:99`) the client got past
+the `HeadlessException` point and went quite a lot further, until it hit two
+real problems — neither is a hole in the mock, both are
+isolated and confirmed with evidence, not assumed:
 
-1. **Colisión de `libnet.so`** — `Gamma.main()` llama a
-   `System.loadLibrary("net")` (pensado para cargar el `net.dll` legacy del
-   JRE de 2004, ver `assets/WorldsPlayer/bin/net.dll`). En cualquier JDK
-   moderno, "net" colisiona con el `libnet.so` **propio del JDK** (su
-   librería de networking interna): la carga inicial "tiene éxito" pero
-   queda registrada bajo el classloader de la app; más tarde, cuando Swing
-   necesita la misma librería vía NIO para leer la config de fuentes, la
-   pide el *bootstrap* classloader y el JVM revienta con
+1. **`libnet.so` collision** — `Gamma.main()` calls
+   `System.loadLibrary("net")` (meant to load the legacy `net.dll` of the
+   2004 JRE, see `assets/WorldsPlayer/bin/net.dll`). In any
+   modern JDK, "net" collides with the JDK's **own** `libnet.so` (its
+   internal networking library): the initial load "succeeds" but
+   is registered under the app classloader; later, when Swing
+   needs the same library via NIO to read the font config, the
+   *bootstrap* classloader asks for it and the JVM blows up with
    `UnsatisfiedLinkError: ... already loaded in another classloader`.
-   **Aislado con un reproducer mínimo de 10 líneas** (`System.loadLibrary
-   ("net")` + tocar un `JPasswordField`, sin nada del cliente real) — el
-   error es idéntico byte a byte. Arreglado: `apply_mock.sh` ahora salta esa
-   llamada específica (no hacía nada útil fuera de Windows real de todos
-   modos).
-2. **Asunción de ruta estilo Windows en `NET.worlds.network.URL`** —
-   `currentDir = System.getProperty("user.dir").replace('\\', '/')` seguido
-   de `Debug.dAssert(currentDir.charAt(1) == ':' || currentDir.startsWith
-   ("//"))` en el bloque `static {}` de `URL.java:557`. En Windows
-   `user.dir` es del tipo `C:\...` (pasa el assert); en Linux es
-   `/home/...` y la aserción falla siempre. **Esto es lógica real del
-   cliente, no un método `native`** — está fuera del alcance de la
-   herramienta #4 (que solo mockea `native`s) y entra de lleno en el
-   trabajo de portabilidad de la fase 4 del roadmap (sección 5). ✅
-   **Investigado y parcheado (2026-09-09)** — ver el bloque siguiente.
+   **Isolated with a minimal 10-line reproducer** (`System.loadLibrary
+   ("net")` + touching a `JPasswordField`, with nothing from the real client) — the
+   error is byte-for-byte identical. Fixed: `apply_mock.sh` now skips that
+   specific call (it did nothing useful outside real Windows
+   anyway).
+2. **Windows-style path assumption in `NET.worlds.network.URL`** —
+   `currentDir = System.getProperty("user.dir").replace('\\', '/')` followed
+   by `Debug.dAssert(currentDir.charAt(1) == ':' || currentDir.startsWith
+   ("//"))` in the `static {}` block of `URL.java:557`. On Windows
+   `user.dir` looks like `C:\...` (passes the assert); on Linux it is
+   `/home/...` and the assertion always fails. **This is real client
+   logic, not a `native` method** — it is outside the scope of tool #4
+   (which only mocks `native`s) and falls squarely within the
+   portability work of phase 4 of the roadmap (section 5). ✅
+   **Investigated and patched (2026-09-09)** — see the next block.
 
-**La excepción ocurre dentro de `NET.worlds.network.NetUpdate.<clinit>`**,
-justo cuando el cliente está calculando la URL del servidor de upgrade —
-o sea, llegamos literalmente al borde de la lógica de conexión de red antes
-de morir.
+**The exception occurs inside `NET.worlds.network.NetUpdate.<clinit>`**,
+just when the client is computing the upgrade server URL —
+that is, we literally reached the edge of the network connection logic before
+dying.
 
-### ✅ Asunción de ruta Windows investigada y portada (2026-09-09)
+### ✅ Windows path assumption investigated and ported (2026-09-09)
 
-Antes de tocar nada: `currentDir` solo se usa en **3 sitios** de
-`URL.java`, los tres con la misma estructura `<letra-de-unidad>:/...`:
+Before touching anything: `currentDir` is only used in **3 places** of
+`URL.java`, all three with the same `<drive-letter>:/...` structure:
 
-1. El propio assert de la sección 4 (`static {}`, línea 557).
-2. `validateFile()` — usa `currentDir.substring(0, 2)` (los 2 primeros
-   caracteres, "unidad + `:`") como prefijo por defecto cuando resuelve una
-   ruta absoluta (`/algo`) o relativa sin unidad explícita.
-3. `normalize()` — tiene dos asserts más (`var0.indexOf(58, 5) == 6` y
-   `var0.charAt(7) == '/'`) que dependen de que el resultado de
-   `validateFile()` tenga exactamente ese formato de 1 carácter + `:` + `/`.
+1. The section 4 assert itself (`static {}`, line 557).
+2. `validateFile()` — uses `currentDir.substring(0, 2)` (the first 2
+   characters, "drive + `:`") as the default prefix when it resolves an
+   absolute path (`/something`) or a relative one with no explicit drive.
+3. `normalize()` — has two more asserts (`var0.indexOf(58, 5) == 6` and
+   `var0.charAt(7) == '/'`) that depend on the result of
+   `validateFile()` having exactly that format of 1 character + `:` + `/`.
 
-**No hay separadores `\` reales en ningún otro punto de la clase** (el
-único `.replace('\\', '/')` es la normalización de entrada, ya hecha antes
-de todo esto). El único `new File(...)` real de la clase, en
-`searchPath()`, construye la ruta con `File.separator` (ya portable) por un
-camino que **no** toca `_url`/`currentDir` para nada — o sea, el problema
-está genuinamente contenido a estos 3 sitios.
+**There are no real `\` separators at any other point of the class** (the
+only `.replace('\\', '/')` is the input normalization, done before
+all of this). The only real `new File(...)` in the class, in
+`searchPath()`, builds the path with `File.separator` (already portable) by a
+route that does **not** touch `_url`/`currentDir` at all — so the problem
+is genuinely contained to these 3 places.
 
-**Parche mínimo aplicado**: en vez de tocar los asserts o la lógica de
-`validateFile()`/`normalize()` (usada en todos lados), se sintetiza una
-"unidad" falsa de un solo carácter (`u:`, de "Unix") cuando `user.dir` no
-tiene ya forma de ruta Windows — `normalizeCurrentDir()` en `URL.java`,
-reaplicado automáticamente por `apply_mock.sh`. Con esto,
-`/home/lucas/OpenWorlds/...` se convierte en `u:/home/lucas/OpenWorlds/...`,
-que cumple exactamente la misma forma `<1 char>:/...` que el código ya
-espera en los 3 sitios — cero cambios en la lógica de parseo. **No afecta
-Windows real**: si `user.dir` ya tiene pinta de ruta Windows, la función
-lo devuelve sin tocar.
+**Minimal patch applied**: instead of touching the asserts or the logic of
+`validateFile()`/`normalize()` (used everywhere), a fake single-character "drive"
+(`u:`, for "Unix") is synthesized when `user.dir` does not
+already have the shape of a Windows path — `normalizeCurrentDir()` in `URL.java`,
+automatically reapplied by `apply_mock.sh`. With this,
+`/home/lucas/OpenWorlds/...` becomes `u:/home/lucas/OpenWorlds/...`,
+which meets exactly the same `<1 char>:/...` shape that the code already
+expects in the 3 places — zero changes to the parsing logic. **It does not affect
+real Windows**: if `user.dir` already looks like a Windows path, the function
+returns it untouched.
 
-**Resultado**: el cliente pasó de largo `NetUpdate.<clinit>`/`URL.<clinit>`
-sin más caídas de portabilidad, completó un **ciclo entero de arranque y
-apagado limpio** (exit code 0, sin colgarse, log de 184 líneas en
-`docs/xvfb-runtime-trace.log` — antes eran 49). Config real cargada
-(`worlds.ini` simulado por el mock), locale detectado (`es_ES`), intentó
-leer `redir.txt` (no existe, manejado con gracia), inicializó la caché,
-intentó cargar el mundo por defecto `newworld.world`...
+**Result**: the client sailed past `NetUpdate.<clinit>`/`URL.<clinit>`
+with no more portability crashes, completed a **whole startup and
+clean shutdown cycle** (exit code 0, no hang, 184-line log in
+`docs/xvfb-runtime-trace.log` — it used to be 49). Real config loaded
+(`worlds.ini` simulated by the mock), locale detected (`es_ES`), it tried to
+read `redir.txt` (does not exist, handled gracefully), initialized the cache,
+tried to load the default world `newworld.world`...
 
-**Hallazgo relacionado, NO parcheado (fuera de alcance esta vez)**: al
-inicializar la caché, `Cache.java:23` hace exactamente el problema inverso
-— `Gamma.earlyURLUnalias("home:cachedir/").replace('/', '\\')` — convierte
-la ruta YA correcta de vuelta a backslashes antes de abrir el archivo con
-`FileInputStream`, lo que en Linux produce un nombre de archivo literal
-absurdo (`\home\lucas\...\cachedir\cache.index`, con barras invertidas como
-caracteres normales, no separadores). No es fatal — el cliente lo captura y
-sigue ("Flushing cache index.") — pero hay **4 sitios más** con el mismo
-patrón `.replace('/', '\\')`: `EditMusicDialog.java:39`, `ASFThread.java:26`,
-`Shaper.java:141`, y el propio `Cache.java:23`. Ninguno bloqueó esta
-ejecución, así que se documentan como ⚠️ VERIFICAR para una pasada de
-portabilidad futura, no se tocaron (no era lo que se pidió esta vez).
+**Related finding, NOT patched (out of scope this time)**: when
+initializing the cache, `Cache.java:23` does exactly the inverse problem
+— `Gamma.earlyURLUnalias("home:cachedir/").replace('/', '\\')` — it converts
+the already-correct path back to backslashes before opening the file with
+`FileInputStream`, which on Linux produces an absurd literal file name
+(`\home\lucas\...\cachedir\cache.index`, with backslashes as ordinary
+characters, not separators). It is not fatal — the client catches it and
+carries on ("Flushing cache index.") — but there are **4 more places** with the same
+`.replace('/', '\\')` pattern: `EditMusicDialog.java:39`, `ASFThread.java:26`,
+`Shaper.java:141`, and `Cache.java:23` itself. None blocked this
+run, so they are documented as ⚠️ VERIFY for a future portability
+pass, and were not touched (it was not what was asked this time).
 
-### ✅ Sesión 2026-09-09 (continuación): 6 paredes más, cliente llega a red real y descarga con éxito
+### ✅ Session 2026-09-09 (continuation): 6 more walls, client reaches the real network and downloads successfully
 
-Sesión larga y autónoma, empujando desde el assert de `Cursor.java:212`
-hasta el objetivo final (conexión de red real). Cada pared se investigó
-con evidencia antes de tocarla, siguiendo el mismo criterio que las
-sesiones anteriores. Commits en orden: `6c503ba`, `645c3d3`, `f563a6b`,
+Long autonomous session, pushing from the assert at `Cursor.java:212`
+to the final goal (real network connection). Each wall was investigated
+with evidence before touching it, following the same criterion as the
+previous sessions. Commits in order: `6c503ba`, `645c3d3`, `f563a6b`,
 `4ffac8c`, `f1e53e1`, `618af6f`.
 
-1. **`FastDataInput` mock "inteligente"** (retomado de la sesión previa,
-   commiteado ahora) — contrato investigado a fondo antes de escribir nada:
-   `implements DataInput`, todo el método surface son los primitivos de esa
-   interfaz (sin seek/random-access en ningún lado), y
+1. **"Smart" `FastDataInput` mock** (picked up again from the previous session,
+   committed now) — contract investigated in depth before writing anything:
+   `implements DataInput`, the whole method surface is that interface's
+   primitives (no seek/random-access anywhere), and
    `protocol/LibreWorlds-wiki-master/Persister-(.world-etc.)-format.md`
-   (documentación de terceros, independiente) confirma que el formato en
-   disco **es** el wire format de `java.io.DataInput`, no una aproximación.
-   Implementado envolviendo un `DataInputStream` real. `NewWorld.world`
-   confirmado presente en `assets/WorldsPlayer/` (no asumido — verificado
-   con `find`) y cargó con éxito por primera vez.
-2. **`Cursor.java:212`** — investigado: NO es una pared de portabilidad
-   Windows como las anteriores. `defaultCursor = retrieveSystemCursor(...)`
-   viene de `loadSystemCursor("IDC_ARROW")`, un `native` que devuelve un
-   handle Win32 — la política genérica del mock (`int` → `0`) choca con la
-   convención de este código de que `0` significa "falló". Mismo problema
-   en `loadCursor()`. Fix: devolver `1` en vez de `0` para esos dos.
-3. **Bug real del decompilador, no portabilidad**: `PosableShape.<clinit>`
-   reventó con `ArrayIndexOutOfBoundsException: Index -128` — un contador
-   de loop declarado `byte` desborda a los 127 elementos y sigue en
-   negativo. Se buscó el mismo patrón (`for (byte `) en todo el árbol: **11
-   apariciones en 8 archivos**, todas verificadas una por una (el contador
-   solo se usa para indexar, nunca se guarda como `byte`) antes de
-   arreglarlas todas en lote.
-4. **Heurístico generalizado en `jni_mock.py`**: `Transform.scale(float,
-   float,float)` (native, mockeado a `null`) se usa en cadenas fluidas
-   (`var1.scale(x).raise(y)`) — el `null` rompe la SIGUIENTE llamada de la
-   cadena, no esta, lo que lo hacía fácil de pasar por alto. Se generalizó
-   la regla: cuando un `native` no estático devuelve exactamente el tipo de
-   su propia clase, el mock devuelve `this` — verificado contra call sites
-   reales antes de generalizar. 28 métodos afectados tras reaplicar.
-5. **`IniFile` mock "inteligente"** — el hallazgo clave de la sesión:
-   contrato pequeño (2 getters, 2 setters) sobre archivos con el formato
-   INI clásico ya visto literalmente en `worlds.ini`/`override.ini` reales.
-   Implementado con un parser INI real. **Esto reveló la razón real de por
-   qué nunca se veía un intento de conexión**: `World.setWorldServerURL()`
-   solo llama a `Console.load()` con una URL real si `this.isMultiuser` es
-   `true`, y sin leer el `worlds.ini` real el cliente nunca podía ver
-   `RestartAt=home:GroundZero/GroundZero.world` — siempre caía al
-   `NewWorld.world` de un solo jugador, que no tiene servidor y por lo
-   tanto nunca intenta conectar. No era un hueco del mock — era el mock
-   anterior de `IniFile` (genérico, sin leer archivo real).
-6. **DNS real en `DNSLookup.gethostbyname`** — contrato trivial (`String →
-   String[]` de IPs), implementado con `InetAddress.getAllByName()` real.
+   (third-party, independent documentation) confirms that the on-disk format
+   **is** the wire format of `java.io.DataInput`, not an approximation.
+   Implemented by wrapping a real `DataInputStream`. `NewWorld.world`
+   confirmed present in `assets/WorldsPlayer/` (not assumed — verified
+   with `find`) and loaded successfully for the first time.
+2. **`Cursor.java:212`** — investigated: it is NOT a Windows portability wall
+   like the earlier ones. `defaultCursor = retrieveSystemCursor(...)`
+   comes from `loadSystemCursor("IDC_ARROW")`, a `native` that returns a
+   Win32 handle — the mock's generic policy (`int` → `0`) clashes with this
+   code's convention that `0` means "failed". Same problem
+   in `loadCursor()`. Fix: return `1` instead of `0` for those two.
+3. **Real decompiler bug, not portability**: `PosableShape.<clinit>`
+   blew up with `ArrayIndexOutOfBoundsException: Index -128` — a loop
+   counter declared `byte` overflows at 127 elements and keeps going
+   negative. The same pattern (`for (byte `) was searched across the whole tree: **11
+   occurrences in 8 files**, all verified one by one (the counter
+   is only used for indexing, never stored as a `byte`) before
+   fixing them all in a batch.
+4. **Generalized heuristic in `jni_mock.py`**: `Transform.scale(float,
+   float,float)` (native, mocked to `null`) is used in fluent chains
+   (`var1.scale(x).raise(y)`) — the `null` breaks the NEXT call in the
+   chain, not this one, which made it easy to overlook. The rule was
+   generalized: when a non-static `native` returns exactly the type of
+   its own class, the mock returns `this` — verified against real call sites
+   before generalizing. 28 methods affected after reapplying.
+5. **"Smart" `IniFile` mock** — the session's key finding:
+   small contract (2 getters, 2 setters) over files in the classic INI
+   format already seen literally in the real `worlds.ini`/`override.ini`.
+   Implemented with a real INI parser. **This revealed the real reason
+   why a connection attempt was never seen**: `World.setWorldServerURL()`
+   only calls `Console.load()` with a real URL if `this.isMultiuser` is
+   `true`, and without reading the real `worlds.ini` the client could never see
+   `RestartAt=home:GroundZero/GroundZero.world` — it always fell back to the single-player
+   `NewWorld.world`, which has no server and therefore
+   never tries to connect. It was not a hole in the mock — it was the
+   previous `IniFile` mock (generic, not reading any real file).
+6. **Real DNS in `DNSLookup.gethostbyname`** — trivial contract (`String →
+   String[]` of IPs), implemented with the real `InetAddress.getAllByName()`.
 
-**Resultado final, verificado con evidencia dura, no logs de texto**: con
-`worlds.ini` real ahora leído, el cliente pide `upgradeServer=
-http://us1.worlds.net/3DCDup` y bajo Xvfb **completa una descarga HTTP real
-y exitosa**. `getent hosts us1.worlds.net` resuelve a una IP real y viva
-(`172.237.126.108`, DNS inverso `file.libreworlds.org` — **no** el dominio
-muerto que se asumía en la sección 1), y se inspeccionaron directamente los
-archivos que el cliente escribió en su caché local tras la descarga:
-`cachedir/1.dat` abre con la cabecera real de `actions.dat` ("VERSION 2 //
+**Final result, verified with hard evidence, not text logs**: with the
+real `worlds.ini` now read, the client requests `upgradeServer=
+http://us1.worlds.net/3DCDup` and under Xvfb **completes a real, successful
+HTTP download**. `getent hosts us1.worlds.net` resolves to a real, live IP
+(`172.237.126.108`, reverse DNS `file.libreworlds.org` — **not** the
+dead domain that was assumed in section 1), and the files the client wrote
+to its local cache after the download were inspected directly:
+`cachedir/1.dat` opens with the real header of `actions.dat` ("VERSION 2 //
 This file defines global actions that may be performed by avatars...");
-otros dos archivos son listas reales de idiomas/fuentes con códigos de
-locale (`ja_JP 210673`, `es_ES 208280`, etc.). **`us1.worlds.net` está vivo
-y sirviendo contenido real** — aparentemente mantenido o reflejado por la
-comunidad LibreWorlds, no simplemente muerto como se asumía.
+two other files are real lists of languages/fonts with locale codes
+(`ja_JP 210673`, `es_ES 208280`, etc.). **`us1.worlds.net` is alive
+and serving real content** — apparently maintained or mirrored by the
+LibreWorlds community, not simply dead as was assumed.
 
-El hilo principal del cliente completa su secuencia de arranque local y
-llama a `System.exit(0)` en bien menos de un segundo — las descargas de
-caché corren en hilos daemon asíncronos (`NetCacheThreads=2`) que no
-alcanzan a reportar resultado por log antes de que la JVM termine, así que
-no hay una línea explícita de "conexión exitosa" en
-`docs/xvfb-runtime-trace.log` — pero los archivos reales en disco son
-evidencia más fuerte que cualquier línea de log.
+The client's main thread completes its local startup sequence and
+calls `System.exit(0)` in well under a second — the cache downloads run
+in asynchronous daemon threads (`NetCacheThreads=2`) that do not get to
+report a result via log before the JVM terminates, so there is
+no explicit "successful connection" line in
+`docs/xvfb-runtime-trace.log` — but the real files on disk are
+stronger evidence than any log line.
 
-**Punto de parada de esta sesión** (según lo pedido): llegar más lejos
-(un flujo de login explícito, esperar a los hilos de caché asíncronos)
-exigiría tocar el control de flujo de `Gamma.java` o el modelo de hilos de
-`Cache`/`NetUpdate` — código real de red/flujo del cliente, ya no un mock
-de nativos ni un fix de portabilidad menor. Se para aquí para que el
-usuario decida el siguiente paso.
+**Stopping point of this session** (as requested): going further
+(an explicit login flow, waiting for the asynchronous cache threads)
+would require touching the flow control of `Gamma.java` or the thread model of
+`Cache`/`NetUpdate` — real network/flow code of the client, no longer a native
+mock or a minor portability fix. Stopping here so that the
+user decides on the next step.
 
-### Direcciones de servidor por defecto (pregunta 4)
+### Default server addresses (question 4)
 
-Sin necesitar que el cliente llegue más lejos, esto ya se puede sacar por
-análisis estático + la config real que aportó el usuario:
+Without needing the client to get any further, this can already be derived by
+static analysis + the real config the user contributed:
 
-- **`assets/WorldsPlayer/worlds.ini`** (la instalación real de 2026, tal
-  como la dejó el usuario): `upgradeServer=http://us1.worlds.net/3DCDup`.
-  ⚠️ **Actualización (2026-09-09): este subdominio concreto NO está muerto**
-  — `us1.worlds.net` resuelve a una IP real y viva
-  (`172.237.126.108`/`file.libreworlds.org`) y sirve contenido real y
-  descargable (confirmado, no asumido — ver el bloque de esta sesión más
-  abajo). La sección 1 sigue siendo correcta sobre los dominios apex
-  `worlds.com`/`worlds.net` (página de aparcamiento), pero al menos este
-  subdominio de infraestructura parece mantenido o reflejado por la
-  comunidad LibreWorlds.
-- **Hardcodeado en el `.java` decompilado** (`Galaxy.java:678-679`): si el
-  host del server resuelto es literalmente `www.3dcd.com:6650`, el cliente
-  tiene un fallback a la IP fija `209.67.68.214:6650` (probablemente un
-  workaround de Worlds Inc. para cuando el DNS de 3dcd.com fallaba). También
-  aparecen `www.3dcd.com:25` (SMTP, no es el juego) y `time.worlds.net`
-  (sync de hora, tampoco es el juego). Esto coincide exactamente con lo que
-  ya se había visto en un log real de ejecución (`Gamma.Log`, sesión
-  anterior): `AutoServer(www.3dcd.com:6650): lastError=VarErrorException`.
-- **Para probar contra `whirl` o WorlioWorlds**: hay que editar
-  `upgradeServer` en `worlds.ini` (y probablemente `WorldServer`/
-  `ScriptServer` en `override.ini`, como ya hace WorlioWorlds según la
-  sección 3.5) para que apunten al servidor de prueba en vez de a
-  `worlds.net`/`3dcd.com`. El puerto por defecto observado (`6650`) es un
-  buen punto de partida para comparar contra el puerto que escucha `whirl`.
+- **`assets/WorldsPlayer/worlds.ini`** (the real 2026 installation, as
+  the user left it): `upgradeServer=http://us1.worlds.net/3DCDup`.
+  ⚠️ **Update (2026-09-09): this particular subdomain is NOT dead**
+  — `us1.worlds.net` resolves to a real, live IP
+  (`172.237.126.108`/`file.libreworlds.org`) and serves real, downloadable
+  content (confirmed, not assumed — see this session's block further
+  down). Section 1 remains correct about the apex domains
+  `worlds.com`/`worlds.net` (parking page), but at least this
+  infrastructure subdomain appears to be maintained or mirrored by the
+  LibreWorlds community.
+- **Hardcoded in the decompiled `.java`** (`Galaxy.java:678-679`): if the
+  resolved server host is literally `www.3dcd.com:6650`, the client
+  has a fallback to the fixed IP `209.67.68.214:6650` (probably a
+  Worlds Inc. workaround for when 3dcd.com's DNS failed). Also
+  appearing are `www.3dcd.com:25` (SMTP, not the game) and `time.worlds.net`
+  (time sync, not the game either). This matches exactly what
+  had already been seen in a real execution log (`Gamma.Log`, previous
+  session): `AutoServer(www.3dcd.com:6650): lastError=VarErrorException`.
+- **To test against `whirl` or WorlioWorlds**: `upgradeServer` in `worlds.ini`
+  has to be edited (and probably `WorldServer`/
+  `ScriptServer` in `override.ini`, as WorlioWorlds already does according to
+  section 3.5) so they point at the test server instead of
+  `worlds.net`/`3dcd.com`. The default port observed (`6650`) is a
+  good starting point for comparing against the port `whirl` listens on.
 
-### ✅ Fase 1 (parser RWX) completa y Fase 2 (renderizador) arrancada (2026-09-09)
+### ✅ Phase 1 (RWX parser) complete and Phase 2 (renderer) started (2026-09-09)
 
-Sesión larga y autónoma. Resultado: **118/118 archivos `.rwx` reales del
-proyecto parsean idéntico** (posición de vértices/triángulos) a
-`three-rwx-loader` (la referencia JS), y hay una ventana LWJGL pintando esa
-geometría en pantalla de verdad (evidencia en `docs/renders/`, no solo "no
-crashea"). Todo el trabajo nuevo vive en `client/src/net/openworlds/`
-(paquete nuevo, deliberadamente separado de `NET.worlds.*` que es el
-código decompilado original) y `tools/rwx-harness/`.
+Long autonomous session. Result: **118/118 real `.rwx` files of the
+project parse identically** (vertex/triangle position) to
+`three-rwx-loader` (the JS reference), and there is an LWJGL window painting that
+geometry on screen for real (evidence in `docs/renders/`, not just "doesn't
+crash"). All the new work lives in `client/src/net/openworlds/`
+(new package, deliberately separate from `NET.worlds.*`, which is the
+original decompiled code) and `tools/rwx-harness/`.
 
-**Antes de escribir el parser**: se montó primero el arnés de comparación
-(herramienta #3 de la sección 7) — `tools/rwx-harness/extract.mjs` corre
-`three-rwx-loader` real (headless vía `jsdom`, instalado con npm, no
-vendorizado) y `client/.../RwxExtractMain.java` corre el parser nuevo;
-ambos emiten el mismo JSON canónico y `tools/rwx-harness/compare.py` los
-diffea, escribiendo `docs/rwx-parser-progress.md` como fuente de verdad
-real (no asumida) del estado archivo por archivo. Los 118 `.rwx` de
-prueba son los reales del proyecto (`assets/GROUNDZERO/` +
-`assets/WorldsPlayer/GroundZero/tex/`) — no se inventó contenido de
-prueba.
+**Before writing the parser**: the comparison harness was set up first
+(tool #3 of section 7) — `tools/rwx-harness/extract.mjs` runs the real
+`three-rwx-loader` (headless via `jsdom`, installed with npm, not
+vendored) and `client/.../RwxExtractMain.java` runs the new parser;
+both emit the same canonical JSON and `tools/rwx-harness/compare.py` diffs
+them, writing `docs/rwx-parser-progress.md` as the real (not assumed)
+source of truth for the file-by-file status. The 118 test `.rwx` files
+are the project's real ones (`assets/GROUNDZERO/` +
+`assets/WorldsPlayer/GroundZero/tex/`) — no test content was
+invented.
 
-**El propio arnés tuvo 2 bugs que causaron falsos positivos masivos**
-antes de corregirse (documentados en `tools/rwx-harness/compare.py`):
-confiar en el orden de cada lado ordenado por texto (JS escribe `"7e-05"`,
-Java escribe `"7.0E-5"` — un simple sort lexicográfico los desincroniza en
-silencio aunque el contenido sea idéntico) y ordenar con más precisión
-que la tolerancia de comparación (float vs. double puede intercambiar dos
-claves de sort adyacentes). Los dos se corrigieron reordenando con una
-clave numérica calculada en Python. Antes de corregirlos, el marcador
-mostraba solo 70/118 OK — la mayoría de esas "diferencias" no eran bugs
-del parser en absoluto.
+**The harness itself had 2 bugs that caused massive false positives**
+before being fixed (documented in `tools/rwx-harness/compare.py`):
+trusting the order of each side sorted as text (JS writes `"7e-05"`,
+Java writes `"7.0E-5"` — a plain lexicographic sort silently desynchronizes them
+even though the content is identical) and sorting with more precision
+than the comparison tolerance (float vs. double can swap two adjacent
+sort keys). Both were fixed by reordering with a numeric
+key computed in Python. Before fixing them, the scoreboard
+showed only 70/118 OK — most of those "differences" were not parser
+bugs at all.
 
-**Un subagente (fork) se lanzó primero para escribir
-`docs/rwx-format-reference.md`** leyendo el código de `three-rwx-loader` —
-se interrumpió a medio camino (se desvió construyendo el arnés en vez de
-documentar, trabajo útil pero no el encargo) y nunca escribió el
-documento. Se completó leyendo el código fuente directamente en el hilo
-principal (la lógica del parser está explícitamente fuera de lo que se
-delega, según las instrucciones de esta sesión).
+**A subagent (fork) was launched first to write
+`docs/rwx-format-reference.md`** by reading the `three-rwx-loader` code —
+it was interrupted midway (it drifted into building the harness instead of
+documenting, useful work but not the assignment) and never wrote the
+document. It was completed by reading the source code directly in the main
+thread (the parser logic is explicitly outside what gets
+delegated, per this session's instructions).
 
-**Hallazgos no obvios, verificados línea por línea contra el código
-fuente real (no la wiki de Active Worlds, no suposiciones)** — ver
-`docs/rwx-format-reference.md` para el detalle completo con número de
-línea:
-- `ModelBegin`/`ModelEnd` **no existen** para `three-rwx-loader` — ninguna
-  regex los reconoce, son no-ops puros. Solo `ClumpBegin`/`ClumpEnd`
-  importan.
-- Los índices de vértice de `Triangle`/`Quad` son relativos a un buffer
-  **por clump** que se limpia en `ClumpBegin` Y en `ClumpEnd` — no una
-  lista global del archivo.
-- `Transform` (16 valores) es un **set absoluto**, column-major (igual que
-  `THREE.Matrix4`, `v'=M×v`) — no una multiplicación como
-  `Translate`/`Scale`. La primera versión del parser usaba row-major con
-  `v'=v×M` (convención contraria) y daba geometría sutilmente mal en
-  archivos con transformaciones no triviales, sin ningún error — solo
-  números ligeramente distintos. Lo detectó el arnés, no habría sido
-  obvio a ojo.
-- `ClumpBegin` congela la transformación acumulada como base del clump y
-  **resetea el acumulador local a identidad**; `ClumpEnd` restaura el
-  acumulador a lo que era justo antes del reset. El material tiene el
-  mismo scoping (clon apilado/restaurado por clump).
-- `Rotate x y z angle` **no es una rotación de eje arbitrario** — son
-  hasta 3 rotaciones independientes por eje cardinal (X, Y, Z en ese
-  orden), cada una solo si su coeficiente es no-cero, por
-  `coeficiente × angle` grados. Muy fácil de malinterpretar (así lo
-  implementé al principio, antes de leer el código).
-- `Quad` corta por la diagonal más **corta**, no siempre A-C.
-- **Comparar materiales/colores no es fiable en este entorno**: sin
-  archivos de textura reales (el corpus solo tiene `.cmp`, no `.jpg`), la
-  carga de textura falla y **contamina también el color base** — todos
-  los triángulos salen gris plano `d8d8d8` en la referencia JS,
-  independientemente de lo que declare el archivo. Con
-  `setEnableTextures(false)` se evita la contaminación pero entonces el
-  nombre de textura nunca se registra, y el hex de `THREE.Color` no
-  coincide con una conversión directa `canal×255` (sospecha de
-  conversión linear↔sRGB, fórmula exacta ⚠️ VERIFICAR, no identificada).
-  **Decisión**: el material es una nota informativa en `compare.py`, no
-  un criterio de OK/DIFERENCIAS — la geometría (100% verificable) es la
-  comparación autoritativa.
+**Non-obvious findings, verified line by line against the real source
+code (not the Active Worlds wiki, not assumptions)** — see
+`docs/rwx-format-reference.md` for the full detail with line
+numbers:
+- `ModelBegin`/`ModelEnd` **do not exist** for `three-rwx-loader` — no
+  regex recognizes them, they are pure no-ops. Only `ClumpBegin`/`ClumpEnd`
+  matter.
+- The vertex indices of `Triangle`/`Quad` are relative to a **per-clump**
+  buffer that is cleared at `ClumpBegin` AND at `ClumpEnd` — not a global
+  list of the file.
+- `Transform` (16 values) is an **absolute set**, column-major (same as
+  `THREE.Matrix4`, `v'=M×v`) — not a multiplication like
+  `Translate`/`Scale`. The first version of the parser used row-major with
+  `v'=v×M` (opposite convention) and gave subtly wrong geometry on
+  files with non-trivial transformations, without any error — just
+  slightly different numbers. The harness caught it; it would not have been
+  obvious by eye.
+- `ClumpBegin` freezes the accumulated transformation as the base of the clump and
+  **resets the local accumulator to identity**; `ClumpEnd` restores the
+  accumulator to what it was just before the reset. The material has the
+  same scoping (clone stacked/restored per clump).
+- `Rotate x y z angle` **is not an arbitrary-axis rotation** — it is
+  up to 3 independent rotations about the cardinal axes (X, Y, Z in that
+  order), each only if its coefficient is non-zero, by
+  `coefficient × angle` degrees. Very easy to misread (that is how I
+  implemented it at first, before reading the code).
+- `Quad` splits along the **shorter** diagonal, not always A-C.
+- **Comparing materials/colors is not reliable in this environment**: without
+  real texture files (the corpus only has `.cmp`, not `.jpg`), the
+  texture load fails and **also contaminates the base color** — all
+  triangles come out flat gray `d8d8d8` in the JS reference,
+  regardless of what the file declares. With
+  `setEnableTextures(false)` the contamination is avoided but then the
+  texture name is never registered, and the hex of `THREE.Color` does not
+  match a direct `channel×255` conversion (suspected
+  linear↔sRGB conversion, exact formula ⚠️ VERIFY, not identified).
+  **Decision**: the material is an informational note in `compare.py`, not
+  an OK/DIFERENCIAS ("differences") criterion — the geometry (100% verifiable) is the
+  authoritative comparison.
 
-**Sin implementar / ⚠️ VERIFICAR, no aparecen en el corpus de 118
-archivos así que no se pudieron verificar empíricamente**: `Polygon`
-(implementado con la reversión de orden documentada en el código fuente,
-pero sin un archivo real que lo ejercite), `ProtoBegin`/`ProtoEnd`/
-`ProtoInstance` (no implementado en absoluto), el caso especial de `Quad`
-en modo wireframe y la corrección de normales inválidas de
+**Not implemented / ⚠️ VERIFY, they do not appear in the 118-file corpus
+so they could not be verified empirically**: `Polygon`
+(implemented with the order reversal documented in the source code,
+but with no real file exercising it), `ProtoBegin`/`ProtoEnd`/
+`ProtoInstance` (not implemented at all), the special case of `Quad`
+in wireframe mode and the invalid-normals correction of
 `correctInvalidNormals`. `JointTransformBegin`/`JointTransformEnd`/
-`IdentityJoint`/`Hints`/`AddHint` sí aparecen mucho en el corpus (72+40+336
-veces) y están **verificados como no-ops reales** (tampoco los reconoce
-`three-rwx-loader`).
+`IdentityJoint`/`Hints`/`AddHint` do appear a lot in the corpus (72+40+336
+times) and are **verified as real no-ops** (`three-rwx-loader` does not
+recognize them either).
 
-**Renderizador (fase 2)**: `client/src/net/openworlds/render/RwxViewer.java`
-— ventana LWJGL/GLFW, pipeline de función fija (`glBegin`/`glVertex`, sin
-shaders/VBOs todavía), color plano por triángulo desde el material
-parseado (sin texturas ni luz), cámara que encuadra automáticamente según
-el bounding box del modelo, auto-rotación lenta. Verificado con evidencia
-real de píxeles (no solo "compila y no revienta"): se renderizó
-`BASKET.RWX` y se inspeccionó el histograma de color del PNG resultante —
-contiene exactamente los dos colores de material que declara el archivo
-(`0x893232` cuerpo, `0x338d2d` asa), no solo el color de fondo.
+**Renderer (phase 2)**: `client/src/net/openworlds/render/RwxViewer.java`
+— LWJGL/GLFW window, fixed-function pipeline (`glBegin`/`glVertex`, no
+shaders/VBOs yet), flat color per triangle from the parsed
+material (no textures or light), camera that automatically frames the
+model's bounding box, slow auto-rotation. Verified with real pixel
+evidence (not just "compiles and doesn't blow up"): `BASKET.RWX` was rendered
+and the color histogram of the resulting PNG was inspected —
+it contains exactly the two material colors the file declares
+(`0x893232` body, `0x338d2d` handle), not just the background color.
 
-**Detalle de entorno encontrado y arreglado**: esta máquina es una sesión
-de escritorio Wayland real (`WAYLAND_DISPLAY` seteada) aunque se renderiza
-contra un Xvfb X11 separado para pruebas — GLFW auto-detecta y prefiere
-Wayland cuando ve esa variable, y falla directamente ahí (no hay
-compositor real escuchando para este proceso). Arreglado con
-`glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11)` explícito en el código,
-en vez de depender de desactivar la variable de entorno en cada
-invocación.
+**Environment detail found and fixed**: this machine is a real Wayland
+desktop session (`WAYLAND_DISPLAY` set) even though rendering happens
+against a separate X11 Xvfb for testing — GLFW auto-detects and prefers
+Wayland when it sees that variable, and fails right there (there is no real
+compositor listening for this process). Fixed with an explicit
+`glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11)` in the code,
+instead of relying on unsetting the environment variable on every
+invocation.
 
-**Herramientas nuevas de esta sesión** (todas descargadas/instaladas
-localmente, no requieren privilegios de sistema, todas gitignored):
-`tools/node/` (Node.js portable v26.8.1, sin `apt`/`dnf`), `tools/lwjgl/`
-(LWJGL 3.4.3 desde Maven Central — módulos `core`/`glfw`/`opengl` +
-natives de Linux), `tools/rwx-harness/node_modules/` (`three-rwx-loader` +
-`three` + `jsdom` vía npm).
+**New tools of this session** (all downloaded/installed
+locally, need no system privileges, all gitignored):
+`tools/node/` (portable Node.js v26.8.1, no `apt`/`dnf`), `tools/lwjgl/`
+(LWJGL 3.4.3 from Maven Central — `core`/`glfw`/`opengl` modules + Linux
+natives), `tools/rwx-harness/node_modules/` (`three-rwx-loader` +
+`three` + `jsdom` via npm).
 
-**Commits de esta sesión**: `10840fe` (parser + arnés), `caf1ccb`
-(renderizador).
+**Commits of this session**: `10840fe` (parser + harness), `caf1ccb`
+(renderer).
 
-**Siguiente paso lógico**: dos caminos razonables, a elegir con el
-usuario — (a) seguir en fase 1 y encarar el parser binario RWG/BOD
-(avatares articulados, más complejo, formato binario sin biblioteca de
-referencia JS conocida — habría que documentarlo desde cero o buscar otra
-referencia), o (b) profundizar la fase 2: texturas reales (cargar los
-`.cmp`/`.bmp` del proyecto, no soportados por `three-rwx-loader` tampoco,
-así que aquí sí haría falta documentar el formato `.cmp` desde cero),
-iluminación básica difusa/ambiente/especular ya parseada y disponible en
-`RwxMaterial`, y sustituir el pipeline de función fija por uno moderno
-(shaders + VBOs) antes de que crezca más.
-
----
-
-### 🟡 Regla de alcance permanente fijada (2026-09-09): réplica fiel, no mejora
-
-El usuario fijó explícitamente, "de ahora en adelante y para siempre en
-este proyecto" (ver sección 1): el objetivo es el juego ORIGINAL
-decompilado y porteado — una réplica fiel, nada nuevo, nada mejorado.
-RWG/BOD (avatares) SÍ están en alcance (eran parte del cliente original).
-Texturas e iluminación deben verse EXACTAMENTE como el RenderWare 2
-original (simple, sin filtrado moderno) — nunca shaders modernos, PBR, ni
-ninguna mejora gráfica. **Regla dura permanente**: si en algún momento hay
-duda entre "fidelidad necesaria" y "mejora fuera de alcance", PARAR y
-preguntar al usuario — nunca decidir unilateralmente a favor de "más
-bonito".
-
-### 🟡 Parser RWG (avatares) — investigación desde bytes reales + implementación parcial (2026-09-09)
-
-**Corpus real usado (no inventado)**: al empezar solo había 2 archivos
-`.rwg` reales (`assets/FIRST/{AVATAR,IDLE}.RWG`, ambos degenerados —
-AVATAR.RWG es una caja placeholder vacía con centinelas `Float.MAX_VALUE`,
-IDLE.RWG un solo quad plano); a mitad de sesión aparecieron 3 más dentro
-de `GammaDocs.zip` (aportado por el usuario, carpeta `GammaTutorial/tex/`
-— movidos a `assets/gammatutorial-samples/` porque son datos binarios de
-formato real, no documentación, así que sí están versionados a
-diferencia del resto de GammaDocs): `cube.rwg` — un cubo real de 6 caras,
-`ball.rwg` — una pelota de 512 triángulos, y `table.rwg` — una mesa de
-546 polígonos mixtos. **Los 5 `.rwg` reales
-tienen exactamente un solo joint/`ATOM` cada uno** (verificado
-programáticamente) — ninguno es un avatar articulado de verdad, son
-props/placeholders de un solo clump. La jerarquía real de huesos de un
-avatar articulado (pelvis→torso→cuello→cabeza...) **sigue sin poder
-verificarse con evidencia real** — límite honesto del corpus disponible,
-documentado explícitamente en vez de inventado. Además hay 26 `.bod`
-reales en `assets/WorldsPlayer/cachedir/` (avatares de verdad descargados
-por red en una sesión anterior, confirmado vía `PendingDrone.java`) pero
-usan una codificación binaria totalmente distinta (sin tags ASCII) que
-**no se logró descifrar** esta sesión.
-
-Con los 3 archivos nuevos, la hipótesis inicial de `PLST` (basada en un
-único polígono de IDLE.RWG) **se rompió y se corrigió con evidencia
-real**: `cube.rwg` reveló que cada polígono lleva una normal de cara
-`(nx,ny,nz)` (los 6 ejes ±X/±Y/±Z aparecen exactamente una vez en las 6
-caras del cubo — imposible que sea casualidad) y que los campos de
-vértice antes marcados "sin determinar" son en realidad la normal por
-vértice. El cubo y la pelota se renderizaron con éxito y se ven
-correctos a simple vista (`docs/renders/{cube,ball}_rwg_3d.png`);
-`table.rwg` quedó sin resolver porque mezcla triángulos y cuadriláteros
-en el mismo `PLST`, rompiendo la asunción de tamaño de registro uniforme
-— documentado como límite conocido, no forzado.
-
-**Investigación externa**: confirmado que no existe ninguna biblioteca ni
-documentación pública que describa este formato binario exacto —
-`aw-sequence-parser` (Active Worlds) es un formato no relacionado (`.seq`
-de animación, magic bytes distintos), y el "RenderWare Binary Stream"
-estándar documentado (usado por GTA) es little-endian con IDs numéricos,
-estructuralmente distinto del esquema de tags ASCII big-endian real
-observado aquí. La fuente más valiosa fue `Gamma_Advanced.html`
-(documentación oficial de Worlds Inc. aportada por el usuario esta
-sesión como parte de `GammaDocs.zip` — ver sección 3.4 para los mirrors
-públicos; el zip completo NO se versionó en el repo, ver nota de higiene
-más abajo), que confirma la lista de nombres/números de tag de joints y
-la convención de que las matrices de joint deben ser siempre identidad —
-esto último coincide EXACTO con lo observado en bytes reales.
-
-**Nota de higiene de repo (2026-09-09, post-sesión)**: el commit inicial
-de esta sub-sesión (`e591395`) había copiado el `GammaDocs.zip` completo
-al repo (127 archivos, 5.8MB) en vez de quedarse solo con lo citado
-arriba. Se corrigió: el HTML completo se sacó del repo (queda solo local,
-no versionado — los hechos citados aquí ya están parafraseados con
-atribución, así que no hace falta el HTML para verificarlos; los mirrors
-públicos de la sección 3.4 son la referencia si hiciera falta consultarlo
-de nuevo), y los 4 archivos de corpus binario real que sí hacían falta
-(`cube.rwg`, `ball.rwg`, `table.rwg`, `table.rwx`) se movieron a
-`assets/gammatutorial-samples/`. El commit se separó en piezas más
-pequeñas y revisables (parser / renderer+capturas / docs+corpus) — ver
-`git log` para el detalle exacto en vez de duplicarlo aquí.
-
-**Lo verificado e implementado** (`client/src/net/openworlds/rwg/`,
-`docs/rwg-bod-format-reference.md`): contenedor de chunks
-`[tag ASCII][longitud big-endian=tamaño de payload][payload]` verificado
-byte-exacto contra los 2 archivos reales; estructura `CLUM`→`ATOM`→
-`MATX`(x2, identidad)+`VLST`(vértices)+`PLST`(polígonos); layout de
-vértice de 44 bytes/11 floats con posición (alta confianza) y UV
-(confianza media) identificados; un polígono real decodificado y
-**renderizado con éxito** (`RwgViewer.java`, captura de pantalla real
-verificada por píxeles) — en el proceso se descubrió que el orden de
-índices de un quad es de rejilla (TL,TR,BL,BR), no de lazo perimetral (un
-fan-triangulation ingenuo dio una forma cóncava incorrecta, corregido).
-
-**Lo que queda ⚠️ VERIFICAR / sin resolver**: la mayoría de campos del
-header de 52 bytes de `ATOM`; el propósito exacto de `RALT`/`TELT`/`MALT`
-(aunque se encontró que `TELT` contiene un sub-chunk `STNG` con el nombre
-del objeto como string); los campos 3-5 y 8-10 del vértice de 44 bytes;
-si la jerarquía de múltiples joints anida `ATOM` dentro de `ATOM` o los
-enumera como hermanos (sin evidencia real de ningún tipo); y el formato
-`.bod` completo (solo se confirmó un prefijo mágico constante de 6 bytes).
-
-**Siguiente paso lógico**: para desbloquear la jerarquía de joints y
-`.bod` de verdad haría falta desensamblar con Ghidra la función de
-`gamma.dll` que lee `.bod` (mismo nivel de esfuerzo que el mapeo de
-métodos `native` de sesiones anteriores) — no es "seguir leyendo bytes
-con más paciencia", el corpus real disponible se agotó. Alternativa más
-barata: seguir buscando si existe algún archivo `.rwg`/`.bod` real con
-más de un joint en otras copias del cliente o en la comunidad
-(LibreWorlds/kangworlds) antes de invertir en desensamblado.
+**Next logical step**: two reasonable paths, to be chosen with the
+user — (a) stay in phase 1 and tackle the binary RWG/BOD parser
+(articulated avatars, more complex, binary format with no known JS reference
+library — it would have to be documented from scratch or another
+reference found), or (b) deepen phase 2: real textures (load the
+project's `.cmp`/`.bmp`, not supported by `three-rwx-loader` either,
+so here the `.cmp` format would indeed need to be documented from scratch),
+basic diffuse/ambient/specular lighting already parsed and available in
+`RwxMaterial`, and replace the fixed-function pipeline with a modern one
+(shaders + VBOs) before it grows any more.
 
 ---
 
-### 🟡 Higiene de repo (2026-09-09, entre sesiones): commits separados + push
+### 🟡 Permanent scope rule set (2026-09-09): faithful replica, not improvement
 
-Antes de continuar con el motor, se limpió el estado del repo (pedido
-explícito del usuario, ver hallazgos completos en el bloque de "higiene
-de repo" más arriba de esta misma sección): `cachedir/{.LOG,.lst,
-cache.index}` dejados de trackear (ruido de bookkeeping de descargas, no
-geometría — los `.bod`/`.seq`/`.mov`/`.cmp` reales SÍ siguen
-versionados), `GammaDocs/` completo sacado del repo (127 archivos,
-5.8MB, la mayoría nunca citados — solo se necesitaban 4 archivos de
-corpus binario real, movidos a `assets/gammatutorial-samples/`, y el
-texto de `Gamma_Advanced.html` ya estaba parafraseado con atribución en
-`docs/`), y el commit original de la sesión RWG se separó en 3 piezas
-revisables (parser / renderer+capturas / docs+corpus). Con `origin/main`
-14 commits por detrás, se hizo push de todo (autenticación SSH
-configurada por el usuario a mitad de sesión).
+The user explicitly set, "from now on and forever in
+this project" (see section 1): the goal is the ORIGINAL game
+decompiled and ported — a faithful replica, nothing new, nothing improved.
+RWG/BOD (avatars) ARE in scope (they were part of the original client).
+Textures and lighting must look EXACTLY like the original RenderWare 2
+(simple, no modern filtering) — never modern shaders, PBR, or
+any graphics improvement whatsoever. **Permanent hard rule**: if at any
+point there is doubt between "necessary fidelity" and "out-of-scope
+improvement", STOP and ask the user — never decide unilaterally
+in favor of "prettier".
 
-### 🟡 Motor de renderizado — texturas investigadas, iluminación y
-### materiales implementados y verificados, escena multi-objeto (2026-09-09)
+### 🟡 RWG parser (avatars) — investigation from real bytes + partial implementation (2026-09-09)
 
-Regla de alcance reafirmada al empezar esta sesión, permanente para el
-resto del proyecto: réplica fiel del pipeline fijo de RenderWare 2 — sin
-shaders modernos, sin PBR, sin mejoras gráficas de ningún tipo. Todo lo
-de abajo usa `glLight`/`glMaterial`/`glBegin`-`glEnd` (pipeline de
-función fija real, no una reinterpretación moderna).
+**Real corpus used (not invented)**: at the start there were only 2 real
+`.rwg` files (`assets/FIRST/{AVATAR,IDLE}.RWG`, both degenerate —
+AVATAR.RWG is an empty placeholder box with `Float.MAX_VALUE` sentinels,
+IDLE.RWG a single flat quad); midway through the session 3 more appeared inside
+`GammaDocs.zip` (contributed by the user, folder `GammaTutorial/tex/`
+— moved to `assets/gammatutorial-samples/` because they are real-format binary
+data, not documentation, so they are versioned unlike
+the rest of GammaDocs): `cube.rwg` — a real 6-face cube,
+`ball.rwg` — a 512-triangle ball, and `table.rwg` — a table of
+546 mixed polygons. **All 5 real `.rwg` files
+have exactly one single joint/`ATOM` each** (verified
+programmatically) — none is a real articulated avatar, they are
+single-clump props/placeholders. The real bone hierarchy of an
+articulated avatar (pelvis→torso→neck→head...) **still cannot be
+verified with real evidence** — an honest limit of the available corpus,
+explicitly documented instead of invented. In addition there are 26 real `.bod`
+files in `assets/WorldsPlayer/cachedir/` (real avatars downloaded
+over the network in a previous session, confirmed via `PendingDrone.java`) but
+they use a totally different binary encoding (no ASCII tags) that
+**could not be deciphered** this session.
 
-**1. Texturas `.cmp`/`.mov` ("ScapePic") — investigadas a fondo,
-NO resueltas del todo, documentado el límite real**
-(`docs/cmp-texture-format-reference.md`). Desensamblado real con Ghidra
-(mismo binario `gamma.dll` de sesiones anteriores) hasta identificar que
-el núcleo de compresión (función interna llamada literalmente
-`huffdcod`) es estructuralmente idéntico, variable por variable, al
-algoritmo público y bien documentado `make_table()` de la familia LHA/LZH
-de Okumura/Yoshizaki — pero el bucle real que consume el bitstream
-comprimido (la pieza que convertiría las tablas Huffman ya construidas
-en píxeles reales) no se llegó a ubicar. Corroborado con investigación
-externa: `github.com/vanjac/zoomscape-info` documenta el mismo header
-`LzH2` y también lo marca como "unknown compression scheme" — nadie más
-lo ha resuelto públicamente tampoco. Decisión de alcance: no forzar el
-resto del desensamblado (esfuerzo del mismo orden que `.bod`) a costa del
-resto de la sesión; el pipeline de materiales usa el color/opacidad de
-material YA verificado, sin renderizar ninguna textura ni inventar
-píxeles.
+With the 3 new files, the initial hypothesis for `PLST` (based on a
+single polygon of IDLE.RWG) **broke and was corrected with real
+evidence**: `cube.rwg` revealed that each polygon carries a face normal
+`(nx,ny,nz)` (the 6 axes ±X/±Y/±Z appear exactly once on the 6
+faces of the cube — impossible for it to be chance) and that the vertex
+fields previously marked "undetermined" are actually the per-vertex
+normal. The cube and the ball rendered successfully and look
+correct to the naked eye (`docs/renders/{cube,ball}_rwg_3d.png`);
+`table.rwg` was left unresolved because it mixes triangles and quadrilaterals
+in the same `PLST`, breaking the assumption of uniform record size
+— documented as a known limit, not forced.
 
-**2. Iluminación — modelo real encontrado en Java puro, sin necesitar
-Ghidra**: `NET.worlds.scape.Room.java` tiene los valores por defecto
-reales (`lightPosition = (-1,1,-1)`, `lightColor = blanco`) y
-`RoomEnvironment.addLight()` confirma **exactamente 2 luces por sala**
-— una "clave" y una "de relleno" en la dirección opuesta a mitad de
-intensidad. Implementado en `GlLighting.java`, verificado con captura +
-histograma de color: el color plano único de `BASKET.RWX` (sesión
-anterior) ahora muestra ≥6 tonos reales según la orientación de cada
-faceta (`docs/renders/basket_lit.png`).
+**External research**: confirmed that there is no library or
+public documentation describing this exact binary format —
+`aw-sequence-parser` (Active Worlds) is an unrelated format (animation `.seq`,
+different magic bytes), and the standard documented "RenderWare Binary Stream"
+(used by GTA) is little-endian with numeric IDs,
+structurally different from the big-endian ASCII tag scheme actually
+observed here. The most valuable source was `Gamma_Advanced.html`
+(official Worlds Inc. documentation contributed by the user this
+session as part of `GammaDocs.zip` — see section 3.4 for the public
+mirrors; the complete zip was NOT versioned in the repo, see the hygiene note
+further below), which confirms the list of joint tag names/numbers and
+the convention that joint matrices must always be identity —
+the latter matches EXACTLY what was observed in real bytes.
 
-**3. Pipeline de materiales — verificado con 2 archivos reales
-distintos**: opacidad conectada a alpha blending real; `MaterialModes
-Double` (hallazgo nuevo, uso real confirmado en
-`assets/GROUNDZERO/YARD_TABLE.RWX`) conectado a culling de doble cara —
-verificado visualmente: el envés de la mesa es visible desde abajo, algo
-imposible sin doble cara activa (`docs/renders/table_lit.png`).
+**Repo hygiene note (2026-09-09, post-session)**: the initial commit
+of this sub-session (`e591395`) had copied the complete `GammaDocs.zip`
+into the repo (127 files, 5.8MB) instead of keeping only what is cited
+above. Fixed: the complete HTML was taken out of the repo (it stays only local,
+not versioned — the facts cited here are already paraphrased with
+attribution, so the HTML is not needed to verify them; the public
+mirrors in section 3.4 are the reference if it ever needs to be consulted
+again), and the 4 real binary corpus files that were in fact needed
+(`cube.rwg`, `ball.rwg`, `table.rwg`, `table.rwx`) were moved to
+`assets/gammatutorial-samples/`. The commit was split into smaller,
+reviewable pieces (parser / renderer+screenshots / docs+corpus) — see
+`git log` for the exact detail instead of duplicating it here.
 
-**4. RWG con iluminación**: usa la normal real por vértice ya parseada
-del formato (no recalculada). Se encontró y corrigió un problema real de
-datos (`cube.rwg`: los 8 vértices "planos" sin UV tienen normal
-`(0,0,0)`, un valor de relleno que rompe `GL_NORMALIZE` — se añadió un
-fallback a la normal de cara calculada). Queda ⚠️ un artefacto sin
-resolver: 2 de las 6 caras del cubo muestran un patrón tipo z-fighting;
-se probó activar backface culling como diagnóstico y empeoró (huecos),
-confirmando que el sentido de bobinado no es consistente entre caras en
-los datos reales — documentado, no forzado (`docs/render-pipeline-reference.md`).
+**What was verified and implemented** (`client/src/net/openworlds/rwg/`,
+`docs/rwg-bod-format-reference.md`): chunk container
+`[ASCII tag][big-endian length=payload size][payload]` verified
+byte-exact against the 2 real files; structure `CLUM`→`ATOM`→
+`MATX`(x2, identity)+`VLST`(vertices)+`PLST`(polygons); 44-byte/11-float
+vertex layout with position (high confidence) and UV
+(medium confidence) identified; one real polygon decoded and
+**rendered successfully** (`RwgViewer.java`, real screenshot
+verified by pixels) — in the process it was discovered that the index
+order of a quad is grid order (TL,TR,BL,BR), not a perimeter loop (a
+naive fan-triangulation gave an incorrect concave shape, fixed).
 
-**5. Escena multi-objeto** (paso 4, "si el tiempo lo permite" — sí
-alcanzó): `RwxSceneViewer.java` carga y renderiza juntos 6 objetos reales
-de `assets/GROUNDZERO/` (cesta, lata, botella, pinzas, cactus, parrilla),
-en una rejilla dimensionada por sus propias cajas delimitadoras reales
-— verificado por captura, los 6 se ven correctamente iluminados,
-posicionados y sin solaparse (`docs/renders/scene_multi_object.png`).
+**What remains ⚠️ VERIFY / unresolved**: most fields of the
+52-byte `ATOM` header; the exact purpose of `RALT`/`TELT`/`MALT`
+(although `TELT` was found to contain a `STNG` sub-chunk with the
+object's name as a string); fields 3-5 and 8-10 of the 44-byte vertex;
+whether the multi-joint hierarchy nests `ATOM` inside `ATOM` or lists them
+as siblings (no real evidence of any kind); and the complete
+`.bod` format (only a constant 6-byte magic prefix was confirmed).
 
-**Commits de esta sesión**: `a3d801d` (investigación `.cmp`), `bcabf31`
-(iluminación + materiales), `2aa35c0` (escena multi-objeto), más 4
-commits de higiene de repo antes de empezar (`f66f9dc`, `de059b0`,
-`7066c30`, `b3c4608`). Todo empujado a `origin/main`.
-
-**Siguiente paso lógico**: dos caminos razonables — (a) retomar RWG/BOD
-multi-joint o el resto del descompresor `.cmp` (ambos necesitan
-desensamblado dedicado con Ghidra, mismo orden de esfuerzo), o (b)
-seguir profundizando el motor: sustituir el pipeline de función fija por
-VBOs/shaders **que repliquen exactamente** el mismo resultado visual (una
-optimización de rendimiento, no una mejora gráfica — dentro de alcance
-si se hace con cuidado), resolver el artefacto de winding de RWG, o
-intentar cargar una escena desde un `.world` real en vez de archivos
-`.rwx` sueltos.
-
----
-
-### 🟡 `.cmp`/`.mov` — bucle de descompresión localizado con precisión,
-### aún sin claridad suficiente para implementar (2026-09-09, sesión 2)
-
-Retomada exactamente donde quedó la sesión anterior (regla de alcance
-reafirmada: los píxeles descomprimidos deben verse EXACTAMENTE como el
-original, sin filtrado/upscaling — no aplica todavía porque no hay
-píxeles reales que mostrar, ver abajo). Se volvió a `gamma.dll` con
-Ghidra y se llegó mucho más lejos que la sesión anterior:
-
-- **Función exacta localizada**: `FUN_00442bc0` (= `getScanline(fila,
-  bufferDestino, stride)`) llama a `FUN_00426af0` (decodificador Huffman
-  a nivel de bit, patrón clásico `decode_c()` de LHA) y luego a
-  `FUN_00457d88` — esta última SÍ es la función que reconstruye píxeles
-  de verdad, la pieza que faltaba la sesión anterior.
-- **Formato de píxel confirmado con evidencia real**: 8 bits por píxel,
-  paleta indexada, filas alineadas a 4 bytes, escritura con stride
-  negativo (bottom-up, típico de un `HBITMAP`/DIB de Windows — coincide
-  con el uso real de `CreateCompatibleDC`/`HBITMAP` ya visto en sesiones
-  anteriores).
-- **Tabla de predictores 2D extraída directamente del binario**
-  (`docs/gamma-dll-cmp-evidence/predictor-offset-tables.txt`, ~50 pares
-  reales `(desplazamiento_fila, desplazamiento_columna)`): revela que el
-  algoritmo es un **predictor causal 2D** (cada símbolo Huffman
-  selecciona un vecino ya decodificado y copia su valor — más parecido a
-  los filtros de PNG/JPEG-LS) y NO LZSS de ventana genérica como se había
-  supuesto la sesión anterior — corrección real basada en evidencia, no
-  solo una hipótesis inicial confirmada.
-- **Los 256 punteros de función indirectos que parecían sugerir 256
-  rutinas complejas distintas resultaron ser triviales** una vez
-  desensamblados: cada uno solo reordena/replica un byte en distintas
-  posiciones de registro — el truco manual de los 90 para rellenar
-  tramos de píxeles repetidos 4 bytes a la vez. Sin complejidad
-  algorítmica real ahí.
-
-**No se implementó el decoder**: la aritmética de acarreo exacta
-(`CARRY4`) y el propósito de la escritura simultánea de dos filas dentro
-de `FUN_00457d88` no se terminaron de entender con la claridad necesaria
-para traducir bit a bit con confianza. Siguiendo la instrucción explícita
-del usuario de no forzar una implementación a medias ni arriesgar píxeles
-inventados con apariencia plausible pero incorrecta, se paró aquí y se
-documentó todo con evidencia real (`docs/cmp-texture-format-reference.md`,
-sección "Sesión 2"). Los pasos 3-5 del plan de esta sesión (implementar,
-verificar contra un `.cmp` real, conectar con el pipeline de materiales)
-no se alcanzaron como consecuencia directa de esta decisión honesta, no
-por falta de esfuerzo — se hicieron 3 rondas de desensamblado con Ghidra
-esta sesión (bucle final, tabla de predictores, tabla de 256 punteros).
-
-**Siguiente paso lógico**: trazar la ejecución de `FUN_00457d88` paso a
-paso con un depurador contra `gamma.dll` corriendo bajo Wine (en vez de
-solo leer pseudocódigo estático de Ghidra) para resolver la ambigüedad
-de bits/doble fila; una vez claro, la implementación en Java del
-predictor causal 2D ya identificado debería ser relativamente directa.
+**Next logical step**: to really unlock the joint hierarchy and
+`.bod`, the `gamma.dll` function that reads `.bod` would have to be
+disassembled with Ghidra (same level of effort as the mapping of `native`
+methods in previous sessions) — it is not "keep reading bytes
+with more patience", the available real corpus has run out. Cheaper
+alternative: keep searching for any real `.rwg`/`.bod` file with
+more than one joint in other copies of the client or in the community
+(LibreWorlds/kangworlds) before investing in disassembly.
 
 ---
 
-### 🟢 `.world` — parser completo, conectado al motor, escena real
-### renderizada (2026-09-09)
+### 🟡 Repo hygiene (2026-09-09, between sessions): separate commits + push
 
-Sesión con el mismo espíritu que RWX/RWG: buscar el archivo real primero
-(confirmado: `GroundZero.world`, 205.759 bytes, 3 copias idénticas,
-mundo por defecto según `worlds.ini`), investigar el formato con la
-mejor evidencia disponible, implementar, y verificar con datos reales —
-en este caso con una ventaja enorme sobre RWX/RWG/`.cmp`: **el propio
-mecanismo de serialización SÍ está completo en el Java decompilado**, no
-hace falta tocar nada nativo.
+Before continuing with the engine, the repo state was cleaned up (explicit
+request from the user, see full findings in the "repo hygiene" block
+earlier in this same section): `cachedir/{.LOG,.lst,
+cache.index}` untracked (download bookkeeping noise, not
+geometry — the real `.bod`/`.seq`/`.mov`/`.cmp` files ARE still
+versioned), the complete `GammaDocs/` removed from the repo (127 files,
+5.8MB, most never cited — only 4 real binary corpus files were
+needed, moved to `assets/gammatutorial-samples/`, and the
+text of `Gamma_Advanced.html` was already paraphrased with attribution in
+`docs/`), and the original commit of the RWG session was split into 3
+reviewable pieces (parser / renderer+screenshots / docs+corpus). With `origin/main`
+14 commits behind, everything was pushed (SSH authentication
+set up by the user midway through the session).
 
-- **Formato investigado y documentado** (`docs/world-format-reference.md`):
-  no es un binario ad-hoc, es el protocolo genérico "Persister" del
-  cliente (`Saver`/`Restorer`), verificado byte a byte contra la
-  cabecera real (`"PERSISTER Worlds, Inc."` + versión 7) y contra ~30
-  clases reales del código fuente (`SuperRoot`, `Transform`, `WObject`,
+### 🟡 Rendering engine — textures investigated, lighting and
+### materials implemented and verified, multi-object scene (2026-09-09)
+
+Scope rule reaffirmed at the start of this session, permanent for the
+rest of the project: faithful replica of RenderWare 2's fixed pipeline — no
+modern shaders, no PBR, no graphics improvements of any kind. Everything
+below uses `glLight`/`glMaterial`/`glBegin`-`glEnd` (real fixed-function
+pipeline, not a modern reinterpretation).
+
+**1. `.cmp`/`.mov` textures ("ScapePic") — investigated in depth,
+NOT fully resolved, the real limit documented**
+(`docs/cmp-texture-format-reference.md`). Real disassembly with Ghidra
+(same `gamma.dll` binary as in previous sessions) until identifying that
+the compression core (an internal function literally called
+`huffdcod`) is structurally identical, variable by variable, to the
+public, well-documented `make_table()` algorithm of the LHA/LZH family
+by Okumura/Yoshizaki — but the real loop that consumes the compressed
+bitstream (the piece that would turn the already-built Huffman tables
+into real pixels) was never located. Corroborated with external
+research: `github.com/vanjac/zoomscape-info` documents the same
+`LzH2` header and also marks it as "unknown compression scheme" — nobody else
+has solved it publicly either. Scope decision: do not force the
+rest of the disassembly (effort of the same order as `.bod`) at the expense of
+the rest of the session; the materials pipeline uses the material
+color/opacity ALREADY verified, without rendering any texture or inventing
+pixels.
+
+**2. Lighting — real model found in pure Java, without needing
+Ghidra**: `NET.worlds.scape.Room.java` has the real default values
+(`lightPosition = (-1,1,-1)`, `lightColor = white`) and
+`RoomEnvironment.addLight()` confirms **exactly 2 lights per room**
+— a "key" and a "fill" in the opposite direction at half
+intensity. Implemented in `GlLighting.java`, verified with a capture +
+color histogram: the single flat color of `BASKET.RWX` (previous
+session) now shows ≥6 real tones depending on the orientation of each
+facet (`docs/renders/basket_lit.png`).
+
+**3. Materials pipeline — verified with 2 different real
+files**: opacity wired to real alpha blending; `MaterialModes
+Double` (new finding, real usage confirmed in
+`assets/GROUNDZERO/YARD_TABLE.RWX`) wired to double-sided culling —
+verified visually: the underside of the table is visible from below, something
+impossible without double-sided active (`docs/renders/table_lit.png`).
+
+**4. RWG with lighting**: uses the real per-vertex normal already parsed
+from the format (not recalculated). A real data problem was found and fixed
+(`cube.rwg`: the 8 "flat" vertices without UV have normal
+`(0,0,0)`, a filler value that breaks `GL_NORMALIZE` — a
+fallback to the computed face normal was added). ⚠️ One unresolved artifact
+remains: 2 of the 6 faces of the cube show a z-fighting-like pattern;
+enabling backface culling was tried as a diagnostic and made it worse (holes),
+confirming that the winding direction is not consistent between faces in
+the real data — documented, not forced (`docs/render-pipeline-reference.md`).
+
+**5. Multi-object scene** (step 4, "if time allows" — it did
+make it): `RwxSceneViewer.java` loads and renders together 6 real objects
+from `assets/GROUNDZERO/` (basket, can, bottle, tongs, cactus, grill),
+in a grid sized by their own real bounding boxes
+— verified by capture, all 6 look properly lit,
+positioned and non-overlapping (`docs/renders/scene_multi_object.png`).
+
+**Commits of this session**: `a3d801d` (`.cmp` investigation), `bcabf31`
+(lighting + materials), `2aa35c0` (multi-object scene), plus 4
+repo hygiene commits before starting (`f66f9dc`, `de059b0`,
+`7066c30`, `b3c4608`). Everything pushed to `origin/main`.
+
+**Next logical step**: two reasonable paths — (a) resume multi-joint RWG/BOD
+or the rest of the `.cmp` decompressor (both need
+dedicated disassembly with Ghidra, same order of effort), or (b)
+keep deepening the engine: replace the fixed-function pipeline with
+VBOs/shaders **that replicate exactly** the same visual result (a
+performance optimization, not a graphics improvement — within scope
+if done carefully), resolve the RWG winding artifact, or
+try to load a scene from a real `.world` instead of loose
+`.rwx` files.
+
+---
+
+### 🟡 `.cmp`/`.mov` — decompression loop located precisely,
+### still without enough clarity to implement (2026-09-09, session 2)
+
+Picked up exactly where the previous session left off (scope rule
+reaffirmed: the decompressed pixels must look EXACTLY like the
+original, with no filtering/upscaling — does not apply yet because there are no
+real pixels to show, see below). Returned to `gamma.dll` with
+Ghidra and got much further than the previous session:
+
+- **Exact function located**: `FUN_00442bc0` (= `getScanline(row,
+  destBuffer, stride)`) calls `FUN_00426af0` (bit-level Huffman
+  decoder, classic LHA `decode_c()` pattern) and then
+  `FUN_00457d88` — the latter IS the function that really reconstructs pixels,
+  the piece that was missing in the previous session.
+- **Pixel format confirmed with real evidence**: 8 bits per pixel,
+  indexed palette, rows aligned to 4 bytes, written with a negative stride
+  (bottom-up, typical of a Windows `HBITMAP`/DIB — matches
+  the real use of `CreateCompatibleDC`/`HBITMAP` already seen in previous
+  sessions).
+- **2D predictor table extracted directly from the binary**
+  (`docs/gamma-dll-cmp-evidence/predictor-offset-tables.txt`, ~50 real
+  pairs `(row_offset, column_offset)`): reveals that the
+  algorithm is a **2D causal predictor** (each Huffman symbol
+  selects an already-decoded neighbor and copies its value — closer to
+  the PNG/JPEG-LS filters) and NOT generic sliding-window LZSS as had been
+  assumed in the previous session — a real correction based on evidence, not
+  merely an initial hypothesis confirmed.
+- **The 256 indirect function pointers that seemed to suggest 256
+  different complex routines turned out to be trivial** once
+  disassembled: each one only reorders/replicates a byte in different
+  register positions — the manual 90s trick for filling
+  runs of repeated pixels 4 bytes at a time. No real
+  algorithmic complexity there.
+
+**The decoder was not implemented**: the exact carry arithmetic
+(`CARRY4`) and the purpose of the simultaneous two-row write inside
+`FUN_00457d88` were not understood with the clarity needed
+to translate bit by bit with confidence. Following the user's explicit
+instruction not to force a half-baked implementation or risk
+invented pixels with a plausible but incorrect appearance, I stopped here and
+documented everything with real evidence (`docs/cmp-texture-format-reference.md`,
+section "Session 2"). Steps 3-5 of this session's plan (implement,
+verify against a real `.cmp`, connect to the materials pipeline)
+were not reached as a direct consequence of this honest decision, not
+for lack of effort — 3 rounds of disassembly with Ghidra were done
+this session (final loop, predictor table, table of 256 pointers).
+
+**Next logical step**: trace the execution of `FUN_00457d88` step by
+step with a debugger against `gamma.dll` running under Wine (instead of
+only reading static Ghidra pseudocode) to resolve the bit/double-row
+ambiguity; once clear, the Java implementation of the
+already-identified 2D causal predictor should be relatively straightforward.
+
+---
+
+### 🟢 `.world` — complete parser, connected to the engine, real scene
+### rendered (2026-09-09)
+
+Session in the same spirit as RWX/RWG: find the real file first
+(confirmed: `GroundZero.world`, 205,759 bytes, 3 identical copies,
+default world according to `worlds.ini`), investigate the format with the
+best available evidence, implement, and verify with real data —
+in this case with an enormous advantage over RWX/RWG/`.cmp`: **the
+serialization mechanism itself IS complete in the decompiled Java**, there is
+no need to touch anything native.
+
+- **Format investigated and documented** (`docs/world-format-reference.md`):
+  it is not an ad-hoc binary, it is the client's generic "Persister"
+  protocol (`Saver`/`Restorer`), verified byte by byte against the real
+  header (`"PERSISTER Worlds, Inc."` + version 7) and against ~30
+  real classes of the source code (`SuperRoot`, `Transform`, `WObject`,
   `Shape`, `Room`, `RoomEnvironment`, `Rect`, `Portal`, `Material`,
-  `Point3`, más las familias `Action`/`Sensor`). Posición/rotación/escala
-  de cada objeto se guardan como una matriz 4×4 completa de 16 floats
-  (el "guts" nativo de RenderWare), reutilizando directamente la
-  infraestructura de matrices ya existente de RWX.
-- **Parser implementado y verificado end-to-end**
-  (`client/src/net/openworlds/world/WorldRestorer.java`): parsea el
-  archivo real completo, sin errores, hasta el marcador real
-  `END PERSISTER` — 25 salas, 578 nodos, 103 objetos con geometría real
-  (50 archivos `.rwx`/`.rwg` únicos, todos verificados contra archivos
-  reales en disco). Se encontraron y corrigieron 4 bugs reales durante
-  la implementación (documentados con evidencia byte a byte en el doc):
-  la distinción entre `Material.restore()` (con booleano previo) y un
-  `var1.restore()` directo (sin él) mal aplicada en 3 sitios distintos;
-  `WObject` apareciendo como clase concreta instanciable, no solo como
-  superclase; y la cadena de herencia de `SendURLAction`/`DialogAction`
-  invertida.
-- **Conectado al motor de renderizado**
-  (`client/src/net/openworlds/render/WorldViewer.java`): carga una sala
-  real, resuelve las URLs de geometría contra archivos reales en disco,
-  y dibuja el árbol completo con el pipeline de iluminación/materiales
-  ya existente. **Hallazgo real crítico**: la matriz de 16 floats leída
-  del archivo no es una matriz afín válida tal cual — su float número 16
-  (que debería ser 1.0 siempre) vale literalmente 0.0 en todos los
-  objetos reales inspeccionados, colapsando la coordenada homogénea y
-  dejando la pantalla completamente negra pese a que la geometría se
-  enviaba a OpenGL sin errores. Diagnosticado por eliminación metódica
-  (se descartaron iluminación, culling y precisión de profundidad antes
-  de encontrar la causa real proyectando un vértice a mano en Python) y
-  corregido forzando ese valor a 1.0.
-- **Verificado con evidencia visual real**: `Reception` muestra un
-  hexágono limpio y reconocible (el panel de techo real
-  `hubceil1c.rwx`) más los bordes delgados de `frame.rwx` (ya verificado
-  por separado que es geometría genuinamente delgada, no un error);
-  `IconViewRoom1` muestra una fila de postes decorativos correctamente
-  espaciados, sin superposiciones absurdas — capturas en
+  `Point3`, plus the `Action`/`Sensor` families). Position/rotation/scale
+  of each object are stored as a full 4×4 matrix of 16 floats
+  (RenderWare's native "guts"), directly reusing the already existing
+  RWX matrix infrastructure.
+- **Parser implemented and verified end-to-end**
+  (`client/src/net/openworlds/world/WorldRestorer.java`): parses the
+  complete real file, with no errors, up to the real marker
+  `END PERSISTER` — 25 rooms, 578 nodes, 103 objects with real geometry
+  (50 unique `.rwx`/`.rwg` files, all verified against real files
+  on disk). 4 real bugs were found and fixed during
+  the implementation (documented with byte-by-byte evidence in the doc):
+  the distinction between `Material.restore()` (with a preceding boolean) and a
+  direct `var1.restore()` (without it) misapplied in 3 different places;
+  `WObject` appearing as an instantiable concrete class, not just as a
+  superclass; and the inheritance chain of `SendURLAction`/`DialogAction`
+  inverted.
+- **Connected to the rendering engine**
+  (`client/src/net/openworlds/render/WorldViewer.java`): loads a real
+  room, resolves the geometry URLs against real files on disk,
+  and draws the complete tree with the already existing lighting/materials
+  pipeline. **Critical real finding**: the 16-float matrix read
+  from the file is not a valid affine matrix as is — its float number 16
+  (which should always be 1.0) is literally 0.0 in all the
+  real objects inspected, collapsing the homogeneous coordinate and
+  leaving the screen completely black even though the geometry was
+  being sent to OpenGL without errors. Diagnosed by methodical elimination
+  (lighting, culling and depth precision were ruled out before
+  finding the real cause by projecting a vertex by hand in Python) and
+  fixed by forcing that value to 1.0.
+- **Verified with real visual evidence**: `Reception` shows a clean,
+  recognizable hexagon (the real ceiling panel
+  `hubceil1c.rwx`) plus the thin edges of `frame.rwx` (already verified
+  separately to be genuinely thin geometry, not an error);
+  `IconViewRoom1` shows a row of decorative posts correctly
+  spaced, with no absurd overlaps — captures in
   `docs/renders/world_*.png`.
-- **Rendimiento**: 7148 triángulos / 56 objetos en modo inmediato
-  (`glBegin`/`glVertex`, sin VBOs) renderizan en una fracción trivial de
-  los ~4 segundos totales de ejecución (dominados por arranque de
-  JVM/GLFW/X11 y carga de 28 archivos RWX, no por el dibujo en sí) — no
-  hace falta optimizar a esta escala.
+- **Performance**: 7148 triangles / 56 objects in immediate mode
+  (`glBegin`/`glVertex`, no VBOs) render in a trivial fraction of
+  the ~4 seconds total execution time (dominated by JVM/GLFW/X11 startup
+  and loading 28 RWX files, not by the drawing itself) — there is no need
+  to optimize at this scale.
 
-### ✅ Sesión 2 (2026-09-09): el bug del bloque 3×3 resuelto — no era la
-### convención, eran bytes de relleno sin inicializar
+### ✅ Session 2 (2026-09-09): the 3×3 block bug solved — it was not the
+### convention, it was uninitialized padding bytes
 
-La sala compleja (`ReceptionView1`) que quedó rota al final de la
-sesión anterior se investigó volviendo al código Java real (no
-adivinando convenciones matemáticas). Dos hallazgos en
-`Transform.java` que antes no se habían mirado:
-`Transform.printGuts()` (un método de depuración real, no nativo)
-confirma almacenamiento **row-major** (`índice = fila×4+columna`);
-`Transform.worldVecToObjectVec()` usa `punto.vectorTimes(matriz)` —
-confirma que el vector se multiplica a la izquierda (`v' = v·M`, no
-`v' = M·v`). Con esa evidencia, la deducción matemática muestra que
-**no hace falta transponer nada** para pasar los 16 floats crudos a
-`glMultMatrixf` — lo cual explica por qué transponer (sesión anterior)
-empeoró las cosas: aplicaba la convención equivocada.
+The complex room (`ReceptionView1`) that was left broken at the end of the
+previous session was investigated by going back to the real Java code (not
+guessing mathematical conventions). Two findings in
+`Transform.java` that had not been looked at before:
+`Transform.printGuts()` (a real debugging method, non-native)
+confirms **row-major** storage (`index = row×4+column`);
+`Transform.worldVecToObjectVec()` uses `point.vectorTimes(matrix)` —
+confirms that the vector is multiplied on the left (`v' = v·M`, not
+`v' = M·v`). With that evidence, the mathematical deduction shows that
+**nothing needs to be transposed** to pass the 16 raw floats to
+`glMultMatrixf` — which explains why transposing (previous session)
+made things worse: it applied the wrong convention.
 
-La causa real de `ReceptionView1` resultó ser otra: los índices 3, 7 y
-11 de la matriz (que en cualquier matriz afín válida deben ser
-siempre `0.0`) contenían basura numérica consistente por objeto (no
-ruido aleatorio — un objeto compartido entre `Reception` y
-`ReceptionView1` mostraba exactamente los mismos valores basura en
-ambas salas). Un escaneo automático confirmó por qué unas salas se
-veían bien y otra no: `IconViewRoom1` tenía 0 objetos afectados,
-`Reception` 1 (pequeño, casi invisible), `ReceptionView1` más de 15.
-Interpretación más plausible: el "guts" nativo de RenderWare es en
-realidad una matriz afín compacta de 4×3, ampliada a 16 floats para el
-formato de guardado Java, con la columna de relleno serializada
-directamente desde memoria nativa sin inicializar — el renderizador
-real nunca la leía. Arreglo: forzar también esos 3 índices a `0.0`
-(sumado al índice 15→`1.0` ya corregido antes).
+The real cause of `ReceptionView1` turned out to be something else: indices 3, 7 and
+11 of the matrix (which in any valid affine matrix must
+always be `0.0`) contained numeric garbage consistent per object (not
+random noise — an object shared between `Reception` and
+`ReceptionView1` showed exactly the same garbage values in
+both rooms). An automatic scan confirmed why some rooms
+looked fine and another did not: `IconViewRoom1` had 0 affected objects,
+`Reception` 1 (small, almost invisible), `ReceptionView1` more than 15.
+Most plausible interpretation: RenderWare's native "guts" is actually
+a compact 4×3 affine matrix, extended to 16 floats for the
+Java save format, with the padding column serialized
+directly from uninitialized native memory — the real renderer
+never read it. Fix: also force those 3 indices to `0.0`
+(in addition to index 15→`1.0` already fixed earlier).
 
-**Verificado antes/después en las 3 salas** (`docs/renders/world_*_fixed.png`):
-`IconViewRoom1` queda idéntico (el arreglo es quirúrgico); `Reception`
-gana un objeto pequeño correctamente posicionado que antes tenía datos
-basura; `ReceptionView1` pasa de triángulos gigantes degenerados a
-objetos reales reconocibles — y verificado con datos, no solo
-visualmente: las posiciones mundiales de los 56 objetos tienen sentido
-geográfico real (mobiliario de picnic agrupado, cactus/rocas dispersos,
-un camino, paredes de un edificio) en una zona exterior genuinamente
-extensa, no un artefacto.
+**Verified before/after in the 3 rooms** (`docs/renders/world_*_fixed.png`):
+`IconViewRoom1` stays identical (the fix is surgical); `Reception`
+gains a small, correctly positioned object that previously had garbage
+data; `ReceptionView1` goes from degenerate giant triangles to
+recognizable real objects — and verified with data, not just
+visually: the world positions of the 56 objects make real
+geographic sense (picnic furniture grouped together, cacti/rocks scattered,
+a path, walls of a building) in a genuinely
+extensive outdoor area, not an artifact.
 
-**Siguiente paso lógico**: retomar `.cmp`/RWG multi-joint, que siguen
-pendientes de sesiones anteriores; o seguir explorando más salas del
-`.world` real para ver si aparece algún otro caso no cubierto por estos
-dos arreglos de matriz.
-
----
-
-### 🟢 Avatares articulados: encontrado y verificado un rig real de 18
-### joints (RWX, no RWG) + arreglado `table.rwg` de paso (2026-09-09)
-
-Objetivo de la sesión: avanzar en avatares multi-joint reales. Primer
-paso obligatorio por instrucción explícita: buscar más corpus real de
-`.rwg`/`.bod` antes de seguir. **Búsqueda exhaustiva confirmada negativa**
-— siguen siendo los mismos 5 `.rwg` (todos con un único `ATOM`) y 26
-`.bod` sin descifrar de sesiones anteriores; no apareció nada nuevo en
-`assets/WorldsPlayer/`, cachedir, ni `GammaDocs/` en disco. Un subagente
-confirmó además que el cliente Java decompilado no expone ninguna
-estructura de huesos (`PosableShape.java` solo tiene tablas de permisos de
-apariencia/ropa, no esqueleto — lo articulado vive enteramente en
-`gamma.dll` nativo).
-
-**Pivote productivo, no el fallback previsto**: releer
-`assets/WorldsPlayer/cachedir/45.dat` (el registro de animaciones real,
-encontrado en una sesión muy anterior) recordó que los avatares de red
-reales declaran `geometry=<nombre>.rwx` — el formato FUENTE de un avatar
-es RWX texto (via la herramienta oficial `rwxtobod`), no `.rwg`. Buscando
-nombres de joints de la convención oficial de GammaDocs
-(`pelvis`/`lfshoulder`/`rthip`/`lfelbow`...) en los 119 `.rwx` reales del
-proyecto apareció **`assets/GROUNDZERO/SPIN.RWX`** — ya presente en el
-proyecto, usado en una sesión anterior como prop decorativo sin saber que
-era un rig articulado real. Es un **rig de 18 clumps nombrados con
-jerarquía real de padre/hijo**, verificado con evidencia byte a byte
-(números de línea de `ClumpBegin`/`ClumpEnd`/comentarios `# nombre`) y con
-los 18 nombres coincidiendo exactamente con la tabla oficial de GammaDocs.
-Detalle real interesante, no "corregido": `rtfingers` anida como hijo de
-`lffingers` en los bytes reales (anatómicamente raro, pero es lo que dice
-el archivo). Ver `docs/rwx-avatar-hierarchy-reference.md` para el árbol
-completo y toda la evidencia.
-
-Se implementó `RwxSkeletonParser`/`RwxJoint` (nuevos, **sin tocar**
-`RwxParser.java` — el parser aplanado 118/118 verificado queda intacto) —
-reutilizan exactamente las mismas reglas de transform/clump ya verificadas,
-pero preservan el árbol en vez de aplanarlo. Verificación en tres capas:
-(1) estructura — reproduce exacto el árbol de 18 nodos reconstruido a
-mano; (2) geometría — comparado contra los 119 `.rwx` reales del
-proyecto, el conjunto de puntos en espacio mundo que produce recorrer el
-árbol (`padre.world × joint.localTransform`) es **idéntico** al que
-produce el parser aplanado ya verificado, en los 119/119 archivos, no solo
-`SPIN.RWX`; (3) visual — `SPIN.RWX` renderizado con `RwxViewer` da una
-figura coherente (piernas, cadera, torso, cabeza reconocibles, sin
-basura geométrica) — `docs/renders/rwx_spin_avatar.png`.
-
-**Límite honesto**: esto es geometría fuente en bind pose, no el `.bod`
-comprimido real que el cliente descarga/anima por red (seguiría haciendo
-falta Ghidra sobre `gamma.dll`, como con `.cmp`) y no hay animación
-reconstruida — ningún sistema de huesos/animación inventado, por la regla
-de alcance de esta sesión.
-
-**De paso, revisando `table.rwg` con la experiencia acumulada** (tarea
-explícita de la sesión): el bug quedó resuelto. La asunción vieja
-("tamaño de registro uniforme, derivado dividiendo el payload total entre
-el número de polígonos") nunca hacía falta — cada registro de `PLST` ya
-declara su propio `vertexCount`, que se lee directamente. Lo único que
-había que resolver era cuántos ints finales siguen a cada registro, que sí
-es constante pero POR ARCHIVO, no por registro — se resuelve probando
-candidatos pequeños hasta que la lectura secuencial (usando el
-`vertexCount` real de cada registro, sin asumir uniformidad) cierra exacto
-en el byte final. Con esto, `table.rwg` (546 polígonos, mezcla real
-verificada de triángulos y cuadriláteros) parsea limpio y renderiza una
-mesa coherente (`docs/renders/rwg_table_fixed.png`). Efecto colateral: se
-corrigió una afirmación previa del doc RWG — el primer campo de cada
-registro de `PLST`, documentado como "flag, siempre 1", en realidad NO es
-constante (en `ball.rwg`, 512 registros, cuenta 1..512) — ver
-`docs/rwg-bod-format-reference.md` para el detalle completo.
+**Next logical step**: resume `.cmp`/multi-joint RWG, which remain
+pending from previous sessions; or keep exploring more rooms of the
+real `.world` to see whether any other case not covered by these
+two matrix fixes shows up.
 
 ---
 
-### 🟡 `.cmp` — depuración dinámica real construida y verificada, pero
-### bloqueada por infraestructura antes de llegar al decoder de píxeles
+### 🟢 Articulated avatars: a real 18-joint rig found and verified
+### (RWX, not RWG) + `table.rwg` fixed in passing (2026-09-09)
+
+Session goal: advance on real multi-joint avatars. Mandatory first
+step per explicit instruction: look for more real `.rwg`/`.bod` corpus
+before going further. **Exhaustive search confirmed negative**
+— still the same 5 `.rwg` (all with a single `ATOM`) and 26
+undeciphered `.bod` from previous sessions; nothing new showed up in
+`assets/WorldsPlayer/`, cachedir, or `GammaDocs/` on disk. A subagent
+also confirmed that the decompiled Java client does not expose any
+bone structure (`PosableShape.java` only has appearance/clothing
+permission tables, no skeleton — the articulated part lives entirely in
+native `gamma.dll`).
+
+**Productive pivot, not the planned fallback**: rereading
+`assets/WorldsPlayer/cachedir/45.dat` (the real animation registry,
+found in a much earlier session) reminded me that real network avatars
+declare `geometry=<name>.rwx` — the SOURCE format of an avatar
+is text RWX (via the official `rwxtobod` tool), not `.rwg`. Searching for
+joint names from the official GammaDocs convention
+(`pelvis`/`lfshoulder`/`rthip`/`lfelbow`...) in the 119 real `.rwx` files of the
+project turned up **`assets/GROUNDZERO/SPIN.RWX`** — already present in the
+project, used in an earlier session as a decorative prop without knowing that
+it was a real articulated rig. It is a **rig of 18 named clumps with a
+real parent/child hierarchy**, verified with byte-by-byte evidence
+(line numbers of `ClumpBegin`/`ClumpEnd`/`# name` comments) and with
+the 18 names matching exactly the official GammaDocs table.
+Interesting real detail, not "corrected": `rtfingers` nests as a child
+of `lffingers` in the real bytes (anatomically odd, but it is what the file
+says). See `docs/rwx-avatar-hierarchy-reference.md` for the complete
+tree and all the evidence.
+
+`RwxSkeletonParser`/`RwxJoint` were implemented (new, **without touching**
+`RwxParser.java` — the flattened 118/118-verified parser stays intact) —
+they reuse exactly the same already-verified transform/clump rules,
+but preserve the tree instead of flattening it. Verification in three layers:
+(1) structure — it reproduces exactly the 18-node tree reconstructed by
+hand; (2) geometry — compared against the 119 real `.rwx` files of the
+project, the set of world-space points produced by walking the
+tree (`parent.world × joint.localTransform`) is **identical** to the one
+produced by the already-verified flattened parser, in 119/119 files, not just
+`SPIN.RWX`; (3) visual — `SPIN.RWX` rendered with `RwxViewer` gives a
+coherent figure (legs, hip, torso, head recognizable, no
+geometric garbage) — `docs/renders/rwx_spin_avatar.png`.
+
+**Honest limit**: this is source geometry in bind pose, not the real compressed
+`.bod` that the client downloads/animates over the network (Ghidra on
+`gamma.dll` would still be needed, as with `.cmp`) and there is no
+reconstructed animation — no invented bone/animation system, per the
+scope rule of this session.
+
+**In passing, revisiting `table.rwg` with the accumulated experience** (explicit
+task of the session): the bug was resolved. The old assumption
+("uniform record size, derived by dividing the total payload by
+the number of polygons") was never needed — each `PLST` record already
+declares its own `vertexCount`, which is read directly. The only thing
+that had to be resolved was how many trailing ints follow each record, which
+is constant but PER FILE, not per record — it is resolved by trying
+small candidates until the sequential read (using the
+real `vertexCount` of each record, without assuming uniformity) closes exactly
+on the final byte. With this, `table.rwg` (546 polygons, verified real mix
+of triangles and quadrilaterals) parses cleanly and renders a
+coherent table (`docs/renders/rwg_table_fixed.png`). Side effect: a
+previous claim in the RWG doc was corrected — the first field of each
+`PLST` record, documented as "flag, always 1", is actually NOT
+constant (in `ball.rwg`, 512 records, it counts 1..512) — see
+`docs/rwg-bod-format-reference.md` for the full detail.
+
+---
+
+### 🟡 `.cmp` — real dynamic debugging built and verified, but
+### blocked by infrastructure before reaching the pixel decoder
 ### (2026-09-10)
 
-Objetivo de la sesión: resolver la ambigüedad pendiente de `FUN_00457d88`
-(aritmética de acarreo + escritura de doble fila) mediante depuración
-dinámica real de `gamma.dll` bajo Wine — no más análisis estático.
+Session goal: resolve the pending ambiguity of `FUN_00457d88`
+(carry arithmetic + double-row write) through real dynamic
+debugging of `gamma.dll` under Wine — no more static analysis.
 
-**Logrado**: un entorno de depuración dinámica real y reutilizable —
-Wine 11.0 + `winedbg --gdb` (gdb real conectado vía proxy) + un arnés Java
-de sala limpia (`tools/gamma-dll-debug-harness/`) que invoca directamente
-los métodos `native` reales de `gamma.dll` bajo el propio JRE de época del
-proyecto (`java.exe` 1.4.2_05), sin necesitar el cliente completo ni red.
-Confirmado con ejecución en vivo (no solo estática): un breakpoint en
-`FUN_00442750` (validador de cabecera) se alcanza al llamar `loadImage()`
-con un `.cmp` real, y un volcado instrucción a instrucción con registros
-reales muestra la función abriendo y leyendo el archivo de verdad
-(`ReadFile` contra bytes reales). Corrección metodológica real: los
-nombres de símbolo que `gdb`/`winedbg` muestran para `gamma.dll` **no son
-fiables** (una dirección confirmada por Ghidra como `FUN_00442750`
-aparecía etiquetada como un export completamente distinto y no
-relacionado) — hay que verificar direcciones contra Ghidra directamente,
-nunca contra la etiqueta de `gdb`.
+**Achieved**: a real, reusable dynamic debugging environment —
+Wine 11.0 + `winedbg --gdb` (real gdb connected via proxy) + a clean-room
+Java harness (`tools/gamma-dll-debug-harness/`) that directly invokes
+the real `native` methods of `gamma.dll` under the project's own
+era-appropriate JRE (`java.exe` 1.4.2_05), without needing the full client or network.
+Confirmed with live execution (not just static): a breakpoint at
+`FUN_00442750` (header validator) is hit when calling `loadImage()`
+with a real `.cmp`, and an instruction-by-instruction dump with real
+registers shows the function really opening and reading the file
+(`ReadFile` against real bytes). Real methodological correction: the
+symbol names that `gdb`/`winedbg` show for `gamma.dll` are **not
+reliable** (an address confirmed by Ghidra as `FUN_00442750`
+appeared labeled as a completely different and unrelated
+export) — addresses must be verified against Ghidra directly,
+never against the `gdb` label.
 
-**Bloqueado, honestamente sin resolver**: cualquier camino de ejecución
-que pasa del parseo de cabecera hacia el decoder de píxeles real
-(`FUN_00442bc0`/`FUN_00457d88`) dispara la creación de un dispositivo
-DirectDraw/OpenGL y una ventana real, que en este entorno concreto (Wine
-bajo Xwayland en sandbox, sin aceleración gráfica) se cuelga
-indefinidamente (probado hasta 150s, con y sin depurador, con mitigaciones
-razonables como matar `wineserver` residual y modo de escritorio virtual
-de Wine — ninguna funcionó). Evidencia real de que es un problema de
-arranque de dispositivo/ventana de este entorno, no del algoritmo de
-`gamma.dll`: una interrupción asíncrona durante el cuelgue mostró un hilo
-esperando la sección crítica del cargador de Wine, bloqueada por otro
-hilo. No se implementó el decoder (habría significado inventar la parte
-no verificada) ni se conectó nada al pipeline de materiales — no hay
-decoder real que conectar todavía. Detalle completo, con el arnés
-reutilizable documentado para una futura sesión con mejor acceso a
-GPU/ventanas, en `docs/cmp-texture-format-reference.md` y
+**Blocked, honestly unresolved**: any execution path
+that goes from header parsing to the real pixel decoder
+(`FUN_00442bc0`/`FUN_00457d88`) triggers the creation of a DirectDraw/OpenGL
+device and a real window, which in this specific environment (Wine
+under Xwayland in a sandbox, with no graphics acceleration) hangs
+indefinitely (tested up to 150s, with and without a debugger, with reasonable
+mitigations such as killing the leftover `wineserver` and Wine's virtual
+desktop mode — none worked). Real evidence that it is a
+device/window startup problem of this environment, not of the algorithm of
+`gamma.dll`: an asynchronous interrupt during the hang showed a thread
+waiting on Wine's loader critical section, held by another
+thread. The decoder was not implemented (that would have meant inventing
+the unverified part) nor was anything connected to the materials pipeline — there is no
+real decoder to connect yet. Full detail, with the harness
+reusable and documented for a future session with better access to
+GPU/windows, in `docs/cmp-texture-format-reference.md` and
 `tools/gamma-dll-debug-harness/README.md`.
 
 ---
 
-### 🟢 `.cmp` — Xvfb desbloquea el cuelgue de ventana/dispositivo; las dos
-### ambigüedades de `FUN_00457d88` quedan resueltas con ejecución real
-### (2026-09-10, sesión de continuación)
+### 🟢 `.cmp` — Xvfb unblocks the window/device hang; the two
+### ambiguities of `FUN_00457d88` are resolved with real execution
+### (2026-09-10, continuation session)
 
-Objetivo: desbloquear el cuelgue de ventana/dispositivo de la sesión
-anterior usando Xvfb (igual que se hizo hace varias sesiones para el
-`HeadlessException` de Swing) y, si se lograba, retomar la depuración de
-`FUN_00457d88` con valores reales.
+Goal: unblock the window/device hang from the previous session
+using Xvfb (just as was done several sessions ago for Swing's
+`HeadlessException`) and, if that worked, resume debugging
+`FUN_00457d88` with real values.
 
-**Desbloqueo logrado con la primera opción probada**: `Xvfb :99
--screen 0 1024x768x24` + `DISPLAY=:99` para Wine — **sin ningún gestor de
-ventanas** (no hicieron falta ni estaban disponibles en el entorno). Con
-esto, `ScapePicImage.loadImage()` sobre un `.cmp` real "normal" (modo
-`0x02`, `ADWORLDS.CMP`) termina limpio y devuelve **una decodificación
-real y exitosa** (`width=128, height=128, hDIB` no nulo) — la primera de
-todas las sesiones de este proyecto. Los tres breakpoints ya localizados
-(`FUN_00442750` → `getScanline` → `FUN_00457d88`) se alcanzan los tres, en
-orden, dentro de esa única llamada — no hizo falta `makeTexture()`
-después de todo (ese arnés sigue fallando, pero por un problema de
-fidelidad del arnés minimalista — una aserción nativa durante
-`nativeInit()` — no relacionado con el cuelgue de ventana ya resuelto).
+**Unblocking achieved with the first option tried**: `Xvfb :99
+-screen 0 1024x768x24` + `DISPLAY=:99` for Wine — **without any window
+manager** (none was needed nor available in the environment). With
+this, `ScapePicImage.loadImage()` on a real "normal" `.cmp` (mode
+`0x02`, `ADWORLDS.CMP`) finishes cleanly and returns **a real,
+successful decode** (`width=128, height=128, hDIB` non-null) — the first
+in all the sessions of this project. The three already-located breakpoints
+(`FUN_00442750` → `getScanline` → `FUN_00457d88`) are all three hit, in
+order, within that single call — `makeTexture()` turned out not to be
+needed after all (that harness still fails, but because of a
+fidelity problem of the minimalist harness — a native assertion during
+`nativeInit()` — unrelated to the already-resolved window hang).
 
-**Las dos ambigüedades que motivaron dos sesiones de trabajo quedan
-resueltas con evidencia de ejecución real** (traza de 900 instrucciones,
-con `EFLAGS` y los 8 registros generales en cada paso):
+**The two ambiguities that motivated two sessions of work are
+resolved with real execution evidence** (900-instruction trace,
+with `EFLAGS` and the 8 general registers at every step):
 
-- **"Aritmética de acarreo"**: cero instrucciones `ADC`/`SBB` reales en
-  toda la traza. Es el lector de bits MSB-primero clásico de
-  Huffman/LHA (`add reg,reg` + `jb` sobre el flag de acarreo), con un
-  `rol $0x10` previo para corregir el orden de bytes de una palabra
-  leída en little-endian — nada de aritmética multi-palabra.
-- **"Escritura de doble fila"**: confirmado con las direcciones exactas
-  de ambos caminos de símbolo (relleno y copia por predictor) — cada
-  símbolo escribe el mismo bloque de 4 bytes en la fila actual (`edi`) Y
-  en `edi±stride` a la vez, como operación central del símbolo (no
-  limpieza de scratch). Interpretación más consistente: cada símbolo
-  pinta un bloque de 4×2 píxeles de una vez, explotando coherencia
-  vertical.
-- **Bonus, confirmación cruzada entre dos sesiones**: se volcó la tabla
-  de predictores real que usa `FUN_00457d88` en tiempo de ejecución y
-  coincide EXACTA con la tabla estática ya extraída en una sesión
-  anterior (`0x478e98`), con la fórmula de conversión corregida
-  (`offset = colDelta + stride·rowDelta`, no con el signo negado como se
-  había documentado tentativamente antes).
-- **Ground truth real capturado**: la fila 0 completa de `ADWORLDS.CMP`
-  (128 bytes reales, todos `0xAD`) — guardada en
-  `docs/gamma-dll-cmp-evidence/adworlds-row0-dump.txt` para verificar una
-  futura implementación Java.
-- **Corrección de granularidad**: una traza extendida a 6000
-  instrucciones sin ver ni un `ret` ni una reentrada a la función indica
-  que **una sola llamada a `FUN_00457d88` decodifica la imagen
-  COMPLETA**, no una fila — coherente con que `getScanline` solo se
-  invoque una vez por imagen.
+- **"Carry arithmetic"**: zero real `ADC`/`SBB` instructions in
+  the entire trace. It is the classic MSB-first Huffman/LHA
+  bit reader (`add reg,reg` + `jb` on the carry flag), with a
+  preceding `rol $0x10` to fix the byte order of a word
+  read as little-endian — no multi-word arithmetic at all.
+- **"Double-row write"**: confirmed with the exact addresses
+  of both symbol paths (fill and predictor copy) — each
+  symbol writes the same 4-byte block to the current row (`edi`) AND
+  to `edi±stride` at the same time, as the symbol's core operation (not
+  scratch cleanup). Most consistent interpretation: each symbol
+  paints a 4×2 pixel block at once, exploiting vertical
+  coherence.
+- **Bonus, cross-confirmation between two sessions**: the real predictor
+  table that `FUN_00457d88` uses at runtime was dumped and
+  matches EXACTLY the static table already extracted in an earlier
+  session (`0x478e98`), with the conversion formula corrected
+  (`offset = colDelta + stride·rowDelta`, not with the sign negated as had
+  been tentatively documented before).
+- **Real ground truth captured**: the complete row 0 of `ADWORLDS.CMP`
+  (128 real bytes, all `0xAD`) — saved in
+  `docs/gamma-dll-cmp-evidence/adworlds-row0-dump.txt` to verify a
+  future Java implementation.
+- **Granularity correction**: a trace extended to 6000
+  instructions without seeing a single `ret` or a re-entry into the function indicates
+  that **a single call to `FUN_00457d88` decodes the COMPLETE
+  image**, not a row — consistent with `getScanline` being invoked
+  only once per image.
 
-**Honestamente sin implementar todavía**: el espacio completo de símbolos
-del árbol de Huffman interno no está mapeado (solo se ejercitaron las
-ramas que una fila totalmente plana llegó a tocar) y el byte centinela
-`0x24` visto en la traza no se investigó. Implementar el decoder Java
-ahora, con esos huecos, arriesgaría exactamente lo que el proyecto
-prohíbe — píxeles con aspecto plausible pero no verificados. Por eso no
-se implementó ni se conectó nada al pipeline de materiales esta sesión;
-próximo paso concreto documentado en
-`docs/cmp-texture-format-reference.md`: trazar 2-3 archivos `.cmp` reales
-con contenido no plano para ejercitar el resto del árbol de símbolos
-antes de escribir el decoder.
-
----
-
-### 🟡 `.cmp` — árbol de símbolos completo mapeado, `0x24` resuelto,
-### decoder Java implementado y parcialmente verificado (34/64 y 55/64
-### bytes exactos) — NO conectado al pipeline (2026-09-10, cierre)
-
-Objetivo: cerrar `.cmp` del todo — ejercitar el árbol de símbolos con
-archivos reales variados, implementar el decoder, verificar byte a byte,
-conectar al pipeline.
-
-**Corpus variado encontrado**: entropía de Shannon como filtro barato
-confirmó que `ADWORLDS.CMP` (5.0) era degenerado frente al resto de los
-13 `.cmp` únicos del proyecto (7.0-7.8) — `4i.cmp` seleccionado como caso
-real no plano (fila 0 con 9+ valores de byte distintos). Los 5 candidatos
-probados decodifican con éxito bajo Xvfb.
-
-**Árbol de símbolos completo mapeado con evidencia real**: una traza de
-4000 instrucciones sobre `4i.cmp` reveló 236 direcciones nunca vistas en
-la sesión anterior (que solo había visto el caso de relleno plano). El
-árbol superior real tiene 2 bits (no 3): bit1=0 → copia de predictor de
-4 bytes (ya conocida); bit1=1,bit2=0 → **copia de predictor DUAL de 2
-bytes** (nueva, dos índices independientes por mitad de grupo); bit1=1,
-bit2=1 → rama de "byte de control" con varios sub-casos de literal/
-lookback. **`0x24` resuelto** (desensamblado estático fresco de Ghidra):
-no es fin de stream, es un **escape de literal crudo de 8 bytes**.
-Hallazgo real no anticipado, encontrado depurando el primer intento
-fallido de verificación: cada iteración de "byte de control" no-`0x24`
-TAMBIÉN consume un byte adicional del stream de relleno y hace una
-segunda escritura de difusión al historial — invisible en el archivo
-plano de la sesión anterior porque coincidía con lo que ya había ahí.
-
-**Corrección real de granularidad**: la sesión anterior infirió "una
-llamada decodifica la imagen completa" al no ver un `ret` en 6000
-instrucciones. Con un breakpoint real en la dirección de retorno
-(calculada desde `*esp`, no adivinada), se confirma: **una llamada
-produce exactamente `ch×2` bytes** (64 para los archivos probados, medio
-ancho de fila de 128px) — ni una fila ni la imagen completa.
-
-**Decoder Java implementado** (`tools/gamma-dll-debug-harness/
-cmp-stage2-decoder/CmpStage2.java`), verificado contra streams y salida
-real extraídos en vivo del MISMO proceso: **34/64 bytes exactos en
-`adworlds.cmp`** (el resto explicado por una limitación real de captura
-de memoria, no un error de diseño — cada byte faltante debería ser
-`0xAD` como el resto del archivo plano) y **55/64 en `4i.cmp`** (9 bytes
-sin resolver pese a verificación exhaustiva del consumo de stream
-posición por posición contra una traza en vivo — abierto, honestamente
-documentado). **No se conectó nada al pipeline de materiales** — ningún
-archivo alcanzó 100% de verificación, y el proyecto prohíbe explícitamente
-píxeles con aspecto plausible pero no verificados.
-
-Progreso adicional real en `ScapePicTexture.makeTexture()` (necesario
-para decodificar una imagen completa): se avanzó el punto de fallo de un
-`Assertion failed` a un `EXCEPTION_ACCESS_VIOLATION` real replicando la
-jerarquía de clases con más fidelidad, pero sigue sin resolverse.
-
-Detalle completo, con el método de captura de ground truth y el análisis
-de las discrepancias restantes, en `docs/cmp-texture-format-reference.md`
-y `tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md`.
+**Honestly not yet implemented**: the complete symbol space
+of the internal Huffman tree is not mapped (only the
+branches that a completely flat row happened to touch were exercised) and the
+sentinel byte `0x24` seen in the trace was not investigated. Implementing the Java
+decoder now, with those gaps, would risk exactly what the project
+forbids — pixels with a plausible but unverified appearance. That is why
+nothing was implemented or connected to the materials pipeline this session;
+concrete next step documented in
+`docs/cmp-texture-format-reference.md`: trace 2-3 real `.cmp` files
+with non-flat content to exercise the rest of the symbol tree
+before writing the decoder.
 
 ---
 
-### 🟡 `.cmp` — ground truth pixel-exacta de la herramienta oficial, la
-### hipótesis de captura incompleta descartada, bug acotado a una rama
-### (2026-09-10, continuación: nuevos recursos externos — NO cerrado)
+### 🟡 `.cmp` — complete symbol tree mapped, `0x24` resolved,
+### Java decoder implemented and partially verified (34/64 and 55/64
+### exact bytes) — NOT connected to the pipeline (2026-09-10, closing)
 
-Objetivo del punto 1 de esta sesión: usar `compimg.exe`/`cmpview.exe`
-(oficiales, en `tools/gdk-sdk/`, corren nativos bajo Wine sin ningún
-workaround de 16 bits) para cerrar `.cmp` con verificación mucho más
-fuerte que las trazas parciales anteriores. **No se logró el cierre
-completo** — regla del proyecto respetada: no se da por resuelto sin
-verificación real, y aquí la verificación real dice que sigue abierto.
-Lo que sí se consiguió es sustancial:
+Goal: close `.cmp` entirely — exercise the symbol tree with
+varied real files, implement the decoder, verify byte by byte,
+connect to the pipeline.
 
-**Ground truth nueva, estrictamente más fuerte**: `test4b.bmp`/`.cmp`
-(`assets/gammatutorial-samples/`) — imagen de prueba de 32×32
-autodiseñada y totalmente conocida (4 cuadrantes sólidos: rojo, verde,
-azul, amarillo), comprimida con el `compimg.exe` real. Verificada DOS
-veces contra la herramienta oficial: visualmente con `cmpview.exe` bajo
-Xvfb, y **a nivel de byte** enganchando al proceso vivo de `cmpview.exe`
-vía `/proc/<pid>/mem`, localizando su buffer de píxeles real de GDI (un
-segmento de memoria compartida SYSV de Wine, BGRA de 32bpp genuino) y
-leyendo los píxeles decodificados directamente: **exactamente 256
-píxeles de cada color esperado, cero ruido**. Esto reemplaza el chequeo
-por captura de pantalla/RMSE de la sesión anterior con ground truth
-byte-exacta real.
+**Varied corpus found**: Shannon entropy as a cheap filter
+confirmed that `ADWORLDS.CMP` (5.0) was degenerate compared with the rest of the
+13 unique `.cmp` files of the project (7.0-7.8) — `4i.cmp` selected as a real
+non-flat case (row 0 with 9+ distinct byte values). The 5 candidates
+tested decode successfully under Xvfb.
 
-**La hipótesis de "limitación de captura de memoria" (ver sección
-anterior) queda descartada con evidencia real, no solo reafirmada**:
-se reescribió `cmp_capture.py` para no parar tras la primera llamada a
-`FUN_00457d88` y capturar cada llamada real con su propio snapshot de
-memoria genuino. Resultado: `test4b.cmp` solo hace **una** llamada real
-(la teoría de "necesita ~4 llamadas, solo capturamos 1", derivada de la
-aritmética `outerCount·2·stride`, era incorrecta). Alimentar el decoder
-con la memoria real capturada (en vez de ceros) dio un resultado
-**byte-idéntico** al de sembrar con ceros — porque la memoria real del
-proceso en la dirección de lectura que falla **también** es `0x00` ahí.
-La captura nunca fue el problema.
+**Complete symbol tree mapped with real evidence**: a
+4000-instruction trace on `4i.cmp` revealed 236 addresses never seen in
+the previous session (which had only seen the flat fill case). The
+real top-level tree has 2 bits (not 3): bit1=0 → 4-byte predictor copy
+(already known); bit1=1,bit2=0 → **DUAL 2-byte predictor copy**
+(new, two independent indices per group half); bit1=1,
+bit2=1 → "control byte" branch with several literal/
+lookback sub-cases. **`0x24` resolved** (fresh static disassembly from Ghidra):
+it is not end of stream, it is a **raw 8-byte literal escape**.
+Unanticipated real finding, found while debugging the first
+failed verification attempt: each non-`0x24` "control byte" iteration
+ALSO consumes an additional byte from the fill stream and does a
+second broadcast write to the history — invisible in the flat
+file of the previous session because it matched what was already there.
 
-**Bug acotado con precisión** (trazado de ramas contra la salida real
-capturada por iteración): el pase 0 decodifica correctamente hasta la
-iteración 4. Falla específicamente en la **iteración 5, rama `DUAL`,
-segundo par de predictor, `idx2=32` → `PRED_TABLE[32]=256`** (un offset
-grande): el valor real es `62`, el decoder produce `0`. Los offsets
-pequeños/cercanos (p.ej. `idx=3`, offset `-4`) decodifican bien siempre
-que se usan, incluso antes en la misma iteración — solo las entradas de
-offset grande fallan, y eso desincroniza el resto del bitstream (crash
-en el pase 8, índice 63 de una tabla de 50 entradas).
+**Real granularity correction**: the previous session inferred "one
+call decodes the complete image" from not seeing a `ret` in 6000
+instructions. With a real breakpoint at the return address
+(computed from `*esp`, not guessed), it is confirmed: **one call
+produces exactly `ch×2` bytes** (64 for the files tested, half a
+128px row width) — neither a row nor the complete image.
 
-**Estado tras una tercera ronda — un bug real corregido, otro más
-profundo encontrado debajo (sigue sin cerrar)**: desensamblar
-`FUN_00457d88` directamente (en vez de confiar en un comentario de una
-sesión anterior) mostró que `PRED_TABLE` **no es una tabla fija** — se
-construye en tiempo de ejecución a partir del `stride` actual
-(dirección `0x00482d0d`, no `0x00478e98` como decía el comentario
-viejo). La tabla existente se había capturado en vivo solo para
-archivos de 128px (`stride=-128`) y quedó mal para cualquier otro
-stride — exactamente el bug que rompía `test4b.cmp` (32px,
-`stride=-32`) desde `idx=32` en adelante. Corregido leyendo la tabla
-real para dos strides distintos (-128 y -32) y resolviendo
-`off = colDelta + stride·rowDelta` — las 50 entradas dieron solución
-entera limpia, sin residuo. **Resultado real: 23/141 → 86/141
-coincidencias**, ~3.7× de mejora, reproducido limpio.
+**Java decoder implemented** (`tools/gamma-dll-debug-harness/
+cmp-stage2-decoder/CmpStage2.java`), verified against real streams and output
+extracted live from the SAME process: **34/64 exact bytes in
+`adworlds.cmp`** (the rest explained by a real memory-capture
+limitation, not a design error — each missing byte should be
+`0xAD` like the rest of the flat file) and **55/64 in `4i.cmp`** (9 bytes
+unresolved despite exhaustive verification of stream consumption
+position by position against a live trace — open, honestly
+documented). **Nothing was connected to the materials pipeline** — no
+file reached 100% verification, and the project explicitly forbids
+pixels with a plausible but unverified appearance.
 
-Con ese bug corregido, un censo de ramas en vivo contra la ejecución
-real completa (`evidence_2nd_session/branch_census.log`) reveló un
-**segundo bug más profundo**: el proceso real toma la rama `SINGLE` 124
-veces y `CTRL` 4 veces — `DUAL` **cero** veces, en todo el archivo. El
-decoder Java toma `DUAL` cinco veces solo en el pase 0. El bug ya no
-está en la tabla de predictor (esa parte ahora es correcta) sino más
-arriba, en `shiftBit()`/`refillWord()` o el despacho `bit1`/`bit2` —el
-lector de bits del decoder decide ramas que el código real nunca toma
-para este archivo. **Sigue sin cerrar** — próximo paso concreto para
-una sesión futura: encontrar dónde el lector de bits empieza a
-discrepar del real sobre qué rama tomar (ya no sobre qué offset usar).
-Cuatro rondas de evidencia real acumuladas, cero datos inventados en
-ningún punto. Detalle completo en
+Additional real progress in `ScapePicTexture.makeTexture()` (needed
+to decode a complete image): the failure point was advanced from an
+`Assertion failed` to a real `EXCEPTION_ACCESS_VIOLATION` by replicating the
+class hierarchy with more fidelity, but it remains unresolved.
+
+Full detail, with the ground-truth capture method and the analysis
+of the remaining discrepancies, in `docs/cmp-texture-format-reference.md`
+and `tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md`.
+
+---
+
+### 🟡 `.cmp` — pixel-exact ground truth from the official tool, the
+### incomplete-capture hypothesis discarded, bug narrowed to one branch
+### (2026-09-10, continuation: new external resources — NOT closed)
+
+Goal of point 1 of this session: use `compimg.exe`/`cmpview.exe`
+(official, in `tools/gdk-sdk/`, run natively under Wine without any 16-bit
+workaround) to close `.cmp` with much stronger verification
+than the earlier partial traces. **Full closure was not achieved**
+— project rule respected: it is not considered resolved without
+real verification, and here the real verification says it is still open.
+What was achieved is substantial:
+
+**New ground truth, strictly stronger**: `test4b.bmp`/`.cmp`
+(`assets/gammatutorial-samples/`) — a 32×32 test image,
+self-designed and totally known (4 solid quadrants: red, green,
+blue, yellow), compressed with the real `compimg.exe`. Verified TWICE
+against the official tool: visually with `cmpview.exe` under
+Xvfb, and **at the byte level** by hooking the live `cmpview.exe` process
+via `/proc/<pid>/mem`, locating its real GDI pixel buffer (a
+Wine SYSV shared memory segment, genuine 32bpp BGRA) and
+reading the decoded pixels directly: **exactly 256
+pixels of each expected color, zero noise**. This replaces the
+screenshot/RMSE check of the previous session with real
+byte-exact ground truth.
+
+**The hypothesis of "memory capture limitation" (see the previous
+section) is discarded with real evidence, not merely reaffirmed**:
+`cmp_capture.py` was rewritten so as not to stop after the first call to
+`FUN_00457d88` and to capture each real call with its own genuine
+memory snapshot. Result: `test4b.cmp` makes only **one** real call
+(the theory "needs ~4 calls, we only captured 1", derived from the
+arithmetic `outerCount·2·stride`, was incorrect). Feeding the decoder
+with the real captured memory (instead of zeros) gave a
+**byte-identical** result to seeding with zeros — because the process's real memory
+at the read address that fails is **also** `0x00` there.
+The capture was never the problem.
+
+**Bug narrowed down precisely** (branch tracing against the real output
+captured per iteration): pass 0 decodes correctly up to
+iteration 4. It fails specifically at **iteration 5, `DUAL` branch,
+second predictor pair, `idx2=32` → `PRED_TABLE[32]=256`** (a
+large offset): the real value is `62`, the decoder produces `0`. Small/nearby
+offsets (e.g. `idx=3`, offset `-4`) always decode fine
+whenever they are used, even earlier in the same iteration — only the
+large-offset entries fail, and that desynchronizes the rest of the bitstream (crash
+at pass 8, index 63 of a 50-entry table).
+
+**State after a third round — one real bug fixed, another deeper
+one found underneath (still not closed)**: disassembling
+`FUN_00457d88` directly (instead of trusting a comment from an
+earlier session) showed that `PRED_TABLE` **is not a fixed table** — it is
+built at runtime from the current `stride`
+(address `0x00482d0d`, not `0x00478e98` as the old
+comment said). The existing table had been captured live only for
+128px files (`stride=-128`) and was wrong for any other
+stride — exactly the bug that broke `test4b.cmp` (32px,
+`stride=-32`) from `idx=32` onward. Fixed by reading the real table
+for two different strides (-128 and -32) and solving
+`off = colDelta + stride·rowDelta` — all 50 entries gave a clean
+integer solution, with no remainder. **Real result: 23/141 → 86/141
+matches**, ~3.7× improvement, reproduced cleanly.
+
+With that bug fixed, a live branch census against the complete real
+execution (`evidence_2nd_session/branch_census.log`) revealed a
+**second, deeper bug**: the real process takes the `SINGLE` branch 124
+times and `CTRL` 4 times — `DUAL` **zero** times, in the whole file. The
+Java decoder takes `DUAL` five times in pass 0 alone. The bug is no longer
+in the predictor table (that part is now correct) but higher
+up, in `shiftBit()`/`refillWord()` or the `bit1`/`bit2` dispatch — the
+decoder's bit reader decides on branches the real code never takes
+for this file. **Still not closed** — concrete next step for
+a future session: find where the bit reader starts to
+disagree with the real one about which branch to take (no longer about which offset to use).
+Four rounds of accumulated real evidence, zero invented data at
+any point. Full detail in
 `tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md`.
 
-### 🟡 `.cmp` — LÍNEA A (continuación en paralelo, 2026-09-10):
-### `test4b.cmp` byte-exacto (256/256), textura real `rustwood.cmp` al
-### 99.37% — tres bugs reales más encontrados y corregidos, aún sin
-### cerrar del todo
+### 🟡 `.cmp` — LINE A (parallel continuation, 2026-09-10):
+### `test4b.cmp` byte-exact (256/256), real texture `rustwood.cmp` at
+### 99.37% — three more real bugs found and fixed, still not
+### fully closed
 
-**Bug encontrado en la propia herramienta de captura, no en el
-decoder**: `cmp_capture.py` leía siempre el byte `AL` de `eax` en cada
-punto de escritura vigilado. El desensamblado real muestra que
-`SINGLE` sí usa `rol eax,8; mov [esi(+1)],al` (AL correcto ahí), pero
-`DUAL` escribe con `mov [esi],ah` / `mov [esi+1],ah` — **sin rotación,
-y el registro equivocado**. Cada byte "ground truth" capturado en toda
-rama `DUAL` de las tres rondas anteriores era, silenciosamente,
-incorrecto. Invisible hasta ahora por pura suerte: ningún archivo
-probado en las rondas 1-3 tomó nunca una rama `DUAL` real (confirmado
-aparte vía el censo de ramas). Corregido: `WRITE1` ahora lleva pares
-`(byteslot, registro)`.
+**Bug found in the capture tool itself, not in the
+decoder**: `cmp_capture.py` always read the `AL` byte of `eax` at each
+watched write point. The real disassembly shows that
+`SINGLE` does use `rol eax,8; mov [esi(+1)],al` (AL correct there), but
+`DUAL` writes with `mov [esi],ah` / `mov [esi+1],ah` — **no rotation,
+and the wrong register**. Every "ground truth" byte captured in every
+`DUAL` branch of the three previous rounds was, silently,
+incorrect. Invisible until now by pure luck: no file
+tested in rounds 1-3 ever took a real `DUAL` branch (confirmed
+separately via the branch census). Fixed: `WRITE1` now carries
+`(byteslot, register)` pairs.
 
-**El segundo bug real, encontrado y corregido**: cada punto de "consumir
-un bit" en `FUN_00457d88` tiene un chequeo de recarga (`je [refill]`)
-de guarda **excepto el propio test de `bit1`** — no tiene ninguno.
-Cuando el último bit vivo del registro se consume justo ahí, el
-hardware real NO recarga de inmediato: deja el registro en `0` literal
-y difiere la recarga al siguiente punto vigilado, que (al desplazar un
-registro ya en cero) produce un bit "0 falso" genuino antes de que su
-propia recarga dispare. El `shiftBit()` viejo recargaba siempre sin
-importar el punto de llamada, descartando silenciosamente ese bit falso
-y desincronizando cada lectura posterior en exactamente una posición —
-justo por eso el decoder tomaba ramas `DUAL` que el proceso real nunca
-tomó. Corregido con un `shiftBit1NoRefill()` nuevo, usado solo en ese
-punto. Encontrado con una traza de ramas en vivo contra `rustwood.cmp`
-(contenido real variado — los cuadrantes planos de `test4b.cmp` nunca
-llegaron a pisar este caso límite, por eso la ronda 3 no lo vio).
+**The second real bug, found and fixed**: every "consume
+a bit" point in `FUN_00457d88` has a reload check (`je [refill]`)
+guard **except the `bit1` test itself** — it has none.
+When the last live bit of the register is consumed right there, the real
+hardware does NOT reload immediately: it leaves the register at a literal `0`
+and defers the reload to the next watched point, which (when shifting
+a register that is already zero) produces a genuine "false 0" bit before its
+own reload fires. The old `shiftBit()` always reloaded regardless of
+the call point, silently discarding that false bit and
+desynchronizing every subsequent read by exactly one position —
+which is precisely why the decoder took `DUAL` branches that the real process never
+took. Fixed with a new `shiftBit1NoRefill()`, used only at that
+point. Found with a live branch trace against `rustwood.cmp`
+(varied real content — the flat quadrants of `test4b.cmp` never
+stepped on this edge case, which is why round 3 did not see it).
 
-**Un tercer bug, solo detectable con contenido real variado**: la
-"difusión de relleno" del camino de byte de control se había asumido
-como "replicar `al` cuatro veces" por una sesión mucho anterior que
-leyó estáticamente un par de manejadores — conclusión infalsable contra
-todos los archivos probados hasta ahora porque sus pares de bytes
-literales siempre tenían `al == ah`. El trazado en vivo de registros
-contra `rustwood.cmp` (`al != ah` ahí) mostró que el byte de
-`fillIdx` es en realidad una **máscara de mezcla de 8 bits**: cada bit
-elige independientemente `ah` o `al` para uno de 8 carriles de byte de
-salida. Confirmado exacto, los 8 bits, en 3 muestras en vivo
-independientes. Corregido.
+**A third bug, only detectable with varied real content**: the
+"fill broadcast" of the control-byte path had been assumed
+to be "replicate `al` four times" by a much earlier session that
+statically read a couple of handlers — a conclusion that no file tested so far could falsify
+because their literal byte pairs
+always had `al == ah`. The live register tracing
+against `rustwood.cmp` (`al != ah` there) showed that the byte
+`fillIdx` is actually an **8-bit mixing mask**: each bit
+independently chooses `ah` or `al` for one of 8 output byte
+lanes. Confirmed exactly, all 8 bits, in 3 independent
+live samples. Fixed.
 
-**Resultado, contra salida real capturada por pase**:
-- **`test4b.cmp`: 256/256 — 100%, byte-exacto.**
-- **`rustwood.cmp`** (textura real de 128×128, no sintética):
-  **4070/4096 — 99.37%**, desde 403/4096 al empezar esta ronda. El único
-  desajuste revisado a mano se resolvió a favor del decoder contra una
-  **lectura de memoria en vivo fresca e independiente** (sin pasar por
-  el decoder ni por el CSV de captura) — evidencia de que el ~1.6%
-  restante son más artefactos de la herramienta de captura, no bugs del
-  decoder, aunque no probado byte a byte.
-- **`sball.cmp`** (tercer archivo real): **2709/4096 — 66%**, capturado
-  de nuevo con la herramienta corregida. El mismo patrón de verificación
-  se repitió una vez y también favoreció al decoder, pero este archivo
-  diverge antes y más a menudo — **sin resolver con certeza**.
+**Result, against real output captured per pass**:
+- **`test4b.cmp`: 256/256 — 100%, byte-exact.**
+- **`rustwood.cmp`** (real 128×128 texture, not synthetic):
+  **4070/4096 — 99.37%**, up from 403/4096 at the start of this round. The only
+  mismatch reviewed by hand was resolved in favor of the decoder against a
+  **fresh, independent live memory read** (without going through
+  the decoder or the capture CSV) — evidence that the remaining ~1.6%
+  are further artifacts of the capture tool, not decoder
+  bugs, although not proven byte by byte.
+- **`sball.cmp`** (third real file): **2709/4096 — 66%**, captured
+  again with the corrected tool. The same verification pattern
+  was repeated once and also favored the decoder, but this file
+  diverges earlier and more often — **unresolved with certainty**.
 
-**No se conectó al pipeline de materiales esta ronda**: `sball.cmp` no
-tiene la misma confianza que `rustwood.cmp`, y esta misma ronda
-demostró que un archivo sintético de color plano puede ocultar bugs
-reales que un archivo variado sí expone — la regla del proyecto contra
-píxeles plausibles-pero-no-verificados sigue aplicando. Próximo paso
-concreto: perseguir el resto de `sball.cmp` con el mismo método de
-verificación en vivo. Detalle completo en
+**Not connected to the materials pipeline this round**: `sball.cmp` does not
+have the same confidence as `rustwood.cmp`, and this very round
+showed that a flat-color synthetic file can hide real bugs
+that a varied file does expose — the project rule against
+plausible-but-unverified pixels still applies. Concrete next step:
+chase the rest of `sball.cmp` with the same live verification
+method. Full detail in
 `tools/gamma-dll-debug-harness/cmp-stage2-decoder/README.md`.
 
 ---
 
-### 🟢 Render — helpers compartidos, modo ALL/list-rooms en WorldViewer,
-### display lists píxel-idénticas (2026-09-10, dos avances pequeños)
+### 🟢 Render — shared helpers, ALL/list-rooms mode in WorldViewer,
+### pixel-identical display lists (2026-09-10, two small advances)
 
-Regla de alcance respetada en todo: solo pipeline de función fija, cero
-cambios visuales — cada paso verificado píxel a píxel contra capturas
-previas, no solo "compila y no revienta".
+Scope rule respected throughout: fixed-function pipeline only, zero visual
+changes — each step verified pixel by pixel against previous captures,
+not just "compiles and doesn't blow up".
 
-**Avance 1 — `GlUtil` + `WorldViewer` multi-sala**
-(`client/src/net/openworlds/render/GlUtil.java`, nuevo):
-- `perspective`/`lookAt`/`saveScreenshot` estaban duplicados byte a byte
-  en los 4 viewers — extraídos a `GlUtil` (el `lookAt`/`perspective` son
-  los reemplazos de GLU ya documentados, misma fórmula textbook).
-- `WorldViewer` gana `--list-rooms` (25 salas ordenadas) y
-  `ALL [--screenshot-dir dir]` (renderiza las 25 de una pasada como
-  `world_<sala>.png` + estadísticas por sala). Además los contadores de
-  `loaded/missing/avatar-skip` eran acumulados entre salas y confundían —
-  ahora son por sala (delta antes/después de `preload`).
-- Verificado bajo Xvfb, GL error 0 en todo: `Reception` 12 obj/96 tris
-  (idéntica a antes), `ALL` 25/25 procesadas. `IconViewRoom1a–g` confirman
-  ser pedestales de avatar (`Drew 0`, solo refs `avatar:` saltadas —
-  honesto, ningún avatar inventado). Nueva evidencia:
-  `docs/renders/world_lizcave.png` (`LizCave`, 5 obj, 450 tris, 73 colores).
+**Advance 1 — `GlUtil` + multi-room `WorldViewer`**
+(`client/src/net/openworlds/render/GlUtil.java`, new):
+- `perspective`/`lookAt`/`saveScreenshot` were duplicated byte for byte
+  in the 4 viewers — extracted to `GlUtil` (`lookAt`/`perspective` are
+  the already-documented GLU replacements, same textbook formula).
+- `WorldViewer` gains `--list-rooms` (25 rooms, sorted) and
+  `ALL [--screenshot-dir dir]` (renders all 25 in one go as
+  `world_<room>.png` + per-room statistics). In addition the
+  `loaded/missing/avatar-skip` counters were accumulated across rooms and were confusing —
+  now they are per room (delta before/after `preload`).
+- Verified under Xvfb, GL error 0 throughout: `Reception` 12 obj/96 tris
+  (identical to before), `ALL` 25/25 processed. `IconViewRoom1a–g` turn out
+  to be avatar pedestals (`Drew 0`, only `avatar:` refs skipped —
+  honest, no avatar invented). New evidence:
+  `docs/renders/world_lizcave.png` (`LizCave`, 5 obj, 450 tris, 73 colors).
 
-**Avance 2 — display lists en `WorldViewer`, resto de viewers a `GlUtil`**
-- `RwxViewer`/`RwxSceneViewer`/`RwgViewer` migrados a `GlUtil` (~150 líneas
-  duplicadas eliminadas).
-- `WorldViewer` compila cada modelo único una vez a display list
-  (`glNewList`/`glCallList` — técnica period-correct de la época RW2, no
-  shaders/VBOs). La secuencia inmediata original queda intacta como
-  `emitModelImmediate()` — única fuente de verdad visual, la lista solo
-  la captura (materiales, normales y culling incluidos). Caché invalidada
-  por contexto GL (el modo `ALL` crea una ventana por sala — los IDs del
-  contexto anterior no valen).
-- Verificación píxel-idéntica (tamaño + nº colores + checksum muestreado):
-  Reception, LizCave, `BASKET.RWX` y `cube.rwg` → 4/4 MATCH contra
-  capturas previas; `RwxSceneViewer` (cesta+parrilla) OK, 36 colores.
-- Nota honesta: con capturas de 1 frame no hay ganancia medible (compilar
-  la lista cuesta lo mismo que dibujar); el ahorro aparece en uso
-  interactivo multi-frame.
+**Advance 2 — display lists in `WorldViewer`, rest of the viewers moved to `GlUtil`**
+- `RwxViewer`/`RwxSceneViewer`/`RwgViewer` migrated to `GlUtil` (~150 duplicated
+  lines removed).
+- `WorldViewer` compiles each unique model once into a display list
+  (`glNewList`/`glCallList` — period-correct technique of the RW2 era, not
+  shaders/VBOs). The original immediate sequence is left intact as
+  `emitModelImmediate()` — the single visual source of truth, the list only
+  captures it (materials, normals and culling included). Cache invalidated
+  per GL context (`ALL` mode creates one window per room — the IDs of the
+  previous context are not valid).
+- Pixel-identical verification (size + no. of colors + sampled checksum):
+  Reception, LizCave, `BASKET.RWX` and `cube.rwg` → 4/4 MATCH against
+  previous captures; `RwxSceneViewer` (basket+grill) OK, 36 colors.
+- Honest note: with 1-frame captures there is no measurable gain (compiling
+  the list costs the same as drawing); the savings show up in
+  multi-frame interactive use.
 
 ---
 
-### 🟢 Red — recompilación verificada + sonda NetProbe con clases reales:
-### falta la `/` del upgrade-URL y Worlio:6650 responde (2026-09-10)
+### 🟢 Network — verified recompilation + NetProbe probe with real classes:
+### the upgrade-URL is missing a `/` and Worlio:6650 responds (2026-09-10)
 
-Sin tocar el flujo del cliente (`Gamma.java`/`Cache`/`NetUpdate`
-intactos): todo el trabajo es código nuevo que LLAMA a las clases
-decompiladas, más una recompilación en fresco.
+Without touching the client flow (`Gamma.java`/`Cache`/`NetUpdate`
+intact): all the work is new code that CALLS the
+decompiled classes, plus a fresh recompilation.
 
-**1. Recompilación en fresco del mock** — `source/` (723 `.java`)
-compila limpio SOLO con `javac --release 8`; con javac 25 moderno falla
-por el `yield()` pelado de `netPacketReader.java:89` (identificador
-restringido desde Java 14 — `yield();` sin receptor parsea como sentencia
-yield). Detalle de higiene: `jar cf out/worlds-mock.jar -C out .` con el
-jar dentro de `out/` se auto-incluye (2.6MB vs 1.3MB) — empaquetar vía
-`/tmp` y mover. Jar final: 1.36MB, 737 clases. `Gamma` bajo Xvfb arranca
-igual que en sesiones previas (exit 0; caché sin re-descargar por estar
-al día; solo `gethostbyname(us1.worlds.net)` en el log).
+**1. Fresh recompilation of the mock** — `source/` (723 `.java`)
+compiles cleanly ONLY with `javac --release 8`; with modern javac 25 it fails
+because of the bare `yield()` in `netPacketReader.java:89` (restricted
+identifier since Java 14 — `yield();` without a receiver parses as a yield
+statement). Hygiene detail: `jar cf out/worlds-mock.jar -C out .` with the
+jar inside `out/` includes itself (2.6MB vs 1.3MB) — package via
+`/tmp` and move. Final jar: 1.36MB, 737 classes. `Gamma` under Xvfb starts
+the same as in previous sessions (exit 0; cache not re-downloaded because it is
+up to date; only `gethostbyname(us1.worlds.net)` in the log).
 
-**2. `tools/net-probe/` (nuevo: `NetProbe.java` + `README.md`, trace en
-`docs/net-probe-trace.log`)** — 4 pasos con timeouts explícitos, cada
-fallo se reporta:
-- DNS vía el `DNSLookup` real: `us1.worlds.net` → 172.237.126.108,
+**2. `tools/net-probe/` (new: `NetProbe.java` + `README.md`, trace in
+`docs/net-probe-trace.log`)** — 4 steps with explicit timeouts, each
+failure is reported:
+- DNS via the real `DNSLookup`: `us1.worlds.net` → 172.237.126.108,
   `worlds.worlio.com` → 198.251.80.57. OK.
-- **Hallazgo real**: el cliente construye
-  `http://us1.worlds.net/3DCDupupgrades.lst` — SIN `/` entre `3DCDup` y
-  `upgrades.lst` (concatenación literal en `NetUpdate.java:413`,
-  `URL.make` no añade nada). Ese URL da 404 con el servidor respondiendo
-  (`contentLength=158` del error). El auto-upgrade está roto contra la
-  infra actual por ese detalle — verificado, no supuesto.
-- Patrón exacto de `CacheEntry.openURL` (`DNSLookup.lookup(java.net.URL)`
-  + `openConnection()`) confirmado funcional contra host vivo.
-- TCP 6650 (puerto WorldServer, el que escucha `whirl` por defecto):
-  `us1.worlds.net` → conexión rehusada (es solo host de ficheros);
-  **`worlds.worlio.com:6650` → CONNECTED** (vía la IP resuelta por el
-  propio `DNSLookup`). Hay un WorldServer vivo alcanzable.
+- **Real finding**: the client builds
+  `http://us1.worlds.net/3DCDupupgrades.lst` — WITHOUT a `/` between `3DCDup` and
+  `upgrades.lst` (literal concatenation in `NetUpdate.java:413`,
+  `URL.make` adds nothing). That URL gives 404 with the server responding
+  (`contentLength=158` of the error). Auto-upgrade is broken against the
+  current infrastructure because of that detail — verified, not assumed.
+- Exact pattern of `CacheEntry.openURL` (`DNSLookup.lookup(java.net.URL)`
+  + `openConnection()`) confirmed working against a live host.
+- TCP 6650 (WorldServer port, the one `whirl` listens on by default):
+  `us1.worlds.net` → connection refused (it is only a file host);
+  **`worlds.worlio.com:6650` → CONNECTED** (via the IP resolved by
+  `DNSLookup` itself). There is a live, reachable WorldServer.
 
-**No hecho (límite honesto)**: hablar protocolo de verdad. Requiere
-`WorldServer`/`WSConnecting` reales (acoplados a consola/galaxy, no un
-socket pelado) o `whirl` local, que pide el toolchain
-`nightly-2024-06-03` — no instalado (solo stable 1.98.1); no se intentó
-descargarlo/compilarlo esta sesión. Siguiente paso natural cuando se
-quiera.
+**Not done (honest limit)**: speaking the protocol for real. Requires
+real `WorldServer`/`WSConnecting` (coupled to console/galaxy, not a
+bare socket) or a local `whirl`, which asks for the toolchain
+`nightly-2024-06-03` — not installed (only stable 1.98.1); no attempt was made to
+download/compile it this session. Natural next step whenever
+wanted.
 
 ---
 
-### 🟢 Red — handshake REAL contra Worlio: PROPREQ → PROPUPD → estado 7
-### (2026-09-10, continuación: "no seas vago")
+### 🟢 Network — REAL handshake against Worlio: PROPREQ → PROPUPD → state 7
+### (2026-09-10, continuation: "don't be lazy")
 
-Lo de arriba ("límite honesto") quedó resuelto en la misma sesión:
-**el cliente decompilado habla con un WorldServer vivo de verdad**,
-recorre su propia máquina de estados y esta acepta la respuesta.
-Herramienta: `tools/net-probe/NET/worlds/network/HandshakeProbe.java`
-(subclase de `WorldServer` en el mismo paquete — el constructor es
-trivial y sin UI; `WSConnecting` es package-private y
-setSocket/state/perFrame protected, por eso el paquete). Camino 100%
-real, cero bytes inventados: `initInstance` + `state_Initializing` +
-`WSConnecting` + `setSocket` + `state_XMIT_PROPREQ` + `perFrame` contra
-`worlds.worlio.com:6650` (una conexión por ejecución, se cierra al
-terminar; trace en `docs/net-handshake-trace.log`, README actualizado).
+The above ("honest limit") was resolved in the same session:
+**the decompiled client talks to a genuinely live WorldServer**,
+walks its own state machine and the state machine accepts the response.
+Tool: `tools/net-probe/NET/worlds/network/HandshakeProbe.java`
+(a subclass of `WorldServer` in the same package — the constructor is
+trivial and UI-free; `WSConnecting` is package-private and
+setSocket/state/perFrame are protected, hence the package). 100%
+real path, zero invented bytes: `initInstance` + `state_Initializing` +
+`WSConnecting` + `setSocket` + `state_XMIT_PROPREQ` + `perFrame` against
+`worlds.worlio.com:6650` (one connection per run, closed on
+finishing; trace in `docs/net-handshake-trace.log`, README updated).
 
-**Resultado** (con `netdebug=1216`, el hex lo vuelca el propio
-`sendNetMsg`, no la sonda):
+**Result** (with `netdebug=1216`, the hex is dumped by `sendNetMsg`
+itself, not by the probe):
 
 ```
 send: PROPREQ 255[worlds.worlio.com:6650] → bytes 03 ff 0a
@@ -1612,1148 +1612,1148 @@ recv: PROPUPD 255[worlds.worlio.com:6650]
          #15 [DBSTORE /POSSESS] 1
          #3  [DBSTORE /POSSESS] 24
          #1  [DBSTORE /POSSESS] WormMaster)
-estado 6 RCV_PROPS → 7 XMIT_SI, cierre limpio, exit 0
+state 6 RCV_PROPS → 7 XMIT_SI, clean close, exit 0
 ```
 
-`#3 = 24` coincide exacto con `_serverProtocolVersion = 24` del
-constructor de `WorldServer` — el servidor vivo habla la misma versión
-que este cliente de 2004. `#1 = WormMaster` (nombre del worldsmaster;
-el default de `whirl` es `WORLDSMASTER` — el vivo dice `WormMaster`).
+`#3 = 24` matches exactly `_serverProtocolVersion = 24` of the
+`WorldServer` constructor — the live server speaks the same version
+as this 2004 client. `#1 = WormMaster` (name of the worldsmaster;
+the `whirl` default is `WORLDSMASTER` — the live one says `WormMaster`).
 
-**Tres paredes, las tres con causa raíz verificada en código** (cada
-fallo intermedio: `NO SOCKET CALLBACK` / NPE en `getLongID` / NPE en
-`ObjectMgr.getObject` → estado 17):
+**Three walls, all three with a root cause verified in code** (each
+intermediate failure: `NO SOCKET CALLBACK` / NPE in `getLongID` / NPE in
+`ObjectMgr.getObject` → state 17):
 
-1. **La tabla de paquetes exige UI**: `netPacketReader.<clinit>`
-   (`netPacketReader.java:118`) hace `Class.forName` + `newInstance` de
-   TODAS las clases de paquete; `whisperCmd.<clinit>:11` llama
-   `Console.message("not-whispers")` → `Console.<clinit>:110` crea
+1. **The packet table requires UI**: `netPacketReader.<clinit>`
+   (`netPacketReader.java:118`) does `Class.forName` + `newInstance` of
+   ALL the packet classes; `whisperCmd.<clinit>:11` calls
+   `Console.message("not-whispers")` → `Console.<clinit>:110` creates
    `static GammaFrame frame = new GammaFrame()` → `getDefaultTitle()` →
-   `Std.getProductName()` → assert (productName null). Fix fiel: la sonda
-   llama a `Std.initProductName()` — exactamente lo que hace `Gamma.main`
-   al arrancar — y corre bajo Xvfb (un Frame AWT real no se construye sin
-   X). Efectos menores documentados: warnings `NO MESSAGE for
-   MenuFont/not-whispers` (huecos del bundle, no fatales).
-2. **`_serverURL` obligatorio**: `state_XMIT_PROPREQ` → `sendNetMsg` con
+   `Std.getProductName()` → assert (productName null). Faithful fix: the probe
+   calls `Std.initProductName()` — exactly what `Gamma.main` does
+   at startup — and runs under Xvfb (a real AWT Frame cannot be built without
+   X). Minor effects documented: `NO MESSAGE for
+   MenuFont/not-whispers` warnings (bundle gaps, not fatal).
+2. **`_serverURL` mandatory**: `state_XMIT_PROPREQ` → `sendNetMsg` with
    bit 128 → `toString` → `getLongID` → `_serverURL.getHost()` (NPE).
-   Fix: `initInstance(Galaxy.getGalaxy(...), new ServerURL(...))` real —
-   el ctor de `Galaxy` solo crea hashtables/trackers (`ServerTracker`,
-   `WaitList`, `NetworkMulti`), verificado sin UI.
-3. **shortID 255 sin registrar**: el PROPUPD de respuesta moría en NPE
-   (`Hashtable.get(null)` en `ObjectMgr.getObject:31` vía
-   `PropertyUpdateCmd.process:19` → estado 17). Causa: el registro
-   `regShortID(255, getLongID())` + `regObject` lo hace
-   `state_Initializing`, que la sonda se había saltado. Fix: llamar al
-   `state_Initializing()` REAL en vez de poner estado 4 + `WSConnecting`
-   a mano — además parsea host/puerto de `_serverURL` y arranca
-   `WSConnecting` él mismo: el boot genuino, no una aproximación.
+   Fix: a real `initInstance(Galaxy.getGalaxy(...), new ServerURL(...))` —
+   `Galaxy`'s ctor only creates hashtables/trackers (`ServerTracker`,
+   `WaitList`, `NetworkMulti`), verified UI-free.
+3. **shortID 255 unregistered**: the reply PROPUPD died with an NPE
+   (`Hashtable.get(null)` in `ObjectMgr.getObject:31` via
+   `PropertyUpdateCmd.process:19` → state 17). Cause: the registration
+   `regShortID(255, getLongID())` + `regObject` is done by
+   `state_Initializing`, which the probe had skipped. Fix: call the
+   REAL `state_Initializing()` instead of setting state 4 + `WSConnecting`
+   by hand — it also parses host/port from `_serverURL` and starts
+   `WSConnecting` itself: the genuine boot, not an approximation.
 
-**Parada honesta en estado 7**: lo siguiente es `XMIT_SI` →
-`galaxy.addPendingServer` + autenticación — acoplamiento galaxy/console
-de verdad (no el truco limpio de esta sesión). Próximo paso natural:
-`XMIT_SI`/`RCV_SI_ACK` con el mismo método, o `whirl` local con su
-toolchain para un servidor controlado.
+**Honest stop at state 7**: what follows is `XMIT_SI` →
+`galaxy.addPendingServer` + authentication — real galaxy/console
+coupling (not the clean trick of this session). Natural next step:
+`XMIT_SI`/`RCV_SI_ACK` with the same method, or a local `whirl` with its
+toolchain for a controlled server.
 
 ---
 
-### 🟡 Red — el estado 7 no se deja conducir: `dAssert(false)` genuino
-### verificado en bytecode, paradoja abierta (2026-09-10, continuación)
+### 🟡 Network — state 7 cannot be driven: genuine `dAssert(false)`
+### verified in bytecode, paradox open (2026-09-10, continuation)
 
-Al extender el bucle `perFrame` más allá del 7 contra el mismo Worlio
-vivo, `state_XMIT_SI()` lanza `AssertionException` en su primera línea
-— el `perFrame` del `HandshakeProbe` lo capturó como "coupling
-boundary", pero la investigación posterior demuestra que NO es un
-problema del harness:
+When extending the `perFrame` loop beyond 7 against the same live
+Worlio, `state_XMIT_SI()` throws `AssertionException` on its first line
+— `HandshakeProbe`'s `perFrame` captured it as a "coupling
+boundary", but the later investigation shows it is NOT
+a harness problem:
 
-- **No es artefacto del decompilador**: `javap -c -p` sobre el `.class`
-  ORIGINAL de `assets/worlds.jar` muestra `iconst_0; invokestatic
-  Debug.dAssert(Z)` como bytes 0-1 de `state_XMIT_SI()` — y el mismo
-  patrón abre `state_XMIT_AI()` (estado 9). Vineflower transcribió bien.
-- **`dAssert` lanza de verdad**: también verificado en bytecode
-  (`ifne` → `new AssertionException; athrow`), y la excepción es
-  **unchecked** (`extends RuntimeException`), así que subiría por
-  `perFrame` → `mainCallback` (sin try) → `Main.mainLoop` (sin try) →
-  hilo Gamma muere → `join()` retorna → `die()` (solo imprime y trata
-  de salvar el Shaper) → `System.exit(0)`.
-- **Sinarrodea posible**: el único `setState(8)` del árbol vive tras ese
-  assert (línea 815) y el único llamador de `state_XMIT_SI` es el `case
-  7` de `perFrame` (verificado en `javap`: `invokevirtual
-  state_XMIT_SI` solo desde ahí). El `6→7` lo pone `propertyUpdate`
-  (líneas ~1195-1231: aplica props `#24/#29`→upgrade URL vía
+- **It is not a decompiler artifact**: `javap -c -p` on the ORIGINAL `.class`
+  of `assets/worlds.jar` shows `iconst_0; invokestatic
+  Debug.dAssert(Z)` as bytes 0-1 of `state_XMIT_SI()` — and the same
+  pattern opens `state_XMIT_AI()` (state 9). Vineflower transcribed it correctly.
+- **`dAssert` really throws**: also verified in bytecode
+  (`ifne` → `new AssertionException; athrow`), and the exception is
+  **unchecked** (`extends RuntimeException`), so it would bubble up through
+  `perFrame` → `mainCallback` (no try) → `Main.mainLoop` (no try) →
+  Gamma thread dies → `join()` returns → `die()` (only prints and tries
+  to save the Shaper) → `System.exit(0)`.
+- **No way around it**: the only `setState(8)` in the tree lives behind that
+  assert (line 815) and the only caller of `state_XMIT_SI` is the `case
+  7` of `perFrame` (verified in `javap`: `invokevirtual
+  state_XMIT_SI` only from there). The `6→7` is set by `propertyUpdate`
+  (lines ~1195-1231: applies props `#24/#29`→upgrade URL via
   `NetUpdate.setUpgradeServerURL`, `#25`→script server, `#26/#27`→smtp
-  y mail) dentro del mismo tick que procesó el PROPUPD — el tick
-  siguiente es el que muere.
+  and mail) within the same tick that processed the PROPUPD — the next
+  tick is the one that dies.
 
-**⚠️ VERIFICAR paradoja**: el cliente real de 2004 conectaba sin
-morirse, pero este bytecode dice que el tick tras `6→7` es fatal.
-Pistas concretas para la próxima sesión (no especulación): `WorldServer`
-solo recibe ticks de `Main` si alguien llamó a `incRefCnt`
-(`Main.register`, `WorldServer.java:169-171`) — ¿en qué momento del
-flujo real ocurre respecto a los estados 4-8?; y los `case 10/14` del
-mismo `switch` son `dAssert(false)` puros (marcadores de "inaccesible"),
-mientras que 7/9 tienen código real tras el assert — ¿tripwire de debug
-olvidado que en la práctica nunca se tickeaba? Correlación a comprobar:
-la salida `exit(0) en <1s` del cliente mockeado podría SER este assert
-disparando (buscar `AssertionException` con origen `WorldServer` en
-`docs/xvfb-runtime-trace.log`). Decisión: no saltarlo ni envolverlo —
-cualquiera de las dos cosas inventaría comportamiento.
+**⚠️ VERIFY paradox**: the real 2004 client connected without
+dying, but this bytecode says the tick after `6→7` is fatal.
+Concrete leads for the next session (not speculation): `WorldServer`
+only receives ticks from `Main` if someone called `incRefCnt`
+(`Main.register`, `WorldServer.java:169-171`) — at what point of the
+real flow does that happen relative to states 4-8?; and the `case 10/14` of the
+same `switch` are pure `dAssert(false)` (markers of "unreachable"),
+whereas 7/9 have real code after the assert — a forgotten debug
+tripwire that in practice was never ticked? Correlation to check:
+the mocked client's `exit(0) in <1s` could BE this assert
+firing (look for `AssertionException` originating in `WorldServer` in
+`docs/xvfb-runtime-trace.log`). Decision: do not skip it or wrap it —
+either would invent behavior.
 
-**Continuación (misma sesión): paradoja confirmada de punta a punta,
-correlación con el mock rechazada.** Cadena completa verificada contra
-bytecode ORIGINAL (`javap -c -p` sobre `assets/worlds.jar`):
-`perFrame` case 7 → `state_XMIT_SI` (tableswitch byte a byte) → bytes
-0-1 `iconst_0; dAssert` genuinos → `dAssert` lanza (unchecked,
-`extends RuntimeException`) → `Main.mainLoop` SIN exception table →
-`Gamma.run` CON `catch Throwable` → `die()` (imprime + intenta salvar
-Shaper) → `System.exit(0)`. Y en vivo: sonda registrada en `Main` +
-`Main.mainLoop` genuino → el hilo MUERE con `AssertionException` en
+**Continuation (same session): paradox confirmed end to end,
+correlation with the mock rejected.** Complete chain verified against
+ORIGINAL bytecode (`javap -c -p` on `assets/worlds.jar`):
+`perFrame` case 7 → `state_XMIT_SI` (tableswitch byte by byte) → bytes
+0-1 genuine `iconst_0; dAssert` → `dAssert` throws (unchecked,
+`extends RuntimeException`) → `Main.mainLoop` WITHOUT exception table →
+`Gamma.run` WITH `catch Throwable` → `die()` (prints + tries to save
+Shaper) → `System.exit(0)`. And live: probe registered in `Main` +
+genuine `Main.mainLoop` → the thread DIES with `AssertionException` at
 `state_XMIT_SI:810 ← perFrame:586 ← mainCallback:1100 ← mainLoop:31`
-(trace en `docs/net-handshake-trace.log`). Predicción = observación.
-Dos resultados negativos con evidencia: (1) el exit<1s del mock NO es
-este assert — el único `AssertionException` de
-`docs/xvfb-runtime-trace.log` es el de `IUnknown.init` (ActiveX), y el
-mock ni llega a estado 7 (mundo local, galaxy anónima); (2) el lector no
-puede ser el conductor alternativo — `netPacketReader` solo encola en
-`_msgQ`, el único que drena es `processMsgs` vía `perFrame`, y
-`findOrMake` ya hace `incRefCnt` (registro en `Main`) en la CREACIÓN
-del servidor, antes de conectar. Incógnita acotada con dos mitades:
-registrado-desde-creación implica muerte en 7 (la historia de 2004 lo
-contradice); no-registrado implica que nada conduce 5→6. Resolverla
-exige trazar el flujo vivo de registro/conducción, no más estática.
+(trace in `docs/net-handshake-trace.log`). Prediction = observation.
+Two negative results with evidence: (1) the mock's exit<1s is NOT
+this assert — the only `AssertionException` in
+`docs/xvfb-runtime-trace.log` is the `IUnknown.init` one (ActiveX), and the
+mock does not even reach state 7 (local world, anonymous galaxy); (2) the reader cannot
+be the alternative driver — `netPacketReader` only enqueues into
+`_msgQ`, the only one that drains is `processMsgs` via `perFrame`, and
+`findOrMake` already does `incRefCnt` (registration in `Main`) at the CREATION
+of the server, before connecting. Unknown narrowed down to two halves:
+registered-since-creation implies death at 7 (the 2004 story
+contradicts it); not-registered implies nothing drives 5→6. Resolving it
+requires tracing the live registration/driving flow, no more static analysis.
 
 ---
 
-### 🟡 NetHandler minimal (2026-09-10): superar el `dAssert` en state 7
+### 🟡 Minimal NetHandler (2026-09-10): getting past the `dAssert` in state 7
 
-**Problema**: `WorldServer.state_XMIT_SI()` abre con `dAssert(false)` en
-bytecode real (confirmado con `javap -c -p` sobre `assets/worlds.jar`),
-que lanza `AssertionException` (unchecked) y mata el Main loop →
-`Gamma.die()` → `System.exit(0)`. El cliente real de 2004 conectaba
-sin morir, pero este bytecode dice que el tick tras `6→7` es fatal.
+**Problem**: `WorldServer.state_XMIT_SI()` opens with `dAssert(false)` in
+real bytecode (confirmed with `javap -c -p` on `assets/worlds.jar`),
+which throws `AssertionException` (unchecked) and kills the Main loop →
+`Gamma.die()` → `System.exit(0)`. The real 2004 client connected
+without dying, but this bytecode says the tick after `6→7` is fatal.
 
-**Solución**: subclase `MinimalServerHandler` en `tools/net-probe/` que
-sobrescribe `state_XMIT_SI()` para **interceptar el `dAssert`** y
-simular la continuación natural que `perFrame` espera al final:
-`this._galaxy.addPendingServer(this); this._state.setState(8)`. No se
-envían bytes nuevos: el estado ya transitó 6→7→8 como si el
-cliente-servidor hubieran completado el intercambio. El `dAssert` es una
-trampa de debug que se activa siempre en este bytecode; el cliente real
-de 2004 debió pasar ese checkpoint.
+**Solution**: a `MinimalServerHandler` subclass in `tools/net-probe/` that
+overrides `state_XMIT_SI()` to **intercept the `dAssert`** and
+simulate the natural continuation that `perFrame` expects at the end:
+`this._galaxy.addPendingServer(this); this._state.setState(8)`. No new bytes
+are sent: the state has already transitioned 6→7→8 as if client and
+server had completed the exchange. The `dAssert` is a debug
+trap that always fires in this bytecode; the real 2004 client
+must have passed that checkpoint.
 
-**Resultado**: la sonda `MinimalServerHandler` conecta contra
-`worlds.worlio.com:6650`, el handler lleva el estado a 8 y el Main loop
-puede continuar su flujo de inicialización más allá del handshake. El
-trazo completo queda en `docs/minimal_handler.log`:
+**Result**: the `MinimalServerHandler` probe connects to
+`worlds.worlio.com:6650`, the handler takes the state to 8 and the Main loop
+can continue its initialization flow past the handshake. The full
+trace is in `docs/minimal_handler.log`:
 
 ```
 CONNECTED to 198.251.80.57
 CONNECTED to 198.251.80.57 (handler state will advance to 8)
 ```
 
-Esto **no es un servidor producción**: es una herramienta de verificación
-que permite al cliente de 2004 arrancar su flujo real de inicialización
-contra un "servidor vivo" que entiende su handshake, sin crashar en el
-assert. Queda en `tools/net-probe/` y se documenta aquí como avance
-funcional de frontera, no como implementación completa.
+This is **not a production server**: it is a verification tool
+that lets the 2004 client start its real initialization flow
+against a "live server" that understands its handshake, without crashing on the
+assert. It stays in `tools/net-probe/` and is documented here as a
+functional frontier advance, not as a complete implementation.
 
-**Continuación natural**: una vez en estado 8, el handler cierra el socket
-y el cliente puede avanzar a cargar mundos, consularios, etc. El próximo
-paso es recorrer `perFrame` en estado 8 y ver qué código real de
-`Gamma` se ejecuta a continuación (setup de consola, carga de mundo,
-etc.), sin modificar una sola línea del `source/`.
+**Natural continuation**: once in state 8, the handler closes the socket
+and the client can move on to loading worlds, consulars, etc. The next
+step is to walk through `perFrame` in state 8 and see what real code of
+`Gamma` executes next (console setup, world loading,
+etc.), without modifying a single line of `source/`.
 
 ---
 
-### 🟢 Red — LÍNEA B: paradoja del `dAssert(false)` en estado 7
-### RESUELTA con evidencia real contra el servidor vivo (2026-09-10,
-### continuación en paralelo)
+### 🟢 Network — LINE B: the `dAssert(false)` paradox in state 7
+### RESOLVED with real evidence against the live server (2026-09-10,
+### parallel continuation)
 
-El análisis de bytecode de la sección anterior (`dAssert(false)` lanza
-de verdad, `javap` contra el `.class` original lo confirma) era
-correcto, pero la "paradoja" en sí — que el cliente de 2004
-aparentemente sobrevivía a esto — era **enteramente un artefacto del
-harness de pruebas**, no un bug real del cliente.
+The bytecode analysis of the previous section (`dAssert(false)` really
+throws, `javap` against the original `.class` confirms it) was
+correct, but the "paradox" itself — that the 2004 client
+apparently survived this — was **entirely an artifact of the test
+harness**, not a real client bug.
 
-**Causa raíz, encontrada leyendo el código fuente directamente**:
-`WorldServer.state_XMIT_SI()`/`state_XMIT_AI()` son el patrón
-"abstracto por assert" típico de este código de los 90 — el cliente
-real **nunca instancia `WorldServer` a pelo** para una conexión:
+**Root cause, found by reading the source code directly**:
+`WorldServer.state_XMIT_SI()`/`state_XMIT_AI()` are the typical
+"abstract-by-assert" pattern of this 90s code — the real client
+**never instantiates `WorldServer` bare** for a connection:
 
-1. `ServerURL(String)`: para una URL normal `host:puerto` sin segmento
-   de tipo explícito, `_serverType` queda literalmente `"AutoServer"`
-   por defecto (verificado en el constructor).
-2. `ServerTracker.findOrMake` instancia por reflexión
-   (`Class.forName("NET.worlds.network." + type).newInstance()`) — para
-   cualquier conexión normal, eso es **siempre `AutoServer`**, nunca
+1. `ServerURL(String)`: for a normal `host:port` URL with no explicit
+   type segment, `_serverType` is literally `"AutoServer"`
+   by default (verified in the constructor).
+2. `ServerTracker.findOrMake` instantiates by reflection
+   (`Class.forName("NET.worlds.network." + type).newInstance()`) — for
+   any normal connection, that is **always `AutoServer`**, never
    `WorldServer`.
-3. `AutoServer.state_XMIT_SI()` SÍ tiene lógica real (no un stub): lee
-   la propiedad `#15` (ya presente en el PROPUPD real de
-   `worlds.worlio.com` capturado en `docs/net-handshake-trace.log`:
-   `#15 = "1"`), detecta el tipo de servidor, instancia la subclase
-   concreta (`1 → UserServer`), le transfiere la conexión viva y la
-   re-alimenta con las mismas props — y solo entonces pone su propio
-   estado a 17 (terminado, ya se especializó). Nunca toca el `dAssert`.
+3. `AutoServer.state_XMIT_SI()` DOES have real logic (not a stub): it reads
+   property `#15` (already present in the real PROPUPD from
+   `worlds.worlio.com` captured in `docs/net-handshake-trace.log`:
+   `#15 = "1"`), detects the server type, instantiates the concrete
+   subclass (`1 → UserServer`), hands it the live connection and
+   re-feeds it the same props — and only then sets its own
+   state to 17 (finished, it has already specialized). It never touches the `dAssert`.
 
-**Verificado en vivo contra producción, no solo leído**:
-`AutoServerProbe.java` (misma disciplina que `HandshakeProbe`, pero
-`extends AutoServer` en vez de `extends WorldServer`) conecta contra
-`worlds.worlio.com:6650` real y atraviesa el estado 7 **sin ninguna
-`AssertionException`**, llega a estado 17 con `serverType=1` —
-coincide exacto con la predicción hecha ANTES de correr nada — e
-incluso alcanza código real más allá de lo que cualquier sonda anterior
-tocó (`LWDB: brought up LoginWizard0 in setGalaxyType`). Reproducido
-limpio en una segunda corrida. Un aviso "a server tried to murder
-another!" de `ServerTracker.killServer` es benigno (solo imprime, no
-lanza — dispara porque esta sonda no se registró vía `findOrMake`, un
-artefacto propio del harness, no del cliente real) y no afecta a la
-ejecución. Trazo completo real en `docs/net-autoserver-trace.log`.
+**Verified live against production, not just read**:
+`AutoServerProbe.java` (same discipline as `HandshakeProbe`, but
+`extends AutoServer` instead of `extends WorldServer`) connects to the real
+`worlds.worlio.com:6650` and goes through state 7 **without any
+`AssertionException`**, reaches state 17 with `serverType=1` —
+matching exactly the prediction made BEFORE running anything — and
+even reaches real code beyond what any earlier probe
+touched (`LWDB: brought up LoginWizard0 in setGalaxyType`). Reproduced
+cleanly in a second run. A "a server tried to murder
+another!" warning from `ServerTracker.killServer` is benign (it only prints, it does not
+throw — it fires because this probe did not register via `findOrMake`, an
+artifact of the harness itself, not of the real client) and does not affect
+the execution. Full real trace in `docs/net-autoserver-trace.log`.
 
-**Conclusión**: no hay bug real que arreglar — el camino real
-(`AutoServer`, y la subclase concreta que resuelve por tipo) simplemente
-funciona tal y como está diseñado. `MinimalServerHandler` sigue siendo
-útil como herramienta de intercepción explícita, pero ya no hace falta
-como parche para un bug real.
+**Conclusion**: there is no real bug to fix — the real path
+(`AutoServer`, and the concrete subclass it resolves by type) simply
+works exactly as designed. `MinimalServerHandler` remains
+useful as an explicit interception tool, but is no longer needed
+as a patch for a real bug.
 
 ---
 
-### 🟢 `.bod` — RESUELTO completamente, no por ingeniería inversa sino
-### traduciendo el codificador oficial (2026-09-10, continuación: nuevos
-### recursos externos)
+### 🟢 `.bod` — COMPLETELY RESOLVED, not by reverse engineering but
+### by translating the official encoder (2026-09-10, continuation: new
+### external resources)
 
-`.bod` es el formato real de avatar articulado multi-joint, transferido
-por red y comprimido (a diferencia de `.rwg`, confirmado en sesiones
-anteriores como un formato placeholder trivial de un solo clump, nunca
-usado para avatares reales — ver más abajo la confirmación adicional con
-`e3.rwg`). Llevaba bloqueado sesiones enteras de ingeniería inversa pura
-sobre bytes/desensamblado de `gamma.dll`.
+`.bod` is the real articulated multi-joint avatar format, transferred
+over the network and compressed (unlike `.rwg`, confirmed in earlier
+sessions to be a trivial single-clump placeholder format, never
+used for real avatars — see below for the additional confirmation with
+`e3.rwg`). It had been blocked for entire sessions of pure reverse engineering
+on bytes/disassembly of `gamma.dll`.
 
-**Cómo se resolvió**: esta sesión bajó `gdk.zip` ("Gamma Developer Kit"
-de Worlds Inc., desde `http://jett.dacii.net/jett/gdk.zip` — la URL
-`fran.bonkmaykr.xyz` del prompt no resuelve en absoluto, fallo DNS
-confirmado con `getent hosts`, probado con `http://` y `https://`;
-`jett.dacii.net` solo sirve HTTP plano, no HTTPS, lo que hizo fallar un
-primer intento con TLS antes de notarlo). Dentro está `RWXTOBOD.PL`: el
-código Perl **oficial** de Worlds Inc. para la herramienta `rwxtobod`
-que shippeaban, copyright 1995-1999, con la especificación completa del
-formato binario `.bod` en sus comentarios Y la lógica de codificación
-real. `docs/bod-format-reference.md` y
-`client/src/net/openworlds/bod/BodParser.java` son una traducción
-directa y cuidadosa de ese codificador real a su inverso (un decoder) —
-no una suposición, no inferido de bytes. `RWXTOBOD.PL` queda guardado en
-`tools/gdk-sdk/RWXTOBOD.PL` para referencia/atribución.
+**How it was resolved**: this session downloaded `gdk.zip` ("Gamma Developer Kit"
+from Worlds Inc., from `http://jett.dacii.net/jett/gdk.zip` — the URL
+`fran.bonkmaykr.xyz` from the prompt does not resolve at all, DNS failure
+confirmed with `getent hosts`, tried with `http://` and `https://`;
+`jett.dacii.net` only serves plain HTTP, not HTTPS, which made a
+first attempt with TLS fail before I noticed). Inside is `RWXTOBOD.PL`: the
+**official** Perl code from Worlds Inc. for the `rwxtobod` tool
+they shipped, copyright 1995-1999, with the complete specification of the
+binary `.bod` format in its comments AND the real encoding logic.
+`docs/bod-format-reference.md` and
+`client/src/net/openworlds/bod/BodParser.java` are a direct and careful
+translation of that real encoder into its inverse (a decoder) —
+not a guess, not inferred from bytes. `RWXTOBOD.PL` is kept in
+`tools/gdk-sdk/RWXTOBOD.PL` for reference/attribution.
 
-**Formato** (detalle completo en `docs/bod-format-reference.md`):
-cabecera (versión, tabla de N partes con tag+offset), luego N árboles
-recursivos de "clumps". Cada clump: tag byte (bit alto = placeholder,
-solo transform stub), flags (UV presente, traslación x/y/z presente,
-atajos de cuantización U/V), color RGB, vértices cuantizados en 0-255
-sobre un rango min/max por eje (orden `v,y,z,x,u` en la cabecera pero
-`x,y,z,[u],[v]` en las columnas — asimetría real del formato, confirmada
-del propio código, no un error), triángulos en un bitstream LSB-first
-con un "highest" que solo crece y un mecanismo de wraparound para
-valores negativos. Encoding de floats de 3 bytes (`f3`): float de 4
-bytes IEEE-754 estándar sin el byte menos significativo de la mantisa.
+**Format** (full detail in `docs/bod-format-reference.md`):
+header (version, table of N parts with tag+offset), then N recursive
+"clump" trees. Each clump: tag byte (high bit = placeholder,
+transform stub only), flags (UV present, x/y/z translation present,
+U/V quantization shortcuts), RGB color, vertices quantized to 0-255
+over a per-axis min/max range (order `v,y,z,x,u` in the header but
+`x,y,z,[u],[v]` in the columns — a real asymmetry of the format, confirmed
+from the code itself, not an error), triangles in an LSB-first bitstream
+with a "highest" that only grows and a wraparound mechanism for
+negative values. 3-byte float encoding (`f3`): a standard IEEE-754
+4-byte float without the least significant byte of the mantissa.
 
-**El único bug real encontrado**: `pushBits` en el Perl original le suma
-`cap` a CUALQUIER valor negativo (no solo al código de escape
-explícito) — como `highest - v2` puede ser legítimamente negativo
-cuando otra esquina del triángulo referencia un vértice por encima de
-`highest`, el codificador envuelve también esos casos silenciosamente.
-Encontrado trazando a mano los bits crudos de un archivo real
-(verificado cruzado con una reimplementación independiente en Python
-para descartar errores de transcripción), corregido, y reverificado.
+**The only real bug found**: `pushBits` in the original Perl adds
+`cap` to ANY negative value (not just the explicit escape code)
+— since `highest - v2` can legitimately be negative
+when another corner of the triangle references a vertex above
+`highest`, the encoder silently wraps those cases too.
+Found by hand-tracing the raw bits of a real file
+(cross-verified with an independent Python reimplementation
+to rule out transcription errors), fixed, and re-verified.
 
-**Verificación — 51/51 archivos reales, sin inventar nada**:
-`client/src/net/openworlds/bod/BodExtractMain.java` corre contra
-**26 archivos reales de `assets/WorldsPlayer/cachedir/`** (avatares
-reales descargados de un servidor vivo en una sesión anterior) más
-**25 archivos base oficiales nuevos** encontrados esta sesión dentro del
-instalador `Worlds1890.exe` (ver más abajo) — **51 / 51 consumidos
-completamente, byte a byte, sin excepción ni sobrante** (reverificado en
-la auditoría 2026-09-15, más `orphans=0 badIndices=0` en los 51 al
-ensamblar), con estructura anatómicamente coherente. Corrección de esa
-auditoría: **no todos son de 16 partes** — `cachedir/2v.bod` y
-`base-avatars/death.bod` (bytes idénticos entre sí) tienen 8, sin
-caderas ni piernas. En los de 16 partes: `pelvis(1)` →
+**Verification — 51/51 real files, nothing invented**:
+`client/src/net/openworlds/bod/BodExtractMain.java` runs against
+**26 real files from `assets/WorldsPlayer/cachedir/`** (real avatars
+downloaded from a live server in an earlier session) plus
+**25 new official base files** found this session inside the
+`Worlds1890.exe` installer (see below) — **51 / 51 consumed
+completely, byte by byte, with no exception or leftover** (re-verified in
+the 2026-09-15 audit, plus `orphans=0 badIndices=0` in all 51 when
+assembling), with anatomically coherent structure. Correction from that
+audit: **not all have 16 parts** — `cachedir/2v.bod` and
+`base-avatars/death.bod` (byte-identical to each other) have 8, with no
+hips or legs. In the 16-part ones: `pelvis(1)` →
 `back(2)`, `rthip(15)`, `lfhip(19)`; `back(2)` → `neck(3)`,
-`rtshoulder(6)`, `lfshoulder(11)`; cadenas hombro/cadera correctas hasta
-codo/muñeca y rodilla/tobillo; `neck(3)` → `head(4)`.
+`rtshoulder(6)`, `lfshoulder(11)`; shoulder/hip chains correct down to
+elbow/wrist and knee/ankle; `neck(3)` → `head(4)`.
 
-**Tabla de 32 tags** (pelvis=1 … tail4=32) confirmada ahora por DOS
-fuentes independientes: la comunidad/GammaDocs de una sesión anterior, y
-ahora directamente el hash `%tags` de `RWXTOBOD.PL`.
+**Table of 32 tags** (pelvis=1 … tail4=32) now confirmed by TWO independent
+sources: the community/GammaDocs from an earlier session, and
+now directly the `%tags` hash of `RWXTOBOD.PL`.
 
-**Cross-check adicional con `kangworlds.net/tutorials/rwg.html`** (leído
-esta sesión, URL HTTP confirmada accesible): el tutorial describe una
-jerarquía de joints de más alto nivel con letras selectoras — `Z`=tail,
-`P`=pelvis, `B`=torso, `N`=neck, `H`=head, `W/X/Y`=cadera/rodilla/tobillo
-izquierdos, `I/J/K`=derechos, `L/M/O`=hombro/codo/muñeca izquierdos,
-`R/U/V`=derechos — que coincide estructuralmente, joint por joint, con
-la tabla de 32 tags de bajo nivel de `RWXTOBOD.PL` (los tags detallados
-de esternón/dedos/orejas/nariz/boca/cola son un nivel de detalle extra
-que el tutorial de usuario final no necesita exponer). Dos fuentes
-oficiales/comunitarias totalmente independientes describiendo la misma
-jerarquía real, coincidiendo.
+**Additional cross-check with `kangworlds.net/tutorials/rwg.html`** (read
+this session, HTTP URL confirmed accessible): the tutorial describes a
+higher-level joint hierarchy with selector letters — `Z`=tail,
+`P`=pelvis, `B`=torso, `N`=neck, `H`=head, `W/X/Y`=left hip/knee/ankle,
+`I/J/K`=right ones, `L/M/O`=left shoulder/elbow/wrist,
+`R/U/V`=right ones — which matches structurally, joint by joint, the
+low-level 32-tag table of `RWXTOBOD.PL` (the detailed tags for
+sternum/fingers/ears/nose/mouth/tail are an extra level of detail
+that the end-user tutorial does not need to expose). Two totally independent
+official/community sources describing the same real
+hierarchy, agreeing.
 
-**Lo que NO está hecho todavía** (actualizado 2026-09-10: render en bind
-pose ✅ HECHO — ver bloque nuevo más abajo; queda lo siguiente): las
-texturas no están en `.bod` (solo color RGB plano — el nombre de textura
-real viene de otro mecanismo, el registro de animación
-`cachedir/45.dat` de una sesión anterior, todavía no conectado a la
-salida de este parser); sin animación/skinning (bind pose estática).
+**What is NOT done yet** (updated 2026-09-10: bind pose render
+✅ DONE — see new block below; what remains is the following):
+the textures are not in `.bod` (only flat RGB color — the real texture name
+comes from another mechanism, the animation registry
+`cachedir/45.dat` from an earlier session, not yet connected to the
+output of this parser); no animation/skinning (static bind pose).
 
-### 🟢 Recursos externos nuevos: SDK oficial, corpus real más grande,
-### confirmación adicional de `.rwg` como formato de un solo clump
-### (2026-09-10, continuación)
+### 🟢 New external resources: official SDK, larger real corpus,
+### additional confirmation of `.rwg` as a single-clump format
+### (2026-09-10, continuation)
 
-Además de `.bod`, esta sesión integró varios recursos externos nuevos
-pedidos explícitamente:
+Besides `.bod`, this session integrated several new external resources
+that were explicitly requested:
 
-- **`tools/gdk-sdk/`**: además de `RWXTOBOD.PL`, contiene las
-  herramientas oficiales `compimg.exe` (compresor `.cmp`/`.mov`,
-  versión 0.68, Knowledge Adventure 1993-95) y `cmpview.exe` (visor
-  oficial de `.cmp`) — **ambas corren de forma nativa bajo Wine sin
-  ningún workaround de Windows de 16 bits**: son PE32 estándar
-  (`compimg.exe` reporta "MS Windows 3.10" en su cabecera pero es un
-  ejecutable Win32 normal), la especulación de sesiones anteriores
-  sobre necesitar un `.ovl` de 16 bits no aplicó en la práctica.
-  `cmpview.exe` no importa `gamma.dll` (solo GDI32/KERNEL32/USER32 vía
-  `objdump -p`) — es un binario standalone con su propia copia
-  compilada del códec "ScapePic", mucho más simple de trazar
-  dinámicamente que el cliente completo en red (sin servidor, sin
-  motor 3D, sin handshake de protocolo).
-- **Ground truth real y autodiseñada para `.cmp`**: se generó un BMP de
-  32×32 con 4 cuadrantes de color sólido totalmente conocido (rojo,
-  verde, azul, amarillo), se comprimió con el `compimg.exe` real
-  (`-ecmp -ow -f0 -r0`; los flags `-L -l0,0` de "lossless total"
-  producen una variante de cabecera que `cmpview.exe` rechaza como
-  formato incorrecto — evitar) a `test4b.cmp` (398 bytes), y se
-  confirmó visualmente con el `cmpview.exe` real bajo Xvfb: el render
-  muestra exactamente los 4 cuadrantes de color esperados
-  (cuantizados a 252 en vez de 255 por la paleta de 64 colores —
-  coincide exactamente con lo esperado de una cuantización real, no un
-  error). También se confirmó `rustwood.cmp` (archivo real de la
-  colección de tutoriales, 128×128) contra su `rustwood.bmp`/`.png`
-  fuente: 1.24% RMSE normalizado tras alinear el recorte del
-  screenshot — esencialmente pixel-perfecto, el residuo es ruido de
-  captura de pantalla/cuantización de paleta, no un desajuste real.
-- **`e3.rwg`** (172 KB, bajado de `jett.dacii.net`, el candidato más
-  grande visto hasta ahora para un `.rwg` "real"): parseado con el
-  `RwgParser` existente sin errores — **un solo ATOM, 1379 vértices,
-  2400 triángulos, un solo clump**. (Corrección de la auditoría
-  2026-09-15: son **1371** vértices; los otros 8 registros de `VLST` son
-  la bounding box del clump, no vértices — ver el banner de
-  `docs/rwg-bod-format-reference.md`.) Esto **confirma, no contradice**, el
-  hallazgo de sesiones anteriores: incluso un `.rwg` grande y detallado
-  (176 KB) sigue siendo de un solo clump — `.rwg` nunca fue el formato
-  multi-joint real, ni con archivos grandes. `.bod` es y siempre fue el
-  formato real de avatar articulado.
-- **25 avatares base oficiales reales**, incluyendo exactamente
-  `tina.bod` y `ogre.bod` (mencionados en el tutorial de kangworlds;
-  `achoo.bod`/`vwbug` mencionados en el tutorial pero NO encontrados en
-  este instalador — dato honesto, no inventado). Encontrados dentro de
-  `Worlds1890.exe` (el instalador real de WorldsPlayer, extraído de
-  `Worlds1890.zip` de `jett.dacii.net` con `7z`, formato ZIP con stub
-  autoextraíble de Windows), dentro de su `AVATARS.ZIP` interno junto
-  con 96 archivos `.seq` (secuencias de animación) y 21 `.mov`
-  (mismo códec ScapePic que `.cmp`) — los tres tipos copiados a
-  `assets/gammatutorial-samples/base-avatars/` (1.2 MB total, corpus
-  pequeño, versionado directo según convención del proyecto). Los 25
-  `.bod` están incluidos en el conteo de 51/51 arriba.
-
----
-
-### 🟢 `.bod` — render en bind pose: ensamblado por placeholders oficiales,
-### verificado en 51/51 + 3 avatares reconocibles (2026-09-10)
-
-Cierra el punto explícito "What's NOT done yet" de
-`docs/bod-format-reference.md`. Regla de alcance respetada en todo:
-pipeline de función fija, bind pose estática, cero skinning/animación
-inventada, cero suavizado/texturas.
-
-**Antes de escribir código, verificado en datos reales que el
-ensamblado por placeholders es obligatorio, no opcional**: los 16 roots
-de `tina.bod` tienen `t=(0,0,0)` salvo pelvis (el encoder movió los
-transforms a los placeholders del padre — cita literal de
-`RWXTOBOD.PL`), y los bboxes por parte son locales (centímetros del
-origen). Sin resolver placeholders, las 1498 vértices colapsarían en un
-punto.
-
-**Implementado** (`client/src/net/openworlds/render/BodViewer.java`,
-sigue al pie de la letra `RwgViewer`/`RwxViewer`: misma ventana X11,
-`GlUtil`, `GlLighting` con las 2 luces reales, `--screenshot/
---wireframe/--unlit/--angle`): raíz = la parte no referenciada por
-ningún placeholder (pelvis(1) en los 51 archivos); origen mundo = origen
-padre + traslación del placeholder (más `t` propio, 0 salvo pelvis).
-Material = RGB plano del clump + convención placeholder de `RwgViewer`
-(ambient 0.3/diffuse 0.8/specular 0.1, ⚠️ VERIFICAR igual que allí —
-`RWXTOBOD.PL` dice que esos escalares "are ignored" sin dar mapeo).
-Normales de cara + `GL_FLAT` (el formato no trae normales), ambas caras
-visibles (winding sin verificar, misma disciplina que RWG).
-
-**Verificado con evidencia real, no "compila"**: 51/51 archivos
-ensamblan con `orphans=0 badIndices=0`; `tina.bod` coloca exactamente
-sus 2350 triángulos parseados (sin perder ni añadir); capturas bajo
-Xvfb en `docs/renders/bod_{tina,ogre,robed}_avatar.png` — tina (pelo
-rojo, falda negra, zapatos rojos), ogro (hombreras) y figura con túnica
-de 8 partes sin piernas (coherente, no un bug) desde dos corpus
-independientes; histograma: 336 tonos desde ~20 colores base =
-iluminación N·L por faceta activa. Detalle en
-`docs/render-pipeline-reference.md` (sección `.bod`).
-
-**Siguiente paso lógico**: conectar nombres de textura vía
-`cachedir/45.dat`, o skinning real (exige desensamblar `gamma.dll` —
-fuera de alcance hoy, no inventar).
+- **`tools/gdk-sdk/`**: besides `RWXTOBOD.PL`, it contains the
+  official tools `compimg.exe` (`.cmp`/`.mov` compressor,
+  version 0.68, Knowledge Adventure 1993-95) and `cmpview.exe` (official
+  `.cmp` viewer) — **both run natively under Wine without any
+  16-bit Windows workaround**: they are standard PE32
+  (`compimg.exe` reports "MS Windows 3.10" in its header but is a normal
+  Win32 executable), the speculation from earlier sessions
+  about needing a 16-bit `.ovl` did not apply in practice.
+  `cmpview.exe` does not import `gamma.dll` (only GDI32/KERNEL32/USER32 via
+  `objdump -p`) — it is a standalone binary with its own compiled
+  copy of the "ScapePic" codec, much simpler to trace
+  dynamically than the full client on the network (no server, no 3D
+  engine, no protocol handshake).
+- **Real, self-designed ground truth for `.cmp`**: a 32×32 BMP was generated
+  with 4 quadrants of totally known solid color (red,
+  green, blue, yellow), compressed with the real `compimg.exe`
+  (`-ecmp -ow -f0 -r0`; the `-L -l0,0` "total lossless" flags
+  produce a header variant that `cmpview.exe` rejects as an
+  incorrect format — avoid) into `test4b.cmp` (398 bytes), and it was
+  visually confirmed with the real `cmpview.exe` under Xvfb: the render
+  shows exactly the 4 expected color quadrants
+  (quantized to 252 instead of 255 by the 64-color palette —
+  exactly what is expected of a real quantization, not an
+  error). `rustwood.cmp` (a real file from the
+  tutorial collection, 128×128) was also confirmed against its source `rustwood.bmp`/`.png`:
+  1.24% normalized RMSE after aligning the screenshot crop
+  — essentially pixel-perfect, the residue is screenshot
+  noise/palette quantization, not a real mismatch.
+- **`e3.rwg`** (172 KB, downloaded from `jett.dacii.net`, the largest
+  candidate seen so far for a "real" `.rwg`): parsed with the existing
+  `RwgParser` without errors — **a single ATOM, 1379 vertices,
+  2400 triangles, a single clump**. (Correction from the 2026-09-15
+  audit: it is **1371** vertices; the other 8 `VLST` records are
+  the clump's bounding box, not vertices — see the banner of
+  `docs/rwg-bod-format-reference.md`.) This **confirms, does not contradict**, the
+  finding of earlier sessions: even a large, detailed `.rwg`
+  (176 KB) is still a single clump — `.rwg` was never the real
+  multi-joint format, not even with large files. `.bod` is and always was the
+  real articulated avatar format.
+- **25 real official base avatars**, including exactly
+  `tina.bod` and `ogre.bod` (mentioned in the kangworlds tutorial;
+  `achoo.bod`/`vwbug` mentioned in the tutorial but NOT found in
+  this installer — honest data, not invented). Found inside
+  `Worlds1890.exe` (the real WorldsPlayer installer, extracted from
+  `Worlds1890.zip` from `jett.dacii.net` with `7z`, ZIP format with a Windows
+  self-extracting stub), inside its internal `AVATARS.ZIP` along
+  with 96 `.seq` files (animation sequences) and 21 `.mov`
+  (same ScapePic codec as `.cmp`) — all three types copied to
+  `assets/gammatutorial-samples/base-avatars/` (1.2 MB total, small
+  corpus, versioned directly per project convention). The 25
+  `.bod` are included in the 51/51 count above.
 
 ---
 
-## 5. Roadmap por fases
+### 🟢 `.bod` — bind pose render: assembled by official placeholders,
+### verified on 51/51 + 3 recognizable avatars (2026-09-10)
 
-**Orden de módulos: networking → renderer → UI**
+Closes the explicit "What's NOT done yet" point of
+`docs/bod-format-reference.md`. Scope rule respected throughout:
+fixed-function pipeline, static bind pose, zero invented skinning/animation,
+zero smoothing/textures.
 
-| Fase | Contenido | Dificultad | Tiempo estimado |
+**Before writing code, verified on real data that assembly
+by placeholders is mandatory, not optional**: the 16 roots
+of `tina.bod` have `t=(0,0,0)` except pelvis (the encoder moved the
+transforms to the parent's placeholders — literal quote from
+`RWXTOBOD.PL`), and the per-part bboxes are local (centimeters from the
+origin). Without resolving placeholders, the 1498 vertices would collapse into a
+single point.
+
+**Implemented** (`client/src/net/openworlds/render/BodViewer.java`,
+follows `RwgViewer`/`RwxViewer` to the letter: same X11 window,
+`GlUtil`, `GlLighting` with the 2 real lights, `--screenshot/
+--wireframe/--unlit/--angle`): root = the part not referenced by
+any placeholder (pelvis(1) in all 51 files); world origin = parent
+origin + the placeholder's translation (plus its own `t`, 0 except pelvis).
+Material = flat RGB of the clump + `RwgViewer`'s placeholder convention
+(ambient 0.3/diffuse 0.8/specular 0.1, ⚠️ VERIFY just as there —
+`RWXTOBOD.PL` says those scalars "are ignored" without giving a mapping).
+Face normals + `GL_FLAT` (the format carries no normals), both faces
+visible (winding unverified, same discipline as RWG).
+
+**Verified with real evidence, not "it compiles"**: 51/51 files
+assemble with `orphans=0 badIndices=0`; `tina.bod` places exactly
+its 2350 parsed triangles (without losing or adding any); captures under
+Xvfb in `docs/renders/bod_{tina,ogre,robed}_avatar.png` — tina (red
+hair, black skirt, red shoes), ogre (shoulder pads) and a figure in an
+8-part robe with no legs (coherent, not a bug) from two independent
+corpora; histogram: 336 tones from ~20 base colors =
+active per-facet N·L lighting. Detail in
+`docs/render-pipeline-reference.md` (`.bod` section).
+
+**Next logical step**: connect texture names via
+`cachedir/45.dat`, or real skinning (requires disassembling `gamma.dll` —
+out of scope today, do not invent).
+
+---
+
+## 5. Roadmap by phases
+
+**Module order: networking → renderer → UI**
+
+| Phase | Contents | Difficulty | Estimated time |
 |---|---|---|---|
-| 0 — Reconocimiento | Decompilar con `worldsplayer_source_editor`, `grep -r "native"` para mapear todos los métodos nativos, identificar DLLs cargadas | 🟢 Baja-media | 1–3 semanas |
-> ⚠️ **Tabla revisada en la auditoría del 2026-09-15** (ver la sesión de
-> auditoría al final del documento). Estado real por fase hoy:
-> **0 ✅ completa**; **1 ✅ completa** (RWX 118/118 reverificado, `.world`
-> 25 salas/578 nodos/103 objetos, `.bod` 51/51, `.seq` 231/231 tras
-> corregir `SeqParser`, RWG con el índice de `VLST` corregido);
-> **2 🟢 ~90%** (texturas `.cmp`/`.mov` decodifican 159/159 y 52/52,
-> materiales, escena completa 25/25 salas sin errores GL, modo juego con
-> suelo, colisión y **portales**, pose de avatares desde `.seq` con el
-> tiempo real del original y **texturas de avatar** desde su nombre; falta
-> la elección de secuencia/mezcla, llevar animación y texturas a
-> `WorldViewer` y las subimágenes de `.mov`);
-> **3 🟡 ~60%** (handshake y login guest reales contra servidor vivo con
-> el código del cliente; falta cuenta registrada para el primario;
-> el `Gamma` real ya arranca y corre su bucle con el puente portable,
-> sin dibujar todavía — ver la entrada del 2026-09-17 al final);
-> **4 ⬜ 0%** (UI: chat, amigos, mapa, menús);
-> **5 ⬜ 0%** (OpenBSD/PSVita; solo se ha portado a macOS Intel).
-> Las celdas de abajo son el texto histórico de cada sesión.
+| 0 — Reconnaissance | Decompile with `worldsplayer_source_editor`, `grep -r "native"` to map all native methods, identify loaded DLLs | 🟢 Low-medium | 1–3 weeks |
+> ⚠️ **Table revised in the audit of 2026-09-15** (see the audit
+> session at the end of the document). Actual status per phase today:
+> **0 ✅ complete**; **1 ✅ complete** (RWX 118/118 re-verified, `.world`
+> 25 rooms/578 nodes/103 objects, `.bod` 51/51, `.seq` 231/231 after
+> fixing `SeqParser`, RWG with the `VLST` index fixed);
+> **2 🟢 ~90%** (`.cmp`/`.mov` textures decode 159/159 and 52/52,
+> materials, complete scene 25/25 rooms with no GL errors, game mode with
+> floor, collision and **portals**, avatar pose from `.seq` with the real
+> time of the original and **avatar textures** from its name; missing:
+> sequence selection/blending, bringing animation and textures to
+> `WorldViewer` and the sub-images of `.mov`);
+> **3 🟡 ~60%** (real handshake and guest login against a live server with
+> the client's code; missing: a registered account for the primary;
+> the real `Gamma` already starts and runs its loop with the portable bridge,
+> without drawing yet — see the 2026-09-17 entry at the end);
+> **4 ⬜ 0%** (UI: chat, friends, map, menus);
+> **5 ⬜ 0%** (OpenBSD/PSVita; it has only been ported to macOS Intel).
+> The cells below are the historical text of each session.
 
-| 1 — Parsers de formato | ✅ **RWX (estático) HECHO (2026-09-09)** — 118/118 archivos reales verificados contra `three-rwx-loader`, ver sección 4. 🟡 **RWG parcial (2026-09-09)** — parser Java del contenedor de chunks y de un único ATOM (posición/UV de vértices + polígonos) verificado contra los 2 únicos `.rwg` reales disponibles y renderizado; jerarquía real de múltiples joints **NO verificada** (el corpus real no la demuestra) y `.bod` (formato binario de red, usado por los 26 avatares reales en caché) sigue sin descifrar — ver `docs/rwg-bod-format-reference.md`. ✅ **`.world` HECHO (2026-09-09)** — parser completo del protocolo de persistencia del cliente, verificado end-to-end contra un archivo real de 205KB (25 salas, 578 nodos, 103 objetos con geometría real) — ver `docs/world-format-reference.md` | 🟡 RWX fácil / RWG-BOD medio-alto (sin corpus real suficiente) / `.world` fácil (Java puro, sin nativo) | 2–6 semanas |
-| 2 — Renderizador | 🟡 **Profundizado (2026-09-09)** — iluminación (2 luces, verificada en Java real) y pipeline de materiales (opacidad, doble cara) implementados y verificados por píxel/histograma sobre pipeline de función fija; escena multi-objeto probada. Texturas `.cmp`: 🟡 **(2026-09-10)** árbol de símbolos completo mapeado con evidencia real (bit-tree, predictor dual, byte centinela `0x24` resuelto), decoder Java implementado (`tools/gamma-dll-debug-harness/cmp-stage2-decoder/`) pero verificado solo parcialmente (34/64 y 55/64 bytes exactos, no 100%) — sin conectar al pipeline hasta verificación completa, ver `docs/cmp-texture-format-reference.md` y `docs/render-pipeline-reference.md` | 🟡 Media (diseño entendido; falta cerrar verificación 100% + conectar) | 2–6 meses |
-| 3 — Red | Ya resuelto en gran parte — protocolo documentado por LibreWorlds/Xyem, implementado en `whirl` (Rust) y `munch` (Go) como referencias cruzadas | 🟢 Baja | Incluido en fase 0-1 |
-| 4 — Integración y UI | Chat, lista de amigos, mapa, menús, compatibilidad de comportamiento con el original | 🟡 Media (sin atajos, trabajo de descubrimiento línea a línea) | 1–3 meses |
-| 5 — Porteo a OpenBSD | Una vez quitadas las dependencias nativas de Windows, evaluar viabilidad real en OpenBSD (Wine no está soportado oficialmente ahí — Mesa/OpenGL nativo es el camino) | 🔴 Alta | Posterior al resto |
+| 1 — Format parsers | ✅ **RWX (static) DONE (2026-09-09)** — 118/118 real files verified against `three-rwx-loader`, see section 4. 🟡 **RWG partial (2026-09-09)** — Java parser of the chunk container and of a single ATOM (vertex position/UV + polygons) verified against the only 2 real `.rwg` files available and rendered; real multi-joint hierarchy **NOT verified** (the real corpus does not demonstrate it) and `.bod` (binary network format, used by the 26 real avatars in cache) still undeciphered — see `docs/rwg-bod-format-reference.md`. ✅ **`.world` DONE (2026-09-09)** — complete parser of the client's persistence protocol, verified end-to-end against a real 205KB file (25 rooms, 578 nodes, 103 objects with real geometry) — see `docs/world-format-reference.md` | 🟡 RWX easy / RWG-BOD medium-high (without enough real corpus) / `.world` easy (pure Java, no native) | 2–6 weeks |
+| 2 — Renderer | 🟡 **Deepened (2026-09-09)** — lighting (2 lights, verified in real Java) and materials pipeline (opacity, double-sided) implemented and verified by pixel/histogram on the fixed-function pipeline; multi-object scene tested. `.cmp` textures: 🟡 **(2026-09-10)** complete symbol tree mapped with real evidence (bit-tree, dual predictor, sentinel byte `0x24` resolved), Java decoder implemented (`tools/gamma-dll-debug-harness/cmp-stage2-decoder/`) but only partially verified (34/64 and 55/64 exact bytes, not 100%) — not connected to the pipeline until full verification, see `docs/cmp-texture-format-reference.md` and `docs/render-pipeline-reference.md` | 🟡 Medium (design understood; 100% verification still to close + connect) | 2–6 months |
+| 3 — Network | Largely solved already — protocol documented by LibreWorlds/Xyem, implemented in `whirl` (Rust) and `munch` (Go) as cross-references | 🟢 Low | Included in phase 0-1 |
+| 4 — Integration and UI | Chat, friends list, map, menus, behavioral compatibility with the original | 🟡 Medium (no shortcuts, line-by-line discovery work) | 1–3 months |
+| 5 — Port to OpenBSD | Once the native Windows dependencies have been removed, evaluate real viability on OpenBSD (Wine is not officially supported there — native Mesa/OpenGL is the way) | 🔴 High | After the rest |
 
-**Estimaciones totales (revisadas tras la investigación, dedicación
-part-time):**
+**Total estimates (revised after the research, part-time
+dedication):**
 
-| Objetivo | Estimación |
+| Goal | Estimate |
 |---|---|
-| MVP (conectar, chat de texto, sin 3D) | 2–3 semanas |
-| Cliente funcional con renderizado básico | 2–4 meses |
-| Réplica fiel completa | 6–10 meses |
+| MVP (connect, text chat, no 3D) | 2–3 weeks |
+| Functional client with basic rendering | 2–4 months |
+| Complete faithful replica | 6–10 months |
 
 ---
 
-## 6. Principios de verificación (no negociables)
+## 6. Verification principles (non-negotiable)
 
-1. **Nunca aceptar un mapeo de direcciones/funciones sin evidencia a nivel
-   ASM** (`mov [address], eax` o equivalente). Los agentes de IA han cometido
-   errores como direcciones duplicadas cuando no se les exige este nivel de
-   prueba.
-2. **Claude es copiloto, no agente autónomo.** El cuello de botella real es la
-   verificación humana del comportamiento decompilado contra el binario
-   original — no la velocidad de generación de código. Cada sesión debe ser
-   acotada a un módulo concreto.
-3. **Lotes grandes con autoauditoría**, no función por función. Usar etiquetas
-   de confianza (⚠️ VERIFICAR) en las secciones dudosas en vez de checkpoints
-   manuales constantes.
-4. El objetivo final es **reimplementación funcional**, no solo documentación
-   — cada función verificada debe reescribirse como código testeable, con
-   casos de prueba calculados a mano.
+1. **Never accept a mapping of addresses/functions without ASM-level
+   evidence** (`mov [address], eax` or equivalent). AI agents have made
+   errors such as duplicated addresses when this level of
+   proof is not demanded of them.
+2. **Claude is a copilot, not an autonomous agent.** The real bottleneck is
+   human verification of the decompiled behavior against the original
+   binary — not the speed of code generation. Each session must be
+   scoped to a specific module.
+3. **Large batches with self-audit**, not function by function. Use confidence
+   labels (⚠️ VERIFY) on the doubtful sections instead of constant
+   manual checkpoints.
+4. The final goal is **functional reimplementation**, not just documentation
+   — each verified function must be rewritten as testable code, with
+   hand-computed test cases.
 
 ---
 
-## 7. Herramientas a construir (para acelerar el proceso)
+## 7. Tools to build (to speed up the process)
 
-Orden de prioridad recomendado:
+Recommended priority order:
 
-### Prioridad alta
-1. ✅ **HECHO (2026-09-08)**, ver sección 4: `tools/native_mapper.py` +
+### High priority
+1. ✅ **DONE (2026-09-08)**, see section 4: `tools/native_mapper.py` +
    `docs/native-methods-map.md` / `docs/native-methods-callers.md`.
-   **Mapeador de métodos `native`** — recorre el código decompilado,
-   extrae cada método `native` (clase, firma, tipo de retorno) y lo cruza
-   contra los símbolos exportados de las DLLs reales (`objdump -T` / `nm`).
-   Salida: tabla "qué hay que reimplementar" + "qué sabemos ya por su firma".
-2. ⬜ **NO construido** (confirmado en la auditoría 2026-09-15).
-   **Panel de progreso por módulo** — script que escanea el código en busca
-   de las etiquetas ⚠️ VERIFICAR y genera un dashboard (Markdown o JSON) con
-   funciones verificadas vs. pendientes vs. dudosas, por clase/módulo.
-3. ✅ **HECHO (2026-09-09)**: `tools/rwx-harness/` (`compare.py` +
-   `extract.mjs`), salida en `docs/rwx-parser-progress.md`. ⚠️ Hoy no se
-   puede ejecutar en macOS: `tools/node/` es un binario de Linux.
-   **Arnés de pruebas RWX Java vs. JS** — parsea el mismo `.rwx` con el
-   parser Java en construcción y con `three-rwx-loader` (vía Node headless),
-   compara la geometría resultante (vértices, caras, materiales)
-   automáticamente.
+   **`native` method mapper** — walks the decompiled code,
+   extracts each `native` method (class, signature, return type) and cross-checks it
+   against the exported symbols of the real DLLs (`objdump -T` / `nm`).
+   Output: a "what has to be reimplemented" table + "what we already know from its signature".
+2. ⬜ **NOT built** (confirmed in the 2026-09-15 audit).
+   **Per-module progress panel** — a script that scans the code for
+   ⚠️ VERIFY labels and generates a dashboard (Markdown or JSON) with
+   verified vs. pending vs. doubtful functions, per class/module.
+3. ✅ **DONE (2026-09-09)**: `tools/rwx-harness/` (`compare.py` +
+   `extract.mjs`), output in `docs/rwx-parser-progress.md`. ⚠️ Today it cannot
+   be run on macOS: `tools/node/` is a Linux binary.
+   **Java vs. JS RWX test harness** — parses the same `.rwx` with the
+   Java parser under construction and with `three-rwx-loader` (via headless Node),
+   compares the resulting geometry (vertices, faces, materials)
+   automatically.
 
-### Prioridad media
-4. ✅ **HECHO Y EXTENDIDO (2026-09-09)** — **Bridge JNI "mock"** — stub que
-   implementa los métodos `native` con logging en vez de lógica real, para
-   poder arrancar el cliente y probar networking/UI sin esperar a tener el
-   renderizador completo. Extendido con mocks "inteligentes" con I/O real
-   para `FastDataInput` (lectura binaria de disco), `IniFile` (lectura real
-   de `.ini`) y `DNSLookup` (DNS real) — el cliente llegó a completar una
-   descarga de red real y exitosa. Ver sección 4 para el detalle completo
-   y todas las paredes encontradas por el camino (headless/AWT,
-   `libnet.so`, rutas Windows, handles nativos, bug del decompilador,
-   builders fluidos).
-5. **Comparador de versiones del `.jar`** — diff automatizado entre distintas
-   builds decompiladas (si se consiguen), para distinguir bugs de
-   comportamiento intencional a lo largo del tiempo.
+### Medium priority
+4. ✅ **DONE AND EXTENDED (2026-09-09)** — **"Mock" JNI bridge** — a stub that
+   implements the `native` methods with logging instead of real logic, to
+   be able to start the client and test networking/UI without waiting for the
+   complete renderer. Extended with "smart" mocks with real I/O
+   for `FastDataInput` (binary read from disk), `IniFile` (real read
+   of `.ini`) and `DNSLookup` (real DNS) — the client managed to complete a
+   real, successful network download. See section 4 for the full detail
+   and all the walls found along the way (headless/AWT,
+   `libnet.so`, Windows paths, native handles, decompiler bug,
+   fluent builders).
+5. **`.jar` version comparator** — automated diff between different
+   decompiled builds (if any can be obtained), to tell bugs from
+   intentional behavior over time.
 
-### Prioridad baja
-6. **Convertidor batch RWX → OBJ** para revisión visual rápida en Blender de
-   muchos archivos a la vez, mientras el renderizador propio no existe.
-7. **Generador de documentación de structs** — a partir de patrones
-   repetitivos de getters/setters, generar tablas de estructura
-   automáticamente. Tarea mecánica, apta para Ollama local, no para Claude.
+### Low priority
+6. **Batch RWX → OBJ converter** for quick visual review in Blender of
+   many files at once, while our own renderer does not exist.
+7. **Struct documentation generator** — from repetitive
+   getter/setter patterns, generate structure tables
+   automatically. Mechanical task, suited to local Ollama, not to Claude.
 
 ---
 
-## 8. Instrucciones para Claude Code
+## 8. Instructions for Claude Code
 
-> ⚠️ **Sección histórica (escrita al arrancar el proyecto).** Los pasos 2-4
-> de abajo (decompilar, construir el mapeador de nativos, priorizar el
-> parser RWX) **ya están hechos**. Orden de arranque hoy: (1) leer la
-> sesión de auditoría del 2026-09-15 al final de este documento y
-> `docs/setup-macos.md`; (2) en un Mac, `tools/setup-macos.sh` (JDK
-> portable, sin Homebrew) y `tools/run-game.sh`; (3) elegir frente de
-> trabajo entre los abiertos que lista esa auditoría. Lo que sigue
-> vigente de esta sección es la disciplina: nada se da por bueno sin
-> evidencia (sección 6) y el Paso 0 de reconocimiento antes de tocar nada.
+> ⚠️ **Historical section (written when the project started).** Steps 2-4
+> below (decompile, build the natives mapper, prioritize the RWX
+> parser) **are already done**. Startup order today: (1) read the
+> 2026-09-15 audit session at the end of this document and
+> `docs/setup-macos.md`; (2) on a Mac, `tools/setup-macos.sh` (portable
+> JDK, no Homebrew) and `tools/run-game.sh`; (3) choose a work front among the open ones
+> listed by that audit. What remains valid of this section is the discipline:
+> nothing is accepted without evidence (section 6) and the Step 0
+> reconnaissance before touching anything.
 
-Si estás retomando este proyecto como Claude Code, este es el orden de
-arranque. **El paso 0 es obligatorio y va antes que nada más** — no
-decompiles, no escribas código, no toques nada hasta haberlo hecho.
+If you are resuming this project as Claude Code, this is the startup
+order. **Step 0 is mandatory and comes before anything else** — do not
+decompile, do not write code, do not touch anything until it is done.
 
-### Paso 0 — Reconocimiento del repo (SIEMPRE primero)
-Antes de cualquier otra acción, **revisa el árbol de directorios completo**
-del repo `worldsplayer_source_editor` (y de `/source` si ya existe de una
-sesión anterior). Usa un listado recursivo (`tree` o equivalente) para
-entender:
-- Qué scripts hay en `bin/` y qué hace cada uno
-- Estructura del `Makefile` (targets disponibles más allá de `decompile`,
+### Step 0 — Repo reconnaissance (ALWAYS first)
+Before any other action, **review the complete directory tree**
+of the `worldsplayer_source_editor` repo (and of `/source` if it already exists from
+a previous session). Use a recursive listing (`tree` or equivalent) to
+understand:
+- What scripts there are in `bin/` and what each one does
+- Structure of the `Makefile` (targets available beyond `decompile`,
   `compile`, `install`)
-- Si `/source` ya existe de un decompile previo (no lo repitas si no hace
-  falta — ahorra tiempo y tokens)
-- Si hay `patches/`, `docs/`, `CLAUDE.md`, `README` u otros archivos de
-  contexto que no estén ya reflejados en este documento
+- Whether `/source` already exists from a previous decompile (do not repeat it if it is not
+  needed — saves time and tokens)
+- Whether there are `patches/`, `docs/`, `CLAUDE.md`, `README` or other
+  context files that are not already reflected in this document
 
-No asumas la estructura por lo que dice este documento — el repo puede haber
-cambiado desde que se escribió. **Reporta primero, actúa después.**
+Do not assume the structure from what this document says — the repo may have
+changed since it was written. **Report first, act afterwards.**
 
-### Paso 1 en adelante
-1. **Verifica el entorno**: confirma que Java 6 y Vineflower están
-   disponibles, y que no hay pendiente el fix de `dos2unix` sobre
-   `bin/decompile` (ver sección 4).
-2. **Ejecuta el decompile** (si no existe ya de una sesión anterior):
-   `WORLDSPLAYER_JAR=<ruta> make decompile` y revisa que `/source` se pobló
-   correctamente.
-3. **Construye primero la herramienta #1 (mapeador de nativos)** de la
-   sección 7 y córrela sobre el resultado. Esto da el mapa real de trabajo
-   pendiente — no asumas nada de este documento como sustituto de mirar el
-   código real.
-4. **Prioriza el parser RWX** (sección 5, fase 1) usando `three-rwx-loader`
-   como referencia de lógica — está en `github.com/Blaxar/three-rwx-loader`.
-5. **Antes de aceptar cualquier mapeo de dirección o interpretación de
-   struct como "confirmado"**, exige evidencia ASM (sección 6, principio 1).
-   Marca lo dudoso con ⚠️ VERIFICAR en vez de asumir.
-6. **No escribas el servidor desde cero** — usa `whirl` (Rust,
-   `github.com/Whirlsplash/whirl`) como referencia o directamente como
-   servidor de pruebas.
-7. **Trabaja en lotes por módulo**, no función por función, y presenta
-   resúmenes con las secciones marcadas ⚠️ VERIFICAR para que el humano
-   revise antes de dar nada por bueno.
-8. **Nunca uses el LLM local (Ollama) para lógica compleja** — solo para
-   renombrado masivo, clasificación o formateo mecánico.
+### Step 1 onwards
+1. **Verify the environment**: confirm that Java 6 and Vineflower are
+   available, and that the `dos2unix` fix on
+   `bin/decompile` is not pending (see section 4).
+2. **Run the decompile** (if it does not already exist from a previous session):
+   `WORLDSPLAYER_JAR=<path> make decompile` and check that `/source` was populated
+   correctly.
+3. **Build tool #1 (natives mapper) first** from
+   section 7 and run it on the result. This gives the real map of pending
+   work — do not assume anything in this document as a substitute for looking at the
+   real code.
+4. **Prioritize the RWX parser** (section 5, phase 1) using `three-rwx-loader`
+   as the logic reference — it is at `github.com/Blaxar/three-rwx-loader`.
+5. **Before accepting any address mapping or struct interpretation
+   as "confirmed"**, demand ASM evidence (section 6, principle 1).
+   Mark doubtful items with ⚠️ VERIFY instead of assuming.
+6. **Do not write the server from scratch** — use `whirl` (Rust,
+   `github.com/Whirlsplash/whirl`) as a reference or directly as a
+   test server.
+7. **Work in batches per module**, not function by function, and present
+   summaries with the sections marked ⚠️ VERIFY so that the human
+   reviews before anything is accepted as good.
+8. **Never use the local LLM (Ollama) for complex logic** — only for
+   mass renaming, classification or mechanical formatting.
 
 ---
 
-## 9. Estrategia de subagentes (para avanzar rápido sin gastar tokens de más)
+## 9. Subagent strategy (to move fast without spending extra tokens)
 
-Los subagentes de Claude Code son instancias separadas, con su propio
-contexto, que hacen el trabajo "ruidoso" (leer muchos archivos, explorar,
-correr comandos) de forma aislada y devuelven solo la conclusión al hilo
-principal. Son potentes, pero **cada uno multiplica el consumo de tokens**
-(varias veces más que una sesión normal) — así que hay que usarlos con
-criterio, no por sistema.
+Claude Code subagents are separate instances, with their own
+context, that do the "noisy" work (reading many files, exploring,
+running commands) in isolation and return only the conclusion to the main
+thread. They are powerful, but **each one multiplies token consumption**
+(several times more than a normal session) — so they must be used with
+judgment, not systematically.
 
-### Regla general: delegar cuando el ruido es grande y la conclusión es pequeña
-Si una tarea implica leer muchos archivos pero el resultado final cabe en
-una tabla o un párrafo, es candidata a subagente. Si la tarea necesita
-ida y vuelta constante con el humano, o construye sobre contexto que el
-hilo principal ya tiene fresco, **mejor NO delegar** — es más caro y más
-lento que hacerlo directo.
+### General rule: delegate when the noise is large and the conclusion is small
+If a task involves reading many files but the final result fits in
+a table or a paragraph, it is a candidate for a subagent. If the task needs
+constant back-and-forth with the human, or builds on context that the
+main thread already has fresh, **better NOT to delegate** — it is more
+expensive and slower than doing it directly.
 
-### Cuándo SÍ usar subagentes en este proyecto
-- **Exploración paralela del código decompilado**: repartir `/source` en
-  varios subagentes (uno por paquete: `net.worlds.br`, `net.worlds.console`,
-  `net.worlds.core`, `net.worlds.network`, `net.worlds.scape`), cada uno con
-  la tarea acotada de listar métodos `native`, clases sospechosas de tocar
-  red/render/UI, y devolver solo un resumen tabulado. Ejemplo de prompt:
+### When TO use subagents in this project
+- **Parallel exploration of the decompiled code**: split `/source` among
+  several subagents (one per package: `net.worlds.br`, `net.worlds.console`,
+  `net.worlds.core`, `net.worlds.network`, `net.worlds.scape`), each with
+  the bounded task of listing `native` methods, classes suspected of touching
+  network/render/UI, and returning only a tabulated summary. Example prompt:
   ```
-  Lanza 5 subagentes en paralelo, uno por cada paquete de /source
+  Launch 5 subagents in parallel, one for each package of /source
   (net.worlds.br, net.worlds.console, net.worlds.core, net.worlds.network,
-  net.worlds.scape). Cada uno debe: listar métodos "native" con su firma,
-  identificar las 3 clases más grandes del paquete, y devolver solo una
-  tabla markdown de menos de 30 líneas. No me devuelvas código completo.
+  net.worlds.scape). Each one must: list "native" methods with their signature,
+  identify the 3 largest classes of the package, and return only a
+  markdown table of fewer than 30 lines. Do not return complete code to me.
   ```
-- **Búsqueda de patrones repetitivos** (getters/setters para documentación
-  de structs, la herramienta #7 de la sección 7): tarea mecánica, ideal para
-  un subagente con modelo barato (Haiku) en vez de gastar el modelo principal
-  en ello.
-- **Verificación cruzada** (herramienta #3, arnés RWX Java vs. JS): un
-  subagente corre el parser JS de referencia sobre un lote de archivos
-  `.rwx`, otro corre el parser Java en construcción, un tercero compara
-  resultados — trabajo aislable y paralelizable por naturaleza.
-- **Búsquedas de documentación externa** (repasar GammaDocs, la wiki de
-  Active Worlds, etc. buscando un dato concreto): delega la lectura completa
-  a un subagente y que solo te traiga el dato exacto, no el documento entero.
+- **Search for repetitive patterns** (getters/setters for struct
+  documentation, tool #7 of section 7): mechanical task, ideal for
+  a subagent with a cheap model (Haiku) instead of spending the main model
+  on it.
+- **Cross-verification** (tool #3, Java vs. JS RWX harness): one
+  subagent runs the reference JS parser on a batch of `.rwx` files,
+  another runs the Java parser under construction, a third compares the
+  results — work that is isolatable and parallelizable by nature.
+- **Searches in external documentation** (reviewing GammaDocs, the Active Worlds
+  wiki, etc. looking for a specific fact): delegate the full reading
+  to a subagent and have it bring back only the exact fact, not the entire document.
 
-### Cuándo NO usar subagentes
-- Al **interpretar lógica compleja o reconstruir structs** — esto necesita
-  el contexto completo y el criterio del modelo principal en vivo, con el
-  humano pudiendo interrumpir y corregir sobre la marcha. Delegarlo a un
-  subagente aislado pierde justo el control fino que exige el principio de
-  verificación de la sección 6.
-- Para **cambios pequeños y puntuales** (arreglar un import, renombrar una
-  variable) — el coste de arrancar un subagente (context en frío) es mayor
-  que hacerlo directo.
-- Cuando el resultado necesita **varias rondas de refinamiento con el
-  humano** — cada vuelta a un subagente reinicia su contexto, así que es más
-  caro que mantener la conversación en el hilo principal.
+### When NOT to use subagents
+- When **interpreting complex logic or reconstructing structs** — this needs
+  the full context and the judgment of the main model live, with the
+  human able to interrupt and correct on the fly. Delegating it to an
+  isolated subagent loses precisely the fine control that the
+  verification principle of section 6 demands.
+- For **small, one-off changes** (fixing an import, renaming a
+  variable) — the cost of starting up a subagent (cold context) is greater
+  than doing it directly.
+- When the result needs **several rounds of refinement with the
+  human** — each round trip to a subagent resets its context, so it is more
+  expensive than keeping the conversation in the main thread.
 
-### Tácticas concretas para adelantar el proyecto ahorrando tokens
-1. **Modelo según la tarea**: si defines subagentes personalizados
-   (`/agents`), asigna Haiku a exploración/clasificación mecánica, Sonnet a
-   implementación estándar, y reserva Opus solo para el razonamiento más
-   difícil (p. ej. reconstruir el pipeline de renderizado). No uses el
-   modelo más caro para tareas de listar archivos.
-2. **Acota SIEMPRE el output del subagente**: pide explícitamente "máximo
-   N líneas", "solo tabla, sin código", "no me repitas el archivo completo".
-   Un subagente sin límite de salida devuelve toneladas de texto que luego
-   infla el contexto del hilo principal igualmente.
-3. **No repitas el decompile ni relecturas completas de `/source`** entre
-   sesiones — por eso el Paso 0 exige comprobar primero si el trabajo ya
-   está hecho.
-4. **Paraleliza por módulo, no por función** — 5 subagentes (uno por paquete
-   Java) es rentable; 50 subagentes (uno por función) es ruido y coste sin
-   beneficio proporcional.
-5. **Guarda las conclusiones de cada subagente en archivos** (p. ej.
-   `docs/native-methods-map.md`, `docs/verificado/<modulo>.md`) en vez de
-   solo en el chat — así la siguiente sesión (o el siguiente subagente) lee
-   el archivo en vez de tener que volver a explorar el código desde cero.
-6. **Usa subagentes de solo lectura para el reconocimiento inicial** (sin
-   permiso de escritura) — así no hay riesgo de que toquen código mientras
-   solo están explorando, y puedes lanzarlos con más confianza en paralelo.
+### Concrete tactics to move the project forward while saving tokens
+1. **Model according to the task**: if you define custom subagents
+   (`/agents`), assign Haiku to mechanical exploration/classification, Sonnet to
+   standard implementation, and reserve Opus only for the hardest
+   reasoning (e.g. reconstructing the rendering pipeline). Do not use the
+   most expensive model for file-listing tasks.
+2. **ALWAYS bound the subagent's output**: explicitly ask for "at most
+   N lines", "table only, no code", "don't repeat the complete file to me".
+   A subagent with no output limit returns tons of text that then
+   inflates the main thread's context anyway.
+3. **Do not repeat the decompile or full re-reads of `/source`** between
+   sessions — that is why Step 0 requires checking first whether the work
+   is already done.
+4. **Parallelize per module, not per function** — 5 subagents (one per Java
+   package) is worthwhile; 50 subagents (one per function) is noise and cost with no
+   proportional benefit.
+5. **Save each subagent's conclusions in files** (e.g.
+   `docs/native-methods-map.md`, `docs/verificado/<module>.md`) instead of
+   only in the chat — that way the next session (or the next subagent) reads
+   the file instead of having to explore the code from scratch again.
+6. **Use read-only subagents for the initial reconnaissance** (without
+   write permission) — that way there is no risk of them touching code while
+   they are only exploring, and you can launch them in parallel with more confidence.
 
 ---
 
-## 10. Cabos sueltos / preguntas abiertas
+## 10. Loose ends / open questions
 
-> **Estado de los cabos sueltos tras la auditoría del 2026-09-15**
-> (lo de abajo es el historial; esto es el resumen vigente):
+> **Status of the loose ends after the 2026-09-15 audit**
+> (what is below is the history; this is the current summary):
 >
-> **Abiertos de verdad, por orden de lo que desbloquean:**
-> 1. **Controlador de animación**: la pose de un `.seq` ya se aplica a un
->    `.bod` y el tiempo está resuelto (30 keys/s, bucle y "último key",
->    leídos en las funciones recuperadas por vtable). Falta **qué
->    secuencia y modo elige** el cliente en cada momento (`walk`/`wait`
->    implícitos), la sincronía con la velocidad y la mezcla de 250.
-> 2. ~~**Portales / cambio de sala**~~ ✅ resuelto el 2026-09-16: 56/87
->    portales de GroundZero se cruzan en `--play` con la fórmula de
->    `Portal.recomputeFarPosition()`; queda sin confirmar el signo del yaw
->    de llegada (`getYaw()` es nativo) y los 2 portales a otros `.world`.
-> 3. **Login con cuenta real** en el servidor primario: bloqueado por una
->    cuenta humana en `worlds.worlio.com/register` (no de código).
-> 4. **Flujo real del cliente**: ✅ desde el 2026-09-17 el cliente
->    original (`Gamma.main`) arranca en macOS con el puente portable de
->    `editor/worldsplayer_source_editor-main/bridge/` y se queda en su
->    bucle principal construyendo la escena RenderWare real de la sala
->    (ActiveX ya no bloquea: se replica el camino de error de gamma.dll).
->    Falta que **dibuje**: `Camera.renderScene` y las texturas nativas
->    siguen siendo stubs. Los hilos `Cache`/`NetUpdate` no bloquean nada.
-> 5. **Texturas de avatar**: el lenguaje de nombre ya está decodificado
->    (`net.openworlds.avatar`, 146/148 avatares limpios), pero **solo se
->    conservan 14 de las 210 texturas y 25 de los 141 `.bod`** que
->    referencian: la mayoría del vestuario no está en el corpus. Ya se
->    aplican en `BodViewer --avatar` (subimagen 0); faltan las subimágenes
->    > 0 de `.mov` y llevarlas a `WorldViewer`.
-> 6. **Fase 4 (UI)** y **fase 5 (OpenBSD/PSVita)**: sin empezar.
-> 7. Menores: `.mov` animado (hoy solo frame 0), `csq` sin ejemplar,
->    herramienta #2 de la sección 7 (panel de progreso) sin construir,
->    repos de Wirlaburla en 404, Starbright World sin investigar.
+> **Truly open, in order of what they unblock:**
+> 1. **Animation controller**: the pose of a `.seq` is already applied to a
+>    `.bod` and the timing is resolved (30 keys/s, loop and "last key",
+>    read from the functions recovered via vtable). What is missing is **which
+>    sequence and mode the client picks** at each moment (implicit
+>    `walk`/`wait`), sync with speed and the 250 blend.
+> 2. ~~**Portals / room change**~~ ✅ resolved on 2026-09-16: 56/87
+>    GroundZero portals can be crossed in `--play` with the formula of
+>    `Portal.recomputeFarPosition()`; still unconfirmed are the sign of the arrival yaw
+>    (`getYaw()` is native) and the 2 portals to other `.world` files.
+> 3. **Login with a real account** on the primary server: blocked on a
+>    human account at `worlds.worlio.com/register` (not a code matter).
+> 4. **Real client flow**: ✅ since 2026-09-17 the original client
+>    (`Gamma.main`) starts on macOS with the portable bridge of
+>    `editor/worldsplayer_source_editor-main/bridge/` and stays in its
+>    main loop building the real RenderWare scene of the room
+>    (ActiveX no longer blocks: gamma.dll's error path is replicated).
+>    Missing is for it to **draw**: `Camera.renderScene` and the native textures
+>    are still stubs. The `Cache`/`NetUpdate` threads block nothing.
+> 5. **Avatar textures**: the name language is already decoded
+>    (`net.openworlds.avatar`, 146/148 clean avatars), but **only
+>    14 of the 210 textures and 25 of the 141 `.bod`** that they
+>    reference are kept: most of the wardrobe is not in the corpus. They are already
+>    applied in `BodViewer --avatar` (sub-image 0); the sub-images
+>    > 0 of `.mov` and bringing them to `WorldViewer` are missing.
+> 6. **Phase 4 (UI)** and **phase 5 (OpenBSD/PSVita)**: not started.
+> 7. Minor: animated `.mov` (today only frame 0), `csq` with no sample,
+>    tool #2 of section 7 (progress panel) not built,
+>    Wirlaburla repos returning 404, Starbright World not investigated.
 >
-> **Cerrados que aquí figuraban abiertos:** versión de RenderWare (2.1),
-> RWG (`VLST[0..7]` es la bbox; no había z-fighting), `.bod` (resuelto vía
-> `RWXTOBOD.PL`), `.cmp`/`.mov` (159/159 y 52/52 decodifican), `.seq`
-> (231/231 tras corregir `SeqParser`), y el camino de renderizado: se
-> decidió de facto **Java + LWJGL con pipeline de función fija**, no un
-> cliente web.
+> **Closed, which were listed as open here:** RenderWare version (2.1),
+> RWG (`VLST[0..7]` is the bbox; there was no z-fighting), `.bod` (resolved via
+> `RWXTOBOD.PL`), `.cmp`/`.mov` (159/159 and 52/52 decode), `.seq`
+> (231/231 after fixing `SeqParser`), and the rendering path: it was
+> decided de facto **Java + LWJGL with fixed-function pipeline**, not a web
+> client.
 >
-> **No reproducible en el Mac actual** (no es lo mismo que "roto"):
-> comparación RWX contra three-rwx-loader (falta `node` de macOS),
-> ground truth `.cmp` contra `cmpview.exe` y el cliente original bajo Wine.
+> **Not reproducible on the current Mac** (not the same as "broken"):
+> RWX comparison against three-rwx-loader (macOS `node` missing),
+> `.cmp` ground truth against `cmpview.exe` and the original client under Wine.
 
-- ✅ **RESUELTO (2026-09-08)**: es **RenderWare 2.1**. Confirmado por el
-  propio nombre de las DLLs reales del cliente instalado
+- ✅ **RESOLVED (2026-09-08)**: it is **RenderWare 2.1**. Confirmed by the
+  very name of the real DLLs of the installed client
   (`assets/WorldsPlayer/bin/RWL21.DLL`, `RWDL6D21.DLL`, `RWDL8D21.DLL`,
-  `RWDLDD21.DLL`, `rwdlmd21.dll` — sufijo `21`) y por sus tablas de exports
-  (parseadas a mano con un script Python de ~70 líneas, sin dependencias,
-  porque `objdump -T` no entiende bien el formato de export de estos PE32 de
-  2000-2004; ver `docs/renderware21-api-exports.txt`). Bonus inesperado:
-  **`RWL21.DLL` exporta las 577 funciones de la API completa de RenderWare
-  2.1 con nombres legibles sin mangling** (`RwCreateClump`, `RwClumpBegin`,
-  `RwAddLightToScene`, etc.) — no es el SDK ni la documentación, pero es un
-  sustituto parcial nada despreciable dado que "no existe SDK de RW2
-  preservado en ningún sitio" (sección 2). Cada driver (`RWDL*D21.DLL`)
-  expone un único símbolo `_rwdev` (patrón estándar de RenderWare: cada
-  driver registra su tabla de funciones a través de ese único entry point).
-- Repos de Wirlaburla en `git.canithesis.org` (`WorldsMods`, `P3NG0`,
-  `WorldsTerminal`) dan 404 — confirmar manualmente si siguen vivos en algún
-  sitio o si el código se perdió.
-- **Starbright World** — mencionado como posible tercer proyecto hermano de
-  Worlds Chat y Active Worlds, desarrollado en paralelo por Worlds Inc. Sin
-  investigar todavía, podría tener recursos reutilizables.
-- Decidir con más información real (tras la fase 0) si el camino de
-  renderizado será Java+LWJGL puro, o si compensa más seguir el modelo de
-  `WideWorlds` (cliente web con three.js) en vez de un cliente nativo.
-- ✅ **RESUELTO (2026-09-09)**: probado con Xvfb, la asunción de ruta
-  Windows de `URL.java` portada, y **el objetivo final se alcanzó y se
-  superó**: con los mocks "inteligentes" de `FastDataInput`/`IniFile`/
-  `DNSLookup` (sección 4), el cliente lee la config real, resuelve DNS de
-  verdad, y **descarga contenido real con éxito** desde
-  `us1.worlds.net` — que además resultó estar vivo (aparentemente
-  mantenido por LibreWorlds), no muerto como se asumía. Ver la sección 4
-  ("Sesión 2026-09-09 (continuación)") para las 6 paredes encontradas y el
-  detalle completo de la evidencia.
-- **Nuevo (2026-09-09)**: llegar más lejos (login explícito, ver el
-  resultado de las descargas de caché asíncronas en vivo) exige tocar el
-  control de flujo de `Gamma.java` o el modelo de hilos de
-  `Cache`/`NetUpdate` — ya no es un mock de nativos ni portabilidad menor.
-  Es la decisión que le toca al usuario para la próxima sesión: ¿seguir
-  empujando el cliente mockeado más adentro del flujo de red/login, o
-  pivotar hacia el parser RWX (fase 1 del roadmap, sección 5) ahora que el
-  reconocimiento del terreno (nativos, portabilidad, arranque) está
-  esencialmente completo?
+  `RWDLDD21.DLL`, `rwdlmd21.dll` — suffix `21`) and by their export tables
+  (parsed by hand with a ~70-line Python script, with no dependencies,
+  because `objdump -T` does not handle the export format of these
+  2000-2004 PE32 files well; see `docs/renderware21-api-exports.txt`). Unexpected bonus:
+  **`RWL21.DLL` exports the 577 functions of the complete RenderWare
+  2.1 API with readable, unmangled names** (`RwCreateClump`, `RwClumpBegin`,
+  `RwAddLightToScene`, etc.) — it is not the SDK or the documentation, but it is a
+  far from negligible partial substitute given that "no RW2 SDK
+  has been preserved anywhere" (section 2). Each driver (`RWDL*D21.DLL`)
+  exposes a single symbol `_rwdev` (standard RenderWare pattern: each
+  driver registers its function table through that single entry point).
+- Wirlaburla repos at `git.canithesis.org` (`WorldsMods`, `P3NG0`,
+  `WorldsTerminal`) return 404 — manually confirm whether they are still alive somewhere
+  or whether the code was lost.
+- **Starbright World** — mentioned as a possible third sibling project of
+  Worlds Chat and Active Worlds, developed in parallel by Worlds Inc. Not
+  investigated yet, it might have reusable resources.
+- Decide with more real information (after phase 0) whether the rendering
+  path will be pure Java+LWJGL, or whether it pays off more to follow the model of
+  `WideWorlds` (web client with three.js) instead of a native client.
+- ✅ **RESOLVED (2026-09-09)**: tested with Xvfb, the Windows path
+  assumption of `URL.java` ported, and **the final goal was reached and
+  exceeded**: with the "smart" mocks of `FastDataInput`/`IniFile`/
+  `DNSLookup` (section 4), the client reads the real config, resolves DNS for
+  real, and **downloads real content successfully** from
+  `us1.worlds.net` — which also turned out to be alive (apparently
+  maintained by LibreWorlds), not dead as was assumed. See section 4
+  ("Session 2026-09-09 (continuation)") for the 6 walls found and the
+  full detail of the evidence.
+- **New (2026-09-09)**: going further (explicit login, seeing the
+  result of the asynchronous cache downloads live) requires touching the
+  flow control of `Gamma.java` or the thread model of
+  `Cache`/`NetUpdate` — it is no longer a native mock or minor portability.
+  It is the decision that falls to the user for the next session: keep
+  pushing the mocked client deeper into the network/login flow, or
+  pivot toward the RWX parser (phase 1 of the roadmap, section 5) now that the
+  reconnaissance of the terrain (natives, portability, startup) is
+  essentially complete?
 
 ---
 
-### 🟢 `.cmp` — LÍNEA A (2026-09-10): `sball.cmp` cerrado — cuarto bug
-### real (byte3 tras ROL), 3/3 archivos byte-exactos, decoder conectado
-### al pipeline con prueba de píxeles
+### 🟢 `.cmp` — LINE A (2026-09-10): `sball.cmp` closed — fourth real
+### bug (byte3 after ROL), 3/3 files byte-exact, decoder connected
+### to the pipeline with pixel proof
 
-**Punto de partida**: `test4b.cmp` 256/256, `rustwood.cmp` 4070/4096,
-`sball.cmp` 2709/4096 (ronda anterior).
+**Starting point**: `test4b.cmp` 256/256, `rustwood.cmp` 4070/4096,
+`sball.cmp` 2709/4096 (previous round).
 
-**Primera divergencia de `sball.cmp`, localizada exacta**: pase 0,
-offset 16 (iter 8, rama `SINGLE`, `idx=3`). Decoder daba 7, ground
+**First divergence of `sball.cmp`, located exactly**: pass 0,
+offset 16 (iter 8, `SINGLE` branch, `idx=3`). Decoder gave 7, ground
 truth 31.
 
-**Causa raíz (cuarto bug, probado en vivo con traza
-mem-after-store)**: `rol eax,8; mov [esi],al` deja en `AL` el byte3
-(alto, bits 24-31), no el byte1. En el punto de divergencia
-`v1=[07,07,07,1f]` → real `0x1f` (31, confirmado en vivo como
-`regal=31 mem=31`), decoder 7. Mismo fix en el escape `0x24` (mismo
-par rol/mov); `DUAL` intacto (usa `ah` sin rotación, ya era
-correcto). Oculto hasta ahora porque `test4b.cmp` es plano
-(`byte1==byte3` en todas partes) y `rustwood.cmp` casi — el mismo
-patrón que los tres bugs anteriores: archivo sintético que esconde un
-caso real que solo contenido variado ejercita.
+**Root cause (fourth bug, proven live with a
+mem-after-store trace)**: `rol eax,8; mov [esi],al` leaves in `AL` byte3
+(high, bits 24-31), not byte1. At the divergence point
+`v1=[07,07,07,1f]` → real `0x1f` (31, confirmed live as
+`regal=31 mem=31`), decoder 7. Same fix in the `0x24` escape (same
+rol/mov pair); `DUAL` intact (it uses `ah` with no rotation, it was already
+correct). Hidden until now because `test4b.cmp` is flat
+(`byte1==byte3` everywhere) and `rustwood.cmp` almost so — the same
+pattern as the three earlier bugs: a synthetic file hiding a real
+case that only varied content exercises.
 
-**Resultado, contra salida real capturada por pase**:
-- `test4b.cmp`: **256/256** (igual que antes, sin regresión).
-- `rustwood.cmp`: **4096/4096** (desde 4070 — los 26 restantes eran
-  este bug, no ruido de captura como se había supuesto).
-- `sball.cmp`: **4096/4096** (desde 2709).
+**Result, against real output captured per pass**:
+- `test4b.cmp`: **256/256** (same as before, no regression).
+- `rustwood.cmp`: **4096/4096** (up from 4070 — the remaining 26 were
+  this bug, not capture noise as had been assumed).
+- `sball.cmp`: **4096/4096** (up from 2709).
 
-**Evidencia colateral**: los 256 fill-handlers verificados
-simbólicamente contra el binario (0/256 desvíos del modelo shuffle);
-re-captura mem-after-store 64/64 idéntica al CSV viejo (herramienta
-vindicada); paleta votada índice a índice contra el render del propio
-`cmpview.exe` (**0/16384 px difieren**); `rustwood.bmp` NO es fuente
-de `rustwood.cmp` (todas las orientaciones ≤0.06 — el emparejamiento
-por nombre era falso, no un problema del decoder).
+**Collateral evidence**: the 256 fill-handlers verified
+symbolically against the binary (0/256 deviations from the shuffle model);
+mem-after-store re-capture 64/64 identical to the old CSV (tool
+vindicated); palette voted index by index against the render of `cmpview.exe`
+itself (**0/16384 px differ**); `rustwood.bmp` is NOT the source
+of `rustwood.cmp` (all orientations ≤0.06 — the pairing
+by name was false, not a decoder problem).
 
-**Cierre del criterio de la sesión: pipeline conectado y probado por
-píxel** — `client/src/net/openworlds/cmp/` (`CmpStage2` porteado +
-`CmpTexture`), `assets/cmp-verified/sball/` (streams recortados al
-consumo verificado + paleta), UVs en `RwxParser`/`RwxModel`,
-`RwxViewer --texture <dir>/<base> --camera top|front`. Render de
-`sball.rwx` con su textura verificada
+**Closing the session's criterion: pipeline connected and tested by
+pixel** — `client/src/net/openworlds/cmp/` (`CmpStage2` ported +
+`CmpTexture`), `assets/cmp-verified/sball/` (streams trimmed to the
+verified consumption + palette), UVs in `RwxParser`/`RwxModel`,
+`RwxViewer --texture <dir>/<base> --camera top|front`. Render of
+`sball.rwx` with its verified texture
 (`docs/renders/sball_ring_{flat_top,textured_unlit_top,
-textured_lit_top}.png`): sobre geometría idéntica (13548 px no-fondo),
-plano = 10 colores; con textura sin luz = **1195/1195 colores a ≤6.6
-(media 2.5) de la paleta verificada**; control plano = 0/10 (media
-155); 0 píxeles magenta. **Primera textura real visible en la
-geometría del proyecto.** Alcance honesto del demo: override
-`--texture` de una sola textura (el `sball.rwx` dice `Texture NULL`);
-quedan abiertos Stage-1 Huffman, paleta on-disk, flag de orientación,
-`v=0`, y honrar `textureName` por material.
+textured_lit_top}.png`): on identical geometry (13548 non-background px),
+flat = 10 colors; with texture and no light = **1195/1195 colors within ≤6.6
+(mean 2.5) of the verified palette**; flat control = 0/10 (mean
+155); 0 magenta pixels. **First real texture visible on the
+project's geometry.** Honest scope of the demo: a single-texture
+`--texture` override (`sball.rwx` says `Texture NULL`);
+still open: Stage-1 Huffman, on-disk palette, orientation flag,
+`v=0`, and honoring `textureName` per material.
 
-**Commits de esta línea** (sin tocar nada de red):
-`1857cd0` (fix byte3), `63c35a9` (path texturizado + port),
-`f8cd31d` (assets verificados), más el doc (`f3e2d28`). Detalle
-completo en `tools/gamma-dll-debug-harness/cmp-stage2-decoder/
+**Commits of this line** (without touching anything in networking):
+`1857cd0` (byte3 fix), `63c35a9` (textured path + port),
+`f8cd31d` (verified assets), plus the doc (`f3e2d28`). Full detail
+in `tools/gamma-dll-debug-harness/cmp-stage2-decoder/
 README.md`.
 
 ---
 
-### 🟢 Red — LÍNEA B (2026-09-10): login REAL completo contra
-### servidor vivo (guest anónimo, estado 12 MAINLOOP + bienvenida)
+### 🟢 Network — LINE B (2026-09-10): complete REAL login against the
+### live server (anonymous guest, state 12 MAINLOOP + welcome)
 
-**Resultado: login completo SÍ** — contra el guest de Worlio
-`gippsland.worlio.com:8265` (todos sus hostnames resuelven a
-`198.251.80.57`, verificado). Estados reales con código 100% del
-cliente: `0→4→5→6→7` (AutoServer) → handoff a `AnonRoomServer` →
-`0→3→7→8→11→12 MAINLOOP` estable 12s, `lastError=null`, cierre
-limpio, exit 0. Trace real en `docs/net-guest-login-trace.log`
-(Xvfb :99, una conexión, cerrada al terminar).
+**Result: complete login YES** — against Worlio's guest server
+`gippsland.worlio.com:8265` (all its hostnames resolve to
+`198.251.80.57`, verified). Real states with 100% client code:
+`0→4→5→6→7` (AutoServer) → handoff to `AnonRoomServer` →
+`0→3→7→8→11→12 MAINLOOP` stable for 12s, `lastError=null`, clean
+close, exit 0. Real trace in `docs/net-guest-login-trace.log`
+(Xvfb :99, a single connection, closed at the end).
 
-**Intercambio real** (bytes del propio `sendNetMsg`):
+**Real exchange** (bytes from `sendNetMsg` itself):
 - `send(PROPREQ)` → `03 ff 0a`; `recv(PROPUPD #15=4 #3=24
-  #1=Gippsland #25=cgi-bin #24=files #8=1000000)` → AutoServer crea
-  `AnonRoomServer`, `LoginWizard0` real levantado.
+  #1=Gippsland #25=cgi-bin #24=files #8=1000000)` → AutoServer creates
+  `AnonRoomServer`, real `LoginWizard0` brought up.
 - `send(SESSINIT VAR_PROTOCOL=24 VAR_CLIENT=2004080500
   VAR_AVATARS=24 VAR_USERNAME=FWProbeGuest2)`.
 - `recv(SESSINIT VAR_ERROR=0 VAR_SERVERTYPE=4 VAR_UPDATETIME=1000000
-  VAR_PROTOCOL=24 VAR_CHANNEL=dimension-1)` → `wizard.setConnected()`
-  real.
+  VAR_PROTOCOL=24 VAR_CHANNEL=dimension-1)` → real
+  `wizard.setConnected()`.
 - `recv(TEXT Gippsland: Welcome to WorlioWorlds Gippsland, an
   anonymous free-for-all. Be wary of links, impersonation, and spam.
-  Keep your mute buttons greased.)` — **primera sesión real completa
-  del cliente reconstruido**.
+  Keep your mute buttons greased.)` — **first complete real session
+  of the reconstructed client**.
 
-**Dos obstáculos, causa raíz verificada**:
-1. `VAR_CLIENT=null` (mock JNI) → el servidor responde `VAR_ERROR=7
-   "client out of date"` (visto 2 veces en vivo). Ground truth:
-   `objdump` sobre `assets/WorldsPlayer/bin/gamma.dll` real — la
-   exportación `getClientVersion` devuelve `"2004080500"` (y
-   `getBuildInfo` = `"08/05/04 05:45:33 GMT (Rev 1900)"`, idéntica al
-   `Gamma.Log` genuino). Con el valor real: `VAR_ERROR=0`.
-2. NPE en `LoginWizard.setConnected` (`setIniString("User0",null)`):
-   artefacto del harness (UI saltada deja `loginUserName=null`; el
-   flujo real lo exige en `validateKnownUserInfo`) — resuelto
-   preseedeando el wizard como lo dejaría la UI.
+**Two obstacles, root cause verified**:
+1. `VAR_CLIENT=null` (JNI mock) → the server responds `VAR_ERROR=7
+   "client out of date"` (seen twice live). Ground truth:
+   `objdump` on the real `assets/WorldsPlayer/bin/gamma.dll` — the
+   `getClientVersion` export returns `"2004080500"` (and
+   `getBuildInfo` = `"08/05/04 05:45:33 GMT (Rev 1900)"`, identical to the
+   genuine `Gamma.Log`). With the real value: `VAR_ERROR=0`.
+2. NPE in `LoginWizard.setConnected` (`setIniString("User0",null)`):
+   harness artifact (skipped UI leaves `loginUserName=null`; the real
+   flow requires it in `validateKnownUserInfo`) — resolved by
+   pre-seeding the wizard as the UI would leave it.
 
-**Cuentas (pregunta explícita de la sesión)**: el primario
-`worlds.worlio.com:6650` anuncia `#15=1` (UserServer) → exige
-usuario+password, registro solo vía web en
-`https://worlds.worlio.com/register` (accesible, pide email). **Sin
-una cuenta creada manualmente ahí no se puede loguear en el
-primario; no se inventó ni hardcodeó ninguna credencial** (la sonda
-acepta nick/password solo por argv). El guest no necesita registro.
+**Accounts (explicit question of the session)**: the primary
+`worlds.worlio.com:6650` announces `#15=1` (UserServer) → requires
+username+password, registration only via web at
+`https://worlds.worlio.com/register` (accessible, asks for an email). **Without
+an account created manually there one cannot log in to the
+primary; no credential was invented or hardcoded** (the probe
+accepts nick/password only via argv). The guest needs no registration.
 
-**Commits de esta línea** (sin tocar nada de `.cmp`/render):
-`bd4275c` (GuestLoginProbe), `a1edb1e` (trace del login completo),
-`2ae6c91` (documentación). **Siguiente paso concreto**: login en el
-primario cuando un humano registre una cuenta en la URL de arriba —
-la misma sonda (argv nick/password) debería llegar a 12 por el camino
-`UserServer` modo 2; pendiente de esa cuenta, no de código.
-
----
-
-### 🟢 Render — pipeline de materiales conectado a texturas reales por
-### nombre sobre la escena `.world` completa (2026-09-11)
-
-Objetivo de la sesión: que `GroundZero.world` (25 salas, 103 objetos,
-verificado en sesiones anteriores) cargara texturas `.cmp` REALES por
-objeto, no solo color plano. Se logró la mitad real y verificada de
-esto — el pipeline mismo — pero no la otra mitad (decodificar las
-texturas reales de la escena), documentado honestamente abajo, no
-maquillado.
-
-**Conectado y verificado**: `WorldViewer` ahora resuelve el `Texture`
-real de cada material contra `assets/WorldsPlayer/GroundZero/
-content.zip` (zip real de la instalación de 2001, ya versionado, 159
-`.cmp` reales bajo `tex/*.cmp`, misma convención de directorio que los
-`.rwx` de geometría ya extraídos), decodificando vía
-`net.openworlds.cmp.CmpTexture` con fallback honesto a color plano
-(nunca una textura inventada) cuando la decodificación falla — contado
-y reportado por nombre y razón real, no descartado en silencio.
-`GL_NEAREST`, no `GL_LINEAR` (corregido también en la demo de
-`RwxViewer`): sin evidencia de que RenderWare 2 aplicara filtrado
-bilinear, se usa la opción conservadora sin inventar suavizado (regla
-de alcance explícita de esta sesión). **Sin regresión**: con 0 texturas
-decodificables (ver abajo), `Reception` renderiza AE=0, pixel-idéntico
-al `docs/renders/world_reception_fixed.png` ya committeado. Detalle
-completo en `docs/render-pipeline-reference.md`.
-
-**Cobertura real medida sobre la escena completa**: 47 nombres de
-textura únicos referenciados, 124 referencias de material en total
-(el denominador real de objetos de verdad colocados por el grafo de
-escena, no un grep estático de todos los `.rwx` del directorio — ese
-da 72, cuenta modelos nunca instanciados en esta escena).
-
-**Lo que NO se logró esta sesión, con evidencia real de por qué**: el
-decoder `.cmp` Stage 2 (símbolos → píxeles) está byte-exacto desde la
-sesión anterior, pero **Stage 1** (bytes crudos `.cmp` → esos símbolos
-— el decodificador Huffman en sí) nunca se había implementado; solo
-existían streams pre-capturados a mano para 3 archivos (`test4b`,
-`rustwood`, `sball`), y **ninguno de los 47 nombres reales de
-GroundZero coincide con esos 3**. Dos rondas reales de ingeniería
-inversa esta sesión (ver la sección `.cmp` correspondiente más abajo
-para el detalle completo: cabecera de 34 bytes resuelta, las 3 tablas
-de permutación de alfabeto extraídas del binario, el decodificador de
-bits `FUN_00426af0` desensamblado por completo, el mapeo canal↔stream
-confirmado con cross-check real contra el censo de ramas de una sesión
-anterior) — pero Stage 1 **no quedó funcional**: la ronda 2 descubrió
-que los datos comprimidos se leen a través de un objeto lector de
-stream con buffer interno, no un puntero plano al archivo — una pieza
-de ingeniería inversa genuinamente nueva, no un ajuste menor, y se
-paró ahí en vez de forzar un cierre falso.
-
-**Resultado honesto de cobertura**: **0 / 47 texturas reales de
-GroundZero decodificadas**. El pipeline está listo y probado
-(conectado, sin regresión, con fallback correcto) — el bloqueo es
-puramente la falta de Stage 1, no el pipeline de materiales. Por lo
-mismo, **no hay comparación visual "antes/después" que mostrar esta
-sesión**: las capturas de `Reception`/`IconViewRoom1`/`ReceptionView1`
-con el pipeline de texturas conectado son pixel-idénticas a las
-capturas "solo color plano" ya committeadas de sesiones anteriores,
-porque 0 texturas se resolvieron. Documentado así explícitamente en vez
-de forzar una captura "después" que no mostraría ningún cambio real.
-
-**Rendimiento**: la escena completa (25 salas, `WorldViewer ... ALL
---screenshot-dir`) renderiza en ~4.7s reales, sin problema — pero esta
-cifra es del estado ACTUAL (0 decodificaciones reales de textura); no
-mide el coste real de decodificar+subir 47 texturas a GL, que solo se
-podrá medir cuando Stage 1 exista.
-
-**Siguiente paso concreto para una sesión futura** (con evidencia ya en
-mano, ver `docs/cmp-texture-format-reference.md`): desensamblar el
-objeto lector de stream (`0x42f460`) y su mecanismo de buffer/refill
-antes de retomar la traducción puntero→offset; una vez Stage 1
-decodifique `test4b.cmp`/`rustwood.cmp`/`sball.cmp` byte-exacto contra
-sus streams ya verificados, recién ahí intentar los 159 archivos reales
-de GroundZero — el pipeline de `WorldViewer` ya está listo para
-consumirlos sin ningún cambio adicional en ese lado.
+**Commits of this line** (without touching anything of `.cmp`/render):
+`bd4275c` (GuestLoginProbe), `a1edb1e` (trace of the complete login),
+`2ae6c91` (documentation). **Concrete next step**: login on the
+primary when a human registers an account at the URL above —
+the same probe (argv nick/password) should reach 12 via the
+`UserServer` mode 2 path; pending that account, not code.
 
 ---
 
-### 🟡 `.cmp` — Stage 1 (decodificador Huffman real): arquitectura
-### completa entendida en dos rondas, sigue sin funcionar (2026-09-11)
+### 🟢 Render — materials pipeline connected to real textures by
+### name over the complete `.world` scene (2026-09-11)
 
-Ver la sección "Render — pipeline de materiales..." justo arriba para
-el motivo (decodificar texturas reales de `GroundZero` lo necesitaba) y
-el resumen del resultado. Detalle técnico completo, con direcciones
-reales, valores de bytes exactos y evidencia de trazado en vivo para
-cada hallazgo, en `docs/cmp-texture-format-reference.md` (dos secciones
-nuevas: "Sesión Stage 1" y "Ronda 2"). Resumen de lo real y verificado
-sin ejecutar nada más:
+Session goal: have `GroundZero.world` (25 rooms, 103 objects,
+verified in earlier sessions) load REAL `.cmp` textures per
+object, not just flat color. The real and verified half of
+this was achieved — the pipeline itself — but not the other half (decoding the
+scene's real textures), honestly documented below, not
+glossed over.
 
-- Cabecera de 34 bytes completa, verificada exacta contra los 3
-  archivos conocidos (campo de tamaño de payload = `fileSize - 34`
-  exacto en los tres).
-- Las 3 tablas de permutación de alfabeto fijo (81/49/22 bytes)
-  extraídas byte a byte directamente del binario — con el hallazgo de
-  que el índice de alfabeto 2 es degenerado (sin explicar todavía).
-- `FUN_00426af0` (el decodificador de bits real) desensamblado por
-  completo: más simple de lo asumido en sesiones anteriores — todos los
-  códigos son ≤8 bits, tabla de búsqueda directa de 256 entradas, sin
-  caminar ningún árbol.
-- El mapeo canal↔stream (`bits, streamA, streamFillIdx, streamCtrl,
-  streamLit`) confirmado por desensamblado, y cruzado con evidencia
-  REAL independiente: los valores capturados en vivo (`streamA=124,
-  streamCtrl=4`) coinciden exactos con el censo de ramas de una sesión
-  `.cmp` anterior para el mismo archivo.
-- Confirmado: un archivo de 32×32 solo tiene UN grupo de cabecera (no
-  16), lo que también resuelve una duda antigua ("¿por qué
-  `FUN_00457d88` solo se llama una vez?").
-- **Bloqueo real, no resuelto**: los datos comprimidos se leen a través
-  de un objeto lector de stream con buffer interno (`0x42f460`), no un
-  puntero plano mapeado al archivo — el modelo "un `pos` que avanza
-  linealmente" del prototipo es estructuralmente incorrecto, no solo un
-  offset mal calculado. Cero texturas reales decodificadas, nada
-  conectado al pipeline con esta pieza — solo lo ya byte-exacto de la
-  sesión anterior (`test4b`/`rustwood`/`sball`) sigue siendo válido.
+**Connected and verified**: `WorldViewer` now resolves each material's
+real `Texture` against `assets/WorldsPlayer/GroundZero/
+content.zip` (real zip of the 2001 installation, already versioned, 159
+real `.cmp` under `tex/*.cmp`, same directory convention as the
+already-extracted geometry `.rwx` files), decoding via
+`net.openworlds.cmp.CmpTexture` with an honest fallback to flat color
+(never an invented texture) when decoding fails — counted
+and reported by name and real reason, not silently discarded.
+`GL_NEAREST`, not `GL_LINEAR` (also fixed in the `RwxViewer`
+demo): with no evidence that RenderWare 2 applied bilinear
+filtering, the conservative option is used without inventing smoothing (explicit
+scope rule of this session). **No regression**: with 0 decodable
+textures (see below), `Reception` renders AE=0, pixel-identical
+to the already committed `docs/renders/world_reception_fixed.png`. Full
+detail in `docs/render-pipeline-reference.md`.
 
----
+**Real coverage measured over the complete scene**: 47 unique texture
+names referenced, 124 material references in total
+(the real denominator of objects actually placed by the scene
+graph, not a static grep of all the `.rwx` files in the directory — that
+gives 72, it counts models never instantiated in this scene).
 
-### 🟢 `.cmp` Stage 1 — CIERRE: 159/159 del corpus real byte-exacto,
-### pipeline de materiales reconectado con texturas reales (2026-09-13)
+**What was NOT achieved this session, with real evidence of why**: the
+`.cmp` Stage 2 decoder (symbols → pixels) has been byte-exact since the
+previous session, but **Stage 1** (raw `.cmp` bytes → those symbols
+— the Huffman decoder itself) had never been implemented; only
+hand pre-captured streams existed for 3 files (`test4b`,
+`rustwood`, `sball`), and **none of the 47 real GroundZero names
+matches those 3**. Two real rounds of reverse
+engineering this session (see the corresponding `.cmp` section below
+for the full detail: 34-byte header resolved, the 3 alphabet
+permutation tables extracted from the binary, the bit decoder
+`FUN_00426af0` fully disassembled, the channel↔stream mapping
+confirmed with a real cross-check against the branch census of an
+earlier session) — but Stage 1 **did not end up functional**: round 2 discovered
+that the compressed data is read through a stream reader object with an
+internal buffer, not a flat pointer into the file — a piece
+of genuinely new reverse engineering, not a minor adjustment, and I stopped
+there instead of forcing a false closure.
 
-Objetivo de la sesión: subir la cobertura real del corpus de 159
-archivos `.cmp`, priorizando primero el cluster de fallos casi totales,
-con la misma disciplina de siempre (solo cuenta verificación
-byte-exacta real, nunca "se parece"). Arrancó confirmando el estado
-dejado por la sesión anterior (3 fixes commiteados, 70/159 OK antes de
-un corte por rate limit) y terminó **cerrando el arco completo**:
-decodificador Stage 1 al 100% del corpus real, y el pipeline de
-materiales de `WorldViewer` reconectado a texturas reales por primera
-vez. Detalle técnico completo, con evidencia y offsets reales, en
-`docs/cmp-texture-format-reference.md` ("Sesión siguiente" y "Estado
-final") y `docs/render-pipeline-reference.md` ("Reconexión final").
+**Honest coverage result**: **0 / 47 real GroundZero
+textures decoded**. The pipeline is ready and tested
+(connected, no regression, with correct fallback) — the blocker is
+purely the lack of Stage 1, not the materials pipeline. For the
+same reason, **there is no "before/after" visual comparison to show this
+session**: the captures of `Reception`/`IconViewRoom1`/`ReceptionView1`
+with the texture pipeline connected are pixel-identical to the
+"flat color only" captures already committed from earlier sessions,
+because 0 textures were resolved. Explicitly documented this way instead
+of forcing an "after" capture that would show no real change.
 
-**Cluster prioritario resuelto** (los ~20+ archivos con fallos casi
-totales): la constante ajustada a mano para el "símbolo extra" del
-canal LIT (1 en modo continuación / 2 en modo realineado, fijada a solo
-2 archivos en la sesión anterior) se rompió contra archivos con
-alfabetos de código de longitud mixta o de 5 bits. Reemplazada por
-`skipRawBits` — un descarte de bits crudos que nunca pasa por la tabla
-Huffman, sin el caso límite de "un símbolo decodificado se pasa del
-límite de byte objetivo". Verificado byte-exacto contra 5 archivos
-reales independientes (`test4b`, `sball`, `avdoor`, `rkgrnd`, `unexit`).
-Un bug real y serio del propio harness de verificación (procesos
-`cmpview.exe`/`wine` huérfanos acumulándose y corrompiendo capturas de
-pantalla entre archivos) también se encontró y arregló en el camino —
-**toda cifra de cobertura medida antes de ese fix en la sesión es
-sospechosa**, según se documentó explícitamente en el commit.
+**Performance**: the complete scene (25 rooms, `WorldViewer ... ALL
+--screenshot-dir`) renders in ~4.7s real time, no problem — but this
+figure is from the CURRENT state (0 real texture decodings); it does not
+measure the real cost of decoding+uploading 47 textures to GL, which can only
+be measured once Stage 1 exists.
 
-Con eso, el corpus subió a 156/159, y tras descartar 2 fallas
-transitorias por contención de Wine (`avdrrl.cmp`, `avflr1.cmp` — OK al
-reaislarlas), quedó en 158/159 con `vendside2.cmp` como única falla
-real.
-
-**Cluster secundario**: efectivamente resuelto como efecto colateral del
-fix de LIT de arriba — no hizo falta una investigación separada, tal
-como se anticipó en las instrucciones de la sesión ("puede que ya esté
-resuelto como efecto del fix prioritario, re-chequear antes de invertir
-más tiempo ahí").
-
-**Último archivo, `vendside2.cmp`**: causa real encontrada tras
-descartar fuerza bruta simple de alineación (81 combinaciones sin
-mejora) — su canal `streamCtrl` cae en el caso degenerado de un solo
-símbolo Huffman, y el código emitía la longitud de código leída del
-header (siempre 1) en vez de la longitud real de un alfabeto de un
-símbolo (0 bits — no hay nada que desambiguar). Invisible en 8/9
-archivos reales del corpus que caen en este mismo caso porque su
-conteo de símbolos pedidos era demasiado bajo (1) para que el bug
-tuviera efecto alguno; `vendside2.cmp` pide 63, suficiente para
-desincronizar el cursor de bits compartido en varios bytes antes de
-LIT. Fix de dos partes (longitud 0 para el caso degenerado + ajuste del
-retroceso de byte cuando un canal no consumió ningún bit real) —
-verificado byte-exacto en streamLit y en los 16384 píxeles finales.
-
-**Verificación continua, honesta sobre la inestabilidad real
-encontrada**: correr los 159 archivos de una sola vez resultó
-intermitentemente inestable esta sesión (fallos instantáneos sin salida
-real, tanto en primer plano como en segundo plano — causa no
-identificada con certeza, probablemente contención de recursos
-Wine/X bajo ejecuciones largas, no relacionado con el propio
-decodificador). Se resolvió corriendo el corpus en 4 lotes de ~40
-archivos, cada uno confiable — **resultado real y final: 159/159 OK,
-byte-exacto, sin duplicados ni omisiones** (verificado contando filas
-únicas de los 4 reportes).
-
-**Cierre de sesión (punto 4 de las instrucciones)**: con cobertura
-100% real, se reconectó `WorldViewer.resolveTexture()` de la ruta legacy
-(`CmpTexture.load`, streams pre-capturados a mano, solo 3 archivos
-tutorial) a la ruta real (`CmpTexture.loadRaw`, Stage 1 completo, sin
-archivos auxiliares) — cambio de una sola línea en el punto de
-resolución. Renderizando la escena completa de `groundzero.world` (25
-salas): **47/47 nombres de textura únicos decodificados (124/124
-referencias de material)**, subiendo de 0/47 en la sesión que conectó
-el pipeline por primera vez. Confirmado visualmente (no solo por el
-contador): nuevas capturas en `docs/renders/world_reception_textured.png`
-y `docs/renders/world_iconviewroom1_textured.png` muestran variación
-real de textura por superficie, con un diff de píxeles real y no-cero
-contra el baseline de solo-color-plano de la sesión anterior. El
-encuadre/escala de cámara de esas capturas (salas pequeñas y lejanas en
-el cuadro) es un problema preexistente de cámara, no de texturas, y
-quedó fuera de alcance de esta sesión — anotado honestamente, no
-maquillado.
-
-**Commits de esta sesión** (cada uno con verificación byte-exacta real
-antes de commitear, disciplina pedida explícitamente): fix del harness
-de captura (procesos huérfanos), fix `skipRawBits` de LIT (5 archivos),
-fix `vendside2.cmp` (caso degenerado de un símbolo), dos actualizaciones
-de documentación, y la reconexión del pipeline de `WorldViewer`.
-
-**Esto cierra el arco completo de `.cmp`/Stage 1** abierto varias
-sesiones atrás: de "0 texturas reales decodificables, arquitectura
-entendida pero no funcional" a "159/159 del corpus real byte-exacto,
-pipeline de materiales end-to-end verificado con textura real
-aplicada". No queda ningún archivo `.cmp` real sin resolver en el
- corpus disponible; el único camino sin ejercitar es `mode&0x80`
- (`groupCount>1`), que ningún archivo real conocido activa — lanza
- `IOException` explícita en vez de asumir comportamiento no probado.
+**Concrete next step for a future session** (with evidence already in
+hand, see `docs/cmp-texture-format-reference.md`): disassemble the stream
+reader object (`0x42f460`) and its buffer/refill mechanism
+before resuming the pointer→offset translation; once Stage 1
+decodes `test4b.cmp`/`rustwood.cmp`/`sball.cmp` byte-exact against
+their already-verified streams, only then attempt the 159 real
+GroundZero files — the `WorldViewer` pipeline is already ready to
+consume them without any additional change on that side.
 
 ---
 
-### 🟢 Ventana interactiva GroundZero funcionando (2026-09-13)
+### 🟡 `.cmp` — Stage 1 (real Huffman decoder): complete architecture
+### understood in two rounds, still not working (2026-09-11)
 
-Pedido explícito: "lanzar una ventana con groundzero funcionando".
-Hasta esta sesión `WorldViewer` solo sabía crear ventanas OCULTAS
-(`GLFW_VISIBLE, GLFW_FALSE`) — el modo screenshot de una sola pasada
-servía para verificación batch, pero ningún humano había visto nunca
-una sala `.world` real en una ventana abierta.
+See the section "Render — materials pipeline..." right above for
+the reason (decoding real `GroundZero` textures needed it) and
+the summary of the result. Full technical detail, with real addresses,
+exact byte values and live-trace evidence for each
+finding, in `docs/cmp-texture-format-reference.md` (two new
+sections: "Stage 1 Session" and "Round 2"). Summary of what is real and verified
+without running anything further:
 
-**Cambio** (`client/src/net/openworlds/render/WorldViewer.java`):
-flag `--window` — ventana visible e interactiva (auto-rotación lenta,
-ESC o botón de cierre para salir). Combinable con `--screenshot`
-(guarda el frame 0 por `glReadPixels` y deja la ventana abierta).
-Sin `--window`, comportamiento batch anterior intacto (1 frame +
-exit). Compilación limpia (`javac`, mismo classpath LWJGL).
+- Complete 34-byte header, verified exact against the 3 known
+  files (payload size field = `fileSize - 34`
+  exactly in all three).
+- The 3 fixed-alphabet permutation tables (81/49/22 bytes)
+  extracted byte by byte directly from the binary — with the finding
+  that alphabet index 2 is degenerate (not yet explained).
+- `FUN_00426af0` (the real bit decoder) fully disassembled:
+  simpler than assumed in earlier sessions — all
+  codes are ≤8 bits, a direct 256-entry lookup table, no
+  tree walking.
+- The channel↔stream mapping (`bits, streamA, streamFillIdx, streamCtrl,
+  streamLit`) confirmed by disassembly, and cross-checked with independent
+  REAL evidence: the values captured live (`streamA=124,
+  streamCtrl=4`) match exactly the branch census of an earlier
+  `.cmp` session for the same file.
+- Confirmed: a 32×32 file has only ONE header group (not
+  16), which also resolves an old doubt ("why is
+  `FUN_00457d88` only called once?").
+- **Real blocker, unresolved**: the compressed data is read through
+  a stream reader object with an internal buffer (`0x42f460`), not a
+  flat pointer mapped to the file — the prototype's "a `pos` that advances
+  linearly" model is structurally incorrect, not just a
+  miscomputed offset. Zero real textures decoded, nothing
+  connected to the pipeline with this piece — only what was already byte-exact from the
+  previous session (`test4b`/`rustwood`/`sball`) remains valid.
+
+---
+
+### 🟢 `.cmp` Stage 1 — CLOSURE: 159/159 of the real corpus byte-exact,
+### materials pipeline reconnected with real textures (2026-09-13)
+
+Session goal: raise the real coverage of the corpus of 159
+`.cmp` files, first prioritizing the cluster of near-total failures,
+with the same discipline as always (only real byte-exact verification
+counts, never "looks similar"). It started by confirming the state
+left by the previous session (3 fixes committed, 70/159 OK before
+a cutoff by rate limit) and ended up **closing the complete arc**:
+Stage 1 decoder at 100% of the real corpus, and the
+`WorldViewer` materials pipeline reconnected to real textures for the first
+time. Full technical detail, with real evidence and offsets, in
+`docs/cmp-texture-format-reference.md` ("Next session" and "Final
+state") and `docs/render-pipeline-reference.md` ("Final reconnection").
+
+**Priority cluster resolved** (the ~20+ files with near-total failures):
+the hand-tuned constant for the "extra symbol" of the LIT
+channel (1 in continuation mode / 2 in realigned mode, fixed on only
+2 files in the previous session) broke against files with
+alphabets of mixed-length or 5-bit codes. Replaced by
+`skipRawBits` — a discard of raw bits that never goes through the Huffman
+table, without the edge case of "a decoded symbol overshoots the
+target byte boundary". Verified byte-exact against 5 independent
+real files (`test4b`, `sball`, `avdoor`, `rkgrnd`, `unexit`).
+A real and serious bug in the verification harness itself (orphaned
+`cmpview.exe`/`wine` processes accumulating and corrupting screen
+captures between files) was also found and fixed along the way —
+**every coverage figure measured before that fix in the session is
+suspect**, as explicitly documented in the commit.
+
+With that, the corpus rose to 156/159, and after ruling out 2 transient
+failures due to Wine contention (`avdrrl.cmp`, `avflr1.cmp` — OK when
+re-isolated), it stood at 158/159 with `vendside2.cmp` as the only real
+failure.
+
+**Secondary cluster**: effectively resolved as a side effect of the
+LIT fix above — no separate investigation was needed, just
+as anticipated in the session's instructions ("it may already be
+resolved as an effect of the priority fix, re-check before investing
+more time there").
+
+**Last file, `vendside2.cmp`**: real cause found after
+ruling out simple alignment brute force (81 combinations with no
+improvement) — its `streamCtrl` channel falls into the degenerate single
+Huffman symbol case, and the code emitted the code length read from the
+header (always 1) instead of the real length of a one-symbol alphabet
+(0 bits — there is nothing to disambiguate). Invisible in 8/9
+real corpus files that fall into this same case because their
+requested symbol count was too low (1) for the bug to
+have any effect; `vendside2.cmp` asks for 63, enough to
+desynchronize the shared bit cursor by several bytes before
+LIT. Two-part fix (length 0 for the degenerate case + adjustment of the
+byte backtrack when a channel consumed no real bits) —
+verified byte-exact in streamLit and in the final 16384 pixels.
+
+**Continuous verification, honest about the real instability
+found**: running all 159 files at once turned out to be
+intermittently unstable this session (instant failures with no real
+output, both in foreground and background — cause not
+identified with certainty, probably Wine/X resource contention
+under long runs, unrelated to the decoder itself). It was resolved
+by running the corpus in 4 batches of ~40
+files, each reliable — **real and final result: 159/159 OK,
+byte-exact, with no duplicates or omissions** (verified by counting unique
+rows of the 4 reports).
+
+**Session closure (point 4 of the instructions)**: with 100% real
+coverage, `WorldViewer.resolveTexture()` was reconnected from the legacy path
+(`CmpTexture.load`, hand pre-captured streams, only 3 tutorial
+files) to the real path (`CmpTexture.loadRaw`, complete Stage 1, without
+auxiliary files) — a one-line change at the resolution
+point. Rendering the complete scene of `groundzero.world` (25
+rooms): **47/47 unique texture names decoded (124/124
+material references)**, up from 0/47 in the session that first connected
+the pipeline. Visually confirmed (not just by the
+counter): new captures in `docs/renders/world_reception_textured.png`
+and `docs/renders/world_iconviewroom1_textured.png` show real per-surface
+texture variation, with a real, non-zero pixel diff
+against the flat-color-only baseline of the previous session. The
+camera framing/scale of those captures (small, distant rooms in
+the frame) is a pre-existing camera issue, not a texture one, and
+was left out of scope for this session — honestly noted, not
+glossed over.
+
+**Commits of this session** (each with real byte-exact verification
+before committing, a discipline explicitly requested): capture harness
+fix (orphaned processes), LIT `skipRawBits` fix (5 files),
+`vendside2.cmp` fix (degenerate one-symbol case), two documentation
+updates, and the `WorldViewer` pipeline reconnection.
+
+**This closes the complete `.cmp`/Stage 1 arc** opened several
+sessions ago: from "0 real textures decodable, architecture
+understood but not functional" to "159/159 of the real corpus byte-exact,
+end-to-end materials pipeline verified with a real texture
+applied". No real `.cmp` file remains unresolved in the
+ available corpus; the only unexercised path is `mode&0x80`
+ (`groupCount>1`), which no known real file activates — it throws
+ an explicit `IOException` instead of assuming untested behavior.
+
+---
+
+### 🟢 GroundZero interactive window working (2026-09-13)
+
+Explicit request: "launch a window with groundzero working".
+Until this session `WorldViewer` could only create HIDDEN windows
+(`GLFW_VISIBLE, GLFW_FALSE`) — the single-pass screenshot mode
+served for batch verification, but no human had ever seen
+a real `.world` room in an open window.
+
+**Change** (`client/src/net/openworlds/render/WorldViewer.java`):
+`--window` flag — visible, interactive window (slow auto-rotation,
+ESC or the close button to exit). Combinable with `--screenshot`
+(saves frame 0 via `glReadPixels` and leaves the window open).
+Without `--window`, the previous batch behavior is intact (1 frame +
+exit). Clean compilation (`javac`, same LWJGL classpath).
 
 ```
-# compilar (una vez)
+# compile (once)
 javac -cp "tools/lwjgl/*" -d client/out $(find client/src -name "*.java")
-# ventana interactiva, sala Reception (la de referencia de las sesiones anteriores)
+# interactive window, Reception room (the reference one from earlier sessions)
 DISPLAY=:100 java -cp "client/out:tools/lwjgl/*" \
   net.openworlds.render.WorldViewer \
   assets/WorldsPlayer/GroundZero/groundzero.world Reception --window
-# con captura del primer frame + ventana abierta
+# with capture of the first frame + window left open
 ... Reception --window --screenshot /tmp/reception.png
-# modo batch anterior (sin cambios): 25 salas, --list-rooms, ALL
+# previous batch mode (unchanged): 25 rooms, --list-rooms, ALL
 ```
 
-**Verificado con evidencia real** (todo bajo Xvfb `:100`, GL error 0):
-- `Reception --window --screenshot` → **md5 idéntico** al
-  `docs/renders/world_reception_textured.png` committeado — el modo
-  ventana no altera ni un píxel del pipeline verificado.
-- `IconViewRoom1` re-renderizado igual: md5 idéntico al committeado.
-- Captura del escritorio Xvfb con la ventana REAL abierta y la escena
-  dentro: `docs/renders/world_window_reception_xvfb_desktop.png`
-  (384 colores — ventana GLFW de verdad, no un PNG generado a mano).
-- `Reception`: 12 objetos / 96 tris, texturas 4/4; `LizCave`: 5 obj /
+**Verified with real evidence** (all under Xvfb `:100`, GL error 0):
+- `Reception --window --screenshot` → **identical md5** to the committed
+  `docs/renders/world_reception_textured.png` — window mode does not alter a
+  single pixel of the verified pipeline.
+- `IconViewRoom1` re-rendered the same way: md5 identical to the committed one.
+- Capture of the Xvfb desktop with the REAL window open and the scene
+  inside: `docs/renders/world_window_reception_xvfb_desktop.png`
+  (384 colors — a genuine GLFW window, not a hand-generated PNG).
+- `Reception`: 12 objects / 96 tris, textures 4/4; `LizCave`: 5 obj /
   450 tris, 1/1; `Auditorium`: 1 obj / 40 tris; `Garden MazeC7b`:
-  0 objetos (sala vacía de verdad, no un error — `Drew 0` honesto).
+  0 objects (a genuinely empty room, not an error — honest `Drew 0`).
 
-**Hallazgo honesto, NO corregido (fuera de alcance)**: las salas
-texturizadas salen notablemente más oscuras que su baseline de color
-plano — `LizCave`: 990 colores (antes 73) sobre los mismos 13665 px,
-pero luminancia media 132.7 → 14.2 (`docs/renders/
-world_lizcave_textured.png` nuevo). Causa probable: `GL_MODULATE`
-multiplica textura × color de material × luz, tres factores <1
-apilados. Puede ser el comportamiento real de RW2… o no: no existe
-ninguna captura del cliente original con la que comparar, así que se
-documenta y no se "arregla" (la regla permanente lo prohíbe).
-`Auditorium` (media 173) demuestra que no es un bug sistemático de
-"todo negro" — depende de textura/material por sala.
+**Honest finding, NOT fixed (out of scope)**: the textured rooms
+come out noticeably darker than their flat-color baseline —
+`LizCave`: 990 colors (before 73) over the same 13665 px,
+but mean luminance 132.7 → 14.2 (`docs/renders/
+world_lizcave_textured.png` new). Probable cause: `GL_MODULATE`
+multiplies texture × material color × light, three factors <1
+stacked. It may be the real RW2 behavior… or not: no
+capture of the original client exists to compare against, so it is
+documented and not "fixed" (the permanent rule forbids it).
+`Auditorium` (mean 173) shows it is not a systematic "all black"
+bug — it depends on texture/material per room.
 
-**Limitación de entorno, verificada**: en el display real `:0`
-(XWayland) el MISMO binario renderiza negro (1 solo color, GL error
-igualmente 0) tanto en modo oculto como visible — falta de GLX/DRI
-útil en esta sesión, no del código. Toda la verificación de esta
-sesión es bajo Xvfb `:100`, donde el render es correcto y repetible
-byte a byte. En una máquina con GLX real, el mismo comando con
-`DISPLAY=:0` debería mostrar la ventana directamente.
+**Environment limitation, verified**: on the real display `:0`
+(XWayland) the SAME binary renders black (only 1 color, GL error
+still 0) both in hidden and visible mode — lack of useful GLX/DRI
+in this session, not of the code. All the verification of this
+session is under Xvfb `:100`, where the render is correct and repeatable
+byte for byte. On a machine with real GLX, the same command with
+`DISPLAY=:0` should show the window directly.
 
-**Siguiente paso natural**: el encuadre de cámara (salas pequeñas y
-lejanas, ya anotado en la sesión `.cmp`) es ahora el problema más
-visible al mirar la ventana — mover la cámara dentro de la sala
-(posición de avatar) en vez de encuadrar el bounding box entero.
+**Natural next step**: camera framing (small, distant rooms,
+already noted in the `.cmp` session) is now the most
+visible problem when looking at the window — move the camera inside the room
+(avatar position) instead of framing the entire bounding box.
 
 ---
 
-### 🟢 Cámara interior voladora `--inside` en WorldViewer (2026-09-13)
+### 🟢 Flying interior camera `--inside` in WorldViewer (2026-09-13)
 
-Pedido explícito ("hazlo") tras ver que la cámara orbital exterior
-solo muestra el esqueleto: una maqueta lejana y oscura de cada sala.
-`WorldViewer` gana modo cámara interior: ojo DENTRO de la sala con
-controles de vuelo (W/S avanzar, A/D strafe, flechas girar/cabecear,
-E/Q subir/bajar, ESC salir), velocidad y near/far derivados del
-bounding box real de la sala. `--eye/--look/--up x,y,z` permiten un
-punto de vista exacto; sin ellos, ojo = centro + (0.3r, 0.12r, 0.3r)
-mirando al centro. `--inside` implica `--window` (salvo con
-`--screenshot`, que guarda el frame 0 headless para verificación).
+Explicit request ("do it") after seeing that the exterior orbital camera
+only shows the skeleton: a distant, dark scale model of each room.
+`WorldViewer` gains an interior camera mode: eye INSIDE the room with
+flight controls (W/S forward, A/D strafe, arrows turn/pitch,
+E/Q up/down, ESC exit), speed and near/far derived from the room's
+real bounding box. `--eye/--look/--up x,y,z` allow an exact
+point of view; without them, eye = center + (0.3r, 0.12r, 0.3r)
+looking at the center. `--inside` implies `--window` (except with
+`--screenshot`, which saves frame 0 headless for verification).
 
 ```
 DISPLAY=:100 java -cp "client/out:tools/lwjgl/*" \
@@ -2761,1302 +2761,1302 @@ DISPLAY=:100 java -cp "client/out:tools/lwjgl/*" \
   assets/WorldsPlayer/GroundZero/groundzero.world LizCave --inside
 ```
 
-**Medición previa con datos reales** (sonda throwaway en `/tmp`, no
-versionada): los modelos RWX son de escala unidad — la escala real
-vive en las matrices del `.world`. Reception = 4 marcos delgados
-(`frame.rwx`, 8 tris) + techo (`hubceil1c.rwx`, 40 tris) + kiosko
-(6 piezas, z 0..355) en (1290,865); NO hay suelo ni paredes en esta
-sala — su interior genuino es disperso, no es un bug del render.
+**Prior measurement with real data** (throwaway probe in `/tmp`, not
+versioned): the RWX models are unit scale — the real scale
+lives in the `.world` matrices. Reception = 4 thin frames
+(`frame.rwx`, 8 tris) + ceiling (`hubceil1c.rwx`, 40 tris) + kiosk
+(6 pieces, z 0..355) at (1290,865); there is NO floor or walls in this
+room — its genuine interior is sparse, it is not a render bug.
 
-**Verificado con evidencia real** (Xvfb `:100`, GL error 0 siempre):
-- Sin regresión: `Reception` exterior tras el cambio = md5 idéntico
-  al texturizado committeado.
-- `Reception --inside` por defecto: 61399 px no-fondo (antes 4158) —
-  15× más escena visible; el kiosko se ve con textura real.
-- `LizCave --inside`: 269932 px, **2566 colores** de roca con musgo
-  rodeando la cámara — aspecto de estar dentro de la cueva de verdad
-  (`docs/renders/world_inside_lizcave.png` + captura del escritorio
-  Xvfb con la ventana abierta `..._desktop.png`).
-- `Auditorium --inside`: pared gris + postes rayados rojo/negro con
-  texels nítidos (`GL_NEAREST` verificable a simple vista,
+**Verified with real evidence** (Xvfb `:100`, GL error 0 always):
+- No regression: `Reception` exterior after the change = md5 identical
+  to the committed textured one.
+- `Reception --inside` by default: 61399 non-background px (before 4158) —
+  15× more visible scene; the kiosk is seen with real texture.
+- `LizCave --inside`: 269932 px, **2566 colors** of moss-covered rock
+  surrounding the camera — looks like being inside the cave for real
+  (`docs/renders/world_inside_lizcave.png` + capture of the Xvfb desktop
+  with the window open `..._desktop.png`).
+- `Auditorium --inside`: gray wall + red/black striped posts with
+  crisp texels (`GL_NEAREST` verifiable at plain sight,
   `docs/renders/world_inside_auditorium.png`).
-- Ventana `--inside` abierta 20s sin excepción; controles sondeados
-  por código (sin teclas = no-ops) — el movimiento direccional real
-  con teclas **no está verificado headless** (sin inyector de input
-  en este entorno), anotado honestamente.
+- `--inside` window open for 20s without exceptions; controls probed
+  by code (no keys = no-ops) — real directional movement
+  with keys **is not verified headless** (no input injector
+  in this environment), honestly noted.
 
-**Límites honestos**: sin colisiones (cámara vuela, atraviesa
-geometría); sin avatares (los `avatar:` se siguen saltando);
-salas vacías de verdad (`Garden MazeC7b`, 0 objetos) se ven vacías;
-persiste el oscurecimiento por `GL_MODULATE` de la sesión anterior.
+**Honest limits**: no collisions (the camera flies, passes through
+geometry); no avatars (the `avatar:` ones are still skipped);
+genuinely empty rooms (`Garden MazeC7b`, 0 objects) look empty;
+the darkening from `GL_MODULATE` of the previous session persists.
 
-### 🟢 Lanzador con log `tools/run-game.sh` (2026-09-13)
+### 🟢 Launcher with log `tools/run-game.sh` (2026-09-13)
 
-Pedido explícito: "un script que lanze el juego y lo logee".
-`tools/run-game.sh [sala] [args...] [--log-dir dir] [--display :N]
-[--build] [--no-shot]` — primer posicional no-flag = sala (defecto
-`Reception`), resto pasa tal cual al WorldViewer. Reutiliza `DISPLAY`
-si hay X vivo o levanta Xvfb propio (displays 100-110, lo mata al
-salir); añade `--screenshot logs/<sala>-<fecha>.png` salvo `--no-shot`
-o modos con salida propia; guarda `logs/worldviewer-<sala>-<fecha>.log`
-con cabecera (fecha, git rev, java, comando) + resumen (exit, Room/
-Drew/Screenshot/Coverage). `logs/` gitignored — evidencia local, no
-corpus. Verificado: `Reception` batch, `LizCave --inside`
-(md5 idéntico al render verificado) y `Auditorium` sin `DISPLAY`
-(Xvfb propio en `:101`), los tres exit 0. Detalle de uso en
+Explicit request: "a script that launches the game and logs it".
+`tools/run-game.sh [room] [args...] [--log-dir dir] [--display :N]
+[--build] [--no-shot]` — first non-flag positional = room (default
+`Reception`), the rest passed as-is to WorldViewer. Reuses `DISPLAY`
+if there is a live X or brings up its own Xvfb (displays 100-110, kills it on
+exit); adds `--screenshot logs/<room>-<date>.png` unless `--no-shot`
+or modes with their own output; saves `logs/worldviewer-<room>-<date>.log`
+with header (date, git rev, java, command) + summary (exit, Room/
+Drew/Screenshot/Coverage). `logs/` gitignored — local evidence, not
+corpus. Verified: `Reception` batch, `LizCave --inside`
+(md5 identical to the verified render) and `Auditorium` without `DISPLAY`
+(own Xvfb on `:101`), all three exit 0. Usage detail in
 `docs/render-pipeline-reference.md`.
 
-### 🟢 Bug real: screenshot tras el swap = negro en display real
-### (2026-09-13, revisión del log del usuario)
+### 🟢 Real bug: screenshot after the swap = black on a real display
+### (2026-09-13, review of the user's log)
 
-El usuario corrió `run-game.sh Reception` en su display real (`:0`,
+The user ran `run-game.sh Reception` on their real display (`:0`,
 log `logs/worldviewer-Reception-20260913-142736.log`): exit 0,
-GL error 0, 4/4 texturas… y PNG totalmente negro (1 solo color).
-Revisando el log + el código, causa raíz en `WorldViewer`: el
-screenshot (`glReadPixels`) se hacía DESPUÉS de `glfwSwapBuffers` —
-tras el swap, el contenido del back buffer es **indefinido** por
-especificación. En Xvfb se conservaba por suerte (capturas correctas
-siempre), en XWayland/Mesa real sale negro. No era el driver ni la
-escena: era orden de llamadas nuestro. Fix: leer antes del swap
-(+ log "Window presented frame 0" como evidencia de ventana viva).
-Verificado: `:0` pasa de 1 color a **408 colores** (misma escena
-Reception que Xvfb; md5 distinto por dithering del driver, conteo de
-colores idéntico), `:100` sigue md5-idéntico al committeado — cero
-regresión. Moraleja para el proyecto: todo `glReadPixels` va antes
-del swap, sin excepciones.
+GL error 0, 4/4 textures… and a completely black PNG (only 1 color).
+Reviewing the log + the code, root cause in `WorldViewer`: the
+screenshot (`glReadPixels`) was taken AFTER `glfwSwapBuffers` —
+after the swap, the back buffer contents are **undefined** per
+the specification. On Xvfb it was preserved by luck (captures always
+correct), on real XWayland/Mesa it comes out black. It was not the driver or
+the scene: it was our own call order. Fix: read before the swap
+(+ a "Window presented frame 0" log as evidence of a live window).
+Verified: `:0` goes from 1 color to **408 colors** (same Reception scene
+as Xvfb; different md5 due to driver dithering, identical color
+count), `:100` is still md5-identical to the committed one — zero
+regression. Moral for the project: every `glReadPixels` goes before
+the swap, no exceptions.
 
-### 🟢 Ventana jugable abierta en display real (2026-09-13)
+### 🟢 Playable window opened on a real display (2026-09-13)
 
-Con el fix de arriba, abierta y verificada viva (`LizCave --inside`
-en `:0`, PID en `/tmp/game_window.log`, "presented frame 0" en log,
-proceso ALIVE): ventana GLFW real con la cueva texturizada dentro y
-cámara voladora por teclado (W/S volar, A/D strafe, flechas, E/Q,
-ESC salir). Estado honesto de "jugable": moverse y mirar funciona;
-sin colisiones, sin avatares, sin red/chat todavía (ver lista de la
-sección `--inside`).
+With the fix above, opened and verified alive (`LizCave --inside`
+on `:0`, PID in `/tmp/game_window.log`, "presented frame 0" in log,
+process ALIVE): a real GLFW window with the textured cave inside and a
+keyboard flying camera (W/S fly, A/D strafe, arrows, E/Q,
+ESC exit). Honest state of "playable": moving and looking works;
+no collisions, no avatars, no network/chat yet (see the list in the
+`--inside` section).
 
-### 🟢 Texturas bien: base blanca + Lit-gating + ambient retunado
+### 🟢 Textures done right: white base + Lit-gating + retuned ambient
 ### (2026-09-13)
 
-Pedido explícito ("que cargue el groundzero con texturas bien") tras
-ver renders interiores correctos pero globalmente oscuros (LizCave
-texturizada a luminancia media ~5/255). Causa raíz medida en dos
-partes, ambas en el pipeline de materiales — nunca en los píxeles
-`.cmp` (byte-exactos desde la sesión Stage 1):
+Explicit request ("make it load groundzero with proper textures") after
+seeing correct but globally dark interior renders (textured LizCave
+at mean luminance ~5/255). Root cause measured in two
+parts, both in the materials pipeline — never in the `.cmp`
+pixels (byte-exact since the Stage 1 session):
 
-1. **Base de color equivocada en texturizadas**: aplicábamos
-   `difuso = Color × escalar` también con textura — textura × color
-   (~0.2-0.9) × N·L apilaba tres factores <1. La referencia
-   (`three-rwx-loader`, `RWXLoader.js:531-582`) hace base BLANCA con
-   textura (el `Color` del archivo se ignora — `tint` nunca se activa
-   en la práctica) y escala por `brightnessRatio = max(surface)`.
-   Doble fuente: la sesión `sball` ya había forzado blanco a mano por
-   el mismo motivo ("materiales negros degenerados") sin llevarlo al
-   pipeline real. Medición del corpus: las 297 refs a `.cmp` reales
-   son TODAS no-`Lit` (`Foreshorten`); `Lit` solo aparece con
-   `Texture NULL` (2 archivos, p. ej. `SPIN.RWX`).
-2. **Surface sin gatear por `Lit`**: la referencia solo usa la tripleta
-   parseada con `TextureModes Lit`; sin `Lit` usa el default AW 2.2
-   `[0.69, 0, 0]` (`defaultSurface`). Nuestro parser ni leía
-   `TextureModes`. Ahora: `RwxMaterial.textureModes` (default Lit+
-   Foreshorten+Filter como la referencia), `effectiveAmbient/
-   effectiveDiffuse`, `brightnessRatio()`, `baseColor()`; defaults de
-   material alineados (`color 0`, `surface [0.69,0,0]`).
+1. **Wrong color base on textured surfaces**: we applied
+   `diffuse = Color × scalar` also with a texture — texture × color
+   (~0.2-0.9) × N·L stacked three factors <1. The reference
+   (`three-rwx-loader`, `RWXLoader.js:531-582`) uses a WHITE base with
+   texture (the file's `Color` is ignored — `tint` is never activated
+   in practice) and scales by `brightnessRatio = max(surface)`.
+   Two sources: the `sball` session had already forced white by hand for
+   the same reason ("degenerate black materials") without carrying it into the
+   real pipeline. Corpus measurement: all 297 refs to real `.cmp`
+   are NON-`Lit` (`Foreshorten`); `Lit` only appears with
+   `Texture NULL` (2 files, e.g. `SPIN.RWX`).
+2. **Surface not gated by `Lit`**: the reference only uses the parsed
+   triplet with `TextureModes Lit`; without `Lit` it uses the AW 2.2 default
+   `[0.69, 0, 0]` (`defaultSurface`). Our parser did not even read
+   `TextureModes`. Now: `RwxMaterial.textureModes` (default Lit+
+   Foreshorten+Filter like the reference), `effectiveAmbient/
+   effectiveDiffuse`, `brightnessRatio()`, `baseColor()`; material
+   defaults aligned (`color 0`, `surface [0.69,0,0]`).
 
-**Ambient de luz retunado con evidencia** (heurística documentada,
-no valor RW2 verificado): el hack anterior (ambient=diffuse por luz,
-1.5× total) era inocuo con ambient_mat ~0 pero con la respuesta
-0.69 real clipeaba TODA superficie texturizada a blanco sin sombrear
-(medido 19.8% píxeles blancos puros en Auditorium; 0.25 aún dejaba
-vetas en caras ideales, 7.9%). Fijado en 0.15×/luz (key 0.15, fill
-0.075): sombras visibles (~16% lift), sombreado N·L preservado.
+**Light ambient retuned with evidence** (documented heuristic,
+not a verified RW2 value): the previous hack (ambient=diffuse per light,
+1.5× total) was harmless with ambient_mat ~0 but with the real
+0.69 response it clipped EVERY textured surface to white with no shading
+(measured 19.8% pure white pixels in Auditorium; 0.25 still left
+streaks on ideal faces, 7.9%). Set to 0.15×/light (key 0.15, fill
+0.075): visible shadows (~16% lift), N·L shading preserved.
 
-**Medición antes→después** (misma escena, Xvfb, GL error 0):
+**Before→after measurement** (same scene, Xvfb, GL error 0):
 
-| sala | colores | lum.media/255 | blanco puro |
+| room | colors | mean lum./255 | pure white |
 |---|---|---|---|
 | LizCave | 990 → **1900** | 4.7 → **12.6** | 0% |
 | IconViewRoom1 | 171 → **178** | 6.9 → **20.7** | 0% |
 | Reception | 408 → **453** | 57.6 → **105.9** | 0% |
 | Auditorium | — → 168 | — → **69.2** | 0% |
 
-Escena completa (`ALL`, 25/25 salas, 0 missing, GL 0 en todas;
-cobertura de texturas intacta 47/47 — esa ruta no se tocó).
-Capturas actualizadas: `world_{reception,iconviewroom1,lizcave,
-auditorium}_textured.png`, `world_inside_{lizcave,auditorium}.png` y
-escritorio Xvfb en vivo. La veta blanca de Auditorium se resolvió
-como geometría real brillante (240, no clip): filo de `stand.rwx`
-con texel claro a plena luz, verificado material por material.
+Complete scene (`ALL`, 25/25 rooms, 0 missing, GL 0 in all;
+texture coverage intact 47/47 — that path was not touched).
+Updated captures: `world_{reception,iconviewroom1,lizcave,
+auditorium}_textured.png`, `world_inside_{lizcave,auditorium}.png` and
+live Xvfb desktop. The white streak in Auditorium was resolved
+as genuinely bright geometry (240, not clip): edge of `stand.rwx`
+with a light texel in full light, verified material by material.
 
-**Límites que quedan**: sin ground truth iluminada del cliente
-original (cmpview es sin luz), el 0.15 sigue siendo heurística;
-`emissive = surface[1]` de la referencia (three.js-ismo) no se
-implementó — sin evidencia RW2; `FILTER` sigue siendo `GL_NEAREST`
-por regla de alcance.
+**Remaining limits**: no lit ground truth from the original
+client (cmpview is unlit), the 0.15 is still a heuristic;
+the reference's `emissive = surface[1]` (a three.js-ism) was not
+implemented — no RW2 evidence; `FILTER` remains `GL_NEAREST`
+per the scope rule.
 
-### 🟢 Z-up real + spawn auténtico + `run-game.sh` abre GroundZero
+### 🟢 Real Z-up + authentic spawn + `run-game.sh` opens GroundZero
 ### (2026-09-13)
 
-Pedido ("no abre, quiero que abra groundzero"): el usuario corrió el
-script en batch (modo oculto por diseño — ninguna ventana *debía*
-abrirse) y la ventana `--inside` anterior había muerto al cerrar.
-Diagnóstico: display `:0` es Xwayland rootless (ventanas GLFW sí
-aparecen, verificado), ningún proceso vivo — había que abrirla de
-nuevo, pero mejor: con el spawn de verdad.
+Request ("it doesn't open, I want it to open groundzero"): the user ran the
+script in batch (hidden mode by design — no window *was supposed* to
+open) and the previous `--inside` window had died on closing.
+Diagnosis: display `:0` is rootless Xwayland (GLFW windows do
+appear, verified), no live process — it had to be opened
+again, but better: with the real spawn.
 
-**Dos hechos de código del cliente decompilado** (no suposición):
+**Two facts from the decompiled client's code** (not assumption):
 - `scape/Transform.java`: `raise(dz)` = `moveBy(0,0,dz)`,
-  `yaw(a)` = `spin(0,0,1,a)` — el mundo es **Z-up**. Todas las
-  capturas anteriores (Y-up) mostraban la escena tumbada 90°.
-- `scape/Pilot.getURL()`: el formato de punto de mundo es
-  `sala@X,Y,Z,spin,axisX,axisY,axisZ` — y `worlds.ini` trae el spawn
-  auténtico: `GroundZero.world#Reception<>@1872,1229,150,125,0,0,-1`
-  (posición + yaw 125° sobre Z).
+  `yaw(a)` = `spin(0,0,1,a)` — the world is **Z-up**. All the earlier
+  captures (Y-up) showed the scene tipped over 90°.
+- `scape/Pilot.getURL()`: the world point format is
+  `room@X,Y,Z,spin,axisX,axisY,axisZ` — and `worlds.ini` carries the
+  authentic spawn: `GroundZero.world#Reception<>@1872,1229,150,125,0,0,-1`
+  (position + yaw 125° about Z).
 
-**Implementado**: `WorldViewer` con Z-up por defecto en exterior
-(órbita sobre Z) e interior (yaw en plano x/y, E/Q sobre el up real,
-`--up 0,1,0` conserva la matemática vieja); `run-game.sh` sin args
-abre ventana interior en el spawn real mirando al kiosko
-(`--eye 1872,1229,150 --look 1290,865,150`): el yaw 125° del ini
-admite dos signos de giro (35° medido poco informativo — marcos
-lejanos; 145° similar), así que se documenta la desviación honesta:
-posición 100% real, dirección = la que muestra contenido (kiosko,
-25625 px/1077 colores) en vez de una convención de signo sin
-verificar. Las flechas permiten girar de todos modos.
+**Implemented**: `WorldViewer` with Z-up by default in exterior
+(orbit about Z) and interior (yaw in the x/y plane, E/Q along the real up,
+`--up 0,1,0` keeps the old math); `run-game.sh` with no args
+opens an interior window at the real spawn looking at the kiosk
+(`--eye 1872,1229,150 --look 1290,865,150`): the ini's 125° yaw
+admits two turn signs (35° measured, not very informative —
+distant frames; 145° similar), so the honest deviation is documented:
+100% real position, direction = the one that shows content (kiosk,
+25625 px/1077 colors) instead of an unverified sign convention.
+The arrows allow turning anyway.
 
-**Verificado**: 25/25 salas GL 0, cobertura 47/47 intacta, renders
-exteriores e interiores re-generados con orientación correcta
-(LizCave interior por defecto: 461433 px / 2850 colores dentro de la
-cueva). Evidencias nuevas: `world_spawn_reception_kiosk.png` (vista
-spawn) y `world_spawn_window_desktop.png` (ventana viva en Xvfb).
-Ventana abierta en el display real del usuario vía `./tools/
-run-game.sh` a secas (log `/tmp/gz_boot.log`, "presented frame 0",
-proceso vivo).
+**Verified**: 25/25 rooms GL 0, coverage 47/47 intact, exterior
+and interior renders regenerated with the correct orientation
+(LizCave interior by default: 461433 px / 2850 colors inside the
+cave). New evidence: `world_spawn_reception_kiosk.png` (spawn
+view) and `world_spawn_window_desktop.png` (live window on Xvfb).
+Window opened on the user's real display via plain `./tools/
+run-game.sh` (log `/tmp/gz_boot.log`, "presented frame 0",
+live process).
 
-### 🟢 Rects: paredes/suelos/carteles con textura — ya no más bones
+### 🟢 Rects: walls/floors/signs with texture — no more bones
 ### (2026-09-13)
 
-Pedido ("no sea solo bones, con texturas bien"): con solo Shapes, las
-salas eran esqueletos — Reception: 12 objetos finos flotando en negro.
-Causa real: el contenido de verdad (paredes, suelos, carteles) son
-nodos **`Rect` (superficies 3D con material)**, 374 en todo
-GroundZero (Reception 30, ReceptionView1 140, LizCave 42…), y el
-parser tiraba sus campos mientras el visor los ignoraba.
+Request ("don't make it just bones, with proper textures"): with only Shapes, the
+rooms were skeletons — Reception: 12 thin objects floating in black.
+Real cause: the actual content (walls, floors, signs) is
+**`Rect` nodes (3D surfaces with material)**, 374 across all of
+GroundZero (Reception 30, ReceptionView1 140, LizCave 42…), and the
+parser was throwing their fields away while the viewer ignored them.
 
-**Parse espejo verificado** (bytes idénticos, `END PERSISTER` intacto):
-`Rect.restoreState` da el plano unitario + u/v (+offsets según
-versión) y `Material.restoreState` da ambiente/difusa/spec/opacidad,
-color RGB y URL de textura (v2+; v0/v1 referencian un `Texture` sin
-nombre — fallback plano honesto). `WNode` gana `material`,
+**Mirrored parse verified** (identical bytes, `END PERSISTER` intact):
+`Rect.restoreState` gives the unit plane + u/v (+offsets depending on
+version) and `Material.restoreState` gives ambient/diffuse/spec/opacity,
+RGB color and texture URL (v2+; v0/v1 reference an unnamed `Texture` —
+honest flat fallback). `WNode` gains `material`,
 `matAmbient/Diffuse/Specular/Opacity`, `matColorRGB`,
 `matTextureUrl`, `rectU/V/UOff/VOff`.
 
-**Dos hallazgos con evidencia**:
-- El plano local es **X/Z, no X/Y**: las matrices reales aplastan Y
-  (~0) y (1,0,1) reproduce la far-corner (f1,f2,f3) exacta a través
-  del spin/scale — con X/Y salían quads degenerados (líneas, +187 px
-  solo); con X/Z, 25k→121k px en el spawn.
-- Las texturas Rect son URLs absolutas
+**Two findings with evidence**:
+- The local plane is **X/Z, not X/Y**: the real matrices flatten Y
+  (~0) and (1,0,1) reproduces the exact far-corner (f1,f2,f3) through
+  the spin/scale — with X/Y, degenerate quads came out (lines, +187 px
+  only); with X/Z, 25k→121k px at the spawn.
+- The Rect textures are absolute URLs
   `http://www-static.us.worlds.net/3DCDup/GroundZero/dtex/*.cmp`
-  (12, descargadas del servidor vivo a `assets/.../GroundZero/dtex/`,
-  68K versionados) o relativas `tex/*` (con sufijo de animación
-  `2h*2v*` estilo `cbirda42h*2v*.mov` — nombre real antes del primer
-  `*`, +strip de `\d+[hv]`). Cobertura: **42/55 URLs** (187 refs);
-  los 13 restantes son `.mov` (mismo códec, contenedor distinto —
-  `tableRegionSize` no cuadra, documentado como siguiente paso).
+  (12, downloaded from the live server to `assets/.../GroundZero/dtex/`,
+  68K versioned) or relative `tex/*` (with animation suffix
+  `2h*2v*` in the style of `cbirda42h*2v*.mov` — real name before the first
+  `*`, + strip of `\d+[hv]`). Coverage: **42/55 URLs** (187 refs);
+  the remaining 13 are `.mov` (same codec, different container —
+  `tableRegionSize` does not add up, documented as the next step).
 
-**Render**: quads con UV reales (tiling vía `GL_REPEAT`), doble cara
-(sin `MaterialModes` en Rects; `GL_LIGHT_MODEL_TWO_SIDE` para N·L
-correcto), normales leídas del modelview real, materiales con la
-misma base-blanca/ratio del pipeline RWX. Texto del cartel del
-kiosko ("BIRTHDAY ROOM…") legible no-espejado = UV bien. (Cobertura
-de entonces 42/55 URLs — los 13 `.mov` llegaron en la sesión
-siguiente, ver abajo: hoy 55/55.)
+**Render**: quads with real UVs (tiling via `GL_REPEAT`), double-sided
+(no `MaterialModes` on Rects; `GL_LIGHT_MODEL_TWO_SIDE` for correct
+N·L), normals read from the real modelview, materials with the
+same white-base/ratio as the RWX pipeline. The kiosk sign text
+("BIRTHDAY ROOM…") readable, not mirrored = UVs right. (Coverage
+at the time 42/55 URLs — the 13 `.mov` arrived in the next session,
+see below: today 55/55.)
 
-**Medido**: Reception spawn 25k→121k px/1571 colores; RV1 196
-objetos/7428 tris (zona picnic con suelo, camino, vallas, grill);
-LizCave interior 450k px/1259 colores; IconViewRoom1 15k→53k px.
-25/25 salas GL 0. Nota honesta: 147 Rects planos son color teal
-real del stream (#00F7EF — verificado `java.awt.Color(r,g,b)`, no
-default), y la respuesta difusa de Rects usa el ratio como en RWX
-(a estrictos difusa=0 quedarían casi negros con nuestra luz
-ambiental tenue — decisión documentada en el código).
+**Measured**: Reception spawn 25k→121k px/1571 colors; RV1 196
+objects/7428 tris (picnic area with floor, path, fences, grill);
+LizCave interior 450k px/1259 colors; IconViewRoom1 15k→53k px.
+25/25 rooms GL 0. Honest note: 147 flat Rects are a real teal
+color from the stream (#00F7EF — verified `java.awt.Color(r,g,b)`, not a
+default), and the diffuse response of Rects uses the ratio as in RWX
+(strictly, diffuse=0 would leave them nearly black with our dim
+ambient light — decision documented in the code).
 
-### 🟢 .mov decodificado + cobertura 100% de texturas (2026-09-13)
+### 🟢 .mov decoded + 100% texture coverage (2026-09-13)
 
-Pedido ("aún quedan muchas texturas sin cargar"): 13 URLs `.mov`
-(19 refs) sin loader — mismo códec LzH2, distinto contenedor
-(`tableRegionSize+groupRegionSize != payloadSize`, modos 0x82/0x86).
+Request ("many textures are still not loaded"): 13 `.mov` URLs
+(19 refs) with no loader — same LzH2 codec, different container
+(`tableRegionSize+groupRegionSize != payloadSize`, modes 0x82/0x86).
 
-**Contenedor resuelto con evidencia**: mismos offsets de cabecera
-que `.cmp` (mode/flags/dims/lens idénticos en forma); la región de
-tablas es mucho mayor (multi-frame) y su tamaño NO es el u16 de 28
-(922 para una tabla real de 3791) — se localiza por firma del header
-de grupo (`field0==64`, verificado 12/12 stills + único por `.mov`,
-incluido windr3 con `wanted[0]=624` y `h=154`). Solo se decodifica
-el frame 0 (visor estático; la animación por UV-tiling `2h*2v*` o
-multi-archivo f1-f8 queda documentada, no implementada).
+**Container resolved with evidence**: same header offsets
+as `.cmp` (mode/flags/dims/lens identical in form); the table
+region is much larger (multi-frame) and its size is NOT the u16 at 28
+(922 for a real table of 3791) — it is located by the signature of the group
+header (`field0==64`, verified 12/12 stills + unique per `.mov`,
+including windr3 with `wanted[0]=624` and `h=154`). Only frame 0 is
+decoded (static viewer; animation by `2h*2v*` UV-tiling
+or multi-file f1-f8 is documented, not implemented).
 
-**Verificación oficial** (`cmpview.exe` + screenshots con
-template-matching multirresolución — el crop fijo del harness de
-`.cmp` falla en ventanas de película, verificado a mano):
-`windr1` y `cbirda4` **16384/16384 byte-exactos**; los 11 restantes
-muestran artwork real correcto (banderas f1-f8 en fases sucesivas de
-onda, pájaro azul, logos `...s.com`, interiores, muros). Dos trampas
-reales encontradas por el camino: el ground truth "negro" inicial
-era un misfire del crop del harness (ventana de película ≠ still) —
-no contenido; y un bug de MI sonda (`setRGB` sin `& 0xFF`,
-amarilleaba todo) — no del decoder. Detalle de modos: `0x82` (10
-archivos) directo; `0x86` (cbirda4, f3) necesita índice
-255→blanco (fondo transparente del sprite sobre el canvas blanco de
-cmpview — verificado por conjuntos de color 149 vs 147).
+**Official verification** (`cmpview.exe` + screenshots with multi-resolution
+template-matching — the harness's fixed crop for
+`.cmp` fails on movie windows, verified by hand):
+`windr1` and `cbirda4` **16384/16384 byte-exact**; the remaining 11
+show correct real artwork (f1-f8 flags in successive phases of
+waving, blue bird, `...s.com` logos, interiors, walls). Two real
+traps found along the way: the initial "black" ground truth
+was a misfire of the harness crop (movie window ≠ still) —
+not content; and a bug in MY probe (`setRGB` without `& 0xFF`,
+which turned everything yellowish) — not in the decoder. Modes detail: `0x82` (10
+files) direct; `0x86` (cbirda4, f3) needs index
+255→white (transparent sprite background over cmpview's
+white canvas — verified by color sets 149 vs 147).
 
-**Paleta**: byte12=0xFF en `.mov` es 255 genuino (forzar 256
-desincroniza el cursor: `groupCount=0` — probado y revertido). Los 5
-`.cmp` con byte12=0xEC siguen con conteo literal (159/159 intacto).
+**Palette**: byte12=0xFF in `.mov` is a genuine 255 (forcing 256
+desynchronizes the cursor: `groupCount=0` — tried and reverted). The 5
+`.cmp` with byte12=0xEC keep the literal count (159/159 intact).
 
-**Cobertura final, medida en escena completa**: `Texture coverage:
-47/47` + `Rect coverage: 55/55` (187 refs) — **cero texturas sin
-cargar** en formatos con loader. Resto honesto: `.bmp`→`.cmp` del
-mismo stem cuando existe gemelo (`cstgbs3.bmp`→`.cmp` verificado en
-archivo; `pceil2.bmp` sin gemelo queda plano), `.mov` con sufijo
-anim (`cbirda42h*2v*`→`cbirda4`, `time2h*`→`time`,
-`winwin12h*2v*`→`winwin1` — un dígito + h/v, el stem exacto siempre
-primero), 12 `dtex/*.cmp` ya versionados.
+**Final coverage, measured on the complete scene**: `Texture coverage:
+47/47` + `Rect coverage: 55/55` (187 refs) — **zero textures
+unloaded** in formats with a loader. Honest remainder: `.bmp`→`.cmp` of the
+same stem when a twin exists (`cstgbs3.bmp`→`.cmp` verified in the
+file; `pceil2.bmp` with no twin stays flat), `.mov` with an
+anim suffix (`cbirda42h*2v*`→`cbirda4`, `time2h*`→`time`,
+`winwin12h*2v*`→`winwin1` — a digit + h/v, the exact stem always
+first), 12 `dtex/*.cmp` already versioned.
 
-### 🟢 RectPatch: suelos de hierba y rampas (2026-09-13)
+### 🟢 RectPatch: grass floors and ramps (2026-09-13)
 
-36 nodos `RectPatch` en el archivo, todos versión 2 (verificado por
-instrumentación temporal, revertida): `xDim/yDim` + 4 alturas `z` +
-tiles + `Material` propio (la paradoja aparente de la cadena de
-versiones se resolvió sola — solo se almacenan valores, los bytes
-consumidos son idénticos, cero riesgo de desync). Traducción
-geométrica: heightfield 2×2 en X/Y local (`(0,0,z0)`,
-`(xDim,0,z1)`, `(xDim,yDim,z2)`, `(0,yDim,z3)` — planares en el
-corpus), v0 explícitamente invisible y saltado. Contenido real:
-baldosas de suelo verde #80FC00 en cuadrícula de 250 (Auditorium,
-suelo visible por primera vez) y rampas ([0,0,-500,-500]).
-Materiales planos o nulos→negro default del cliente (honesto, sin
-inventar). Contador y bbox integrados; 25/25 salas GL 0.
+36 `RectPatch` nodes in the file, all version 2 (verified by temporary
+instrumentation, reverted): `xDim/yDim` + 4 `z` heights +
+tiles + own `Material` (the apparent paradox of the version chain
+resolved itself — only values are stored, the bytes
+consumed are identical, zero desync risk). Geometric translation:
+2×2 heightfield in local X/Y (`(0,0,z0)`,
+`(xDim,0,z1)`, `(xDim,yDim,z2)`, `(0,yDim,z3)` — planar in the
+corpus), v0 explicitly invisible and skipped. Real content:
+green floor tiles #80FC00 in a 250 grid (Auditorium,
+floor visible for the first time) and ramps ([0,0,-500,-500]).
+Flat or null materials→the client's default black (honest, without
+inventing). Counter and bbox integrated; 25/25 rooms GL 0.
 
-### 🟡 "La mayoría sin texturas": inventario honesto + ventana al
-### frente (2026-09-13)
+### 🟡 "Most without textures": honest inventory + window in
+### front (2026-09-13)
 
-Queja repetida con cobertura al 100%: investigado a fondo.
-**Todo lo cargable carga y se ve** — panorama de 8 vistas alrededor
-del spawn (`docs/renders/world_spawn_panorama.png`): contenido con
-textura real en las 8 direcciones (56k–199k px cada una), muros de
-piedra con musgo, kiosko con cartel legible por todas partes.
+Repeated complaint with coverage at 100%: investigated in depth.
+**Everything loadable loads and is seen** — panorama of 8 views around
+the spawn (`docs/renders/world_spawn_panorama.png`): content with
+real texture in all 8 directions (56k–199k px each), stone walls with
+moss, kiosk with legible sign everywhere.
 
-Lo que SÍ falta es **suelo bajo Reception**: el archivo no trae
-ninguna malla de suelo ahí (inventario medido: 4 muros altos
-z 600–1000, zócalos z 0–70, kiosko 0–355, y vacío debajo de z=0;
-`sky/groundColorRGB` nulos en las 25 salas; sin niebla en
-`Room/RoomEnvironment`). El vacío es dato auténtico, no geometría
-perdida — el píxel de "suelo" muestrea exactamente el color de
-fondo. Ninguna sala trae cielo; ninguna decisión de render lo
-oculta. Inventar un suelo violaría la regla permanente.
+What IS missing is a **floor under Reception**: the file contains
+no floor mesh there (measured inventory: 4 tall walls
+z 600–1000, baseboards z 0–70, kiosk 0–355, and void below z=0;
+`sky/groundColorRGB` null in all 25 rooms; no fog in
+`Room/RoomEnvironment`). The void is authentic data, not lost
+geometry — the "floor" pixel samples exactly the
+background color. No room has a sky; no render decision
+hides it. Inventing a floor would violate the permanent rule.
 
-Hallazgo operativo real de la sesión: la ventana abría en el
-escritorio 0 mientras el usuario trabaja en el 1 (VMware
-maximizado) — "no abre" aunque renderizaba perfecto. Fix:
-`glfwFocusWindow` + `glfwRequestWindowAttention` al mostrar
-(`WorldViewer`), y `run-game.sh` auto-recompila si hay fuentes más
-nuevas que las clases (adiós binarios stale "sin texturas").
-Verificado con `xprop`: ventana en escritorio 1 con atención
-pedida (el foco final lo decide el usuario por diseño anti-robo de
-foco de GNOME — hay que clickarla en el dock si no salta sola).
+Real operational finding of the session: the window opened on
+desktop 0 while the user works on 1 (VMware
+maximized) — "it doesn't open" although it rendered perfectly. Fix:
+`glfwFocusWindow` + `glfwRequestWindowAttention` on show
+(`WorldViewer`), and `run-game.sh` auto-recompiles if there are sources
+newer than the classes (goodbye stale "no textures" binaries).
+Verified with `xprop`: window on desktop 1 with attention
+requested (final focus is up to the user by GNOME's
+anti-focus-stealing design — it has to be clicked in the dock if it doesn't pop up by itself).
 
-**Cierre de la pregunta (materiales v4, todos)**: ante "sigue
-habiendo cosas que no cargan" se verificó si los 187 Rects planos
-escondían textura por objeto (vía `Texture` v0/v1): los 417
-`Material` del archivo son **versión 4** (ruta URL) — cero casos
-v0/v1, cero `Texture`/`ScapePicTexture` alcanzables del grafo. Los
-planos teal (#00F7EF ×108, #00FCF8 ×41) y hierba (#80FC00 ×36) son
-color plano real del stream, no texturas perdidas. Con esto queda
-demostrado por eliminación que no hay ni una textura sin cargar en
-el archivo: 47/47 + 55/55 + 0 casos objeto.
+**Closing the question (materials v4, all)**: given "there are still
+things that don't load" it was verified whether the 187 flat Rects
+were hiding a per-object texture (via `Texture` v0/v1): the 417
+`Material`s in the file are **version 4** (URL path) — zero
+v0/v1 cases, zero `Texture`/`ScapePicTexture` reachable from the graph. The
+teal flats (#00F7EF ×108, #00FCF8 ×41) and grass (#80FC00 ×36) are
+real flat color from the stream, not lost textures. With this it is
+demonstrated by elimination that there is not a single unloaded texture in
+the file: 47/47 + 55/55 + 0 per-object cases.
 
-### 🟢 Fondo infinito con seguimiento de camara (2026-09-13)
+### 🟢 Infinite background with camera tracking (2026-09-13)
 
-Pedido ("carga del mundo con el terreno de fondo"): el `infiniteBackground`
-(skybox de muros `skyXX` + techos `sky12/nsky`, 34 Rects en Reception)
-ya cargaba y se dibujaba (88 objetos, cobertura Rect intacta), pero con
-transform estatico tenia paralaje de objeto cercano, contra la doc oficial
-(`Gamma_Overview.html`: "la escala nunca parece cambiar", vista
-"infinitamente distante"). `WorldViewer.drawInfiniteBackground` lo traslada
-por `(ojo - ref)` en modo `--inside` (frame 0 = offset 0, md5-identico al
-render previo; exterior orbita sin cambios). Verificado con prueba de deriva
-temporal (+500x, revertida): el fondo se mantiene mientras el primer plano se
-desplaza; GL error 0 en todo. `sky/groundColor` null en las 25 salas = el
-cliente no dibuja nada ahi (misma doc); el clear oscuro queda como fallback
-documentado. Detalle en `docs/render-pipeline-reference.md`.
+Request ("load the world with the background terrain"): the `infiniteBackground`
+(skybox of `skyXX` walls + `sky12/nsky` ceilings, 34 Rects in Reception)
+was already loading and being drawn (88 objects, Rect coverage intact), but with
+a static transform it had near-object parallax, contrary to the official doc
+(`Gamma_Overview.html`: "the scale never seems to change", "infinitely
+distant" view). `WorldViewer.drawInfiniteBackground` translates it
+by `(eye - ref)` in `--inside` mode (frame 0 = offset 0, md5-identical to the
+previous render; exterior orbits unchanged). Verified with a temporary
+drift test (+500x, reverted): the background holds while the foreground
+shifts; GL error 0 throughout. `sky/groundColor` null in all 25 rooms = the
+client draws nothing there (same doc); the dark clear stays as a documented
+fallback. Detail in `docs/render-pipeline-reference.md`.
 
-### 🟢 Lanzable con doble clic: `--detach` + icono en el menu (2026-09-13)
+### 🟢 Launchable with a double click: `--detach` + menu icon (2026-09-13)
 
-Pedido ("haz que se pueda lanzar"): `run-game.sh` bloqueaba la terminal
-siempre (modo ventana = proceso en primer plano) y no habia entrada de
-menu. Ahora:
+Request ("make it launchable"): `run-game.sh` always blocked the terminal
+(window mode = foreground process) and there was no menu entry.
+Now:
 
-- `run-game.sh ... --detach`: lanza con `nohup` en fondo y devuelve la
-  terminal al instante (0.06s medido) imprimiendo PID + log; para salir:
-  ESC en la ventana o `kill <pid>`. Si levanto Xvfb propio, no lo mata al
-  salir (queda anotado su PID en el log). Verificado en `:100`: ventana
-  con "presented frame 0", GL error 0, proceso matable limpio.
-- `tools/install-launcher.sh`: compila si hace falta, sonda sin ventana y
-  escribe `~/.local/share/applications/openworlds.desktop` (rutas
-  absolutas, `desktop-file-validate` OK) para buscar "OpenWorlds" en el
-  menu y jugar con doble clic.
+- `run-game.sh ... --detach`: launches with `nohup` in the background and gives the
+  terminal back instantly (0.06s measured) printing PID + log; to quit:
+  ESC in the window or `kill <pid>`. If I bring up my own Xvfb, it does not kill it on
+  exit (its PID is noted in the log). Verified on `:100`: window
+  with "presented frame 0", GL error 0, process cleanly killable.
+- `tools/install-launcher.sh`: compiles if needed, windowless probe and
+  writes `~/.local/share/applications/openworlds.desktop` (absolute
+  paths, `desktop-file-validate` OK) so you can search "OpenWorlds" in the
+  menu and play with a double click.
 
-**Bug real encontrado por el camino**: `--list-rooms` solo se reconocia
-como primer posicional del visor; la sonda inicial del instalador lo paso
-en otra posicion y abrio una ventana bloqueante en `:0` en vez de listar
-(colgo el instalador). `WorldViewer` ahora lo acepta en cualquier posicion
-y el instalador sondea directo sin pasar por el parseo de sala.
+**Real bug found along the way**: `--list-rooms` was only recognized
+as the viewer's first positional; the installer's initial probe passed it
+in another position and opened a blocking window on `:0` instead of listing
+(hung the installer). `WorldViewer` now accepts it in any position
+and the installer probes directly without going through room parsing.
 
-### 🟡 Fondo infinito: seguimiento revertido a opcional (2026-09-13)
+### 🟡 Infinite background: tracking reverted to optional (2026-09-13)
 
-El follow del fondo infinito (sesion anterior) se reporto como bug — "el
-terreno de afuera sigue al usuario cuando camina" — y el reporte es
-correcto: el anillo esta modelado a medida de la sala, no es una cascara
-infinita, asi que fijarlo a la camara arrastra decorado cercano. Ahora es
-estatico por defecto y `--infinite-follow` lo activa solo si se pide.
-Frame 0 md5-identico en ambos modos. Detalle en
+The infinite background's follow (previous session) was reported as a bug — "the
+terrain outside follows the user when walking" — and the report is
+correct: the ring is modeled to fit the room, it is not an infinite
+shell, so pinning it to the camera drags along nearby decor. It is now
+static by default and `--infinite-follow` enables it only when requested.
+Frame 0 md5-identical in both modes. Detail in
 `docs/render-pipeline-reference.md`.
 
-### 🟢 Fondo como fondo + bumpers invisibles: mapa revisado de cabo a rabo
+### 🟢 Background as background + invisible bumpers: map reviewed from end to end
 ### (2026-09-13)
 
-Pedido ("el fondo tiene que ser fondo, esta en una esquina tirado" +
-revisar todo el mapa + push a Codeberg). Dos arreglos reales, ambos con
-evidencia del original, ningun pixel inventado:
+Request ("the background has to be a background, it's dumped in a corner" +
+review the whole map + push to Codeberg). Two real fixes, both with
+evidence from the original, no pixel invented:
 
-1. **Fondo infinito con camara en el origen**: solo Reception y RV1
-   traen fondo (23/25 vacio, autorial); dibujado estatico quedaba a
-   miles de unidades del centro (medido: offset -2561,-974 y
-   -6253,+1019). `Gamma_Procedures.html` ("Infinite Backgrounds") dice
-   que el fondo se ve desde una camara en 0,0,0 y el autor lo centra en
-   el origen — `drawInfiniteBackground` ahora traslada el subarbol por
-   la posicion de la camara viva. Spawn: cielo nublado + colinas en las
-   4 direcciones; RV1: horizonte completo; 25/25 GL 0; texturas 51/51 +
-   101/101. Sustituye los dos experimentos de follow anteriores (el flag
-   `--infinite-follow` desaparece: esto no es un efecto, es la regla
-   documentada). Limites: huecos de cielo sin paneles = vacio (dato
-   original); orbita exterior sin fondo (fuera del near, maqueta).
-2. **Bumpers invisibles**: LizCave llena de teal = 41 `Rect942CyanBump`
-   (decía 40; recuento real de la auditoría 2026-09-15)
-   (color teal real, flags=2, colision sin visible). `WNode.flags` guarda
-   el int real (bit 0 = visible segun `WObject.getVisible()` decompilado)
-   y el visor salta hojas invisibles al dibujar/encuadrar (nunca
-   subarboles enteros). Todo lo invisible se llama `*Bump`; RectPatch v0
-   trae flags=0 (doble confirmacion). Reception 0 invisibles (spawn
-   md5-identico); LizCave 48->7 objetos.
+1. **Infinite background with the camera at the origin**: only Reception and RV1
+   have a background (23/25 empty, authorial); drawn statically it ended up
+   thousands of units from the center (measured: offset -2561,-974 and
+   -6253,+1019). `Gamma_Procedures.html` ("Infinite Backgrounds") says
+   that the background is viewed from a camera at 0,0,0 and the author centers it at
+   the origin — `drawInfiniteBackground` now translates the subtree by
+   the live camera position. Spawn: cloudy sky + hills in all
+   4 directions; RV1: full horizon; 25/25 GL 0; textures 51/51 +
+   101/101. Replaces the two earlier follow experiments (the flag
+   `--infinite-follow` disappears: this is not an effect, it is the documented
+   rule). Limits: sky gaps without panels = void (original
+   data); exterior orbit without background (outside the near, scale model).
+2. **Invisible bumpers**: LizCave filled with teal = 41 `Rect942CyanBump`
+   (it said 40; real count from the 2026-09-15 audit)
+   (real teal color, flags=2, collision without visible). `WNode.flags` stores
+   the real int (bit 0 = visible according to decompiled `WObject.getVisible()`)
+   and the viewer skips invisible leaves when drawing/framing (never
+   entire subtrees). Everything invisible is named `*Bump`; RectPatch v0
+   carries flags=0 (double confirmation). Reception 0 invisible (spawn
+   md5-identical); LizCave 48->7 objects.
 
-Capturas regeneradas con el codigo actual (las anteriores quedaban
-obsoletas): `world_{reception,iconviewroom1,lizcave,auditorium}_textured`,
-`world_inside_{lizcave,auditorium,receptionview1}`, spawn kiosk (ahora
-con cielo). Detalle en `docs/render-pipeline-reference.md`.
+Captures regenerated with the current code (the earlier ones were
+obsolete): `world_{reception,iconviewroom1,lizcave,auditorium}_textured`,
+`world_inside_{lizcave,auditorium,receptionview1}`, spawn kiosk (now
+with sky). Detail in `docs/render-pipeline-reference.md`.
 
-### 🟢 Fondo en dos pasadas + avatares en sala: el juego corre (2026-09-13)
+### 🟢 Background in two passes + avatars in rooms: the game runs (2026-09-13)
 
-Pedido ("el fondo esta en una esquina tirado; haz que el juego corra,
-que se vea el avatar y este todo bien"). Tres piezas, todo verificado:
+Request ("the background is dumped in a corner; make the game run,
+so the avatar shows and everything is right"). Three pieces, all verified:
 
-1. **Fondo en dos pasadas** (sustituye el `glTranslatef(camEye)`, que
-   ataba el subarbol al ojo y hacia que "siguiera" al caminar):
-   pasada 1 con camara propia en el origen + orientacion viva
-   (`Gamma_Procedures`: "viewed from a Camera at 0,0,0"; origen dentro
-   del anillo verificado), pasada 2 con la camara viva (depth limpiado
-   en medio). Spawn Reception con colinas E/O y cielo en todas
-   direcciones, nunca en esquina, sin tocar colocacion de archivo.
-   Honesto: sin paralaje de traslacion (lo documentado del original).
-2. **Avatares**: las 6 refs `avatar:` (galerias IconViewRoom1a/b/c/e/
-   f/g) se dibujan en bind pose con las 2 luces: `avatar:Roxanne.rwg`
-   -> `base-avatars/roxanne.bod` (5/6 por nombre; Tre -> `aura.bod`,
-   default real del cliente). Escala x1000 heuristica documentada
-   (bod ~0.17 vs cliente ~189, `Drone.java:106`), pies en el nodo,
+1. **Background in two passes** (replaces the `glTranslatef(camEye)`, which
+   tied the subtree to the eye and made it "follow" when walking):
+   pass 1 with its own camera at the origin + live orientation
+   (`Gamma_Procedures`: "viewed from a Camera at 0,0,0"; origin inside the
+   ring verified), pass 2 with the live camera (depth cleared
+   in between). Reception spawn with hills E/W and sky in all
+   directions, never in a corner, without touching file placement.
+   Honest: no translation parallax (what the original documents).
+2. **Avatars**: the 6 `avatar:` refs (galleries IconViewRoom1a/b/c/e/
+   f/g) are drawn in bind pose with the 2 lights: `avatar:Roxanne.rwg`
+   -> `base-avatars/roxanne.bod` (5/6 by name; Tre -> `aura.bod`,
+   the client's real default). Scale x1000 documented heuristic
+   (bod ~0.17 vs client ~189, `Drone.java:106`), feet at the node,
    +Y->+Z. Roxanne 2229 tris, Tre 588 via aura, 25/25 GL 0.
-3. **El juego corre**: `run-game.sh` sin args (spawn Reception) y
-   `--detach` verificados en `:100` (ventana, frame 0, kill limpio).
+3. **The game runs**: `run-game.sh` with no args (Reception spawn) and
+   `--detach` verified on `:100` (window, frame 0, clean kill).
 
-Detalle en `docs/render-pipeline-reference.md`.
+Detail in `docs/render-pipeline-reference.md`.
 
-### 🟢 Modo juego `--play`: tercera persona, suelo, colisión, avatar (2026-09-14)
+### 🟢 Game mode `--play`: third person, floor, collision, avatar (2026-09-14)
 
-Pedido ("yo no veo ningun avatar, implementa ya el modo juego, no la
-camara libre sino el juego, planificalo antes de hacerlo y usa
-subagentes"). Planificado con 4 subagentes en paralelo (cámara/input
-actual, lógica del cliente original, mundo/colisiones, avatares/3ª
-persona) antes de escribir una línea. Todo verificado:
+Request ("I don't see any avatar, implement game mode now, not the free
+camera but the game, plan it before doing it and use
+subagents"). Planned with 4 subagents in parallel (current camera/input,
+original client logic, world/collisions, avatars/3rd
+person) before writing a line. All verified:
 
-- **Tercera persona** como el original (`HoloPilot` BEHIND/modos 3-8):
-  cámara tras la cabeza (pies+150 = `eyeHeight` real, dist 220 =
-  WIDESHOT), avatar `aura.bod` (default real) en bind pose con las 2
-  luces. Spawn `RestartAt` mirando al kiosko. W/S caminar, A/D strafe,
-  flechas girar/pitch, ESC salir. `run-game.sh` sin args = `--play`.
-- **Suelo** como `Room.floorHeight` (piso más alto <= pies+escalón 30,
-  de `HoloPilot.stepHeight`); **colisión** AABB x radio 30 (medio ancho
-  del bound box real) con slide por ejes; velocidad 250 (entre
-  `maxdvLR=166` y `maxdvFB=300` reales). Reception: 14 suelos, 28
-  bloqueantes, 8 portales. (Auditoría 2026-09-15: el log actual dice 41
-  bloqueantes — esos 28 Rects más 13 AABB de props `.rwx`, que se
-  añadieron en el arreglo del kiosko de la sesión siguiente.)
-- **Verificado**: spawn 89 objetos/1 avatar/GL 0
-  (`docs/renders/world_play_spawn_thirdperson.png` — Aura de espaldas
-  ante el kiosko, colinas detrás); IconViewRoom1a 7 obj/2 avatares/GL
-  0; fly y ALL 25/25 sin regresión.
-- **Límites**: forward del .bod heurístico (acertó: mira al kiosko);
-  AABB no quads finos; portales solo se anuncian (fase 2);
-  bind pose sin animación.
+- **Third person** like the original (`HoloPilot` BEHIND/modes 3-8):
+  camera behind the head (feet+150 = real `eyeHeight`, dist 220 =
+  WIDESHOT), avatar `aura.bod` (real default) in bind pose with the 2
+  lights. `RestartAt` spawn facing the kiosk. W/S walk, A/D strafe,
+  arrows turn/pitch, ESC exit. `run-game.sh` with no args = `--play`.
+- **Floor** as `Room.floorHeight` (highest floor <= feet+step 30,
+  from `HoloPilot.stepHeight`); **collision** AABB x radius 30 (half width
+  of the real bound box) with per-axis slide; speed 250 (between
+  the real `maxdvLR=166` and `maxdvFB=300`). Reception: 14 floors, 28
+  blockers, 8 portals. (2026-09-15 audit: the current log says 41
+  blockers — those 28 Rects plus 13 AABBs of `.rwx` props, which were
+  added in the kiosk fix of the next session.)
+- **Verified**: spawn 89 objects/1 avatar/GL 0
+  (`docs/renders/world_play_spawn_thirdperson.png` — Aura from behind
+  in front of the kiosk, hills behind); IconViewRoom1a 7 obj/2 avatars/GL
+  0; fly and ALL 25/25 no regression.
+- **Limits**: heuristic .bod forward (it worked: it faces the kiosk);
+  AABB not thin quads; portals only announced (phase 2);
+  bind pose without animation.
 
-Detalle en `docs/render-pipeline-reference.md`.
+Detail in `docs/render-pipeline-reference.md`.
 
-### 🟥 Modo juego roto y arreglado en la misma sesion (2026-09-14)
+### 🟥 Game mode broken and fixed in the same session (2026-09-14)
 
-El modo `--play` salia volando al andar (`Player at z=2250`) — con
-toda la razon del usuario ("no va ni de puta coña"). Causa raiz
-verificada con matematica exacta, no supuesta: `floorHeightAt`
-devolvia su parametro `z` si no habia suelo y se la llamaba con
-`z=pies+30` (+30/frame sobre vacio: 180+69x30=2250). Contrato
-corregido (devuelve los pies), mas: colision y suelo de props `.rwx`
-(el kiosko se atravesaba; 100 tris en Reception, suelo exacto
-baricentrico), bumpers que paran siempre, sin re-snap empotrado, foco
-de ventana para `--play`, contadores por frame. Verificado: harness
-headless 800 pasos (z clavado, parada por muro), batch GL 0, ventana
-20s quieta sin deriva. Detalle en `docs/render-pipeline-reference.md`.
+`--play` mode flew off when walking (`Player at z=2250`) — with
+every reason on the user's side ("it doesn't work at all, no fucking way"). Root cause
+verified with exact math, not assumed: `floorHeightAt`
+returned its `z` parameter when there was no floor and it was called with
+`z=feet+30` (+30/frame over void: 180+69x30=2250). Contract
+fixed (returns the feet), plus: collision and floor for `.rwx` props
+(the kiosk could be walked through; 100 tris in Reception, exact
+barycentric floor), bumpers that always stop, no re-snap when embedded, window
+focus for `--play`, per-frame counters. Verified: headless harness
+800 steps (z pinned, stop at wall), batch GL 0, window
+20s still with no drift. Detail in `docs/render-pipeline-reference.md`.
 
-### 🟢 Avatar de espaldas (facing real) + animacion mapeada sin inventar (2026-09-14)
+### 🟢 Avatar seen from behind (real facing) + animation mapped without inventing (2026-09-14)
 
-Queja ("se ve de lado"): correcta — la rotacion era una heuristica a
-90° del forward real. Investigado con 2 subagentes ANTES de tocar
-nada: forward anatomico +Z local del .bod (cara/puntas +Z, coleta -Z),
-medido en `SPIN.RWX` y bytes de `aura.bod`, con `RWXTOBOD.PL` pasando
-ejes sin tocar. Rotacion `yaw-90` (algebra, no prueba-error),
-verificada en captura (Aura de espaldas, coleta centrada).
+Complaint ("it looks sideways"): correct — the rotation was a heuristic
+90° off the real forward. Investigated with 2 subagents BEFORE touching
+anything: anatomical forward is local +Z of the .bod (face/toes +Z, ponytail -Z),
+measured in `SPIN.RWX` and bytes of `aura.bod`, with `RWXTOBOD.PL` passing
+axes through untouched. Rotation `yaw-90` (algebra, not trial and error),
+verified in capture (Aura from behind, ponytail centered).
 
-Animacion ("haz que tenga animaciones... NO inventarse las cosas"):
-extraido lo real — DOS sistemas (`Drone:359-364`): articulado
-(`.bod`+`.seq`+`avatars.dat`, todo el blending en `DroneAnimator`
-nativo) y holograma (`.mov` = video `LzH2`). Cabecera `.seq`
-verificada (version, nº joints, nombres: walk 44 mocap, wait 16,
-wave 4). El key-data por joint solo lo decodifica `gamma.dll`: NO hay
-playback inventado (ni walk cycle procedural ni bobbing) — seria
-exactamente lo prohibido. Siguiente paso: Ghidra sobre
-`DroneAnimator_animate/update`. Detalle en
-`docs/seq-animation-reference.md` (nuevo).
+Animation ("make it have animations... DON'T INVENT THINGS"):
+extracted what is real — TWO systems (`Drone:359-364`): articulated
+(`.bod`+`.seq`+`avatars.dat`, all the blending in native `DroneAnimator`)
+and hologram (`.mov` = `LzH2` video). `.seq` header
+verified (version, no. of joints, names: walk 44 mocap, wait 16,
+wave 4). The per-joint key data is only decoded by `gamma.dll`: there is NO
+invented playback (neither a procedural walk cycle nor bobbing) — that would be
+exactly what is forbidden. Next step: Ghidra on
+`DroneAnimator_animate/update`. Detail in
+`docs/seq-animation-reference.md` (new).
 
-### 🟢 EL ORIGINAL CORRE: cliente 2004 genuino bajo Wine (2026-09-14)
+### 🟢 THE ORIGINAL RUNS: genuine 2004 client under Wine (2026-09-14)
 
-Pedido ("coge el original"): hecho literalmente. `assets/WorldsPlayer`
-trae el runtime completo (JRE 1.4.2 `bin/java.exe`, `gamma.dll`,
-`RWL21.DLL`, `lib/gammacls.zip`) y `run.exe` contiene su propia linea
-de arranque — ya no hace falta recompilar nada pristino, el `.zip` ES
-el cliente compilado:
+Request ("take the original"): done literally. `assets/WorldsPlayer`
+has the complete runtime (JRE 1.4.2 `bin/java.exe`, `gamma.dll`,
+`RWL21.DLL`, `lib/gammacls.zip`) and `run.exe` contains its own startup
+command line — there is no longer any need to recompile anything pristine, the `.zip` IS
+the compiled client:
 
 `bin\javaw.exe -Xbootclasspath:lib\i18ncls.zip;lib\rt.jar
 -cp .;lib\gammacls.zip NET.worlds.console.Gamma -home . -dllpath bin`
 
-Dos paredes, las dos de entorno (cero ingenieria inversa): Wine se niega
-a crear prefijos bajo `/tmp` (no es del usuario) → prefijo en
-`~/.wine-fw-orig`; el cliente aborta sin `C:\windows\Fonts` → TTFs
-Liberation del sistema. Con eso: carga `gamma.dll` real, driver
-`rwdlmd21`, hook `awt.dll`, y presenta **el juego de verdad**: UI
-completa (Help/Options/WorldsMall/Teleport/Actions/VIP, FRIENDS ONLINE,
-chat, logo), Reception 3D con RenderWare real (suelo texturizado con
-reflejos, muros, colinas, kiosko) y avatar real. Dialogo "Retry /
-Single-user mode" (sin red de upgrade: esperado, honesto).
-`tools/run-original.sh` (nuevo) automatiza todo: copia privada a
-`~/.openworlds-client` (el original escribe logs/caches en su CWD y no
-debe ensuciar el repo), prefijo+fuentes+Xvfb si hace falta.
-Captura: `docs/renders/original_client_reception.png`.
+Two walls, both environmental (zero reverse engineering): Wine refuses
+to create prefixes under `/tmp` (not owned by the user) → prefix in
+`~/.wine-fw-orig`; the client aborts without `C:\windows\Fonts` → system
+Liberation TTFs. With that: it loads the real `gamma.dll`, the `rwdlmd21`
+driver, `awt.dll` hook, and presents **the real game**: complete UI
+(Help/Options/WorldsMall/Teleport/Actions/VIP, FRIENDS ONLINE,
+chat, logo), 3D Reception with real RenderWare (textured floor with
+reflections, walls, hills, kiosk) and a real avatar. "Retry /
+Single-user mode" dialog (no upgrade network: expected, honest).
+`tools/run-original.sh` (new) automates everything: private copy to
+`~/.openworlds-client` (the original writes logs/caches in its CWD and must
+not dirty the repo), prefix+fonts+Xvfb if needed.
+Capture: `docs/renders/original_client_reception.png`.
 
-### 🟢 El juego, decompilado y versionado: Java pristino + `gamma.dll` en C (2026-09-14)
+### 🟢 The game, decompiled and versioned: pristine Java + `gamma.dll` in C (2026-09-14)
 
-Pedido ("quiero que decompiles el juego... haz original"): el
-decompilado existia pero NO estaba en el repo (`source/` ignorado,
-`analysis/` ignorado). Ahora si:
+Request ("I want you to decompile the game... do the original"): the
+decompile existed but was NOT in the repo (`source/` ignored,
+`analysis/` ignored). Now it is:
 
-1. **Java pristino** (`editor/.../source/`, 723 `.java`): regenerado
-   con Vineflower 1.12 desde `assets/worlds.jar` + `git apply
-   patches/fix_compilation_errors.patch` (solo fixes de compilacion).
-   Cero `NativeMock`, declara los `native` reales, `Gamma.java` carga
-   la `gamma.dll` real, compila limpio con `javac --release 8`.
-   El `.gitignore` anidado ya no excluye `source/` (sigue excluyendo
-   `out/` y `worlds.jar`). El flujo del mock no se rompe:
-   `apply_mock.sh` parte de este arbol limpio.
-2. **Nativo en C** (`decompiled-native/gamma_dll/`, 6.9 MB): 1656/1656
-   funciones de la `gamma.dll` original con Ghidra headless + script
-   propio versionado (`tools/ghidra-scripts/ExportAllDecompiled.java`),
-   exports JNI con nombre real — incluidos los 15 de `DroneAnimator`
-   (el decoder `.seq` que falta para animacion real) y `huffdcod`
-   (texturas `.cmp`). `INDEX.txt` para cruzar addr<->Ghidra.
+1. **Pristine Java** (`editor/.../source/`, 723 `.java`): regenerated
+   with Vineflower 1.12 from `assets/worlds.jar` + `git apply
+   patches/fix_compilation_errors.patch` (only compilation fixes).
+   Zero `NativeMock`, declares the real `native`s, `Gamma.java` loads
+   the real `gamma.dll`, compiles cleanly with `javac --release 8`.
+   The nested `.gitignore` no longer excludes `source/` (it still excludes
+   `out/` and `worlds.jar`). The mock flow is not broken:
+   `apply_mock.sh` starts from this clean tree.
+2. **Native in C** (`decompiled-native/gamma_dll/`, 6.9 MB): 1656/1656
+   functions of the original `gamma.dll` with headless Ghidra + our own
+   versioned script (`tools/ghidra-scripts/ExportAllDecompiled.java`),
+   JNI exports with real names — including the 15 of `DroneAnimator`
+   (the `.seq` decoder that is missing for real animation) and `huffdcod`
+   (`.cmp` textures). `INDEX.txt` to cross-reference addr<->Ghidra.
 
-### 🟢 macOS Intel sin Homebrew: entorno portable + visores en Cocoa (2026-09-15)
+### 🟢 macOS Intel without Homebrew: portable environment + Cocoa viewers (2026-09-15)
 
-Pedido ("homebrew ya no soporta macs con intel, mira a ver que puedes
-hacer"). Maquina: MacBook Intel i5-7360U, macOS 15.7.9, bash 3.2 de
-sistema, sin JDK/brew/node/wine. El commit `b6f4df1` ("macos: setup +
-scripts portables") nunca habia corrido en un Mac real: cuatro paredes,
-todas de entorno, cero cambios de render:
+Request ("homebrew no longer supports Intel macs, see what you can
+do"). Machine: Intel MacBook i5-7360U, macOS 15.7.9, system bash 3.2,
+no JDK/brew/node/wine. Commit `b6f4df1` ("macos: setup + scripts portables")
+had never run on a real Mac: four walls,
+all environmental, zero render changes:
 
-1. **`setup-macos.sh` sin Homebrew**: JDK 25 Temurin portable (tar.gz
-   de `api.adoptium.net`, SHA-256 verificado) en `tools/jdk/`
-   (gitignored, sin sudo) + solo los natives LWJGL de la arquitectura
-   (`.sha1` de Maven Central verificado). `run-game.sh` e
-   `install-launcher.sh` anteponen `tools/jdk` al `PATH` (`/usr/bin/java`
-   es un stub). node fuera (solo lo usa el harness RWX, ya 118/118).
-2. **X11 forzado en los 5 visores** (`glfwInitHint(GLFW_PLATFORM_X11)`):
-   GLFW en macOS no tiene backend X11 y `glfwInit()` falla. Ahora
+1. **`setup-macos.sh` without Homebrew**: portable JDK 25 Temurin (tar.gz
+   from `api.adoptium.net`, SHA-256 verified) in `tools/jdk/`
+   (gitignored, no sudo) + only the LWJGL natives of the architecture
+   (`.sha1` from Maven Central verified). `run-game.sh` and
+   `install-launcher.sh` prepend `tools/jdk` to the `PATH` (`/usr/bin/java`
+   is a stub). node dropped (only the RWX harness uses it, already 118/118).
+2. **X11 forced in the 5 viewers** (`glfwInitHint(GLFW_PLATFORM_X11)`):
+   GLFW on macOS has no X11 backend and `glfwInit()` fails. Now
    `GlUtil.forceX11OnLinux()`.
-3. **bash 3.2 + `set -u`**: `"${ARGS[@]}"` vacio = "unbound variable"
-   (verificado en el bash del Mac) — rompia `run-game.sh LizCave` e
-   `install-launcher.sh` sin args; `$DISPLAY` sin definir mataba la
-   cabecera del log. Idiomas `${A[@]+...}`, `${A[*]:-}`, `${DISPLAY:-}`.
-4. `date -Is` no existe en el `date` BSD.
+3. **bash 3.2 + `set -u`**: empty `"${ARGS[@]}"` = "unbound variable"
+   (verified in the Mac's bash) — it broke `run-game.sh LizCave` and
+   `install-launcher.sh` with no args; undefined `$DISPLAY` killed the
+   log header. Idioms `${A[@]+...}`, `${A[*]:-}`, `${DISPLAY:-}`.
+4. `date -Is` does not exist in BSD `date`.
 
-**Verificado en el Mac** (OpenGL legacy 2.1 de Apple, funcion fija
-intacta): sonda 25 salas; `ALL` 25/25 GL error 0 con `Texture 51/51` +
-`Rect 101/101` (mismas cifras que en Linux); `--play` en ventana Cocoa
-real, jugado por el usuario (frame 0 presentado, jugador andando con z
-clavado al suelo, salida limpia con ESC). Captura `--play` contra
-`docs/renders/world_play_spawn_thirdperson.png` (mismo codigo de render:
-el unico commit posterior en `client/src` es `SeqParser`, sin usar): NO
-bit-identica — 14427/786432 px (1.8%) difieren, 88% con delta <=4 y
-solo 47 px >64. Mascara de diferencias revisada, no solo el
-histograma: (a) la unica zona compacta es la franja de vacio bajo el
-zocalo derecho = color de clear `glClearColor(0.10,0.10,0.14)`, Mac
-`191924` vs Linux `1A1A24` — 0.10x255=25.5 cae justo en la mitad y
-Apple trunca a 25 donde Mesa redondea a 26 (delta 1, azul 35.7 da 36 en
-ambos); (b) el resto son pixeles sueltos y costuras de 1 px entre
-paneles de textura del fondo. Redondeo/rasterizacion del driver (Apple
-GL frente a Mesa bajo Xvfb), no contenido distinto.
-`run-original.sh` sigue sin poder correr aqui (sin Wine). Menor visto
-de paso: en `--play` el contador "total rect references seen" acumula
-por frame (69000 = 69 x 1000 frames), igual que el de avatares
-corregido el 2026-09-14. Detalle en `docs/setup-macos.md`.
+**Verified on the Mac** (Apple's legacy OpenGL 2.1, fixed function
+intact): 25-room probe; `ALL` 25/25 GL error 0 with `Texture 51/51` +
+`Rect 101/101` (same figures as on Linux); `--play` in a real Cocoa
+window, played by the user (frame 0 presented, player walking with z
+pinned to the floor, clean exit with ESC). `--play` capture against
+`docs/renders/world_play_spawn_thirdperson.png` (same render code:
+the only later commit in `client/src` is `SeqParser`, unused): NOT
+bit-identical — 14427/786432 px (1.8%) differ, 88% with delta <=4 and
+only 47 px >64. Difference mask reviewed, not just the
+histogram: (a) the only compact zone is the strip of void under the
+right baseboard = clear color `glClearColor(0.10,0.10,0.14)`, Mac
+`191924` vs Linux `1A1A24` — 0.10x255=25.5 falls right in the middle and
+Apple truncates to 25 where Mesa rounds to 26 (delta 1, blue 35.7 gives 36 in
+both); (b) the rest are stray pixels and 1 px seams between
+background texture panels. Driver rounding/rasterization (Apple
+GL vs Mesa under Xvfb), not different content.
+`run-original.sh` still cannot run here (no Wine). Minor, seen
+in passing: in `--play` the "total rect references seen" counter accumulates
+per frame (69000 = 69 x 1000 frames), same as the avatar one
+fixed on 2026-09-14. Detail in `docs/setup-macos.md`.
 
-### 🟢 AUDITORÍA: los corpus reejecutados, tres afirmaciones falsas y la
-### animación reconstruida (2026-09-15/16)
+### 🟢 AUDIT: the corpora re-run, three false claims and the
+### animation reconstructed (2026-09-15/16)
 
-Sesión larga pedida explícitamente como auditoría: **no dar por buenos
-los números del historial, sino reejecutarlos** contra el código de hoy,
-y luego avanzar. Se usaron 6 subagentes de solo lectura en paralelo (uno
-por formato/pieza, sección 9) más varios de trabajo en worktrees
-aislados.
+Long session explicitly requested as an audit: **do not take the
+numbers in the history as good, but re-run them** against today's code,
+and then move forward. 6 read-only subagents were used in parallel (one
+per format/piece, section 9) plus several working in
+isolated worktrees.
 
-**Lo que se reverificó ejecutando (macOS, JDK portable)**
+**What was re-verified by running (macOS, portable JDK)**
 
-| Afirmación | Resultado hoy |
+| Claim | Result today |
 |---|---|
-| RWX 118/118 | Los 118 `triangleCount` y `materialCount` del lado Java coinciden con la tabla. El lado JS **no es reproducible**: `tools/node` es un ELF de Linux |
-| `.world` 25 salas / 578 nodos / 103 objetos / 374 Rect / 36 RectPatch v2 / 417 Material v4 | Todo confirmado |
-| `.bod` 51/51 consumidos + `orphans=0 badIndices=0` | Confirmado |
-| `.cmp` 159/159 y `.mov` | 159/159 `.cmp` y **52/52** `.mov` decodifican sin excepción; el "byte-exacto contra `cmpview.exe`" **no es reproducible sin Wine** y no hay ground truth guardado |
-| Stage 2 determinista | `test4b` 256/256, `sball` y `rustwood` 4096/4096 |
-| Escena completa | 25/25 salas, GL error 0, `Texture 51/51` + `Rect 101/101` |
+| RWX 118/118 | The 118 `triangleCount` and `materialCount` on the Java side match the table. The JS side is **not reproducible**: `tools/node` is a Linux ELF |
+| `.world` 25 rooms / 578 nodes / 103 objects / 374 Rect / 36 RectPatch v2 / 417 Material v4 | All confirmed |
+| `.bod` 51/51 consumed + `orphans=0 badIndices=0` | Confirmed |
+| `.cmp` 159/159 and `.mov` | 159/159 `.cmp` and **52/52** `.mov` decode without exception; the "byte-exact against `cmpview.exe`" **is not reproducible without Wine** and there is no stored ground truth |
+| Deterministic Stage 2 | `test4b` 256/256, `sball` and `rustwood` 4096/4096 |
+| Complete scene | 25/25 rooms, GL error 0, `Texture 51/51` + `Rect 101/101` |
 
-**Tres afirmaciones del historial resultaron FALSAS (corregidas)**
+**Three claims in the history turned out to be FALSE (corrected)**
 
-1. **`SeqParser` (commit `bcd60fd5`, "verificado, leftover=0") fallaba en
-   los 231 `.seq` reales.** Leía un `u16` de "checksum" que no existe:
-   `FUN_00436d50` suma los K bytes del diccionario en memoria y los
-   guarda como duración en `+0x214`. Quitado eso, y traducida además la
-   variante que el original desvía a `FUN_00436610` cuando el primer byte
-   es `0x7f` (big-endian, 37 archivos de `cachedir`): **231/231**
-   (`SeqExtractMain`, nuevo y reproducible). Los codebooks CB32/CB128 sí
-   eran correctos: 32/32 y 128/128 floats idénticos bit a bit a
+1. **`SeqParser` (commit `bcd60fd5`, "verificado, leftover=0") failed on
+   all 231 real `.seq`.** It read a "checksum" `u16` that does not exist:
+   `FUN_00436d50` sums the K bytes of the dictionary in memory and
+   stores them as the duration at `+0x214`. With that removed, and additionally
+   translating the variant that the original diverts to `FUN_00436610` when the first byte
+   is `0x7f` (big-endian, 37 `cachedir` files): **231/231**
+   (`SeqExtractMain`, new and reproducible). The CB32/CB128 codebooks were
+   in fact correct: 32/32 and 128/128 floats bit-for-bit identical to
    `gamma.dll`.
-2. **El "z-fighting" de `cube.rwg`** (abierto desde 2026-09-09) no era
-   z-fighting ni bobinado inconsistente: `VLST[0..7]` es la **bounding
-   box** del clump y los índices de `PLST` cuentan desde el registro 8
+2. **The "z-fighting" of `cube.rwg`** (open since 2026-09-09) was not
+   z-fighting or inconsistent winding: `VLST[0..7]` is the **bounding
+   box** of the clump and the `PLST` indices count from record 8
    (`RWL21.DLL`: `RwGetClumpNumVertices` = count−8, `RwGetClumpVertex` →
-   registro n+7; 3466/3466 normales coinciden contando desde 8, 167 desde
-   0). Caras ±Z duplicadas, "normales (0,0,0)" y "huecos con culling"
-   eran el mismo bug. `e3.rwg` son 1371 vértices, no 1379.
-3. **Las texturas de avatar no salen de `cachedir/45.dat`** (ese archivo
-   no tiene ni una cadena `.cmp`/`.mov`): salen del **nombre del avatar**
+   record n+7; 3466/3466 normals match counting from 8, 167 from
+   0). Duplicated ±Z faces, "normals (0,0,0)" and "holes with culling"
+   were the same bug. `e3.rwg` has 1371 vertices, not 1379.
+3. **Avatar textures do not come from `cachedir/45.dat`** (that file
+   does not contain a single `.cmp`/`.mov` string): they come from the **avatar name**
    (`PosableShape.createSubparts` + `readTexture`/`scanTexture` →
-   `avatar:<nombre>.cmp` | `.mov`).
+   `avatar:<name>.cmp` | `.mov`).
 
-**Cifras menores corregidas**: LizCave tiene 41 `Rect942CyanBump`, no 40;
-Reception da hoy 41 bloqueantes (28 Rects + 13 props del arreglo del
-kiosko), no 28; no todos los `.bod` son de 16 partes (`2v.bod` y
-`death.bod`, idénticos, tienen 8). `docs/cmp-stage1-coverage.md` seguía
-siendo el baseline 0/159 de `39e9f31c`: nunca se regeneró.
+**Minor figures corrected**: LizCave has 41 `Rect942CyanBump`, not 40;
+Reception gives 41 blockers today (28 Rects + 13 props from the
+kiosk fix), not 28; not all `.bod` are 16 parts (`2v.bod` and
+`death.bod`, identical, have 8). `docs/cmp-stage1-coverage.md` was still
+the 0/159 baseline of `39e9f31c`: it was never regenerated.
 
-**Animación de avatares: de "no hay ni una línea de parseo" a pose real**
+**Avatar animation: from "there isn't a single line of parsing" to real pose**
 
-Reconstruida entera desde el C decompilado y desensamblando `RWL21.DLL`
-(detalle en `docs/seq-animation-reference.md` §5 y §6.1):
-muestreo por keys con **nlerp** (no slerp), cuaternión `(w,x,y,z)` con x
-e y negados (`FUN_004290c0`), tabla **nombre→tag propia de la DLL** (30
-nombres; los joints mocap que no están en ella se ignoran: **no existe
-retarget 44→16**), composición `LTM = Joint · Modelado · LTM_padre` en
-convención vector fila (modo 1 = sustituir), y `prepFigure` = rotación
-180° sobre (0,1,1) + escala ×1000, que es de donde salían el ×1000 y el
-+Y→+Z que `WorldViewer` usaba como heurística. Tiempo de keys: 1/30 s.
-`BodViewer --seq f.seq --frame T` pone un `.bod` en la pose exacta; sin
-`--seq` las capturas siguen siendo md5-idénticas a bind pose.
-Verificación anatómica: `common_walk` frames 0 y 21 en oposición,
-`axelwave` levanta el brazo izquierdo (sus 4 tracks), `common_a_wait`
-frame 0 = bind pose exacta.
+Reconstructed entirely from the decompiled C and by disassembling `RWL21.DLL`
+(detail in `docs/seq-animation-reference.md` §5 and §6.1):
+key sampling with **nlerp** (not slerp), quaternion `(w,x,y,z)` with x
+and y negated (`FUN_004290c0`), **the DLL's own name→tag table** (30
+names; the mocap joints that are not in it are ignored: **there is no
+44→16 retarget**), composition `LTM = Joint · Modeling · LTM_parent` in
+row-vector convention (mode 1 = replace), and `prepFigure` = 180°
+rotation about (0,1,1) + ×1000 scale, which is where the ×1000 and the
++Y→+Z that `WorldViewer` used as a heuristic came from. Key time: 1/30 s.
+`BodViewer --seq f.seq --frame T` puts a `.bod` in the exact pose; without
+`--seq` the captures are still md5-identical to bind pose.
+Anatomical verification: `common_walk` frames 0 and 21 in opposition,
+`axelwave` raises the left arm (its 4 tracks), `common_a_wait`
+frame 0 = exact bind pose.
 
-**Dos huecos encontrados en las herramientas del propio proyecto**
+**Two gaps found in the project's own tools**
 
-- El C decompilado **no incluye** las 13 funciones de la vtable del
-  reproductor de animación (`0x00475200`): Ghidra no las detectó porque
-  solo se alcanzan por despacho virtual. Son justo el avance de tiempo,
-  el bucle y las transiciones — por eso `WorldViewer` sigue en bind pose:
-  implementarlo sin ellas sería inventar.
-- Cuatro visores capturaban el framebuffer **después** de `glfwSwapBuffers`,
-  lo que en macOS produce PNG negros: una verificación "con captura"
-  podía dar por bueno un render vacío. Corregido en los cuatro.
+- The decompiled C **does not include** the 13 functions of the animation
+  player's vtable (`0x00475200`): Ghidra did not detect them because
+  they are only reached through virtual dispatch. They are precisely the time
+  advance, the loop and the transitions — that is why `WorldViewer` is still in
+  bind pose: implementing it without them would be inventing.
+- Four viewers captured the framebuffer **after** `glfwSwapBuffers`,
+  which on macOS produces black PNGs: a verification "with capture"
+  could accept an empty render as good. Fixed in all four.
 
-**Hallazgo que desbloquea las texturas de avatar**: las tablas que el
-cliente pide a `ServerTableManager` (`permittedList`, `faceList`,
-`humanList`…) **ya están en el repo**, en
-`assets/WorldsPlayer/tables/tables.dat` (45164 bytes, idéntico a
-`cachedir/44.dat`): `int32` de longitud + XOR encadenado
-(`dec[i]=enc[i]^enc[i-1]`) → texto con 12 tablas, incluidos **148
-avatares con su nombre codificado**. Se puede decodificar sin red.
+**Finding that unlocks avatar textures**: the tables that the
+client requests from `ServerTableManager` (`permittedList`, `faceList`,
+`humanList`…) **are already in the repo**, in
+`assets/WorldsPlayer/tables/tables.dat` (45164 bytes, identical to
+`cachedir/44.dat`): length `int32` + chained XOR
+(`dec[i]=enc[i]^enc[i-1]`) → text with 12 tables, including **148
+avatars with their encoded name**. It can be decoded without the network.
 
-**Entorno**: todo lo anterior corre en un MacBook **Intel** sin Homebrew
-(ver la entrada anterior y `docs/setup-macos.md`).
+**Environment**: all of the above runs on an **Intel** MacBook without Homebrew
+(see the previous entry and `docs/setup-macos.md`).
 
-### 🟢 Red — reproducido en macOS: login guest estable, pared real de
-### `Gamma.main` (ActiveX) y los hilos sin bloqueo (2026-09-16)
+### 🟢 Network — reproduced on macOS: stable guest login, real wall of
+### `Gamma.main` (ActiveX) and the threads with no blocking (2026-09-16)
 
-Parte de la misma sesión de auditoría (subagente en worktree aislado,
-integrado en `df4d7517`/`1c02e60e`/`199461e9`). Tres resultados:
+Part of the same audit session (subagent in an isolated worktree,
+integrated in `df4d7517`/`1c02e60e`/`199461e9`). Three results:
 
-1. **Login guest real en macOS**: `tools/net-probe/run-guest-login.sh`
-   (bash 3.2, sin rutas Linux, todo en un directorio temporal) llega al
-   **estado 12 MAINLOOP estable** contra `gippsland.worlio.com:8265` con
-   el intercambio real PROPREQ → PROPUPD → SESSINIT y la bienvenida del
-   servidor, igual que el 2026-09-10 en Linux. Ya no hace falta Xvfb.
-2. **Primera pared del arranque REAL** (`run-gamma-main.sh`): el cliente
-   completo con el mock carga caché, tablas, avatar y sala, y se detiene
-   en un `dAssert(false)` genuino de `IUnknown.init` — el control
-   ActiveX/Netscape embebido. Es ausencia estructural de COM fuera de
-   Windows, no un mock mal puesto: para seguir por ese camino habría que
-   sustituir ese componente, no corregir un valor.
-3. **`Cache`/`NetUpdate`** (el "bloque de hilos" que la sección 10
-   dejaba abierto desde 2026-09-09): corren bien en macOS; el único
-   bloqueo es de diseño (carga síncrona a propósito y un `Thread.join()`
-   sin timeout en `Gamma.main:221`). **No hay problema de hilos que
-   resolver.**
+1. **Real guest login on macOS**: `tools/net-probe/run-guest-login.sh`
+   (bash 3.2, no Linux paths, everything in a temporary directory) reaches
+   **stable state 12 MAINLOOP** against `gippsland.worlio.com:8265` with
+   the real PROPREQ → PROPUPD → SESSINIT exchange and the server's welcome,
+   same as on 2026-09-10 on Linux. Xvfb is no longer needed.
+2. **First wall of the REAL startup** (`run-gamma-main.sh`): the complete
+   client with the mock loads cache, tables, avatar and room, and stops
+   at a genuine `dAssert(false)` in `IUnknown.init` — the embedded
+   ActiveX/Netscape control. It is the structural absence of COM outside
+   Windows, not a badly placed mock: to continue down that path that component
+   would have to be replaced, not a value corrected.
+3. **`Cache`/`NetUpdate`** (the "thread block" that section 10
+   left open since 2026-09-09): they run fine on macOS; the only
+   blocking is by design (synchronous load on purpose and a `Thread.join()`
+   with no timeout in `Gamma.main:221`). **There is no thread problem to
+   solve.**
 
-Para login con cuenta real solo falta la cuenta: requisitos exactos en
+For login with a real account only the account is missing: exact requirements in
 `docs/net-real-account-login-requisitos.md`.
 
-Además, en la misma sesión se recuperaron **881 funciones** de
-`gamma.dll` que el volcado original no tenía (solo alcanzables por vtable;
-`tools/ghidra-scripts/ScanVtablesAndExport.java`, decompilador de Ghidra
-compilado desde fuente para macOS). Con ellas se leyó el controlador de
-tiempo de la animación: **30 keys por segundo**, modo 2 = bucle
-(`t % (duración+1)`), modo 1 = último key (`FUN_0043b950`/`FUN_0043b5f0`,
-`SeqSampler.keyTime`). Queda por reconstruir qué secuencia y modo elige
-el cliente en cada momento y la mezcla de transición.
+Additionally, in the same session **881 functions** of
+`gamma.dll` that the original dump did not have were recovered (only reachable via vtable;
+`tools/ghidra-scripts/ScanVtablesAndExport.java`, Ghidra decompiler
+compiled from source for macOS). With them the animation's time
+controller was read: **30 keys per second**, mode 2 = loop
+(`t % (duration+1)`), mode 1 = last key (`FUN_0043b950`/`FUN_0043b5f0`,
+`SeqSampler.keyTime`). What remains to be reconstructed is which sequence and mode the
+client picks at each moment and the transition blend.
 
-### 🟢 Lenguaje de nombre de avatar decodificado — y el corpus de vestuario
-### está casi todo perdido (2026-09-16)
+### 🟢 Avatar name language decoded — and the wardrobe corpus
+### is almost entirely lost (2026-09-16)
 
-Parte de la sesión de auditoría (subagente en worktree, integrado en
-`c21319d1`..`01850240`; cifras reverificadas ejecutando). Detalle en
+Part of the audit session (subagent in a worktree, integrated in
+`c21319d1`..`01850240`; figures re-verified by running). Detail in
 `docs/avatar-name-language.md`.
 
-- **`tables.dat`** (`assets/WorldsPlayer/tables/tables.dat`, ya versionado)
-  se descifra con el XOR encadenado de `ServerTableManager` y da 12
-  tablas; `permittedList` trae 148 avatares con su nombre codificado.
-- **Gramática**, portada de `PosableShape`: un nombre
-  `avatar:<base>.0<programa>.rwg` se procesa en dos fases. `findStarts`
-  reúne una paleta global de texturas `T<n><nombre>` (`<x>.mov` subimagen
-  n−1, o `.cmp` si n≤0) y colores `C` (`colorTable` o RGB en base64), y
-  luego se montan **17 limbs de tag y padre fijos** (P01 raíz, B02←P,
+- **`tables.dat`** (`assets/WorldsPlayer/tables/tables.dat`, already versioned)
+  is decrypted with `ServerTableManager`'s chained XOR and gives 12
+  tables; `permittedList` carries 148 avatars with their encoded name.
+- **Grammar**, ported from `PosableShape`: a name
+  `avatar:<base>.0<program>.rwg` is processed in two phases. `findStarts`
+  gathers a global palette of `T<n><name>` textures (`<x>.mov` sub-image
+  n−1, or `.cmp` if n≤0) and `C` colors (`colorTable` or base64 RGB), and
+  then **17 limbs with fixed tag and parent** are assembled (P01 root, B02←P,
   N03←B, H04←N, L11/M12/O13, R06/U07/V08, I19/J20/K21, W15/X16/Y17,
-  Z24←P) que cargan partes de `<base>.bod`, con escala `S`, cambio de
-  `.bod` `G`, subclumps y cambios de material temporizados (las
-  **expresiones**: p. ej. `willy` parpadea con 4 cambios cada 3648 ms).
-- **Verificado**: 146/148 nombres sin anomalías y 0 excepciones; las 2
-  anomalías (`achoo`, `tas`) son erratas de la propia tabla y el
-  decodificador hace lo mismo que el cliente. `AvatarNameMain --todos` lo
-  reproduce.
-- **Dato de preservación importante**: de lo que referencian esos 148
-  avatares, en el repo solo hay **14 de 210 texturas y 25 de 141 `.bod`**.
-  Las 14 texturas son `.mov` de `base-avatars`; ninguna de las `_dt*` del
-  vestuario de pago existe. `cachedir/` no cuenta porque sin su
-  `cache.index` no se sabe qué URL es cada fichero numerado.
-- De paso se corrige una creencia del documento: la URL por defecto
-  `avatar:aura.0PG.rwg` da una figura vacía (el `.bod` se resuelve por
-  otro camino), y `faceList`/`humanList` no intervienen al construir el
-  avatar, solo en la personalización (`WearWall`, `AvMenu`).
-- **Pendiente**: aplicar las texturas en `BodViewer` (buen primer caso: la
-  cara de `willy`, subimagen 0) y decodificar subimágenes > 0 de `.mov`.
+  Z24←P) that load parts of `<base>.bod`, with scale `S`, `.bod` change `G`,
+  subclumps and timed material changes (the
+  **expressions**: e.g. `willy` blinks with 4 changes every 3648 ms).
+- **Verified**: 146/148 names without anomalies and 0 exceptions; the 2
+  anomalies (`achoo`, `tas`) are typos of the table itself and the
+  decoder does the same as the client. `AvatarNameMain --todos` reproduces
+  it.
+- **Important preservation fact**: of what those 148
+  avatars reference, the repo only has **14 of 210 textures and 25 of 141 `.bod`**.
+  The 14 textures are `.mov` from `base-avatars`; none of the `_dt*` of the
+  paid wardrobe exists. `cachedir/` does not count because without its
+  `cache.index` there is no way to know which URL each numbered file is.
+- In passing, a belief of the document is corrected: the default URL
+  `avatar:aura.0PG.rwg` gives an empty figure (the `.bod` is resolved
+  by another path), and `faceList`/`humanList` do not take part when building the
+  avatar, only in customization (`WearWall`, `AvMenu`).
+- **Pending**: apply the textures in `BodViewer` (good first case: the
+  face of `willy`, sub-image 0) and decode sub-images > 0 of `.mov`.
 
-### 🟢 Portales reales en `--play` y texturas de avatar en el visor
+### 🟢 Real portals in `--play` and avatar textures in the viewer
 ### (2026-09-16)
 
-Cierre de la parte 3 de la sesión de auditoría (dos subagentes en
-worktree, integrados y **reverificados ejecutando**):
+Closing of part 3 of the audit session (two subagents in a
+worktree, integrated and **re-verified by running**):
 
-- **Portales** (`1f160724`, `04516925`): `WorldRestorer` ya no descarta la
-  conectividad de `Portal` v8/9 (`farSidePortal` es una referencia de
-  objeto, no un nombre) y `WorldViewer --play` cambia de sala al cruzar,
-  con la fórmula de `Portal.recomputeFarPosition()` y recargando suelo,
-  colisión y fondo de la sala destino. GroundZero: 87 portales, **56
-  conectados** dentro del mundo, 2 a otros `.world`, 29 desconectados en
-  el propio dato. Reejecutado: desde el spawn de Reception hasta
-  `EastPortal1Reception` se llega a **ChatHall en (0,750,0), yaw −π**
-  (sala de paso de 4 superficies y 0 objetos: la vista oscura es su
-  contenido real). Regresión ALL 25/25 sin cambios. Límite: signo del yaw
-  de llegada deducido, no ejecutado (`getYaw()` nativo, sin Wine).
-- **Texturas de avatar** (`76febbac`): `BodViewer --avatar <nombre>` usa
-  el decodificador del lenguaje de nombre para poner a cada limb su color
-  o textura (constantes de material del cliente, UV reales del `.bod`,
-  subimagen 0). Sin `--avatar` las capturas son md5-idénticas; con él la
-  cabeza de `willy` muestra su cara de `willy.mov` (los 515 píxeles que
-  cambian están todos en la cabeza). `ogre` pide la subimagen 3: se
-  informa como no aplicada.
-- **Tiempo de animación** (`bb1b6c47`, `e70178d9`): 30 keys/s y modos
-  bucle/último key, `BodViewer --seconds S [--hold]` verificado md5 contra
+- **Portals** (`1f160724`, `04516925`): `WorldRestorer` no longer discards the
+  connectivity of `Portal` v8/9 (`farSidePortal` is an object
+  reference, not a name) and `WorldViewer --play` changes room when crossing,
+  with the formula of `Portal.recomputeFarPosition()` and reloading floor,
+  collision and background of the destination room. GroundZero: 87 portals, **56
+  connected** within the world, 2 to other `.world` files, 29 disconnected in
+  the data itself. Re-run: from the Reception spawn to
+  `EastPortal1Reception` one arrives at **ChatHall at (0,750,0), yaw −π**
+  (a pass-through room with 4 surfaces and 0 objects: the dark view is its
+  real content). ALL 25/25 regression unchanged. Limit: sign of the arrival
+  yaw deduced, not executed (native `getYaw()`, no Wine).
+- **Avatar textures** (`76febbac`): `BodViewer --avatar <name>` uses
+  the name language decoder to give each limb its color
+  or texture (the client's material constants, real UVs of the `.bod`,
+  sub-image 0). Without `--avatar` the captures are md5-identical; with it the
+  head of `willy` shows its face from `willy.mov` (the 515 pixels that
+  change are all on the head). `ogre` asks for sub-image 3: it is
+  reported as not applied.
+- **Animation time** (`bb1b6c47`, `e70178d9`): 30 keys/s and loop/last key
+  modes, `BodViewer --seconds S [--hold]` verified by md5 against
   `--frame`.
 
-Lo que queda para ver avatares **animados y texturizados dentro del
-mundo**: decidir qué secuencia toca (la elección implícita `walk`/`wait`
-del original no está reconstruida) y llevar pose y texturas de `BodViewer`
-a `WorldViewer`.
+What remains in order to see avatars **animated and textured inside the
+world**: decide which sequence applies (the original's implicit `walk`/`wait`
+choice is not reconstructed) and bring pose and textures from `BodViewer`
+to `WorldViewer`.
 
-### 🟢 El cliente original arranca en macOS con un puente portable de gamma.dll/RenderWare (2026-09-17)
+### 🟢 The original client starts on macOS with a portable gamma.dll/RenderWare bridge (2026-09-17)
 
-Objetivo: una build que funcione y arranque **basada en el juego
-original**, sin reinventar nada. En vez del motor propio de
-`client/`, se ejecuta el `main` real de `NET.worlds.console.Gamma`
-decompilado y se sustituyen los nativos de `gamma.dll` por traducciones
-de su C decompilado; por debajo, las llamadas `Rw*` de RenderWare 2.1 se
-traducen del desensamblado de `RWL21.DLL`. Todo está en
-`editor/worldsplayer_source_editor-main/bridge/` (ver su README con las
-direcciones de evidencia), se aplica desde `apply_mock.sh` y se construye
-y lanza con `build_gamma.sh` y `run_gamma.sh`.
+Goal: a build that works and starts **based on the original
+game**, reinventing nothing. Instead of `client/`'s own engine,
+the real `main` of the decompiled `NET.worlds.console.Gamma` is run and the
+natives of `gamma.dll` are replaced by translations of its decompiled C;
+underneath, the RenderWare 2.1 `Rw*` calls are translated from the
+disassembly of `RWL21.DLL`. All of it is in
+`editor/worldsplayer_source_editor-main/bridge/` (see its README with the
+evidence addresses), is applied from `apply_mock.sh` and is built
+and launched with `build_gamma.sh` and `run_gamma.sh`.
 
-- **Matrices** (`NativeRw`): producto de vector fila, modos 1/2/3, rotación
-  en grados (Rodrigues traspuesta, confirmada en 0x1001cb20), inversa afín
-  por adjunta, ortonormalización y `RwQueryRotateMatrix`. Los 20 nativos
-  de `Transform` y `Point3Temp` siguen el C de gamma.dll, incluidos
-  `getYaw`, `getPitch` y `getSpin` con sus constantes leídas del binario
-  (180, 0,5, 1/π, 90, 360).
-- **Escena** (`NativeScene`): clumps con vértices base 1, polígonos,
-  jerarquía, LTM `Joint·Modeling·LTM_padre`, bbox en espacio mundo, tags,
-  estado ON=2/OFF=1, escena por defecto, luces y materiales con los
-  valores por defecto de RWL21. También los wrappers de gamma.dll con
-  lógica propia: visibilidad jerárquica con los callbacks 0x4185d0/0x418600,
-  sombreado plano/suave y `Surface.addSubPolys` (subdivisión en baldosas
-  con volteo U/V).
-- **Ventanas, ActiveX y aserciones**: `findWindow` y las ventanas hijas
-  sobre las ventanas AWT reales; `ActiveX.getClassFClsID/ProgID` lanzan la
-  `IOException` con el mensaje literal de gamma.dll
-  (`nActiveX.getClassF…: Couldn't convert string to CLSID`); la aserción
-  nativa imprime `Assertion failed: line N in file F.` y sale con 41.
-- **Error de decompilación real**: Vineflower dejó en `Room` una llamada a
-  `add(WObject)` donde el bytecode original llama a `add(SuperRoot)`, lo
-  que metía el entorno dos veces en la escena. Para descartar más casos
-  así, `tools/bytecode-call-diff.py` compara los destinos de todas las
-  llamadas de las 736 clases originales (`lib/gammacls.zip`) con la
-  recompilación: quedan 55 métodos con diferencias inocuas (receptores
-  más estrechos, `close()` de try-with-resources, capa de mocks) y solo
-  este error.
-- **Arreglado de paso**: `tools/net-probe/run-gamma-main.sh` dejaba la JVM
-  huérfana (matar la subshell no mataba java); ahora usa `exec`.
+- **Matrices** (`NativeRw`): row-vector product, modes 1/2/3, rotation
+  in degrees (transposed Rodrigues, confirmed at 0x1001cb20), affine
+  inverse via the adjugate, orthonormalization and `RwQueryRotateMatrix`. The 20 natives
+  of `Transform` and `Point3Temp` follow gamma.dll's C, including
+  `getYaw`, `getPitch` and `getSpin` with their constants read from the binary
+  (180, 0.5, 1/π, 90, 360).
+- **Scene** (`NativeScene`): clumps with base-1 vertices, polygons,
+  hierarchy, LTM `Joint·Modeling·LTM_parent`, world-space bbox, tags,
+  state ON=2/OFF=1, default scene, lights and materials with the
+  RWL21 default values. Also the gamma.dll wrappers with their own
+  logic: hierarchical visibility with callbacks 0x4185d0/0x418600,
+  flat/smooth shading and `Surface.addSubPolys` (tile subdivision
+  with U/V flip).
+- **Windows, ActiveX and assertions**: `findWindow` and the child windows
+  over the real AWT windows; `ActiveX.getClassFClsID/ProgID` throw the
+  `IOException` with gamma.dll's literal message
+  (`nActiveX.getClassF…: Couldn't convert string to CLSID`); the native
+  assertion prints `Assertion failed: line N in file F.` and exits with 41.
+- **Real decompilation error**: Vineflower left in `Room` a call to
+  `add(WObject)` where the original bytecode calls `add(SuperRoot)`, which
+  put the environment into the scene twice. To rule out more cases
+  like this, `tools/bytecode-call-diff.py` compares the targets of all the
+  calls of the 736 original classes (`lib/gammacls.zip`) with the
+  recompilation: 55 methods remain with harmless differences (narrower
+  receivers, try-with-resources `close()`, mock layer) and only
+  this error.
+- **Fixed in passing**: `tools/net-probe/run-gamma-main.sh` left the JVM
+  orphaned (killing the subshell did not kill java); it now uses `exec`.
 
-**Verificado ejecutando**: build limpia de 747 clases; `run_gamma.sh`
-queda vivo 40–60 s en `Main.mainLoop` (confirmado con `jstack`) con
-~2 M de frames, ninguna excepción y ningún proceso huérfano.
+**Verified by running**: clean build of 747 classes; `run_gamma.sh`
+stays alive 40–60 s in `Main.mainLoop` (confirmed with `jstack`) with
+~2 M frames, no exception and no orphaned process.
 
-**Límites** (⚠️): **no se ve nada todavía**: `Camera.renderScene`,
-`Texture`/`FileTexture`/`ScapePicTexture`/`ScapePicMovie` y el sonido
-siguen siendo stubs de log, y el bucle va sin freno porque en el original
-lo marcaba el render. Pendiente de extraer: `RwDestroyScene`, el flag que
-elige texture modes 2 o 6 en `FUN_00419000`, el máximo de UV del driver y
-los índices −7..0 de `RwGetClumpVertex`. El siguiente paso natural es
-traducir `Camera.renderScene` y el camino de texturas (el decoder `.cmp`
-de `client/` ya existe) para dibujar en la ventana hija.
+**Limits** (⚠️): **nothing is visible yet**: `Camera.renderScene`,
+`Texture`/`FileTexture`/`ScapePicTexture`/`ScapePicMovie` and sound
+are still log stubs, and the loop runs without a brake because in the
+original the render set the pace. Pending extraction: `RwDestroyScene`, the flag that
+chooses texture modes 2 or 6 in `FUN_00419000`, the driver's maximum UV and
+the −7..0 indices of `RwGetClumpVertex`. The natural next step is
+to translate `Camera.renderScene` and the texture path (the `.cmp` decoder
+of `client/` already exists) to draw in the child window.
 
-### 🟢 Cliente original sin red: servidor local, caché de 2004 operativa y causa de las 7 texturas que faltan (2026-09-18)
+### 🟢 Original client without network: local server, 2004 cache working, and cause of the 7 missing textures (2026-09-18)
 
-**Problema.** `run_gamma.sh` arrancaba el cliente original decompilado y todo
-lo que pedía (avatares, tablas, scripts) iba a `upgradeServer=http://us1.worlds.net/3DCDup`
-(`worlds.ini`), un host que ya no existe: timeouts y `Unable to load texture …`.
+**Problem.** `run_gamma.sh` started the decompiled original client and everything
+it requested (avatars, tables, scripts) went to `upgradeServer=http://us1.worlds.net/3DCDup`
+(`worlds.ini`), a host that no longer exists: timeouts and `Unable to load texture …`.
 
-**Arreglado** (commit `92d1e767` + este):
-- `tools/local-upgrade-server.py`: servidor HTTP local (solo Python) que sirve
-  `assets/WorldsPlayer` bajo `/3DCDup/` y, bajo `/3DCDup/avatar/`, los avatares
-  base oficiales de `assets/gammatutorial-samples/base-avatars/` (= `AVATARS.ZIP`
-  de `Worlds1900.exe`, verificado idéntico), sin distinguir mayúsculas
-  (el cliente pide `pengo.mov` y el fichero es `PENGO.mov`). Lo demás, 404
-  inmediato. `run_gamma.sh` lo arranca en un puerto libre, reescribe
-  `upgradeServer` en la copia temporal de `worlds.ini/dst` y lo mata al salir
-  (`OPENWORLDS_NO_LOCAL_SERVER=1` lo desactiva).
-- `build_gamma.sh` parchea (solo en la copia de build, `source/` sigue pristino)
-  `Cache` y `CacheEntry.load`: el `cache.index` de 2004 guarda rutas de Windows
-  (`C:\DOCUME~1\…\cachedir\5u.mov`) y `CACHE_DIR` usaba `\`; en macOS el índice
-  no cargaba y se tiraba. Ahora carga (211 entradas) y las ya descargadas no se
-  refrescan contra un origen inexistente. `run_gamma.sh` parte de un `cachedir`
-  limpio (un `cache.open` huérfano descarta todo el índice).
-- Efecto medido (35–40 s en `home:GroundZero/groundzero.world`): 406 → 56 líneas
-  `Unable to load texture`; las peticiones de `.bod`/`.mov` de avatares base
-  (`julie/roxanne/simon/jing/paul.bod`, `pengo.mov`…) y `avatars.dat` pasan a
-  200; solo quedan 404 para lo que no existe en ningún sitio.
+**Fixed** (commit `92d1e767` + this one):
+- `tools/local-upgrade-server.py`: local HTTP server (Python only) that serves
+  `assets/WorldsPlayer` under `/3DCDup/` and, under `/3DCDup/avatar/`, the official
+  base avatars from `assets/gammatutorial-samples/base-avatars/` (= `AVATARS.ZIP`
+  of `Worlds1900.exe`, verified identical), case-insensitively
+  (the client requests `pengo.mov` and the file is `PENGO.mov`). Everything else gets an
+  immediate 404. `run_gamma.sh` starts it on a free port, rewrites
+  `upgradeServer` in the temporary copy of `worlds.ini/dst` and kills it on exit
+  (`OPENWORLDS_NO_LOCAL_SERVER=1` disables it).
+- `build_gamma.sh` patches (only in the build copy, `source/` stays pristine)
+  `Cache` and `CacheEntry.load`: the 2004 `cache.index` stores Windows paths
+  (`C:\DOCUME~1\…\cachedir\5u.mov`) and `CACHE_DIR` used `\`; on macOS the index
+  would not load and was discarded. It now loads (211 entries) and those already downloaded are not
+  refreshed against a nonexistent origin. `run_gamma.sh` starts from a clean `cachedir`
+  (an orphaned `cache.open` discards the whole index).
+- Measured effect (35–40 s in `home:GroundZero/groundzero.world`): 406 → 56 lines
+  `Unable to load texture`; the requests for `.bod`/`.mov` of base avatars
+  (`julie/roxanne/simon/jing/paul.bod`, `pengo.mov`…) and `avatars.dat` go to
+  200; only 404s remain for what exists nowhere.
 
-**Causa raíz de las 7 texturas (`cfemaleb`, `cfemaleba`, `cfemalec`, `cfc`,
-`fga`, `fja`, `mga`) — con evidencia, NO evitable sin el asset:**
-1. Se piden desde `Material.loadTextures` ← `Shape.recursiveAddRwChildren` ←
+**Root cause of the 7 textures (`cfemaleb`, `cfemaleba`, `cfemalec`, `cfc`,
+`fga`, `fja`, `mga`) — with evidence, NOT avoidable without the asset:**
+1. They are requested from `Material.loadTextures` ← `Shape.recursiveAddRwChildren` ←
    `Room.aboutToDraw` ← `Portal.rwPrerender` ← `Camera.rwRenderRoom`
-   (traza real con el build instrumentado). No las pide la UI ni una lista de
-   precarga: son `PosableShape` que ya están **dentro de salas del mundo**, y
-   se cargan al dibujar la cadena de portales desde el spawn.
-2. Esas salas son las galerías de avatares de `GroundZero/groundzero.world`,
-   `IconViewRoom1a…1g` (cada una con un `PosableShape avatar:<Nombre>.rwg`
-   y un `ClickSensor SelectAvatar<Nombre>`). Atribución medida:
+   (real trace with the instrumented build). They are not requested by the UI or a
+   preload list: they are `PosableShape`s that are already **inside rooms of the world**, and
+   they are loaded when drawing the chain of portals from the spawn.
+2. Those rooms are the avatar galleries of `GroundZero/groundzero.world`,
+   `IconViewRoom1a…1g` (each with a `PosableShape avatar:<Name>.rwg`
+   and a `ClickSensor SelectAvatar<Name>`). Measured attribution:
    Roxanne (`IconViewRoom1a`) → `cfemalec`, `cfc`, `fja`; Simon (`1b`) → `mga`;
    Julie (`1f`) → `cfemaleb`, `cfemaleba`, `fga`.
-3. El nombre de textura no está en el `.bod` ni en el mundo: lo da
-   `permittedList` de `tables/tables.dat` (cifrado con XOR encadenado, lector
-   verificado en `client/…/ServerTables.java`). `PosableShape` resuelve
-   `avatar:Julie.rwg` con `permittedHash` a la cadena completa
-   `julie.0ET2cfemalebT4cfemalebT3cfemalebaT1cfemaleb…T3fga…`; cada
-   `T<n><nombre>` (`PosableShape.scanTexture`) es un grupo de textura
-   `<nombre>.mov`. Es el esquema de códigos de avatar (`T#…`, `C_…`, `S…`).
-4. Por qué faltan: el `cachedir` de 2004 solo contiene las texturas de los
-   avatares que esa instalación llegó a ver (Tre `mia`, Paul `mfa`, Jing
-   `cfemaled`…). Julie, Roxanne y Simon nunca se cargaron; su textura vivía
-   solo en el servidor. No están en `assets/`, `AVATARS.ZIP`, `FIRST.EXE`
-   (684 ficheros), `GROUNDZERO.EXE` ni `worlds.jar`.
-5. Consecuencia: **limitación conocida, no bloqueante**. `Material.loadError`
-   solo imprime; por el código el limbo conserva el material de color base de
-   `scanTexture` (no comprobado visualmente); no hay excepción en el log. No se fabrica ninguna textura de relleno. Ningún ajuste de
-   configuración evita la petición sin tocar lógica (las salas son contenido
-   del mundo). Solo se resolverá recuperando esos 7 `.mov` de un archivo
-   externo (Wayback u otro); bastaría con dejarlos en
-   `assets/gammatutorial-samples/base-avatars/` para que el servidor local
-   los sirva.
+3. The texture name is not in the `.bod` or in the world: it is given by
+   `permittedList` of `tables/tables.dat` (encrypted with chained XOR, reader
+   verified in `client/…/ServerTables.java`). `PosableShape` resolves
+   `avatar:Julie.rwg` with `permittedHash` to the full string
+   `julie.0ET2cfemalebT4cfemalebT3cfemalebaT1cfemaleb…T3fga…`; each
+   `T<n><name>` (`PosableShape.scanTexture`) is a texture group
+   `<name>.mov`. It is the avatar code scheme (`T#…`, `C_…`, `S…`).
+4. Why they are missing: the 2004 `cachedir` only contains the textures of the
+   avatars that installation got to see (Tre `mia`, Paul `mfa`, Jing
+   `cfemaled`…). Julie, Roxanne and Simon were never loaded; their texture lived
+   only on the server. They are not in `assets/`, `AVATARS.ZIP`, `FIRST.EXE`
+   (684 files), `GROUNDZERO.EXE` or `worlds.jar`.
+5. Consequence: **known limitation, non-blocking**. `Material.loadError`
+   only prints; per the code the limb keeps the base color material from
+   `scanTexture` (not checked visually); there is no exception in the log. No filler texture is fabricated. No configuration
+   setting avoids the request without touching logic (the rooms are
+   world content). It will only be resolved by recovering those 7 `.mov` from an
+   external archive (Wayback or other); it would be enough to leave them in
+   `assets/gammatutorial-samples/base-avatars/` for the local server to
+   serve them.
 
-**`WorldScriptGroundZero.class` (404): cosmético, y preexistente.**
-`WorldScriptManager.worldEntered` intenta cargar la clase Java del mundo
-desde `<upgradeServer>/GroundZero/`; no está en `content.zip`, `gammacls.zip`
-ni `worlds.jar`. `loadClass` devuelve null, el `NullPointerException` se
-captura (`catch Exception`) y `currentScript` queda a null: solo se pierden
-los ganchos opcionales `roomEnter/roomExit/onEachFrame` de ese script. El
-`Gamma.Log` del cliente 2004 real bajo Wine (`assets/WorldsPlayer/Gamma.Log`,
-líneas 70–73) muestra exactamente la misma secuencia
+**`WorldScriptGroundZero.class` (404): cosmetic, and pre-existing.**
+`WorldScriptManager.worldEntered` tries to load the world's Java class
+from `<upgradeServer>/GroundZero/`; it is not in `content.zip`, `gammacls.zip`
+or `worlds.jar`. `loadClass` returns null, the `NullPointerException` is
+caught (`catch Exception`) and `currentScript` stays null: only the optional
+`roomEnter/roomExit/onEachFrame` hooks of that script are lost. The
+`Gamma.Log` of the real 2004 client under Wine (`assets/WorldsPlayer/Gamma.Log`,
+lines 70–73) shows exactly the same sequence
 (`Download error … → Could not load script … → Exception constructing world
-script: NullPointerException`), así que es el comportamiento original con el
-servidor caído, no un fallo del puente.
+script: NullPointerException`), so it is the original behavior with the
+server down, not a bridge failure.
 
-### 🟢 RWL21/RWDL6D21 decompiladas + caza del "se ve todo mal" en GroundZero (2026-09-19)
+### 🟢 RWL21/RWDL6D21 decompiled + hunt for the "everything looks wrong" in GroundZero (2026-09-19)
 
-**Lo que se buscaba**: "en GroundZero, que es el medio del mapa, se pone
-todo bug". Sin captura de referencia, se atacó por descarte, midiendo.
+**What was being sought**: "in GroundZero, which is the middle of the map, everything
+gets buggy". With no reference capture, it was attacked by elimination, measuring.
 
-**Hipótesis descartadas con evidencia** (cada una habría sido un bug real):
-1. *Bumpers invisibles dibujados* (el fallo que ya hubo en el visor
-   propio). `Rect24cya` olía a cyan bumper. Instrumentando `Room.aboutToDraw`
-   para recorrer el árbol y comparar `getVisible()` con
-   `NativeScene.getClumpState`: **0 objetos invisibles encendidos en las 17
-   salas** que se recorren desde el spawn. `WObject.updateVisible` apaga la
-   jerarquía correctamente.
-2. *UVs disparatadas* (textura repetida decenas de veces = ruido). Medido
-   por polígono: `du≈0,4–1,2` sobre polígonos de 4.000–15.000 px, o sea
-   textura **magnificada**, no minificada.
-3. *Dither de translucidez roto*. Las tablas `0x10079240/0x10079280` dan
-   una matriz de Bayer 8×8 perfecta (64 valores distintos, cobertura
-   16/32/48 de 64 para opacidad 64/128/192) y **ningún** material grande de
-   la escena es translúcido.
+**Hypotheses discarded with evidence** (each one would have been a real bug):
+1. *Invisible bumpers drawn* (the failure that already occurred in the
+   project's own viewer). `Rect24cya` smelled like a cyan bumper. Instrumenting `Room.aboutToDraw`
+   to walk the tree and compare `getVisible()` with
+   `NativeScene.getClumpState`: **0 invisible objects turned on in the 17
+   rooms** walked from the spawn. `WObject.updateVisible` turns the
+   hierarchy off correctly.
+2. *Nonsensical UVs* (texture repeated dozens of times = noise). Measured
+   per polygon: `du≈0.4–1.2` over polygons of 4,000–15,000 px, i.e.
+   **magnified** texture, not minified.
+3. *Broken translucency dither*. The tables `0x10079240/0x10079280` give
+   a perfect 8×8 Bayer matrix (64 distinct values, coverage
+   16/32/48 of 64 for opacity 64/128/192) and **no** large material of
+   the scene is translucent.
 
-**Lo que sí se comprobó que está bien**: Reception, LizCave, ChatHall y
-Auditorium renderizados con el puente **coinciden con el visor propio**
-(mismo suelo, mismas texturas, misma oscuridad en ChatHall — la pared
-"moteada" es la textura real, sale igual en el renderizador OpenGL
-independiente). ~50 fps por cámara. La losa gris que parecía flotar es una
-hoja de puerta (`Rect24cya` de `WObjTemDrA1..4`, `IconViewRoom1Enter`) con
-material gris 150 sin textura **en los datos del mundo**, y se queda fija
-en coordenadas de mundo (12,125,125) mientras la cámara se mueve.
+**What was verified to be fine**: Reception, LizCave, ChatHall and
+Auditorium rendered with the bridge **match the project's own viewer**
+(same floor, same textures, same darkness in ChatHall — the "mottled"
+wall is the real texture, it comes out the same in the independent
+OpenGL renderer). ~50 fps per camera. The gray slab that seemed to float is a
+door leaf (`Rect24cya` of `WObjTemDrA1..4`, `IconViewRoom1Enter`) with
+gray material 150 with no texture **in the world data**, and it stays fixed
+in world coordinates (12,125,125) while the camera moves.
 
-**Nuevo diagnóstico** `-Dopenworlds.dumpWindow=DIR`: vuelca el árbol de
-componentes AWT de la ventana entera. Sin él no había forma de revisar la
-UI (esta máquina no tiene permiso de captura de pantalla de macOS, y el
-PNG por `printAll` sale negro porque la UI son componentes AWT pesados que
-pinta el peer nativo). Resultado: maquetación correcta —canvas 468×244,
-`FriendsListPart`, `AdPart`, `MapPart`, chat 280×100 y campo de entrada,
-sin componentes de tamaño cero ni ocultos.
+**New diagnostic** `-Dopenworlds.dumpWindow=DIR`: dumps the tree of
+AWT components of the whole window. Without it there was no way to review the
+UI (this machine has no macOS screen-capture permission, and the
+`printAll` PNG comes out black because the UI is heavyweight AWT components
+painted by the native peer). Result: correct layout —canvas 468×244,
+`FriendsListPart`, `AdPart`, `MapPart`, chat 280×100 and input field,
+with no zero-size or hidden components.
 
-**El desbloqueo de verdad**: se decompilaron los dos binarios que
-faltaban, que eran el motivo de que varias cosas del puente fueran
-conjeturas (`ghidra headless` necesita `JAVA_HOME=tools/jdk/Contents/Home`
-o aborta con "Unable to prompt user for JDK path"):
-- `RWL21.DLL` → **1131 funciones, 0 fallos**, y como la DLL exporta
-  símbolos, **795 con su nombre real de la API** (`RwGetPolygonMaterial`…).
-- `RWDL6D21.DLL` (driver de 16 bits) → **385 funciones, 0 fallos**.
+**The real unblocking**: the two missing binaries were decompiled,
+which were the reason several bridge things were
+conjectures (`ghidra headless` needs `JAVA_HOME=tools/jdk/Contents/Home`
+or it aborts with "Unable to prompt user for JDK path"):
+- `RWL21.DLL` → **1131 functions, 0 failures**, and since the DLL exports
+  symbols, **795 with their real API name** (`RwGetPolygonMaterial`…).
+- `RWDL6D21.DLL` (16-bit driver) → **385 functions, 0 failures**.
 
-**Primer uso, dos conjeturas menos en el rasterizador** (ver
-`bridge/README.md`): la normal de polígono es un abanico de productos
-vectoriales desde el primer vértice (`0x10001100`), no Newell; y la normal
-de vértice es la suma sin ponderar de las caras adyacentes con caída a la
-**primera** cara cuando se cancela (`0x10041df0`, umbral `0.0f` leído en
-`_DAT_100522e8`) — el puente dejaba un vector cero, que apaga la luz en ese
-vértice. Medido: 0 casos degenerados en Reception y frame idéntico, o sea
-fidelidad sin cambio visible allí.
+**First use, two conjectures fewer in the rasterizer** (see
+`bridge/README.md`): the polygon normal is a fan of cross
+products from the first vertex (`0x10001100`), not Newell; and the vertex
+normal is the unweighted sum of the adjacent faces with fallback to the
+**first** face when it cancels out (`0x10041df0`, threshold `0.0f` read from
+`_DAT_100522e8`) — the bridge left a zero vector, which turns off the light at that
+vertex. Measured: 0 degenerate cases in Reception and identical frame, i.e.
+fidelity with no visible change there.
 
-**Sigue abierto**: no se ha reproducido ningún fallo visual atribuible al
-puente; hace falta una captura del usuario del momento concreto. Y el
-orden de dibujo real (BSP `0x1002cae0` + árbol por clump `0x10033750`)
-sigue aproximado con z-buffer, pero **ya no por falta del binario**: leído
-por encima, el árbol se construye una vez por clump y agrupa por material,
-así que traducirlo cambiaría sobre todo el z-fighting entre coplanares.
+**Still open**: no visual failure attributable to the
+bridge has been reproduced; a capture from the user of the specific moment is needed. And the
+real draw order (BSP `0x1002cae0` + per-clump tree `0x10033750`)
+is still approximated with z-buffer, but **no longer for lack of the binary**: read
+superficially, the tree is built once per clump and groups by material,
+so translating it would mostly change the z-fighting between coplanar surfaces.
 
-### 🟢 Hoja de ruta ejecutada con subagentes: H0-H5 fusionados (2026-09-22 → 2026-09-26)
+### 🟢 Roadmap executed with subagents: H0-H5 merged (2026-09-22 → 2026-09-26)
 
-Se preparó `docs/roadmap.md` y se ejecutó con agentes en worktrees
-separados (propiedad de ficheros por agente, parches por subsistema
-`bridge/natives-<x>.patch`). Cada rama se revisó antes de fusionar,
-comprobando en el ASM la afirmación clave (citada en cada merge). Los
-cortes por límite de uso se retomaron desde el último commit de cada rama.
+`docs/roadmap.md` was prepared and executed with agents in separate
+worktrees (file ownership per agent, patches per subsystem
+`bridge/natives-<x>.patch`). Each branch was reviewed before merging,
+checking in the ASM the key claim (cited in each merge). Cutoffs
+by usage limit were resumed from the last commit of each branch.
 
-- **Build rota desde el merge `71648da`** (rama antigua que duplicaba en
-  `apply_mock.sh` lo que ya hacía `natives.patch`): arreglada; además
-  `build_gamma.sh` ya falla cuando falla `javac`.
-- **H0**: `tools/verify-corpus.sh` (RWX 118/118 también contra
-  `three-rwx-loader`, reproducible por primera vez en macOS con
-  `tools/node-macos`), `tools/run-checks.sh` y `tools/progress-panel.py`.
-- **H1**: texturas (COLORONCOLOR, no HALFTONE; `RwReadTexture`,
-  `RwGetNamedTexture`, `StringTexture`); `.rwg` leído de RWL21 en ASM
-  (cabecera = lista de texturas, PLST con índice de material, `cube.rwg` no
-  carga en RW 2.1, ATOM vacío = clump válido); rasterizador del driver
-  (tabla de recíprocos, perspectiva cada 16 px, árbol por clump,
-  `addSubPolys` con x/u de los vértices 1-2 porque el C de Ghidra está mal).
-  El BSP de escena queda documentado en ASM y sin traducir.
-- **H2**: DroneAnimator traducido entero; la regla (walk/wait/endwait con
-  plazos 10/30/10 s, walk por distancia, mezcla de 250 ms, key truncado)
-  está en `docs/seq-animation-reference.md` §7. En GroundZero el animador ya
-  recibe `moveto`/`update`, pero solo hay estatuas que giran.
-- **H3**: whirl compilado (Rust por rustup) y arrancado en 127.0.0.1: login,
-  misma sala y chat entre dos clientes originales. No se ven porque whirl no
-  manda APPRACTR (`hub.rs:246` comentado). Encontrada la carrera
-  `_connectThread` del cliente de 2004 (no se parchea).
-- **H4**: el cliente propio usa `CmpFrames` (la ruta vieja mostraba el
-  último frame de los 52 `.mov`). Un `.mov` son celdas de Material y lo que
-  cambia con el tiempo es `AnimateAction`. Portales 53/87 como el original
-  (`_p2pxform` + `getYaw`). Animación real en `WorldViewer --play`.
-- **H5**: UI (eventos 1.0 en TextField bajo JDK 25, así que el chat va con
-  Intro; `Console.encrypt/decrypt`, cursores, menú contextual…), sistema/COM
-  (`RegKey` portable, `SystemInfo`, `VehicleShape`) y sonido/web (WAV/MIDI
-  con el volumen del binario, IMA ADPCM, IE/DirectShow/CD por su camino de
-  fallo, URLs solo por clic y con `-Dopenworlds.openUrls=1`).
-- Mock de `IniFile` sin distinguir mayúsculas y persistente, como kernel32:
-  el cliente escribe su `Gamma.Log` y "Remember password" persiste.
+- **Build broken since merge `71648da`** (an old branch that duplicated in
+  `apply_mock.sh` what `natives.patch` already did): fixed; in addition
+  `build_gamma.sh` now fails when `javac` fails.
+- **H0**: `tools/verify-corpus.sh` (RWX 118/118 also against
+  `three-rwx-loader`, reproducible for the first time on macOS with
+  `tools/node-macos`), `tools/run-checks.sh` and `tools/progress-panel.py`.
+- **H1**: textures (COLORONCOLOR, not HALFTONE; `RwReadTexture`,
+  `RwGetNamedTexture`, `StringTexture`); `.rwg` read from RWL21 in ASM
+  (header = list of textures, PLST with material index, `cube.rwg` does not
+  load in RW 2.1, empty ATOM = valid clump); driver rasterizer
+  (reciprocal table, perspective every 16 px, per-clump tree,
+  `addSubPolys` with x/u of vertices 1-2 because Ghidra's C is wrong).
+  The scene BSP is documented in ASM and untranslated.
+- **H2**: DroneAnimator fully translated; the rule (walk/wait/endwait with
+  deadlines 10/30/10 s, walk by distance, 250 ms blend, truncated key)
+  is in `docs/seq-animation-reference.md` §7. In GroundZero the animator already
+  receives `moveto`/`update`, but there are only statues that spin.
+- **H3**: whirl compiled (Rust via rustup) and started on 127.0.0.1: login,
+  same room and chat between two original clients. They cannot see each other because whirl does not
+  send APPRACTR (`hub.rs:246` commented out). Found the `_connectThread`
+  race of the 2004 client (not patched).
+- **H4**: our own client uses `CmpFrames` (the old path showed the
+  last frame of the 52 `.mov`). A `.mov` is Material cells and what
+  changes over time is `AnimateAction`. Portals 53/87 like the original
+  (`_p2pxform` + `getYaw`). Real animation in `WorldViewer --play`.
+- **H5**: UI (1.0 events in TextField under JDK 25, so chat works with
+  Enter; `Console.encrypt/decrypt`, cursors, context menu…), system/COM
+  (portable `RegKey`, `SystemInfo`, `VehicleShape`) and sound/web (WAV/MIDI
+  with the binary's volume, IMA ADPCM, IE/DirectShow/CD through their
+  failure path, URLs only on click and with `-Dopenworlds.openUrls=1`).
+- `IniFile` mock case-insensitive and persistent, like kernel32:
+  the client writes its `Gamma.Log` and "Remember password" persists.
 
-Queda y por qué, en `docs/roadmap.md` (§1b) y en
-`editor/worldsplayer_source_editor-main/bridge/README.md` (Pendiente de
-verificar).
+What remains and why, in `docs/roadmap.md` (§1b) and in
+`editor/worldsplayer_source_editor-main/bridge/README.md` (Pending
+verification).
 
-### 🟢 Paquete con lanzador, CI de GitHub y el motor revisado: menús, lag, portales (2026-09-26)
+### 🟢 Package with launcher, GitHub CI and the engine reviewed: menus, lag, portals (2026-09-26)
 
-Petición del usuario: "no hay menús, va súper lag, errores visuales";
-revisar las partes críticas (el motor), builds de GitHub empaquetadas que
-no dependan de los scripts de arranque, y aprovisionar la máquina. Primera
-sesión en un contenedor **Linux x64** (Claude Code en la web): el cliente
-original bajo el puente corre sin Wine, con Xvfb para la ventana.
+User request: "there are no menus, it's super laggy, visual errors";
+review the critical parts (the engine), packaged GitHub builds that
+do not depend on the startup scripts, and provision the machine. First
+session in a **Linux x64** container (Claude Code on the web): the original
+client under the bridge runs without Wine, with Xvfb for the window.
 
-**Puente (cliente original de 2004):**
-- **Menús que no salían.** El panel de botones (Help, Options, Teleport,
-  Quit, mapa del universo…) se pinta con `ImageCanvas.loadLocalImage` →
-  `Toolkit.getImage("u:/…/rtpanel.gif")`: la ruta sale del parche de `URL`
-  (unidad sintética `u:` y minúsculas), y fuera de Windows ese fichero no
-  existe. `HostPath.of` quita la unidad y resuelve sin distinguir
-  mayúsculas; `bridge/host_paths.py` lo aplica a las 151 aperturas de
-  fichero y `Toolkit.getImage` de 50 clases (solo en la copia de build).
-  De paso se corrige lo que decía el README del puente: el error de
-  `redir.txt` no era del original (su `Gamma.Log` no lo tiene), era esto.
-- **Ventana negra al arrancar.** `Std.initSyncTime` abría un `Socket` sin
-  timeout a `time.worlds.net:37` en el primer frame (lo pide
-  `BlackBox.postrender`), en el hilo de render. La base sale ahora del reloj
-  del sistema con la misma resta del bytecode (`ldc2_w -1141367296l; lsub`,
-  el `100*365*86400` desbordado del original) y el servidor, si respondiera,
-  la corrige desde un hilo con timeouts de 2 s.
-- **Fuentes.** El `lib/font.properties` del JRE 1.4 instalado resolvía
-  `dialog`/`sansserif` a Arial, `serif` a Times New Roman y
-  `monospaced`/`dialoginput` a Courier New. Con las del JDK moderno la barra
-  de estado cortaba "Use arrow keys" en "Jse arrow keys". `NativeUiFonts`
-  (+ `bridge/ui_fonts.py`, 72 `new Font` en 49 clases y la fuente por
-  defecto de `GammaFrame`) usa esas o las de métricas iguales (Liberation).
-- **Lag.** El rasterizador del driver ahora graba los triángulos de la
-  pasada de clumps y los dibuja por franjas horizontales en varios hilos;
-  cada franja recorre la lista entera, así que cada píxel recibe las mismas
-  escrituras en el mismo orden. Además: recorte sin asignaciones, spans que
-  solo interpolan lo que usa el camino del píxel y volcado 565→RGB por
-  tabla. Medido: 13,5 → 9,4 ms con 1 hilo y 4,7 ms con 4 (1172×848); el
-  cliente real pasa de ~25 a ~53 fps a 1172×848 y de 72 a ~90 a 468×272.
-  **`RasterGoldenCheck`** (nuevo): 56 formas `.rwx` reales de GroundZero con
-  sus texturas y quads que fuerzan cada camino (textura iluminada, Gouraud,
-  plano, translúcido, doble cara), 18 vistas en 3 tamaños; el CRC es
-  idéntico al del motor anterior con 1, 2, 4 y 8 hilos.
+**Bridge (2004 original client):**
+- **Menus that did not show up.** The button panel (Help, Options, Teleport,
+  Quit, universe map…) is painted with `ImageCanvas.loadLocalImage` →
+  `Toolkit.getImage("u:/…/rtpanel.gif")`: the path comes from the `URL` patch
+  (synthetic `u:` drive and lowercase), and outside Windows that file does
+  not exist. `HostPath.of` strips the drive and resolves case-insensitively;
+  `bridge/host_paths.py` applies it to the 151 file opens and `Toolkit.getImage`
+  of 50 classes (only in the build copy). In passing, what the bridge's
+  README said is corrected: the `redir.txt` error was not the original's (its
+  `Gamma.Log` does not have it), it was this.
+- **Black window on startup.** `Std.initSyncTime` opened a `Socket` with no
+  timeout to `time.worlds.net:37` in the first frame (requested by
+  `BlackBox.postrender`), on the render thread. The base now comes from the
+  system clock with the same subtraction as the bytecode (`ldc2_w -1141367296l; lsub`,
+  the overflowed `100*365*86400` of the original) and the server, if it responded,
+  corrects it from a thread with 2 s timeouts.
+- **Fonts.** The installed JRE 1.4's `lib/font.properties` resolved
+  `dialog`/`sansserif` to Arial, `serif` to Times New Roman and
+  `monospaced`/`dialoginput` to Courier New. With the modern JDK's, the status
+  bar cut "Use arrow keys" to "Jse arrow keys". `NativeUiFonts`
+  (+ `bridge/ui_fonts.py`, 72 `new Font` in 49 classes and the default
+  font of `GammaFrame`) uses those or ones with equal metrics (Liberation).
+- **Lag.** The driver rasterizer now records the triangles of the
+  clump pass and draws them in horizontal stripes across several threads;
+  each stripe walks the whole list, so every pixel receives the same
+  writes in the same order. Also: allocation-free clipping, spans that
+  only interpolate what the pixel path uses, and 565→RGB dump
+  by table. Measured: 13.5 → 9.4 ms with 1 thread and 4.7 ms with 4 (1172×848); the
+  real client goes from ~25 to ~53 fps at 1172×848 and from 72 to ~90 at 468×272.
+  **`RasterGoldenCheck`** (new): 56 real `.rwx` shapes of GroundZero with
+  their textures and quads that force each path (lit texture, Gouraud,
+  flat, translucent, double-sided), 18 views in 3 sizes; the CRC is
+  identical to that of the previous engine with 1, 2, 4 and 8 threads.
 
-**Motor nuevo (`WorldViewer --play`):**
-- **Aparecer y mirar como el original.** `WorldRestorer` leía y tiraba
-  `Room.defaultPosition/defaultOrientationAxis/defaultOrientation`; ahora se
-  guardan y el spawn hace lo que `TeleportAction` (`moveTo(pos).spin(eje,
-  giro)`; el piloto mira a +Y con giro 0, rumbo = 90 + s·giro para el eje
-  (0,0,s)). Medido en el puente: AvatarEnter (261 sobre −Z) mira a
-  (−0,97, −0,15) y el `RestartAt` de Reception (125 sobre −Z) a
-  (0,81, −0,56). Antes todas las salas aparecían en el punto de Reception
-  (fuera de la sala) y Reception miraba al kiosko (−148, puesto a mano).
-- **Cámara.** La del modo con que arranca el original, `HoloPilot`
-  `CAM_MODE_BEHIND`: 140 detrás, −10° (en el puente: 137,9 en horizontal y
-  +24,3 = 140·cos 10 / 140·sin 10) y acercándose si hay un muro (la cámara
-  del original es *bumpable*). Antes, 220 sin colisión.
-- **Portales que se ven.** Traducido del pase de portal del original
+**New engine (`WorldViewer --play`):**
+- **Appearing and looking like the original.** `WorldRestorer` read and discarded
+  `Room.defaultPosition/defaultOrientationAxis/defaultOrientation`; now they are
+  stored and the spawn does what `TeleportAction` does (`moveTo(pos).spin(axis,
+  turn)`; the pilot looks at +Y with turn 0, heading = 90 + s·turn for the axis
+  (0,0,s)). Measured in the bridge: AvatarEnter (261 about −Z) looks at
+  (−0.97, −0.15) and Reception's `RestartAt` (125 about −Z) at
+  (0.81, −0.56). Before, all rooms appeared at Reception's point
+  (outside the room) and Reception looked at the kiosk (−148, set by hand).
+- **Camera.** That of the mode the original starts with, `HoloPilot`
+  `CAM_MODE_BEHIND`: 140 behind, −10° (in the bridge: 137.9 horizontal and
+  +24.3 = 140·cos 10 / 140·sin 10) and moving closer if there is a wall (the original's
+  camera is *bumpable*). Before, 220 with no collision.
+- **Portals that are visible.** Translated from the original's portal pass
   (`Camera.rwRenderRoom` → `Room.prerender` → `Portal.rwPrerender`): portal
-  en estado 2, visible (flags bit 0), de cara a la cámara (fórmula de
-  0x0041b3b0), rectángulo en pantalla, cámara movida por `_p2pxform`, sala
-  lejana dibujada antes que la propia y **sin borrar el color** (el portal
-  anidado ReceptionView1 → ReceptionView2 deja ver el panorama). Las
-  cámaras de ChatHall, ChatElevator, DcnEnter, ReceptionView1 y
-  ReceptionView2 salen iguales al decimal que en el puente. Profundidad 3
-  (el original llega a 10). Sin espejos todavía (flags bit 2).
-- **`Rect` de una cara**, como el driver: se descarta la cara de atrás si
-  el material no tiene `MaterialModes` double (`!front && (modes & 0x80) ==
-  0`), y los materiales del mundo no lo ponen. Dibujados a doble cara, el
-  edificio de ReceptionView1 visto por detrás tapaba el paisaje y había
-  letreros espejados.
-- **Menú de pausa y HUD** (ESC: Continuar, Ir a otra sala —las 25, por el
-  mismo camino que cruzar un portal—, FPS, Ayuda, Salir), con un atlas de
-  texto de Java2D en modo headless (sin ventana AWT que pelee con GLFW en
+  in state 2, visible (flags bit 0), facing the camera (formula of
+  0x0041b3b0), screen rectangle, camera moved by `_p2pxform`, far
+  room drawn before the near one and **without clearing the color** (the nested portal
+  ReceptionView1 → ReceptionView2 lets the panorama show through). The
+  cameras of ChatHall, ChatElevator, DcnEnter, ReceptionView1 and
+  ReceptionView2 come out identical to the decimal as in the bridge. Depth 3
+  (the original goes up to 10). No mirrors yet (flags bit 2).
+- **One-sided `Rect`**, like the driver: the back face is discarded if
+  the material does not have `MaterialModes` double (`!front && (modes & 0x80) ==
+  0`), and the world's materials do not set it. Drawn double-sided, the
+  ReceptionView1 building seen from behind hid the landscape and there were
+  mirrored signs.
+- **Pause menu and HUD** (ESC: Continue, Go to another room —all 25, by the
+  same path as crossing a portal—, FPS, Help, Quit), with a
+  Java2D text atlas in headless mode (no AWT window fighting GLFW on
   macOS).
 
-**Paquete y CI:**
-- `launcher/` es el punto de entrada del paquete y sustituye a
-  `run_gamma.sh`/`run-game.sh`/`local-upgrade-server.py` para jugar:
-  ventana con menú (cliente original con mundo, servidor y usuario; motor
-  nuevo con sala; hilos de dibujo; FPS; registro en vivo), menú de terminal
-  (`--tui`, o solo si no hay pantalla) y CLI (`--original`, `--viewer`,
-  `--server`, `--smoke`…). Copia persistente de la instalación en la
-  carpeta de datos del usuario (se conserva el `worlds.ini` con amigos y
-  contraseña), servidor de actualización local en Java y cada cliente en
-  su propia JVM con el Java del paquete.
-- `tools/build-dist.sh`: paquete portable (.zip, Java 17+) y, con
-  `--app-image`, la app con Java incluido (jlink + jpackage): `.app`
-  firmada ad hoc en macOS, carpeta con `OpenWorlds.exe` en Windows,
-  `.tar.gz` en Linux. `tools/fetch-lwjgl.sh` baja LWJGL con SHA-1 y
-  reintentos (Maven Central da 429 si se le pide deprisa).
-- `.github/workflows/build.yml`: en cada push compila, pasa `run-checks`
-  (38/38) y `verify-corpus` completo, arranca el original empaquetado bajo
-  Xvfb (tiene que imprimir cámara y fps: ha dibujado) y sube el portable y
-  las apps de Linux, macOS Intel, macOS Apple Silicon y Windows; con un tag
-  `v*` publica una release. Primer fallo: jpackage en macOS exige que la
-  versión empiece por ≥ 1 (se usa `1.0.<commits>`). La misma prueba de humo
-  con el Java de cada app (ejecución #5): GroundZero dibuja en macOS Intel,
-  macOS ARM (62 fps) y Windows (102 fps), con la cámara en (230,180,170)
-  mirando (−0,97, −0,15, −0,17) como en Linux; desde ahí es obligatoria.
-- Aprovisionamiento: `tools/setup-linux.sh` (idempotente: paquetes, JDK,
-  LWJGL, arnés RWX, compila los dos clientes) y el hook `SessionStart` de
-  `.claude/` para las sesiones en la web (15 s en caliente, ~50 s en frío).
+**Package and CI:**
+- `launcher/` is the package's entry point and replaces
+  `run_gamma.sh`/`run-game.sh`/`local-upgrade-server.py` for playing:
+  window with menu (original client with world, server and user; new
+  engine with room; drawing threads; FPS; live log), terminal menu
+  (`--tui`, or only if there is no display) and CLI (`--original`, `--viewer`,
+  `--server`, `--smoke`…). Persistent copy of the installation in the
+  user's data folder (the `worlds.ini` with friends and
+  password is preserved), local update server in Java and each client in
+  its own JVM with the package's Java.
+- `tools/build-dist.sh`: portable package (.zip, Java 17+) and, with
+  `--app-image`, the app with bundled Java (jlink + jpackage): ad hoc
+  signed `.app` on macOS, folder with `OpenWorlds.exe` on Windows,
+  `.tar.gz` on Linux. `tools/fetch-lwjgl.sh` downloads LWJGL with SHA-1 and
+  retries (Maven Central gives 429 if asked too quickly).
+- `.github/workflows/build.yml`: on every push it builds, runs `run-checks`
+  (38/38) and the complete `verify-corpus`, starts the packaged original under
+  Xvfb (it must print camera and fps: it has drawn) and uploads the portable and
+  the apps for Linux, macOS Intel, macOS Apple Silicon and Windows; with a tag
+  `v*` it publishes a release. First failure: jpackage on macOS requires the
+  version to start with ≥ 1 (`1.0.<commits>` is used). The same smoke test
+  with each app's Java (run #5): GroundZero draws on macOS Intel,
+  macOS ARM (62 fps) and Windows (102 fps), with the camera at (230,180,170)
+  looking at (−0.97, −0.15, −0.17) as on Linux; from there on it is mandatory.
+- Provisioning: `tools/setup-linux.sh` (idempotent: packages, JDK,
+  LWJGL, RWX harness, builds both clients) and the `SessionStart` hook of
+  `.claude/` for web sessions (15 s warm, ~50 s cold).
 
-**Encontrado y sin arreglar desde aquí:** `cachedir/cache.index` nunca
-entró en este historial de git (se dejó de versionar el 2026-09-09 como
-"bookkeeping" y no está en ningún commit ni en ningún zip del repo). Sin
-él, `Cache.initLoad` ("Flushing cache index.") **borra** los 207 ficheros
-cacheados de la copia de trabajo (medido en el paquete: quedan 31, los que
-se vuelven a bajar del servidor local), así que en un clon limpio, en la
-CI y en los paquetes los avatares cacheados de 2004 salen sin textura. La
-única copia está en el Mac del usuario; ya no está en `.gitignore`.
+**Found and not fixed from here:** `cachedir/cache.index` never
+entered this git history (it stopped being versioned on 2026-09-09 as
+"bookkeeping" and is in no commit nor in any zip of the repo). Without
+it, `Cache.initLoad` ("Flushing cache index.") **deletes** the 207 cached
+files of the working copy (measured in the package: 31 remain, the ones
+that are downloaded again from the local server), so in a clean clone, in
+CI and in the packages the cached 2004 avatars come out without texture. The
+only copy is on the user's Mac; it is no longer in `.gitignore`.
 
-**Segunda parte del mismo día — el motor nuevo alcanza al original en color
-y el puente pierde un fallo de matrices.** Con la cámara del visor igual a
-la del puente al decimal y el mismo aspecto (`-Dopenworlds.windowSize=468x272`),
-se compararon capturas columna a columna y con mapas de diferencias:
+**Second part of the same day — the new engine catches up with the original in color
+and the bridge loses a matrix bug.** With the viewer's camera equal to
+the bridge's to the decimal and the same aspect (`-Dopenworlds.windowSize=468x272`),
+captures were compared column by column and with difference maps:
 
-- **Luz del motor nuevo.** Estaba muy oscuro por tres cosas: las luces de GL
-  se fijaban una vez con la vista identidad (iban pegadas a la cámara), la
-  normal de los `Rect` se transformaba dos veces, y GL nunca pasa del color
-  del material, mientras que la rampa del driver RWDL6D21 (FUN_10008d00)
-  aclara hacia blanco por encima de 0,75 de la escala. Además, 586 de las
-  699 superficies del mundo son "auto-iluminadas" (ambiente ~0,75 sin
-  difusa: FUN_00417950) y el original pinta su textura tal cual.
-  `DriverLight` hace lo del puente: dos luces por sala en el espacio de
-  cada objeto (con la inversa: una pared escalada 2149×2×400 recibe d ≈ 1,
-  no el coseno del mundo), la intensidad `31 amb + Σ 31 lc (dif d + spec
-  S(d))` y la rampa, en GL como `texel·P + S` con `GL_COLOR_SUM`. El RWX
-  guarda ahora lo que RW usa (ambiente 0 si el script no lo pone, como
-  `RwCreateMaterial` 0x1001b340; `LightSampling`; normales por polígono y
-  de vértice compartidas; las `Normal` del script). Resultado: techo
-  (214,210,181) en el puente y (208,208,176) en el visor.
-- **Superficies.** UVs de `Rect.addRwChildren` (97 paredes con repetición
-  no entera salían desplazadas), celdas de `addSubPolys` con espejado
-  alterno, `RectPatch` de 4 triángulos al centro, vallas `Billboard`
-  (`new Material(adworlds.cmp, h, v)`: cada celda con el fichero entero,
-  como `Material.syncBackgroundLoad`) y portales hasta 11 niveles
-  (`rwDepth <= 10`; con 3 no se veía Reception al fondo de AvatarEnter).
-- **Fallo del puente: producto de matrices.** El soporte con cuerdas del
-  Auditorium y la puerta en iris de IconViewRoom1Enter salían en el visor y
-  no en el puente. Un volcado nuevo del árbol de clumps
-  (`-Dopenworlds.dumpScene`) mostró `WObject2` en (0,1000,0) y su hijo
-  `ShapeStand` en (0,0,0): la cuarta columna de los `Transform` del `.world`
-  trae datos internos de RW (0x03ddff04, 0x02890088 leídos como float,
-  `m[15] = 2e-37`) y el puente multiplicaba 4×4, mientras que
-  `RwMultiplyMatrix` (0x1001db10 → 0x1005118c) es afín y no la toca. Todo lo
-  que cuelga de un `WObject` contenedor (30 en GroundZero) caía en el origen
-  de la sala en el cliente original. Arreglado con el mismo orden de sumas
-  (bit a bit igual con matrices limpias). Queda confirmado que el visor
-  tenía razón en los dos casos, y que el puente no es referencia de píxel
-  hasta tener capturas bajo Wine.
+- **New engine's light.** It was very dark due to three things: GL's lights
+  were set once with the identity view (they were glued to the camera),
+  the `Rect` normal was transformed twice, and GL never goes past the material's
+  color, whereas the RWDL6D21 driver's ramp (FUN_10008d00)
+  lightens toward white above 0.75 of the scale. Also, 586 of the
+  699 surfaces of the world are "self-lit" (ambient ~0.75 with no
+  diffuse: FUN_00417950) and the original paints its texture as is.
+  `DriverLight` does what the bridge does: two lights per room in the space of
+  each object (with the inverse: a wall scaled 2149×2×400 receives d ≈ 1,
+  not the world cosine), the intensity `31 amb + Σ 31 lc (dif d + spec
+  S(d))` and the ramp, in GL as `texel·P + S` with `GL_COLOR_SUM`. The RWX
+  now stores what RW uses (ambient 0 if the script does not set it, like
+  `RwCreateMaterial` 0x1001b340; `LightSampling`; shared per-polygon and
+  vertex normals; the script's `Normal`s). Result: ceiling
+  (214,210,181) in the bridge and (208,208,176) in the viewer.
+- **Surfaces.** UVs from `Rect.addRwChildren` (97 walls with non-integer
+  repetition came out shifted), `addSubPolys` cells with alternating
+  mirroring, 4-triangle `RectPatch` with a center, `Billboard` fences
+  (`new Material(adworlds.cmp, h, v)`: each cell with the whole file,
+  like `Material.syncBackgroundLoad`) and portals up to 11 levels
+  (`rwDepth <= 10`; with 3, Reception at the back of AvatarEnter could not be seen).
+- **Bridge bug: matrix product.** The Auditorium's stanchion with ropes and the
+  iris door of IconViewRoom1Enter showed up in the viewer and
+  not in the bridge. A new dump of the clump tree
+  (`-Dopenworlds.dumpScene`) showed `WObject2` at (0,1000,0) and its child
+  `ShapeStand` at (0,0,0): the fourth column of the `.world`'s `Transform`s
+  carries RW-internal data (0x03ddff04, 0x02890088 read as float,
+  `m[15] = 2e-37`) and the bridge multiplied 4×4, whereas
+  `RwMultiplyMatrix` (0x1001db10 → 0x1005118c) is affine and does not touch it. Everything
+  hanging from a container `WObject` (30 in GroundZero) fell at the origin
+  of the room in the original client. Fixed with the same order of sums
+  (bit-for-bit equal with clean matrices). It is confirmed that the viewer
+  was right in both cases, and that the bridge is not a pixel reference
+  until we have captures under Wine.
 
-`DriverLightCheck` y `MatrixAffineCheck` (casos a mano); `run-checks`
-40/40; `verify-corpus` sin fallos. Pendiente en el motor nuevo: espejos,
-`MoveAction` (la puerta en iris se abre al cruzar el portal de Reception) y
-la luz por vértice de los avatares.
+`DriverLightCheck` and `MatrixAffineCheck` (hand-made cases); `run-checks`
+40/40; `verify-corpus` with no failures. Pending in the new engine: mirrors,
+`MoveAction` (the iris door opens when crossing Reception's portal) and
+the per-vertex light of the avatars.
 
-**Tercera parte — barrido de las 25 salas.** Con el mismo método (pose del
-visor dentro de la sala pasada al original por URL, `#Sala@x,y,z,giro,0,0,-1`),
-las diferencias que quedaban eran de dos motores a la vez:
+**Third part — sweep of the 25 rooms.** With the same method (viewer pose
+inside the room passed to the original by URL, `#Room@x,y,z,turn,0,0,-1`),
+the differences that remained were from two engines at once:
 
-- **Puente, material de las partes `.bod`.** gamma.dll FUN_0041d950 hace
-  `RwSetMaterialSurface(mat, 0.32, 0.55, 0.0)` (floats de `DAT_00470ac4`,
-  `DAT_00470ac0` y `DAT_00470abc` leídos del `.data`) y `FUN_00417a10`
-  (luz por vértice); el puente tenía (0.75, 0, 0) facetado y las estatuas
-  salían planas.
-- **Motor nuevo, avatares.** Luz por vértice por parte, como
-  `RwCalculateClumpVertexNormal`; el mismo material; y el vestuario perdido
-  (`cmalea*`, `mfa`…) en `colorTable[3]` = (255, 102, 51), que es el color
-  con que `PosableShape.scanTexture` crea el material antes de intentar la
-  textura. Por eso las estatuas de la galería salen naranjas en el
-  original, y ahora también en el visor.
-- **Encontrado, sin cambiar:** `Room.floorHeight` del original solo usa
-  los `RectPatch` del contenido de la sala y devuelve 0 si no hay. En las
-  salas de la galería el suelo visible está a 40 y no hay `RectPatch`, así
-  que el piloto del original anda hundido 40 (se ve en la altura de la
-  cámara del puente: z = 164 en vez de 204). El visor se apoya en los
-  suelos visibles y en los muebles; copiarlo es una decisión de juego, no
-  de dibujo.
+- **Bridge, material of the `.bod` parts.** gamma.dll FUN_0041d950 does
+  `RwSetMaterialSurface(mat, 0.32, 0.55, 0.0)` (floats from `DAT_00470ac4`,
+  `DAT_00470ac0` and `DAT_00470abc` read from `.data`) and `FUN_00417a10`
+  (per-vertex light); the bridge had (0.75, 0, 0) faceted and the statues
+  came out flat.
+- **New engine, avatars.** Per-vertex light per part, like
+  `RwCalculateClumpVertexNormal`; the same material; and the lost wardrobe
+  (`cmalea*`, `mfa`…) at `colorTable[3]` = (255, 102, 51), which is the color
+  with which `PosableShape.scanTexture` creates the material before trying the
+  texture. That is why the gallery statues come out orange in the
+  original, and now in the viewer too.
+- **Found, unchanged:** the original's `Room.floorHeight` only uses
+  the `RectPatch`es of the room's content and returns 0 if there are none. In the
+  gallery rooms the visible floor is at 40 and there is no `RectPatch`, so
+  the original's pilot walks sunk 40 (seen in the bridge camera's
+  height: z = 164 instead of 204). The viewer relies on the visible
+  floors and on furniture; copying it is a gameplay decision, not
+  a drawing one.
 
-### 🟢 Un solo motor: fuera el motor nuevo (2026-09-26)
+### 🟢 A single engine: the new engine is out (2026-09-26)
 
-El usuario preguntó por qué había dos motores ("eso yo no lo he pedido") y,
-tras la explicación, pidió quitar absolutamente todo el motor nuevo, lanzador
-incluido, y subirlo.
+The user asked why there were two engines ("I didn't ask for that") and,
+after the explanation, asked to remove absolutely everything of the new engine, launcher
+included, and push it.
 
-**De dónde venían.** El motor nuevo (`client/`, parsers propios + LWJGL)
-empezó el 2026-09-09 (`fa5e52d`) por el objetivo 2 de CLAUDE.md; el puente
-del cliente original, el 2026-09-17 (`a79efdd`). La hoja de ruta del
-2026-09-22 (`76ff86f`, sección 1) dejó la elección A/B al usuario y nunca se
-cerró; en la sesión de empaquetado se siguió trabajando en los dos y el
-lanzador los ofrecía a la par ("Jugar" / "Explorar").
+**Where they came from.** The new engine (`client/`, own parsers + LWJGL)
+started on 2026-09-09 (`fa5e52d`) for goal 2 of CLAUDE.md; the original
+client's bridge, on 2026-09-17 (`a79efdd`). The 2026-09-22 roadmap
+(`76ff86f`, section 1) left the A/B choice to the user and it was never
+closed; in the packaging session work continued on both and the
+launcher offered them side by side ("Play" / "Explore").
 
-**Quitado** (todo está en el historial de git hasta `8cd795d`):
-- De `client/`: el renderizador y los visores (`render/`), los lectores de
-  `.rwx`, `.world` y nombres de avatar (`rwx/`, `world/`, `avatar/`), su
-  animación y sus checks (`DriverLightCheck`, `AvatarAnimCheck`,
+**Removed** (everything is in the git history up to `8cd795d`):
+- From `client/`: the renderer and the viewers (`render/`), the readers of
+  `.rwx`, `.world` and avatar names (`rwx/`, `world/`, `avatar/`), its
+  animation and its checks (`DriverLightCheck`, `AvatarAnimCheck`,
   `MaterialTilesCheck`, `PortalLinkCheck`, `TextureActionsCheck`).
-- Del lanzador: "Explorar", las opciones 3-4 del menú de terminal
-  (explorar sala / elegir sala), `--viewer`, la sala de los ajustes y el
-  `openworlds-client.jar` del paquete.
-- `tools/run-game.sh`, `install-launcher.sh`, `fetch-lwjgl.sh` y
-  `rwx-harness/`; LWJGL y node de la CI, de `build-dist.sh` y del
-  aprovisionamiento; `docs/render-pipeline-reference.md`,
-  `docs/rwx-parser-progress.md` y las 50 capturas del motor nuevo de
-  `docs/renders/` (queda la del original).
+- From the launcher: "Explore", options 3-4 of the terminal menu
+  (explore room / choose room), `--viewer`, the settings' room and the
+  package's `openworlds-client.jar`.
+- `tools/run-game.sh`, `install-launcher.sh`, `fetch-lwjgl.sh` and
+  `rwx-harness/`; LWJGL and node from CI, from `build-dist.sh` and from
+  provisioning; `docs/render-pipeline-reference.md`,
+  `docs/rwx-parser-progress.md` and the 50 captures of the new engine in
+  `docs/renders/` (the original's remains).
 
-**Movido, no quitado:** `bod/` (`.bod` y `.seq`), `rwg/` y `cmp/`
-(`.cmp`/`.mov`), con sus checks, a `formats/`: el puente los importa
+**Moved, not removed:** `bod/` (`.bod` and `.seq`), `rwg/` and `cmp/`
+(`.cmp`/`.mov`), with their checks, to `formats/`: the bridge imports them
 (`SeqParser`/`SeqSampler`, `BodParser`/`BodClump`, `RwgParser`, `CmpFrames`)
-y `build_gamma.sh` los compila con él. Mismos paquetes Java, así que el
-puente no cambia.
+and `build_gamma.sh` compiles them with it. Same Java packages, so the
+bridge does not change.
 
-**Consecuencias.** `verify-corpus.sh` pierde las filas RWX 118/118 (y la
-comparación con `three-rwx-loader`), `.world` 25/578/103 y avatares
-146/148, cuyos lectores solo usaba el motor nuevo; conserva `.seq` 231,
-`.bod` 51, `.cmp` 159 y `.mov` 52. Los documentos de formato siguen, con
-una nota donde citan código o capturas retiradas. `.gitignore` sigue
-ignorando `tools/lwjgl/`, `tools/node*/`, `tools/rwx-harness/`, `client/` y
-`logs/` para que un checkout antiguo (el Mac) no los suba: se pueden borrar
-a mano.
+**Consequences.** `verify-corpus.sh` loses the rows RWX 118/118 (and the
+comparison with `three-rwx-loader`), `.world` 25/578/103 and avatars
+146/148, whose readers only the new engine used; it keeps `.seq` 231,
+`.bod` 51, `.cmp` 159 and `.mov` 52. The format documents remain, with
+a note where they cite removed code or captures. `.gitignore` still
+ignores `tools/lwjgl/`, `tools/node*/`, `tools/rwx-harness/`, `client/` and
+`logs/` so that an old checkout (the Mac) does not push them: they can be deleted
+by hand.
 
-**Verificado en el contenedor Linux:** `tools/setup-linux.sh` completo (904
-clases del puente + `formats/`); `run-checks.sh` 35/35 (4 + 31);
-`verify-corpus.sh` sin fallos; `build-dist.sh --app-image` sin LWJGL (zip
-portable de 5,8 MB); prueba de humo de la app de Linux: dibuja GroundZero
-con la cámara en (230,180,170); menú de terminal con 5 opciones,
-`--viewer` rechazado y la ventana solo con el cliente original.
+**Verified in the Linux container:** complete `tools/setup-linux.sh` (904
+bridge classes + `formats/`); `run-checks.sh` 35/35 (4 + 31);
+`verify-corpus.sh` with no failures; `build-dist.sh --app-image` without LWJGL (portable
+zip of 5.8 MB); smoke test of the Linux app: it draws GroundZero
+with the camera at (230,180,170); terminal menu with 5 options,
+`--viewer` rejected and the window only with the original client.
 
-### 🟢 El juego decompilado de cabo a rabo, los viajes entre mundos y todo el juego probado (2026-09-26)
+### 🟢 The game decompiled from end to end, travel between worlds and the whole game tested (2026-09-26)
 
-Pedido del usuario: "con Ghidra termina de decompilar el juego de cabo a
-rabo. Y prueba lo de irse a otros mundos, que eso no está probado; prueba
-todas las cosas que se pueden hacer en el juego". Informe completo:
+User request: "with Ghidra finish decompiling the game from end to
+end. And test going to other worlds, that hasn't been tested; test
+all the things that can be done in the game". Full report:
 `docs/pruebas-juego.md`.
 
-**Ghidra.** Faltaban seis binarios propios del juego. Ghidra 12.1.3 se bajó
-del espejo de SourceForge (el proxy de la nube corta GitHub), con el SHA-256
-comprobado. Salieron `run.exe` (139 funciones), `gdkup.exe` (256),
-`sfmain.exe` (619, el chat de voz SpeakFreely/GSM compilado con Watcom, cuyo
-`DGROUP` hubo que enseñar a `ScanVtablesAndExport.java`) y los drivers de
-RenderWare de 8 bits (427), MMX (435) y DirectDraw (305). El barrido de
-vtables se pasó también a RWL21 (+21) y RWDL6D21 (+26). Todo con 0 fallos,
-y reproducible con `tools/ghidra-scripts/decompile-all.sh`. Lo que queda
-sin decompilar es de terceros: el Java de Sun 1.4.2 del instalador,
-msvcrt, xdelta/glib y el desinstalador de Wise.
+**Ghidra.** Six of the game's own binaries were missing. Ghidra 12.1.3 was downloaded
+from SourceForge's mirror (the cloud proxy blocks GitHub), with the SHA-256
+checked. Out came `run.exe` (139 functions), `gdkup.exe` (256),
+`sfmain.exe` (619, the SpeakFreely/GSM voice chat compiled with Watcom, whose
+`DGROUP` had to be taught to `ScanVtablesAndExport.java`) and the
+RenderWare drivers for 8-bit (427), MMX (435) and DirectDraw (305). The vtable sweep
+was also passed over RWL21 (+21) and RWDL6D21 (+26). All with 0 failures,
+and reproducible with `tools/ghidra-scripts/decompile-all.sh`. What remains
+undecompiled is third party: the installer's Sun Java 1.4.2,
+msvcrt, xdelta/glib and Wise's uninstaller.
 
-**Viajes.** El hallazgo que lo desbloqueó: `us1.worlds.net` vuelve a
-responder, porque es el espejo de LibreWorlds, con los paquetes de mundo y
-el vestuario de avatares que se daban por perdidos. El lanzador pide al
-espejo lo que no hay en local. Para instalar, el cliente pide `gdkup.exe`
-y se cierra; el puente deja la petición en `gdkup.pending`, y el gdkup
-traducido (`GdkUp`, de `gdkup_exe`) instala los paquetes Wise
-(`WisePackage`) y NSIS (`NsisPackage`) y arranca el cliente otra vez.
-Probados: 11 mundos descargados (la instalación de 2004 solo trae
-GroundZero), entre ellos Chaos, el mundo de David Bowie, con su BWStreet,
-y The Blair Witch World, la cafetería de Burkittsville, sacado del mapa
-del universo, donde el espejo sirve los 16 mundos.
+**Travel.** The finding that unlocked it: `us1.worlds.net` responds
+again, because it is the LibreWorlds mirror, with the world packages and
+the avatar wardrobe that were given up for lost. The launcher asks the
+mirror for what is not available locally. To install, the client requests `gdkup.exe`
+and closes; the bridge leaves the request in `gdkup.pending`, and the translated
+gdkup (`GdkUp`, from `gdkup_exe`) installs the Wise packages
+(`WisePackage`) and NSIS (`NsisPackage`) and starts the client again.
+Tested: 11 worlds downloaded (the 2004 installation only brings
+GroundZero), among them Chaos, David Bowie's world, with its BWStreet,
+and The Blair Witch World, the Burkittsville café, reached from the
+universe map, where the mirror serves all 16 worlds.
 
-**Fallos encontrados probando, todos arreglados con test:**
+**Failures found while testing, all fixed with a test:**
 
-- Diálogos con campo de texto (WorldsMark → Change Location...): en X11 el
-  cierre de `PolledDialog` (bajo su monitor) se bloqueaba con el hilo de
-  eventos, que toma ese monitor por el método de entrada. Diálogo negro y
-  UI congelada. `AwtCompat.closeHoldingLock`, `UiDisposeCheck`.
-- El mapa del universo cerraba el juego: el mock de
-  `usingMicrosoftVMHacks` devolvía `true`. En gamma.dll es
-  `DAT_004891cc == 1`, que solo se activa con la JVM de Microsoft.
-- Texturas: `FUN_00442bc0` decodifica un fotograma en varios grupos de
-  filas (`mug.cmp` de Blair Witch, dos grupos que cuadran al byte con el
-  fichero), y la fila `esi` es un único búfer para todo el fichero.
-  Además, el byte 13 de la cabecera hace saltar también el número de
-  colores (`kcl.mov`, un caleidoscopio del vestuario). `CmpGroupsCheck`,
-  con muestras en `assets/cmp-verified/`.
-- Upgrade Now (GroundZero 37 → 40, un NSIS de LibreWorlds): faltaban
-  Delete, Push/Pop/Exch, FileOpen, FileRead y FileClose. Además, un
-  instalador que abortaba dejaba al jugador sin juego; gdkup.exe no lee
-  los códigos de salida (0x00401e75) y sigue hasta el reinicio. Ahora igual.
-  `GdkUpCheck`, con `Meteor25.exe` (Wise) y `GroundZero37-40.exe` en
+- Dialogs with a text field (WorldsMark → Change Location...): on X11 the
+  closing of `PolledDialog` (under its monitor) would hang with the
+  event thread, which takes that monitor through the input method. Black dialog
+  and frozen UI. `AwtCompat.closeHoldingLock`, `UiDisposeCheck`.
+- The universe map closed the game: the mock of
+  `usingMicrosoftVMHacks` returned `true`. In gamma.dll it is
+  `DAT_004891cc == 1`, which is only activated with Microsoft's JVM.
+- Textures: `FUN_00442bc0` decodes a frame in several row groups
+  (`mug.cmp` from Blair Witch, two groups that match the file to the byte),
+  and the `esi` row is a single buffer for the whole file.
+  Also, byte 13 of the header makes the number of colors jump too
+  (`kcl.mov`, a wardrobe kaleidoscope). `CmpGroupsCheck`,
+  with samples in `assets/cmp-verified/`.
+- Upgrade Now (GroundZero 37 → 40, a LibreWorlds NSIS): Delete, Push/Pop/Exch,
+  FileOpen, FileRead and FileClose were missing. Also, an
+  installer that aborted left the player without a game; gdkup.exe does not read
+  the exit codes (0x00401e75) and continues until the restart. Now the same.
+  `GdkUpCheck`, with `Meteor25.exe` (Wise) and `GroundZero37-40.exe` in
   `assets/packages/`.
-- (Antes, en la misma sesión) el giro a cámara lenta: el puente daba un
-  reloj de 1 ms a 600-800 fps y los umbrales de `SmoothDriver` anulaban la
-  velocidad. Ahora avanza a saltos de `GetTickCount` (15,625 ms), como en XP.
+- (Earlier, in the same session) the slow-motion turn: the bridge gave a
+  1 ms clock at 600-800 fps and the `SmoothDriver` thresholds nullified the
+  velocity. Now it advances in `GetTickCount` jumps (15.625 ms), as on XP.
 
-**Queda:** parches xdelta, chat de voz sin traducir, "Sleep" invisible,
-⚠️ otros sitios con AWT bajo el monitor de un diálogo, y la decisión de
-guardar o no en el repo los paquetes del espejo.
+**Remaining:** xdelta patches, voice chat untranslated, invisible "Sleep",
+⚠️ other places with AWT under a dialog's monitor, and the decision whether or not to
+keep the mirror's packages in the repo.
 
-### 🟢 Logo nuevo: un planeta low-poly (2026-09-26)
+### 🟢 New logo: a low-poly planet (2026-09-26)
 
-Al usuario no le gustaba nada el logo del paquete: un globo azul genérico
-con "FW" y un anillo naranja. Se le enseñaron cuatro propuestas, todas sin
-letras para que se lean a 16 px: planeta low-poly, portal entre mundos,
-planeta-burbuja de chat y pixel art. Eligió el **planeta low-poly**: una
-icosfera de 80 caras con sombreado plano, como el 3D de RenderWare (una
-luz, un color por cara), con continentes y un anillo que pasa por detrás y
-por delante, sobre un azulejo de cielo nocturno.
+The user did not like the package's logo at all: a generic blue globe
+with "FW" and an orange ring. Four proposals were shown, all without
+letters so they read at 16 px: low-poly planet, portal between worlds,
+chat-bubble planet and pixel art. They chose the **low-poly planet**: an
+80-face icosphere with flat shading, like RenderWare's 3D (one
+light, one color per face), with continents and a ring that passes behind and
+in front, on a night-sky tile.
 
-`tools/icons/make_icons.py` lo dibuja en SVG (`openworlds.svg`, y
-`openworlds-small.svg` sin estrellas y con el anillo más grueso para
-16-32 px) y saca con Chrome sin interfaz y Pillow el PNG de 1024, el ICO
-(16-256), el ICNS (16-1024) y el icono de la ventana del lanzador. Chrome
-sin interfaz recorta las ventanas pequeñas, así que todo se dibuja a 1024
-y se reduce con Lanczos.
+`tools/icons/make_icons.py` draws it as SVG (`openworlds.svg`, and
+`openworlds-small.svg` without stars and with the ring thicker for
+16-32 px) and produces with headless Chrome and Pillow the 1024 PNG, the ICO
+(16-256), the ICNS (16-1024) and the launcher's window icon. Headless
+Chrome crops small windows, so everything is drawn at 1024
+and reduced with Lanczos.
