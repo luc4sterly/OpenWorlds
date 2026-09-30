@@ -4,19 +4,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Un .rwg leído como lo leen gamma.dll y RWL21.DLL: la cabecera de gamma
- * con la lista de texturas que pide antes de leer (FUN_00419af0 /
- * FUN_0041c970), y el CLUM de RW con sus tablas RALT (rasters), TELT
- * (texturas) y MALT (materiales) y el ATOM raíz.
+ * A .rwg read the way gamma.dll and RWL21.DLL read it: gamma's header
+ * with the texture list it requests before reading (FUN_00419af0 /
+ * FUN_0041c970), and RW's CLUM with its RALT (rasters), TELT
+ * (textures) and MALT (materials) tables and the root ATOM.
  */
 public final class RwgModel {
    /**
-    * Primer nombre de la lista de la cabecera, o "" si está vacía. Antes se
-    * leía como "nombre del objeto"; es el primer nombre de textura (en
-    * IDLE.RWG "idle", en e3.rwg "earthkin", igual que su STNG de TELT).
+    * First name of the header list, or "" if it is empty. It used to be
+    * read as the "object name"; it is the first texture name (in
+    * IDLE.RWG "idle", in e3.rwg "earthkin", the same as its TELT's STNG).
     */
    public final String name;
-   /** Nombres de la cabecera tal cual, hasta el nombre vacío que la cierra. */
+   /** The header's names as they are, up to the empty name that closes it. */
    public final List<String> headerTextures;
    public final List<RwgRaster> rasters;
    public final List<RwgTexture> textures;
@@ -34,12 +34,12 @@ public final class RwgModel {
       this.atom = atom;
    }
 
-   /** Lo que gamma.dll pide a Java antes de leer el CLUM: ver {@link RwgParser.Header#textureRequests}. */
+   /** What gamma.dll requests from Java before reading the CLUM: see {@link RwgParser.Header#textureRequests}. */
    public List<String> textureRequests() {
       return new RwgParser.Header(this.headerTextures, true).textureRequests();
    }
 
-   /** Material de un polígono (MALT base 1; 0 o fuera de rango = ninguno, como 0x1003a7bc). */
+   /** Material of a polygon (1-based MALT; 0 or out of range = none, like 0x1003a7bc). */
    public RwgMaterial materialOf(RwgPolygon p) {
       int i = p.materialIndex;
       return i >= 1 && i <= this.materials.size() ? this.materials.get(i - 1) : null;

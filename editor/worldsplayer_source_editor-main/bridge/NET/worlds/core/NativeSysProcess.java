@@ -6,31 +6,31 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code NetUpdate.CreateProcSpecial} (gamma.dll 0x00404740): lanza el
- * actualizador ({@code .\bin\gdkup.exe <lista>}) con el PID del cliente.
+ * {@code NetUpdate.CreateProcSpecial} (gamma.dll 0x00404740): launches the
+ * updater ({@code .\bin\gdkup.exe <list>}) with the client's PID.
  *
- * <p>De gamma.dll: la línea de órdenes es {@code wsprintfA("%s %s %lu",
- * programa, argumentos, GetCurrentProcessId())} (0x0046d620); si
- * CreateProcessA falla, escribe en su flujo de log (0x49eda8, el mismo que
- * NativeAssert lleva a stderr) {@code Internal error - can't execute "} +
- * línea + {@code "} (0x0046d630 / 0x0046d62c) con fin de línea, luego el
- * texto de FormatMessageA(GetLastError()) con fin de línea, y devuelve
- * false; si arranca, WaitForInputIdle, cierra las asas y devuelve true.
+ * <p>From gamma.dll: the command line is {@code wsprintfA("%s %s %lu",
+ * program, arguments, GetCurrentProcessId())} (0x0046d620); if
+ * CreateProcessA fails, it writes to its log stream (0x49eda8, the same one
+ * that NativeAssert sends to stderr) {@code Internal error - can't execute "}
+ * + line + {@code "} (0x0046d630 / 0x0046d62c) with a line ending, then the
+ * text of FormatMessageA(GetLastError()) with a line ending, and returns
+ * false; if it starts, WaitForInputIdle, closes the handles and returns true.
  *
- * <p>Sustituto de CreateProcessA(NULL, línea, ..., DETACHED_PROCESS): el
- * primer elemento de la línea (entre comillas si las lleva) es el programa,
- * con ".exe" si no tiene extensión, relativo al directorio actual y
- * resuelto por {@code NativeMock.localFile}; el resto se parte en
- * argumentos por espacios respetando comillas; se arranca con
- * {@code ProcessBuilder} sin esperar. El texto de FormatMessageA es el
- * mensaje del error del sistema operativo. En macOS un .exe no se puede
- * ejecutar ("Exec format error"), así que se toma la rama de fallo del
- * original; en Linux con binfmt_misc + Wine arrancaría gdkup.exe como en
- * Windows. WaitForInputIdle no tiene equivalente (espera a que una
- * aplicación gráfica atienda su cola de mensajes) y no se espera.
- * ⚠️ VERIFICAR: el reparto en argumentos es el sencillo (sin las reglas de
- * barras invertidas de CommandLineToArgvW); la única llamada del cliente
- * no lleva comillas.
+ * <p>Substitute for CreateProcessA(NULL, line, ..., DETACHED_PROCESS): the
+ * first element of the line (in quotes if it has them) is the program,
+ * with ".exe" if it has no extension, relative to the current directory and
+ * resolved by {@code NativeMock.localFile}; the rest is split into
+ * arguments at spaces, respecting quotes; it is started with
+ * {@code ProcessBuilder} without waiting. The FormatMessageA text is the
+ * operating system's error message. On macOS a .exe cannot be
+ * executed ("Exec format error"), so the original's failure branch is taken;
+ * on Linux with binfmt_misc + Wine it would start gdkup.exe as on
+ * Windows. WaitForInputIdle has no equivalent (it waits for a graphical
+ * application to service its message queue) and is not waited for.
+ * ⚠️ VERIFY: the split into arguments is the simple one (without the
+ * backslash rules of CommandLineToArgvW); the client's only call
+ * has no quotes.
  */
 public final class NativeSysProcess {
    private NativeSysProcess() {
@@ -94,7 +94,7 @@ public final class NativeSysProcess {
       return program + " " + args + " " + pid;
    }
 
-   /** Elementos de la línea: espacios o tabuladores separan, las comillas agrupan y se quitan. */
+   /** Elements of the line: spaces or tabs separate, quotes group and are removed. */
    static List<String> split(String line) {
       List<String> out = new ArrayList<String>();
       StringBuilder cur = new StringBuilder();
@@ -122,7 +122,7 @@ public final class NativeSysProcess {
       return out;
    }
 
-   /** GetCurrentProcessId: el PID del JVM ("pid@host" de RuntimeMXBean, válido con --release 8). */
+   /** GetCurrentProcessId: the JVM's PID ("pid@host" from RuntimeMXBean, valid with --release 8). */
    static long pid() {
       String n = java.lang.management.ManagementFactory.getRuntimeMXBean().getName();
       int at = n.indexOf('@');

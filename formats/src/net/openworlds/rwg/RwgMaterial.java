@@ -1,25 +1,25 @@
 package net.openworlds.rwg;
 
 /**
- * Un registro de MALT: los 10 enteros de 4 bytes (big-endian) que
- * RwReadStreamChunk(MALT) de RWL21.DLL lee por material (0x1003c0ab: lee
- * 0x28 bytes, y si el tamaño de registro del STRT es mayor salta el resto)
- * y cómo los aplica a un RwCreateMaterial nuevo (0x1003c10a..0x1003c180):
+ * A MALT record: the 10 4-byte (big-endian) integers that
+ * RWL21.DLL's RwReadStreamChunk(MALT) reads per material (0x1003c0ab: reads
+ * 0x28 bytes, and if the STRT's record size is larger it skips the rest)
+ * and how it applies them to a new RwCreateMaterial (0x1003c10a..0x1003c180):
  *
  * <pre>
- *  [0] textura: índice base 1 en la lista que deja TELT (0 = sin textura;
- *      fuera de rango también da textura 0)        -> RwSetMaterialTexture
- *  [1] palabra 0 del material (muestreo)           -> material+0
- *  [2] byte bajo: modos de textura y de material   -> material+0x30
- *  [3..5] color r, g, b (reales)                   -> RwSetMaterialColor
- *  [6] opacidad (real)                             -> RwSetMaterialOpacity
- *  [7..9] ambiente, difusa, especular (reales)     -> RwSetMaterialSurface
+ *  [0] texture: 1-based index into the list that TELT leaves (0 = no texture;
+ *      out of range also gives texture 0)         -> RwSetMaterialTexture
+ *  [1] material word 0 (sampling)                 -> material+0
+ *  [2] low byte: texture and material modes       -> material+0x30
+ *  [3..5] color r, g, b (reals)                   -> RwSetMaterialColor
+ *  [6] opacity (real)                             -> RwSetMaterialOpacity
+ *  [7..9] ambient, diffuse, specular (reals)      -> RwSetMaterialSurface
  * </pre>
  *
- * La palabra 0 se lee como la leen los getters de RWL21:
- * RwGetMaterialGeometrySampling (0x10019e40) y RwGetMaterialLightSampling
- * (0x10019ea0). El byte de +0x30 lo reparten RwGetMaterialTextureModes
- * (0x10019d70, {@code & 0x1f}) y RwGetMaterialModes (0x10019d90,
+ * Word 0 is read the way RWL21's getters read it:
+ * RwGetMaterialGeometrySampling (0x10019e40) and RwGetMaterialLightSampling
+ * (0x10019ea0). The +0x30 byte is split between RwGetMaterialTextureModes
+ * (0x10019d70, {@code & 0x1f}) and RwGetMaterialModes (0x10019d90,
  * {@code & 0xc0}).
  */
 public final class RwgMaterial {
@@ -48,9 +48,9 @@ public final class RwgMaterial {
    }
 
    /**
-    * RwGetMaterialGeometrySampling (0x10019e40): palabra &lt; 4 -&gt; 1
-    * (nube de puntos), &lt; 8 -&gt; 2 (alambre), &lt; 0xc -&gt; 3, resto -&gt; 4
-    * (sólido); una palabra &gt; 0x3f es el error 0x67 y da 0.
+    * RwGetMaterialGeometrySampling (0x10019e40): word &lt; 4 -&gt; 1
+    * (point cloud), &lt; 8 -&gt; 2 (wireframe), &lt; 0xc -&gt; 3, otherwise -&gt; 4
+    * (solid); a word &gt; 0x3f is error 0x67 and gives 0.
     */
    public int geometrySampling() {
       int w = this.samplingWord;
@@ -66,17 +66,17 @@ public final class RwgMaterial {
       return w < 0xc ? 3 : 4;
    }
 
-   /** RwGetMaterialLightSampling (0x10019ea0): bit 0 -&gt; 2 (por vértice), si no 1 (por faceta). */
+   /** RwGetMaterialLightSampling (0x10019ea0): bit 0 -&gt; 2 (per vertex), otherwise 1 (per facet). */
    public int lightSampling() {
       return (this.samplingWord & 1) == 0 ? 1 : 2;
    }
 
-   /** RwGetMaterialTextureModes (0x10019d70): 1 lit, 2 foreshorten, 4 filter, 0x10 trilinear (y 8, interno). */
+   /** RwGetMaterialTextureModes (0x10019d70): 1 lit, 2 foreshorten, 4 filter, 0x10 trilinear (and 8, internal). */
    public int textureModes() {
       return this.modesByte & 0x1f;
    }
 
-   /** RwGetMaterialModes (0x10019d90): 0x80 doble cara, 0x40 decal. */
+   /** RwGetMaterialModes (0x10019d90): 0x80 double-sided, 0x40 decal. */
    public int materialModes() {
       return this.modesByte & 0xc0;
    }

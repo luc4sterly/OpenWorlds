@@ -24,7 +24,7 @@ public final class CmpGroupsCheck {
    private static int failures = 0;
 
    private static void check(boolean ok, String what) {
-      System.out.println((ok ? "OK   " : "FALLA ") + what);
+      System.out.println((ok ? "OK   " : "FAIL ") + what);
       if (!ok) {
          failures++;
       }
@@ -48,14 +48,14 @@ public final class CmpGroupsCheck {
    private static void kcl(String path) throws Exception {
       File f = new File(path);
       if (!f.isFile()) {
-         check(false, "no existe " + f.getAbsolutePath());
+         check(false, "not found: " + f.getAbsolutePath());
          return;
       }
       byte[] file = Files.readAllBytes(f.toPath());
       check(file.length == 42099 && (file[4] & 255) == 0xc2 && file[12] == 0 && file[13] == 4,
-         "kcl.mov: 42099 bytes, modo 0xc2, 256 colores, byte 13 = 4");
+         "kcl.mov: 42099 bytes, mode 0xc2, 256 colors, byte 13 = 4");
       int[][] t = CmpStage1.frameTable(file);
-      check(t.length == 8 && t[0][0] == 1384, "kcl.mov: 8 fotogramas, el primero en 1384");
+      check(t.length == 8 && t[0][0] == 1384, "kcl.mov: 8 frames, the first at 1384");
       boolean chained = true;
       boolean exact = true;
       for (int i = 0; i < t.length; i++) {
@@ -75,31 +75,31 @@ public final class CmpGroupsCheck {
          exact &= d.posA == s.streamA.length && d.posCtrl == s.streamCtrl.length && d.posLit == s.streamLit.length
             && d.posFillIdx == s.streamFillIdx.length;
       }
-      check(chained, "kcl.mov: un grupo de 64 pares por fotograma, contiguos hasta el final del fichero");
-      check(exact, "kcl.mov: cada grupo consume exactos A, ctrl, lit y fill");
+      check(chained, "kcl.mov: one group of 64 pairs per frame, contiguous up to the end of the file");
+      check(exact, "kcl.mov: each group uses up A, ctrl, lit and fill exactly");
       CmpFrames c = CmpFrames.decode(file, 100);
       CRC32 crc = new CRC32();
       crc.update(c.frames[0]);
-      check(c.frames.length == 8 && crc.getValue() == 0xe836e372L, "kcl.mov: CmpFrames da 8 fotogramas, CRC32 del primero e836e372 (regresion)");
+      check(c.frames.length == 8 && crc.getValue() == 0xe836e372L, "kcl.mov: CmpFrames gives 8 frames, CRC32 of the first e836e372 (regression)");
    }
 
    public static void main(String[] args) throws Exception {
       File f = new File(args.length > 0 ? args[0] : "assets/cmp-verified/mug/mug.cmp");
       if (!f.isFile()) {
-         System.out.println("FALLA no existe " + f.getAbsolutePath() + " (ejecutar desde la raiz del repo)");
+         System.out.println("FAIL not found: " + f.getAbsolutePath() + " (run from the repo root)");
          System.exit(1);
       }
       byte[] file = Files.readAllBytes(f.toPath());
       check(file.length == 4688, "mug.cmp: 4688 bytes");
 
       int[][] table = CmpStage1.frameTable(file);
-      check(table.length == 1 && table[0][0] == 943 && table[0][1] == 2071, "tabla: un fotograma, primer grupo en 943 con 2071 bytes");
+      check(table.length == 1 && table[0][0] == 943 && table[0][1] == 2071, "table: one frame, first group at 943 with 2071 bytes");
 
       CmpStage1 g0 = CmpStage1.decodeGroupAt(file, 943, 2071);
       CmpStage1 g1 = CmpStage1.decodeGroupAt(file, 943 + 2071, g0.nextGroupSize);
-      check(g0.rowPairs == 76 && g0.nextGroupSize == 1674 && g0.groupFlags == 0, "grupo 0: 76 pares de filas, siguiente de 1674 bytes");
-      check(g1.rowPairs == 41 && g1.nextGroupSize == 0 && g1.groupFlags == 0, "grupo 1: 41 pares de filas, sin siguiente");
-      check(943 + 2071 + 1674 == file.length && 2 * (76 + 41) == 234, "los dos grupos cubren el fichero y las 234 filas");
+      check(g0.rowPairs == 76 && g0.nextGroupSize == 1674 && g0.groupFlags == 0, "group 0: 76 row pairs, next one of 1674 bytes");
+      check(g1.rowPairs == 41 && g1.nextGroupSize == 0 && g1.groupFlags == 0, "group 1: 41 row pairs, no next one");
+      check(943 + 2071 + 1674 == file.length && 2 * (76 + 41) == 234, "the two groups cover the file and the 234 rows");
 
       // stage 2 of both groups by hand, as CmpFrames chains them
       int w4 = 216;
@@ -121,27 +121,27 @@ public final class CmpGroupsCheck {
             edi += 2 * stride;
          }
          check(d.posA == s.streamA.length && d.posCtrl == s.streamCtrl.length && d.posLit == s.streamLit.length
-            && d.posFillIdx == s.streamFillIdx.length, "grupo " + g + ": A, ctrl, lit y fill consumidos exactos");
+            && d.posFillIdx == s.streamFillIdx.length, "group " + g + ": A, ctrl, lit and fill used up exactly");
          // the bit reader loads 4 bytes at a time and one word ahead
-         check(d.bitsBytePos >= s.bits.length && d.bitsBytePos <= s.bits.length + 8, "grupo " + g + ": bits consumidos (con la palabra de adelanto)");
+         check(d.bitsBytePos >= s.bits.length && d.bitsBytePos <= s.bits.length + 8, "group " + g + ": bits used up (with the look-ahead word)");
          history = java.util.Arrays.copyOf(d.history, history.length);
          esi = d.out;
       }
 
       CmpFrames c = CmpFrames.decode(file, 1);
-      check(c.width == 213 && c.height == 233 && c.frames.length == 1, "CmpFrames: 213x233, un fotograma");
+      check(c.width == 213 && c.height == 233 && c.frames.length == 1, "CmpFrames: 213x233, one frame");
       byte[] fr = c.frames[0];
       int last = (c.height - 1) * c.dibW;
       check((fr[0] & 255) == 255 && (fr[c.width - 1] & 255) == 255 && (fr[last] & 255) == 255
-         && (fr[last + c.width - 1] & 255) == 255, "las cuatro esquinas son el indice 255");
-      check(c.palette[255] == null && c.palette[254] != null, "255 colores: el 255 no tiene entrada (transparente)");
+         && (fr[last + c.width - 1] & 255) == 255, "the four corners are index 255");
+      check(c.palette[255] == null && c.palette[254] != null, "255 colors: index 255 has no entry (transparent)");
       CRC32 crc = new CRC32();
       crc.update(fr);
-      check(crc.getValue() == 0x11e47437L, "CRC32 de los indices 11e47437 (regresion)");
+      check(crc.getValue() == 0x11e47437L, "CRC32 of the indices 11e47437 (regression)");
 
       kcl(args.length > 1 ? args[1] : "assets/cmp-verified/kcl/kcl.mov");
 
-      System.out.println(failures == 0 ? "CmpGroupsCheck: todo OK" : "CmpGroupsCheck: " + failures + " fallos");
+      System.out.println(failures == 0 ? "CmpGroupsCheck: all OK" : "CmpGroupsCheck: " + failures + " failures");
       System.exit(failures == 0 ? 0 : 1);
    }
 }

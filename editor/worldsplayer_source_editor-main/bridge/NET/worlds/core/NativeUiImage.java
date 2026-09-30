@@ -5,15 +5,15 @@ import java.util.List;
 import net.openworlds.cmp.CmpFrames;
 
 /**
- * DIB sections de gamma.dll para ImageConverter (texturas GIF/JPEG de
- * StandardTexture) y ScapePicImage/ScapePicCanvas.
+ * gamma.dll's DIB sections for ImageConverter (GIF/JPEG textures of
+ * StandardTexture) and ScapePicImage/ScapePicCanvas.
  *
- * <p>FUN_00422150 (makeDIB): BITMAPINFOHEADER con biHeight = -alto (de arriba
- * abajo), 8 bpp con 256 entradas de paleta si se le da paleta, si no 32 bpp
- * (BI_RGB, BGRX), y CreateDIBSection. Aqui un DIB es un array de bytes con
- * el mismo relleno: fila de 8 bpp = (ancho+3)&~3 bytes, de 32 bpp = 4*ancho.
- * El handle HBITMAP y el puntero a los bits son la misma entrada de una tabla
- * (los dos campos Java, hDIB y pixelPtr, reciben el mismo numero).
+ * <p>FUN_00422150 (makeDIB): BITMAPINFOHEADER with biHeight = -height (top
+ * down), 8 bpp with 256 palette entries if a palette is given, otherwise 32 bpp
+ * (BI_RGB, BGRX), and CreateDIBSection. Here a DIB is a byte array with
+ * the same padding: an 8 bpp row = (width+3)&~3 bytes, a 32 bpp row = 4*width.
+ * The HBITMAP handle and the pointer to the bits are the same entry of a table
+ * (the two Java fields, hDIB and pixelPtr, receive the same number).
  */
 public final class NativeUiImage {
    private NativeUiImage() {
@@ -36,7 +36,7 @@ public final class NativeUiImage {
          this.bits = new byte[Math.max(0, stride * h)];
       }
 
-      /** Color 0xRRGGBB del pixel (x, y). */
+      /** 0xRRGGBB color of pixel (x, y). */
       int rgb(int x, int y) {
          if (bpp == 8) {
             return palette[bits[y * stride + x] & 0xFF];
@@ -71,14 +71,14 @@ public final class NativeUiImage {
 
    // ------------------------------------------------------------ ImageConverter
 
-   /** DAT_004714ac: relleno de la paleta hasta 256 entradas, RGBQUAD ff ff ff 00 = blanco. */
+   /** DAT_004714ac: palette fill up to 256 entries, RGBQUAD ff ff ff 00 = white. */
    static final int PALETTE_FILL = 0xFFFFFF;
 
    /**
-    * ImageConverter.prepareDIB (0x00423670): con colores, la paleta Java
-    * (ARGB) pasa a RGBQUAD copiando los bytes B, G, R y poniendo 0 en el
-    * cuarto; se rellena hasta 256 con DAT_004714ac. Sin colores, DIB de 32 bpp.
-    * Devuelve el handle (hDIB y pixelPtr).
+    * ImageConverter.prepareDIB (0x00423670): with colors, the Java palette
+    * (ARGB) becomes RGBQUAD by copying the B, G, R bytes and putting 0 in the
+    * fourth; it is padded up to 256 with DAT_004714ac. Without colors, a 32 bpp
+    * DIB. Returns the handle (hDIB and pixelPtr).
     */
    public static int prepareDIB(int w, int h, int nColors, int[] colors) {
       int[] pal = null;
@@ -96,11 +96,11 @@ public final class NativeUiImage {
    }
 
    /**
-    * setDIBPixelBytes (0x00423920): destino pixelPtr + y*((ancho+3)&~3) + x,
-    * w bytes por fila, la fuente avanza scansize. El desplazamiento
-    * {@code off} de ImageConsumer.setPixels NO se usa (el nativo parte del
-    * inicio del array: 0x423958 pasa el puntero de GetByteArrayElements sin
-    * sumarle nada).
+    * setDIBPixelBytes (0x00423920): destination pixelPtr + y*((width+3)&~3) + x,
+    * w bytes per row, the source advances scansize. The {@code off} offset
+    * of ImageConsumer.setPixels is NOT used (the native starts from the
+    * start of the array: 0x423958 passes the GetByteArrayElements pointer
+    * without adding anything to it).
     */
    public static void setDIBPixelBytes(int dib, int width, int x, int y, int w, int h, byte[] px, int off, int scansize) {
       Dib d = get(dib);
@@ -118,13 +118,13 @@ public final class NativeUiImage {
    }
 
    /**
-    * setDIBPixelInts (0x004239d0): ⚠️ reproduce un fallo del original. El
-    * destino es pixelPtr + y*ancho + x en BYTES y cada fila avanza ancho
-    * bytes (0x4239fa imul con el campo width, 0x423a0d suma x sin
-    * escalar), aunque copia w*4 bytes por fila (shll $2 en 0x423a47) a un
-    * DIB de 32 bpp cuya fila mide 4*ancho. Una imagen de color directo
-    * (JPEG) queda comprimida en el primer cuarto del DIB. {@code off} tampoco
-    * se usa. Los ints se escriben en little endian (B, G, R, A).
+    * setDIBPixelInts (0x004239d0): ⚠️ reproduces a bug of the original. The
+    * destination is pixelPtr + y*width + x in BYTES and each row advances
+    * width bytes (0x4239fa imul with the width field, 0x423a0d adds x without
+    * scaling), even though it copies w*4 bytes per row (shll $2 at 0x423a47)
+    * into a 32 bpp DIB whose row is 4*width long. A direct-color image
+    * (JPEG) ends up squeezed into the first quarter of the DIB. {@code off}
+    * is not used either. The ints are written little endian (B, G, R, A).
     */
    public static void setDIBPixelInts(int dib, int width, int x, int y, int w, int h, int[] px, int off, int scansize) {
       Dib d = get(dib);
@@ -158,12 +158,12 @@ public final class NativeUiImage {
    }
 
    /**
-    * convertDIBToTexture (0x00423a90): FUN_004222b0(hDIB, ancho, alto,
-    * transparentColor, urlName, 0). En pantalla de 16 bits eso es el
-    * StretchBlt COLORONCOLOR a 128x128 5-6-5 y FUN_00421560(urlName, 0, ...)
-    * (NativeTextures.gdiStretchToTexture / userTexture). El color
-    * transparente no llega a usarse: FUN_004222b0 lo pone a -1 si
-    * DAT_0049d1c0 es 0, y ninguna otra funcion de gamma.dll escribe
+    * convertDIBToTexture (0x00423a90): FUN_004222b0(hDIB, width, height,
+    * transparentColor, urlName, 0). On a 16-bit screen that is the
+    * COLORONCOLOR StretchBlt to 128x128 5-6-5 and FUN_00421560(urlName, 0, ...)
+    * (NativeTextures.gdiStretchToTexture / userTexture). The transparent
+    * color is never actually used: FUN_004222b0 sets it to -1 if
+    * DAT_0049d1c0 is 0, and no other gamma.dll function writes
     * DAT_0049d1c0.
     */
    public static int convertDIBToTexture(int dib, int width, int height, int transparentColor, String urlName) {
@@ -183,16 +183,16 @@ public final class NativeUiImage {
    // ------------------------------------------------------------ ScapePicImage
 
    /**
-    * ScapePicImage.loadImage (0x004103e0): lee el ScapePic; si no es valido,
-    * o si es transparente (el original formatea "ScapePicImage %s cannot use
-    * transparency." con wsprintfA y no lo muestra), no hace nada. Si no, un
-    * DIB de 8 bpp de ancho (w+3)&~3 y alto par (h+1)&~1 con la paleta del
-    * fichero (FUN_00421e70: R,G,B -> RGBQUAD), el frame 0 (FUN_00443180) y,
-    * con alto impar, memmove de las h filas una fila hacia abajo (0x41062b).
-    * Devuelve {hDIB, ancho, alto} o null.
-    * ⚠️ VERIFICAR: las entradas de paleta por encima de las del fichero son
-    * pila sin inicializar en el original (aqui 0). Sin llamadores en el
-    * cliente: ninguna de las 722 clases crea un ScapePicImage.
+    * ScapePicImage.loadImage (0x004103e0): reads the ScapePic; if it is not
+    * valid, or if it is transparent (the original formats "ScapePicImage %s
+    * cannot use transparency." with wsprintfA and does not show it), it does
+    * nothing. Otherwise, an 8 bpp DIB of width (w+3)&~3 and even height
+    * (h+1)&~1 with the file's palette (FUN_00421e70: R,G,B -> RGBQUAD),
+    * frame 0 (FUN_00443180) and, with odd height, a memmove of the h rows one
+    * row down (0x41062b). Returns {hDIB, width, height} or null.
+    * ⚠️ VERIFY: the palette entries above the file's own are uninitialized
+    * stack in the original (here 0). No callers in the client: none of the
+    * 722 classes creates a ScapePicImage.
     */
    public static int[] loadScapePicImage(String path) {
       byte[] file;
@@ -230,11 +230,11 @@ public final class NativeUiImage {
    }
 
    /**
-    * ScapePicCanvas.bitBlt (0x00410200): con hwnd y DIB no nulos,
-    * BitBlt(SRCCOPY) de (sx, sy, w, h) del DIB a (dx, dy) de la ventana. La
-    * paleta de sistema (FUN_0040d7a0/SelectPalette) solo importa en pantalla
-    * de 8 bits. Equivalente AWT: dibujar esa region en el Graphics del
-    * componente de la ventana (NativeWindows.component).
+    * ScapePicCanvas.bitBlt (0x00410200): with non-null hwnd and DIB,
+    * BitBlt(SRCCOPY) of (sx, sy, w, h) from the DIB to (dx, dy) of the window.
+    * The system palette (FUN_0040d7a0/SelectPalette) only matters on an 8-bit
+    * screen. AWT equivalent: draw that region on the Graphics of the
+    * window's component (NativeWindows.component).
     */
    public static void bitBlt(int hwnd, int dib, int dx, int dy, int sx, int sy, int w, int h) {
       Dib d = get(dib);

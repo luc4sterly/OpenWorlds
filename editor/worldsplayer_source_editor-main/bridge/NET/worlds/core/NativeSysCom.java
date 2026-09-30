@@ -6,29 +6,29 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * COM de gamma.dll ({@code IUnknown}, {@code IDispatch}, {@code IClassFactory},
- * {@code INetscapeRegistry}, {@code NSProtocolHandler}) fuera de Windows.
+ * gamma.dll's COM ({@code IUnknown}, {@code IDispatch}, {@code IClassFactory},
+ * {@code INetscapeRegistry}, {@code NSProtocolHandler}) outside Windows.
  *
- * <p>Sin ole32 no hay objetos COM ajenos: {@code ActiveX.getClassFClsID/
- * getClassFProgID} ya fallan con IOException (hunk de ActiveX en
- * natives.patch), así que el único objeto que puede existir es el que
- * gamma.dll implementa él mismo, la fábrica de clases local de
+ * <p>Without ole32 there are no foreign COM objects: {@code ActiveX.getClassFClsID/
+ * getClassFProgID} already fail with IOException (ActiveX hunk in
+ * natives.patch), so the only object that can exist is the one that
+ * gamma.dll implements itself, the local class factory of
  * {@code NSProtocolHandler.createLocal} (0x00441f30: 8 bytes, vtable
- * 0x00478ce8 y cuenta de referencias 1 en +4). De ella se traduce lo que el
- * cliente puede llamar desde Java:
+ * 0x00478ce8 and reference count 1 at +4). Of it, what the client can call
+ * from Java is translated:
  * <ul>
- * <li>QueryInterface (0x0040ac20): IID_IUnknown (0x00466e40) o
- *     IID_IClassFactory (0x00466e30) -> AddRef y ella misma; otro ->
+ * <li>QueryInterface (0x0040ac20): IID_IUnknown (0x00466e40) or
+ *     IID_IClassFactory (0x00466e30) -> AddRef and itself; any other ->
  *     E_NOINTERFACE 0x80004002.</li>
- * <li>AddRef (0x0040ab80) y Release (0x0040ab90: a 0 llama al destructor
- *     de vtable+0x18, 0x00441f90, que la libera).</li>
+ * <li>AddRef (0x0040ab80) and Release (0x0040ab90: at 0 it calls the
+ *     destructor at vtable+0x18, 0x00441f90, which frees it).</li>
  * </ul>
- * CreateInstance (0x0040acc0) y LockServer (0x0040ad30) solo los llama el
- * runtime de COM de otro proceso, que aquí no existe.
+ * CreateInstance (0x0040acc0) and LockServer (0x0040ad30) are only called by
+ * the COM runtime of another process, which does not exist here.
  *
- * <p>Lo que sí delega en ole32 toma su rama de fallo, con los mensajes
- * literales de gamma.dll, para que el cliente siga su propio camino de
- * "no disponible" (Netscape.mainCallback: "OLEDEBUG: No Netscape").
+ * <p>What does delegate to ole32 takes its failure branch, with gamma.dll's
+ * literal messages, so that the client follows its own "not available"
+ * path (Netscape.mainCallback: "OLEDEBUG: No Netscape").
  */
 public final class NativeSysCom {
    /** 0x00466e40: {00000000-0000-0000-C000-000000000046}. */
@@ -36,14 +36,14 @@ public final class NativeSysCom {
    /** 0x00466e30: {00000001-0000-0000-C000-000000000046}. */
    static final String IID_ICLASSFACTORY = "{00000001-0000-0000-C000-000000000046}";
 
-   /** Fábricas locales vivas: puntero -> cuenta de referencias (+4). */
+   /** Live local factories: pointer -> reference count (+4). */
    private static final Map<Integer, int[]> objects = new HashMap<Integer, int[]>();
    private static int nextPtr = 0x00500000;
 
    private NativeSysCom() {
    }
 
-   /** NSProtocolHandler.createLocal (0x00441f30): la fábrica con 1 referencia. */
+   /** NSProtocolHandler.createLocal (0x00441f30): the factory with 1 reference. */
    public static synchronized int createLocalFactory() {
       int p = nextPtr;
       nextPtr += 8;
@@ -51,7 +51,7 @@ public final class NativeSysCom {
       return p;
    }
 
-   /** Cuenta de referencias de un objeto local, o -1 si ya no existe (para las comprobaciones). */
+   /** Reference count of a local object, or -1 if it no longer exists (for the checks). */
    static synchronized int refs(int p) {
       int[] r = objects.get(p);
       return r == null ? -1 : r[0];
@@ -62,7 +62,7 @@ public final class NativeSysCom {
       return ++object(p)[0];
    }
 
-   /** IUnknown.true_Release (0x0040b3c0) -> Release 0x0040ab90: a 0, destructor 0x00441f90. */
+   /** IUnknown.true_Release (0x0040b3c0) -> Release 0x0040ab90: at 0, destructor 0x00441f90. */
    public static synchronized int release(int p) {
       int[] r = object(p);
       if (--r[0] != 0) {
@@ -73,11 +73,11 @@ public final class NativeSysCom {
    }
 
    /**
-    * IUnknown.QueryInterface (0x0040b450): el IID con FUN_0040a4d0
-    * (IIDFromString: si falla, IOException "nActiveX: Couldn't convert
-    * String to IID" y 0) y la QueryInterface del objeto (0x0040ac20); si
-    * devuelve negativo, IOException "IUnknown.QueryInterface: interface not
-    * available".
+    * IUnknown.QueryInterface (0x0040b450): the IID with FUN_0040a4d0
+    * (IIDFromString: if it fails, IOException "nActiveX: Couldn't convert
+    * String to IID" and 0) and the object's QueryInterface (0x0040ac20); if
+    * that returns negative, IOException "IUnknown.QueryInterface: interface
+    * not available".
     */
    public static synchronized int queryInterface(int p, String iid) throws IOException {
       String g = parseGuid(iid);
@@ -93,14 +93,15 @@ public final class NativeSysCom {
    }
 
    /**
-    * IDispatch.Invoke (0x0040af10): GetIDsOfNames (vtable+0x14) con el
-    * nombre; si falla, IOException "IDispatch: bad function name". Ningún
-    * objeto que exista aquí implementa IDispatch (la fábrica local rechaza
-    * IID_IDispatch en su QueryInterface y ActiveX no crea otros), así que el
-    * nombre nunca se resuelve. El original seguía llamando a Invoke con el
-    * DISPID sin inicializar y la excepción pendiente; aquí se para en la
-    * primera, que es la que ve Java. Java no declara IOException en Invoke:
-    * se lanza como JNI (NativeSysJni).
+    * IDispatch.Invoke (0x0040af10): GetIDsOfNames (vtable+0x14) with the
+    * name; if it fails, IOException "IDispatch: bad function name". No
+    * object that exists here implements IDispatch (the local factory rejects
+    * IID_IDispatch in its QueryInterface and ActiveX does not create any
+    * others), so the name is never resolved. The original went on to call
+    * Invoke with the uninitialized DISPID and the exception pending; here it
+    * stops at the first one, which is the one Java sees. Java does not
+    * declare IOException on Invoke: it is thrown the way JNI does
+    * (NativeSysJni).
     */
    public static void invoke(int p, String name) {
       throw NativeSysJni.throwNew(new IOException("IDispatch: bad function name"));
@@ -108,19 +109,19 @@ public final class NativeSysCom {
 
    /**
     * INetscapeRegistry.RegisterProtocol/RegisterViewer (0x0040b220/250 ->
-    * FUN_0040b0b0 -> FUN_0040b030): GetIDsOfNames de L"RegisterProtocol" /
-    * L"RegisterViewer"; al fallar, IOException "IDispatch: GetIDsOfNames()
-    * failed" y false. Mismo motivo que {@link #invoke}.
+    * FUN_0040b0b0 -> FUN_0040b030): GetIDsOfNames of L"RegisterProtocol" /
+    * L"RegisterViewer"; on failure, IOException "IDispatch: GetIDsOfNames()
+    * failed" and false. Same reason as {@link #invoke}.
     */
    public static boolean netscapeRegister(int p, String method) throws IOException {
       throw new IOException("IDispatch: GetIDsOfNames() failed");
    }
 
    /**
-    * IClassFactory.nActivate (0x0040ad80): CLSIDFromString (si falla,
-    * IOException "Unable to determine CLSID") y CoRegisterClassObject; sin
-    * runtime de COM al que registrarse, su rama de error: IOException
-    * "Failed to register class with ActiveX". Nunca devuelve.
+    * IClassFactory.nActivate (0x0040ad80): CLSIDFromString (if it fails,
+    * IOException "Unable to determine CLSID") and CoRegisterClassObject;
+    * with no COM runtime to register with, its error branch: IOException
+    * "Failed to register class with ActiveX". Never returns.
     */
    public static long registerClassObject(int p, String clsid) throws IOException {
       if (clsidFromString(clsid) == null) {
@@ -130,20 +131,20 @@ public final class NativeSysCom {
    }
 
    /**
-    * IClassFactory.nDeactivate (0x0040ae60): CoRevokeClassObject del cookie.
-    * No puede haber ninguno registrado (nActivate siempre falla aquí).
-    * ⚠️ VERIFICAR: se supone que ole32 devuelve E_INVALIDARG para un cookie
-    * desconocido (lo que hace Wine), que cae en la rama "Failed to revoke
-    * class factory" (HRESULT negativo que no es E_UNEXPECTED ni
-    * E_OUTOFMEMORY). El cliente solo llega aquí con _registerID != 0.
+    * IClassFactory.nDeactivate (0x0040ae60): CoRevokeClassObject of the cookie.
+    * None can be registered (nActivate always fails here).
+    * ⚠️ VERIFY: ole32 is assumed to return E_INVALIDARG for an unknown cookie
+    * (which is what Wine does), which falls into the "Failed to revoke
+    * class factory" branch (a negative HRESULT that is neither E_UNEXPECTED
+    * nor E_OUTOFMEMORY). The client only gets here with _registerID != 0.
     */
    public static void revokeClassObject(long cookie) throws IOException {
       throw new IOException("Failed to revoke class factory");
    }
 
    /**
-    * CLSIDFromString: un GUID entre llaves o un ProgID, cuyo CLSID es el
-    * valor por defecto de HKCR\ProgID\CLSID (en el registro portable).
+    * CLSIDFromString: a GUID in braces or a ProgID, whose CLSID is the
+    * default value of HKCR\ProgID\CLSID (in the portable registry).
     */
    static String clsidFromString(String s) {
       String g = parseGuid(s);
@@ -161,8 +162,8 @@ public final class NativeSysCom {
    }
 
    /**
-    * IIDFromString: exactamente "{8-4-4-4-12}" en hexadecimal, sin
-    * distinguir mayúsculas. Devuelve la forma canónica en mayúsculas o null.
+    * IIDFromString: exactly "{8-4-4-4-12}" in hexadecimal, case
+    * insensitive. Returns the canonical uppercase form or null.
     */
    static String parseGuid(String s) {
       if (s == null || s.length() != 38 || s.charAt(0) != '{' || s.charAt(37) != '}') {
@@ -181,7 +182,7 @@ public final class NativeSysCom {
    private static int[] object(int p) {
       int[] r = objects.get(p);
       if (r == null) {
-         // el original llamaría por la vtable de memoria liberada o ajena
+         // the original would call through the vtable of freed or foreign memory
          throw new IllegalStateException("gamma.dll: puntero COM " + Integer.toHexString(p) + " sin objeto");
       }
       return r;

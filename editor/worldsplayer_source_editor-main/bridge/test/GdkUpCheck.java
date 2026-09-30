@@ -19,7 +19,7 @@ public class GdkUpCheck {
    static int fails = 0;
 
    static void check(boolean ok, String what) {
-      System.out.println((ok ? "OK   " : "FALLA ") + what);
+      System.out.println((ok ? "OK   " : "FAIL ") + what);
       if (!ok) {
          fails++;
       }
@@ -61,7 +61,7 @@ public class GdkUpCheck {
       File meteor = new File("assets/packages/Meteor25.exe");
       File gz = new File("assets/packages/GroundZero37-40.exe");
       if (!meteor.isFile() || !gz.isFile()) {
-         System.out.println("FALLA faltan assets/packages/*.exe (ejecutar desde la raiz del repo)");
+         System.out.println("FAIL assets/packages/*.exe missing (run from the repo root)");
          System.exit(1);
       }
       File tmp = Files.createTempDirectory("gdkupcheck").toFile();
@@ -76,20 +76,20 @@ public class GdkUpCheck {
       write(ini, "[Gamma]\r\nUpgradeServer = http://x/3DCDup/ \r\n\r\n[gamma]\r\nUpgradeServer=segunda\r\n[Other]\r\nk=v\r\n");
       Class<?>[] G = {File.class, String.class, String.class, String.class};
       check("http://x/3DCDup/".equals(call("WinIni", "get", G, ini, "GAMMA", "upgradeserver", "def")),
-         "WinIni.get: sin mayusculas, espacios fuera, la primera seccion con el nombre");
-      check("def".equals(call("WinIni", "get", G, ini, "Gamma", "nada", "def")), "WinIni.get: clave que falta -> def");
+         "WinIni.get: case-insensitive, spaces stripped, the first section with the name");
+      check("def".equals(call("WinIni", "get", G, ini, "Gamma", "nada", "def")), "WinIni.get: missing key -> def");
       call("WinIni", "put", G, ini, "Other", "k", "w");
       call("WinIni", "put", G, ini, "Gamma", "Nueva", "1");
       call("WinIni", "put", G, ini, "Seccion", "a", "b");
       check(read(ini).equals("[Gamma]\r\nUpgradeServer = http://x/3DCDup/ \r\nNueva=1\r\n\r\n[gamma]\r\nUpgradeServer=segunda\r\n"
             + "[Other]\r\nk=w\r\n[Seccion]\r\na=b\r\n"),
-         "WinIni.put: cambia el valor en su linea, clave nueva tras la ultima linea de su seccion, seccion nueva al final, CRLF");
+         "WinIni.put: changes the value on its line, new key after the last line of its section, new section at the end, CRLF");
       File lf = new File(tmp, "lf.ini");
       call("WinIni", "put", G, lf, "S", "k", "v");
-      check(read(lf).equals("[S]\r\nk=v\r\n"), "WinIni.put: fichero nuevo con CRLF");
+      check(read(lf).equals("[S]\r\nk=v\r\n"), "WinIni.put: new file with CRLF");
       write(lf, "[S]\nk=v\n");
       call("WinIni", "put", G, lf, "S", "j", "w");
-      check(read(lf).equals("[S]\nk=v\nj=w\n"), "WinIni.put: un fichero con LF sigue con LF");
+      check(read(lf).equals("[S]\nk=v\nj=w\n"), "WinIni.put: a file with LF stays with LF");
 
       // --- a full run: Wise install, NSIS 37->40, restart ---
       File home = fresh(tmp, "home");
@@ -109,21 +109,21 @@ public class GdkUpCheck {
          + "run.exe world:restart" + CRLF);
       Object[] r = gdkup(home, "updates.lst", "4242");
       check((Integer) r[0] == GdkUp.RESTART && ((String) r[1]).contains("[gdkup] reinicio: world:restart"),
-         "tres lineas: termina pidiendo el reinicio con world:restart (codigo 10)");
+         "three lines: ends by asking for the restart with world:restart (code 10)");
       String[] got = new File(home, "Meteor").list();
       Arrays.sort(got);
       check(got.length == 10 && Arrays.asList(got).contains("meteor.world") && !Arrays.asList(got).contains("Meteor25.exe"),
-         "Wise: Meteor instalado (10 entradas arriba) y su paquete borrado");
+         "Wise: Meteor installed (10 entries above) and its package deleted");
       check(read(new File(home, "worlds.ini")).endsWith("MaxInstalledWorlds=2" + CRLF + "InstalledWorld0=GroundZero" + CRLF
             + "InstalledWorld1=AvatarGallery" + CRLF + "InstalledWorld2=Meteor" + CRLF),
-         "Wise: primer hueco InstalledWorld2=Meteor y MaxInstalledWorlds 1 -> 2, con CRLF");
+         "Wise: first free slot InstalledWorld2=Meteor and MaxInstalledWorlds 1 -> 2, with CRLF");
       check(read(new File(home, "GroundZero/ver.txt")).equals("40" + CRLF), "NSIS: ver.txt 37 -> 40");
-      check(new File(home, "GroundZero/groundzero.world").length() == 205746, "NSIS: groundzero.world nuevo (205746 bytes)");
+      check(new File(home, "GroundZero/groundzero.world").length() == 205746, "NSIS: new groundzero.world (205746 bytes)");
       check(!new File(home, "GroundZero/custom.wse").exists() && !new File(home, "GroundZero/custup.wse").exists()
             && !new File(home, "GroundZero/groundzero.music").exists() && !new File(home, "GroundZero/tex/WS_FTP.LOG").exists()
             && new File(home, "GroundZero/keep.txt").isFile(),
-         "NSIS: borra los cinco viejos (sin mayusculas; wav\\ws_ftp.log no estaba) y nada mas");
-      check(!new File(home, "GroundZero/GroundZero37-40.exe").exists(), "NSIS: paquete borrado");
+         "NSIS: deletes the five old ones (case-insensitive; wav\\ws_ftp.log was not there) and nothing else");
+      check(!new File(home, "GroundZero/GroundZero37-40.exe").exists(), "NSIS: package deleted");
 
       // --- the upgrade on another version: the installer stops, gdkup goes on ---
       File h2 = fresh(tmp, "h2");
@@ -134,11 +134,11 @@ public class GdkUpCheck {
       write(new File(h2, "updates.lst"), "GroundZero\\GroundZero37-40.exe" + CRLF + "run.exe world:restart" + CRLF);
       r = gdkup(h2, "updates.lst", "1");
       check(((String) r[1]).contains("This update requires world version 37, but found 36. Aborting!"),
-         "version 36: el mensaje del instalador");
+         "version 36: the installer's message");
       check(read(new File(h2, "GroundZero/groundzero.world")).equals("old") && read(new File(h2, "GroundZero/ver.txt")).equals("36" + CRLF),
-         "version 36: no toca nada");
+         "version 36: touches nothing");
       check((Integer) r[0] == GdkUp.RESTART && !new File(h2, "GroundZero/GroundZero37-40.exe").exists(),
-         "version 36: como gdkup.exe (no lee el codigo de salida) borra el paquete y sigue hasta el reinicio");
+         "version 36: like gdkup.exe (it does not read the exit code) it deletes the package and goes on to the restart");
 
       // --- Wise without [Gamma] UpgradeServer ---
       File h3 = fresh(tmp, "h3");
@@ -147,27 +147,27 @@ public class GdkUpCheck {
       write(new File(h3, "updates.lst"), "Meteor\\Meteor25.exe" + CRLF);
       r = gdkup(h3, "updates.lst", "1");
       check((Integer) r[0] == 0 && ((String) r[1]).contains("You can't install") && new File(h3, "Meteor").list().length == 0,
-         "Wise sin UpgradeServer: \"You can't install...\", nada instalado, paquete borrado, fin normal (0)");
+         "Wise without UpgradeServer: \"You can't install...\", nothing installed, package deleted, normal end (0)");
 
       // --- lines that cannot start, and bad scripts ---
       File h4 = fresh(tmp, "h4");
       write(new File(h4, "updates.lst"), "Nada\\Nada1.exe" + CRLF + "run.exe world:restart" + CRLF);
       r = gdkup(h4, "updates.lst", "1");
       check((Integer) r[0] == 2 && ((String) r[1]).contains("Internal error - can't execute Nada\\Nada1.exe"),
-         "paquete que no existe: Internal error - can't execute y fin (2), sin reinicio");
+         "package that does not exist: Internal error - can't execute and end (2), no restart");
       write(new File(h4, "Nada/Nada1.exe"), "no soy un exe");
       r = gdkup(h4, "updates.lst", "1");
-      check((Integer) r[0] == 2, "fichero sin MZ: tampoco arranca (2)");
+      check((Integer) r[0] == 2, "file without MZ: does not start either (2)");
       write(new File(h4, "updates.lst"), "xdelta patch GroundZero\\x.xdz GroundZero\\a GroundZero\\b" + CRLF + "run.exe world:restart" + CRLF);
       write(new File(h4, "GroundZero/x.xdz"), "%XDZ");
       r = gdkup(h4, "updates.lst", "1");
       check((Integer) r[0] == GdkUp.RESTART && !new File(h4, "GroundZero/x.xdz").exists(),
-         "xdelta (no soportado): se da por terminado, se borra el parche y sigue");
+         "xdelta (not supported): counted as finished, the patch is deleted and it goes on");
       write(new File(h4, "vacio.lst"), "");
-      check((Integer) gdkup(h4, "vacio.lst", "1")[0] == 1, "guion vacio: Script file is not valid (1)");
-      check((Integer) gdkup(h4, "noexiste.lst", "1")[0] == 1, "guion que no existe (1)");
+      check((Integer) gdkup(h4, "vacio.lst", "1")[0] == 1, "empty script: Script file is not valid (1)");
+      check((Integer) gdkup(h4, "noexiste.lst", "1")[0] == 1, "script that does not exist (1)");
 
-      System.out.println(fails == 0 ? "GdkUpCheck: todo OK" : "GdkUpCheck: " + fails + " fallos");
+      System.out.println(fails == 0 ? "GdkUpCheck: all OK" : "GdkUpCheck: " + fails + " failures");
       System.exit(fails == 0 ? 0 : 1);
    }
 }

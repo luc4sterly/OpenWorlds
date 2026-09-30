@@ -3,15 +3,15 @@ package net.openworlds.bod;
 import java.util.Map;
 
 /**
- * CLI de verificacion para SeqParser: parsea cada .seq y resume version,
- * figura, joint raiz, duracion, joints y extras. Como con BodExtractMain,
- * no hay decoder de referencia independiente: la verificacion es
- * estructural (el parser exige consumir el archivo entero; cualquier
- * excepcion o byte sobrante = campo mal leido) mas coherencia de datos
- * (tiempos monotonos, cuaternion base de norma 1 en tracks 0x10).
+ * Verification CLI for SeqParser: parses each .seq and summarizes version,
+ * figure, root joint, duration, joints and extras. As with BodExtractMain,
+ * there is no independent reference decoder: verification is
+ * structural (the parser requires consuming the whole file; any
+ * exception or leftover byte = a misread field) plus data coherence
+ * (monotonic times, base quaternion of norm 1 in 0x10 tracks).
  *
- * Uso: java -cp formats/out net.openworlds.bod.SeqExtractMain [-q] <file.seq> [...]
- *   -q: solo fallos y totales.
+ * Usage: java -cp formats/out net.openworlds.bod.SeqExtractMain [-q] <file.seq> [...]
+ *   -q: only failures and totals.
  */
 public final class SeqExtractMain {
     public static void main(String[] args) throws Exception {

@@ -9,11 +9,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
- * COM de gamma.dll fuera de Windows (NativeSysCom): la fábrica local de
- * NSProtocolHandler (0x00441f30) con su QueryInterface/AddRef/Release
- * (0x0040ac20/ab80/ab90) a través de las clases reales del cliente, getPtr
- * (0x0040b2b0) y las ramas de fallo con sus mensajes literales. Sale con 1
- * si algo falla.
+ * gamma.dll's COM outside Windows (NativeSysCom): the local factory of
+ * NSProtocolHandler (0x00441f30) with its QueryInterface/AddRef/Release
+ * (0x0040ac20/ab80/ab90) through the client's real classes, getPtr
+ * (0x0040b2b0) and the failure branches with their literal messages. Exits
+ * with 1 if anything fails.
  */
 public final class SysComCheck {
    private static int failures = 0;
@@ -24,22 +24,22 @@ public final class SysComCheck {
       System.setProperty("openworlds.registry", store.getPath());
 
       // IIDFromString
-      eqs("GUID minúsculas", NativeSysCom.parseGuid("{f8535c80-f5ee-11d2-a6ac-0050041a1735}"), "{F8535C80-F5EE-11D2-A6AC-0050041A1735}");
-      eqs("sin llaves", NativeSysCom.parseGuid("f8535c80-f5ee-11d2-a6ac-0050041a1735"), null);
-      eqs("guion movido", NativeSysCom.parseGuid("{f8535c80f-5ee-11d2-a6ac-0050041a1735}"), null);
-      eqs("no hex", NativeSysCom.parseGuid("{g8535c80-f5ee-11d2-a6ac-0050041a1735}"), null);
+      eqs("lowercase GUID", NativeSysCom.parseGuid("{f8535c80-f5ee-11d2-a6ac-0050041a1735}"), "{F8535C80-F5EE-11D2-A6AC-0050041A1735}");
+      eqs("without braces", NativeSysCom.parseGuid("f8535c80-f5ee-11d2-a6ac-0050041a1735"), null);
+      eqs("dash moved", NativeSysCom.parseGuid("{f8535c80f-5ee-11d2-a6ac-0050041a1735}"), null);
+      eqs("not hex", NativeSysCom.parseGuid("{g8535c80-f5ee-11d2-a6ac-0050041a1735}"), null);
       eqs("ProgID", NativeSysCom.parseGuid("Gamma.Protocol.1"), null);
 
-      // la fábrica local por NSProtocolHandler: createLocal + IUnknown.init(int)
+      // the local factory through NSProtocolHandler: createLocal + IUnknown.init(int)
       NSProtocolHandler h = new NSProtocolHandler();
       int p = pInterface(h);
-      check("puntero != 0", p != 0);
-      eq("refs tras crear", NativeSysCom.refs(p), 1);
+      check("pointer != 0", p != 0);
+      eq("refs after creating", NativeSysCom.refs(p), 1);
       h.AddRef();
       eq("AddRef", NativeSysCom.refs(p), 2);
       int q = h.QueryInterface("{00000001-0000-0000-c000-000000000046}");
-      eq("QI IClassFactory devuelve la misma", q, p);
-      eq("QI sube la cuenta", NativeSysCom.refs(p), 3);
+      eq("QI IClassFactory returns the same one", q, p);
+      eq("QI raises the count", NativeSysCom.refs(p), 3);
       eq("QI IUnknown", h.QueryInterface("{00000000-0000-0000-C000-000000000046}"), p);
       eq("refs", NativeSysCom.refs(p), 4);
       NativeSysCom.release(p);
@@ -47,29 +47,29 @@ public final class SysComCheck {
       eq("Release x2", NativeSysCom.refs(p), 2);
       eqs("QI IDispatch", thrown(() -> h.QueryInterface("{00020400-0000-0000-C000-000000000046}")),
          "java.io.IOException: IUnknown.QueryInterface: interface not available");
-      eqs("QI con IID mal escrito", thrown(() -> h.QueryInterface("IDispatch")),
+      eqs("QI with a malformed IID", thrown(() -> h.QueryInterface("IDispatch")),
          "java.io.IOException: nActiveX: Couldn't convert String to IID");
-      eq("fallos sin tocar la cuenta", NativeSysCom.refs(p), 2);
-      // IDispatch(IUnknown) = QueryInterface(IID_IDispatch): no hay IDispatch
-      eqs("IDispatch sobre la fábrica", thrown(() -> new IDispatch(h)),
+      eq("failures leave the count untouched", NativeSysCom.refs(p), 2);
+      // IDispatch(IUnknown) = QueryInterface(IID_IDispatch): there is no IDispatch
+      eqs("IDispatch over the factory", thrown(() -> new IDispatch(h)),
          "java.io.IOException: IUnknown.QueryInterface: interface not available");
 
-      // nActivate: CLSIDFromString y CoRegisterClassObject sin runtime de COM
-      eqs("nActivate con su CLSID", thrown(() -> nActivate(h, NSProtocolHandler.CLSID_GammaProtocol1)),
+      // nActivate: CLSIDFromString and CoRegisterClassObject without a COM runtime
+      eqs("nActivate with its CLSID", thrown(() -> nActivate(h, NSProtocolHandler.CLSID_GammaProtocol1)),
          "java.io.IOException: Failed to register class with ActiveX");
-      eqs("nActivate con ProgID desconocido", thrown(() -> nActivate(h, "Gamma.Protocol.1")),
+      eqs("nActivate with an unknown ProgID", thrown(() -> nActivate(h, "Gamma.Protocol.1")),
          "java.io.IOException: Unable to determine CLSID");
       int k = NativeSysRegistry.createKey(NativeSysRegistry.reservedKey(0), "Gamma.Protocol.1\\CLSID");
       NativeSysRegistry.setString(k, "", NSProtocolHandler.CLSID_GammaProtocol1, false);
-      eqs("ProgID por HKCR\\ProgID\\CLSID", NativeSysCom.clsidFromString("Gamma.Protocol.1"), "{F8535C80-F5EE-11D2-A6AC-0050041A1735}");
-      eqs("nActivate con ProgID registrado", thrown(() -> nActivate(h, "Gamma.Protocol.1")),
+      eqs("ProgID via HKCR\\ProgID\\CLSID", NativeSysCom.clsidFromString("Gamma.Protocol.1"), "{F8535C80-F5EE-11D2-A6AC-0050041A1735}");
+      eqs("nActivate with a registered ProgID", thrown(() -> nActivate(h, "Gamma.Protocol.1")),
          "java.io.IOException: Failed to register class with ActiveX");
       eqs("nDeactivate", thrown(() -> {
          NativeSysCom.revokeClassObject(1L);
          return null;
       }), "java.io.IOException: Failed to revoke class factory");
 
-      // IDispatch.Invoke / INetscapeRegistry sin objetos con IDispatch
+      // IDispatch.Invoke / INetscapeRegistry without objects that have IDispatch
       eqs("Invoke", thrown(() -> {
          NativeSysCom.invoke(p, "Navigate");
          return null;
@@ -77,25 +77,25 @@ public final class SysComCheck {
       eqs("RegisterProtocol", thrown(() -> NativeSysCom.netscapeRegister(p, "RegisterProtocol")),
          "java.io.IOException: IDispatch: GetIDsOfNames() failed");
 
-      // Release hasta 0: destructor (0x00441f90) y _pInterface = 0
+      // Release down to 0: destructor (0x00441f90) and _pInterface = 0
       h.Release();
       eq("Release Java 1", NativeSysCom.refs(p), 1);
       h.Release();
-      eq("Release a 0 destruye", NativeSysCom.refs(p), -1);
-      eq("_pInterface a 0", pInterface(h), 0);
-      // getPtr (0x0040b2b0) con _pInterface 0: OLEInvalidObjectException sin declarar
-      eqs("true_AddRef sin objeto", thrown(() -> {
+      eq("Release to 0 destroys", NativeSysCom.refs(p), -1);
+      eq("_pInterface to 0", pInterface(h), 0);
+      // getPtr (0x0040b2b0) with _pInterface 0: OLEInvalidObjectException, undeclared
+      eqs("true_AddRef without an object", thrown(() -> {
          h.true_AddRef();
          return null;
       }), "NET.worlds.console.OLEInvalidObjectException: No C++ mirror object");
-      eqs("QueryInterface sin objeto", thrown(() -> h.QueryInterface(NativeSysCom.IID_IUNKNOWN)),
+      eqs("QueryInterface without an object", thrown(() -> h.QueryInterface(NativeSysCom.IID_IUNKNOWN)),
          "NET.worlds.console.OLEInvalidObjectException: No C++ mirror object");
-      eqs("AddRef Java sin objeto", thrown(() -> {
+      eqs("Java AddRef without an object", thrown(() -> {
          h.AddRef();
          return null;
       }), "NET.worlds.console.OLEInvalidObjectException");
 
-      // Netscape.mainCallback entero: ActiveX falla y sigue su camino "No Netscape"
+      // The whole Netscape.mainCallback: ActiveX fails and it follows its "No Netscape" path
       eqs("Netscape.mainCallback", thrown(() -> {
          new Netscape().mainCallback();
          return null;
@@ -103,7 +103,7 @@ public final class SysComCheck {
 
       store.delete();
       if (failures > 0) {
-         System.out.println(failures + " fallos");
+         System.out.println(failures + " failures");
          System.exit(1);
       }
       System.out.println("SysComCheck OK");
@@ -141,7 +141,7 @@ public final class SysComCheck {
    private static void check(String what, boolean ok) {
       if (!ok) {
          failures++;
-         System.out.println("FALLA " + what);
+         System.out.println("FAIL " + what);
       }
    }
 

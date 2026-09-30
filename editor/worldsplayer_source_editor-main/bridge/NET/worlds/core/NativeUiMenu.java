@@ -8,25 +8,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Menu contextual (RightMenu, 0x00405550..0x00405670) con un
- * {@link PopupMenu} de AWT en lugar del HMENU de Win32.
+ * Context menu (RightMenu, 0x00405550..0x00405670) with an AWT
+ * {@link PopupMenu} instead of Win32's HMENU.
  *
  * <ul>
  * <li>create (0x004055e0): CreatePopupMenu -&gt; handle.
- * <li>nativeAdd (0x00405550): AppendMenuA(MF_STRING, id, texto); si falla
- * (handle no valido), asercion "nRightMenu" linea 0x20.
- * <li>addSeparator (0x004055b0): AppendMenuA(MF_SEPARATOR); asercion 0x27.
- * <li>show (0x004055f0): DAT_0049ff2c = 0, DAT_004890b0 = menu y
- * SendMessage(hwnd, 0x4c8) -&gt; FUN_00405670: GetCursorPos y
- * TrackPopupMenu(menu, TPM_RIGHTBUTTON, x, y, hwnd). La eleccion llega como
- * WM_COMMAND y la WndProc (0x0040c970) la guarda en DAT_0049ff2c solo si
- * el id esta entre 100 y 199.
- * <li>discard (0x00405620): DestroyMenu si no es 0; asercion 0x3c si falla.
- * <li>checkPressed (0x00405650): devuelve DAT_0049ff2c y lo pone a 0.
+ * <li>nativeAdd (0x00405550): AppendMenuA(MF_STRING, id, text); if it fails
+ * (invalid handle), assertion "nRightMenu" line 0x20.
+ * <li>addSeparator (0x004055b0): AppendMenuA(MF_SEPARATOR); assertion 0x27.
+ * <li>show (0x004055f0): DAT_0049ff2c = 0, DAT_004890b0 = menu and
+ * SendMessage(hwnd, 0x4c8) -&gt; FUN_00405670: GetCursorPos and
+ * TrackPopupMenu(menu, TPM_RIGHTBUTTON, x, y, hwnd). The choice arrives as
+ * WM_COMMAND and the WndProc (0x0040c970) stores it in DAT_0049ff2c only if
+ * the id is between 100 and 199.
+ * <li>discard (0x00405620): DestroyMenu if not 0; assertion 0x3c if it fails.
+ * <li>checkPressed (0x00405650): returns DAT_0049ff2c and sets it to 0.
  * </ul>
- * TrackPopupMenu bloquea hasta que se cierra el menu; aqui el menu se
- * muestra en el hilo de AWT y show vuelve antes. No cambia nada: el cliente
- * sondea checkPressed en cada mainCallback y no hace nada entre medias.
+ * TrackPopupMenu blocks until the menu is closed; here the menu is
+ * shown on the AWT thread and show returns earlier. It changes nothing: the
+ * client polls checkPressed on every mainCallback and does nothing in between.
  */
 public final class NativeUiMenu {
    private NativeUiMenu() {
@@ -46,9 +46,9 @@ public final class NativeUiMenu {
    }
 
    /**
-    * Texto de menu de Win32: '&amp;' marca la tecla de acceso (se subraya la
-    * letra siguiente, AWT no tiene ese subrayado) y "&amp;&amp;" es un '&amp;'
-    * literal.
+    * Win32 menu text: '&amp;' marks the access key (the following letter is
+    * underlined, AWT has no such underline) and "&amp;&amp;" is a literal
+    * '&amp;'.
     */
    static String label(String s) {
       StringBuilder b = new StringBuilder();
@@ -90,7 +90,7 @@ public final class NativeUiMenu {
       m.addSeparator();
    }
 
-   /** WM_COMMAND en la WndProc 0x0040c970: solo ids 100..199. */
+   /** WM_COMMAND in the WndProc 0x0040c970: only ids 100..199. */
    static void command(int id) {
       if (id > 99 && id < 200) {
          pressed = id & 0xffff;
@@ -102,8 +102,8 @@ public final class NativeUiMenu {
       final PopupMenu m = get(menu);
       final Component c = NativeWindows.component(hwnd);
       if (m == null || c == null) {
-         // TrackPopupMenu falla con un menu o ventana no validos: el original
-         // lo escribe en el log y afirma "nRightMenu" linea 0x4e
+         // TrackPopupMenu fails with an invalid menu or window: the original
+         // writes it to the log and asserts "nRightMenu" line 0x4e
          System.err.println("Error from TrackPopupMenu: menu " + menu + " ventana " + hwnd);
          NativeAssert.fail("nRightMenu", 0x4e);
          return;

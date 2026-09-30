@@ -3,40 +3,40 @@ package NET.worlds.core;
 import java.util.HashMap;
 
 /**
- * {@code DirectShow} de gamma.dll (0x0043f180..0x0043f450) sin DirectShow.
+ * gamma.dll's {@code DirectShow} (0x0043f180..0x0043f450) without DirectShow.
  *
- * <p>El Java guarda en {@code mediaRendererInstancePtr} un objeto C++ de una
- * de tres clases, todas con la misma vtable (+0 destructor, +4 renderTo,
+ * <p>The Java code keeps in {@code mediaRendererInstancePtr} a C++ object of
+ * one of three classes, all with the same vtable (+0 destructor, +4 renderTo,
  * +8 init, +0xc shutdown, +0x10 tick, +0x14 open, +0x18 play, +0x1c pause,
- * +0x20 stop), el estado en +8 (0 sin inicializar, 1 parado, 2 en pausa,
- * 3 reproduciendo) y las repeticiones en +4:
+ * +0x20 stop), the state at +8 (0 uninitialized, 1 stopped, 2 paused,
+ * 3 playing) and the repeat count at +4:
  * <ul>
  * <li>audio, {@code nInit(0)}: 0x34 bytes, vtable 0x00478b20
  *     ({@code WMPSoundPlayer});</li>
  * <li>"DX8", {@code nInit(hwnd)}: 0x28 bytes, vtable 0x004788f0;</li>
- * <li>"DX7" de respaldo si DX8 no arranca: 0x60 bytes, vtable 0x00478af4
- *     ({@code VideoSurface}/{@code VideoTexture}).</li>
+ * <li>"DX7" as a fallback if DX8 does not start: 0x60 bytes, vtable
+ *     0x00478af4 ({@code VideoSurface}/{@code VideoTexture}).</li>
  * </ul>
- * Cada una empieza creando un objeto COM de DirectShow/DirectDraw con
- * {@code CoCreateInstance}. En este sistema no hay COM ni DirectShow, asi que
- * se sigue el camino que el propio binario tiene para ese fallo (el de un
- * Windows sin DirectX Media): imprime su mensaje, deja el estado en 0 y
- * todas las operaciones posteriores se saltan por sus guardas de estado.
- * {@code nTick} devuelve 0, con lo que {@code WMPSoundPlayer.getState} da
- * IS_STOPPED y el {@code Sound} se cierra solo; ningun sonido ni video
- * aparenta sonar.
+ * Each one starts by creating a DirectShow/DirectDraw COM object with
+ * {@code CoCreateInstance}. This system has neither COM nor DirectShow, so
+ * the binary's own path for that failure is followed (that of a Windows
+ * without DirectX Media): it prints its message, leaves the state at 0 and
+ * all later operations are skipped by their state guards.
+ * {@code nTick} returns 0, so {@code WMPSoundPlayer.getState} gives
+ * IS_STOPPED and the {@code Sound} closes itself; no sound or video
+ * appears to play.
  */
 public final class NativeMediaVideo {
    private NativeMediaVideo() {
    }
 
-   /** Estados del objeto C++ (+8), iguales a los static final del Java. */
+   /** States of the C++ object (+8), equal to the static finals in the Java code. */
    public static final int UNINITIALIZED = 0;
    public static final int STOPPED = 1;
    public static final int PAUSED = 2;
    public static final int PLAYING = 3;
 
-   /** Renderer C++; el camino que no depende de COM se traduce entero. */
+   /** C++ renderer; the path that does not depend on COM is translated in full. */
    abstract static class Renderer {
       int state; // +8
       int repeats; // +4
@@ -64,7 +64,7 @@ public final class NativeMediaVideo {
       }
    }
 
-   /** 0x0043fdb0: audio. graph = +0xc (IGraphBuilder), evento = +0x10. */
+   /** 0x0043fdb0: audio. graph = +0xc (IGraphBuilder), event = +0x10. */
    static final class AudioRenderer extends Renderer {
       String kind() {
          return "audio";
@@ -76,9 +76,9 @@ public final class NativeMediaVideo {
          return true;
       }
 
-      // 0x0043ffc0 -> 0x0043fe30: CoCreateInstance(CLSID_FilterGraph) falla ->
-      // printf("Can't create filter graph for %s\n", nombre), devuelve 0 y el
-      // estado queda en 0 (lo pone a 0 antes de intentarlo).
+      // 0x0043ffc0 -> 0x0043fe30: CoCreateInstance(CLSID_FilterGraph) fails ->
+      // printf("Can't create filter graph for %s\n", name), returns 0 and the
+      // state stays at 0 (it sets it to 0 before trying).
       void open(String name) {
          if (name != null) {
             this.state = 0;
@@ -86,28 +86,28 @@ public final class NativeMediaVideo {
          }
       }
 
-      // 0x0043fff0: solo desde 1 o 2
+      // 0x0043fff0: only from 1 or 2
       void play(int n) {
          if (this.state == STOPPED || this.state == PAUSED) {
             throw new IllegalStateException("inalcanzable sin filter graph");
          }
       }
 
-      // 0x00440070: solo desde 3 o 1
+      // 0x00440070: only from 3 or 1
       void pause() {
          if (this.state == PLAYING || this.state == STOPPED) {
             throw new IllegalStateException("inalcanzable sin filter graph");
          }
       }
 
-      // 0x004400f0: solo desde 3 o 2
+      // 0x004400f0: only from 3 or 2
       void stop() {
          if (this.state == PLAYING || this.state == PAUSED) {
             throw new IllegalStateException("inalcanzable sin filter graph");
          }
       }
-      // tick 0x004401a0: sin evento (+0x10 == 0) devuelve el estado.
-      // renderTo 0x00441870: vacio. shutdown 0x0043fe10: CoUninitialize.
+      // tick 0x004401a0: without an event (+0x10 == 0) it returns the state.
+      // renderTo 0x00441870: empty. shutdown 0x0043fe10: CoUninitialize.
    }
 
    /** 0x00440f60: DX8. */
@@ -116,8 +116,8 @@ public final class NativeMediaVideo {
          return "DX8";
       }
 
-      // 0x00440fa0: state = 0; CoCreateInstance(CLSID_FilterGraph) falla ->
-      // "Could not create filter graph." + "\n" y devuelve 0.
+      // 0x00440fa0: state = 0; CoCreateInstance(CLSID_FilterGraph) fails ->
+      // "Could not create filter graph." + "\n" and returns 0.
       boolean init() {
          this.state = 0;
          System.out.print("Could not create filter graph.");
@@ -125,7 +125,7 @@ public final class NativeMediaVideo {
          return false;
       }
 
-      // init siempre falla y nInit lo sustituye por DX7: el resto no se llama.
+      // init always fails and nInit replaces it with DX7: the rest is never called.
       void open(String name) {
          throw new IllegalStateException("DX8 sin filter graph: nInit cae a DX7");
       }
@@ -143,7 +143,7 @@ public final class NativeMediaVideo {
       }
    }
 
-   /** 0x00440320: DX7 de respaldo; hwnd en +0x3c, ddInit en +0x34, abierto en +0x38. */
+   /** 0x00440320: fallback DX7; hwnd at +0x3c, ddInit at +0x34, opened at +0x38. */
    static final class Dx7Renderer extends Renderer {
       final int hwnd;
       boolean ddInit;
@@ -157,9 +157,9 @@ public final class NativeMediaVideo {
          return "DX7";
       }
 
-      // 0x00440380: CoInitialize; state = 0; si hwnd y no ddInit ->
-      // FUN_00440460 (su resultado se ignora) y ddInit = 1. FUN_00440460:
-      // CoCreateInstance(CLSID_DirectDrawFactory) falla ->
+      // 0x00440380: CoInitialize; state = 0; if hwnd and not ddInit ->
+      // FUN_00440460 (its result is ignored) and ddInit = 1. FUN_00440460:
+      // CoCreateInstance(CLSID_DirectDrawFactory) fails ->
       // "Couldn't create DirectDrawFactory" + "\n".
       boolean init() {
          this.state = 0;
@@ -172,7 +172,7 @@ public final class NativeMediaVideo {
          return true;
       }
 
-      // 0x004403f0 -> 0x00440770: CoCreateInstance(CLSID_AMMultiMediaStream) falla.
+      // 0x004403f0 -> 0x00440770: CoCreateInstance(CLSID_AMMultiMediaStream) fails.
       void open(String name) {
          if (name != null && this.ddInit) {
             System.out.print("Could not create a CLSID_MultiMediaStream object\nCheck you have run regsvr32 amstream.dll\n");
@@ -180,7 +180,7 @@ public final class NativeMediaVideo {
          }
       }
 
-      // 0x00440ba0 / 0x00440c00 / 0x00440c50: exigen abierto (+0x38)
+      // 0x00440ba0 / 0x00440c00 / 0x00440c50: require opened (+0x38)
       void play(int n) {
          if (this.ddInit && this.opened) {
             throw new IllegalStateException("inalcanzable sin DirectDraw");
@@ -199,14 +199,14 @@ public final class NativeMediaVideo {
          }
       }
 
-      // 0x00440430: exige ddInit y abierto
+      // 0x00440430: requires ddInit and opened
       void renderTo(int hwnd, int hdc) {
          if (this.ddInit && this.opened) {
             throw new IllegalStateException("inalcanzable sin DirectDraw");
          }
       }
 
-      // 0x004403c0: si ddInit libera (todo nulo), ddInit = abierto = 0
+      // 0x004403c0: if ddInit, releases (everything null), ddInit = opened = 0
       void shutdown() {
          if (this.ddInit) {
             this.opened = false;
@@ -218,7 +218,7 @@ public final class NativeMediaVideo {
    private static final HashMap<Integer, Renderer> RENDERERS = new HashMap<>();
    private static int nextHandle = 0x10000;
 
-   // 0x0043f210 DirectShow.nInit: devuelve el valor para mediaRendererInstancePtr.
+   // 0x0043f210 DirectShow.nInit: returns the value for mediaRendererInstancePtr.
    public static synchronized int nInit(int hwnd) {
       Renderer r;
       if (hwnd == 0) {
@@ -243,8 +243,8 @@ public final class NativeMediaVideo {
       return RENDERERS.get(h);
    }
 
-   // 0x0043f310: shutdown (+0xc) y delete. Una llamada posterior con el
-   // puntero liberado es memoria libre en el original; aqui no hace nada.
+   // 0x0043f310: shutdown (+0xc) and delete. A later call with the freed
+   // pointer touches freed memory in the original; here it does nothing.
    public static synchronized void nShutdown(int h) {
       Renderer r = RENDERERS.remove(h);
       if (r != null) {
@@ -252,7 +252,7 @@ public final class NativeMediaVideo {
       }
    }
 
-   // 0x0043f450: open (+0x14) y despues stop (+0x20)
+   // 0x0043f450: open (+0x14) and then stop (+0x20)
    public static void nOpen(int h, String name) {
       Renderer r = get(h);
       if (r != null) {
@@ -300,7 +300,7 @@ public final class NativeMediaVideo {
       return r == null ? 0 : r.tick();
    }
 
-   /** Para pruebas: clase del renderer tras nInit ("audio", "DX7"...). */
+   /** For tests: class of the renderer after nInit ("audio", "DX7"...). */
    public static synchronized String kindOf(int h) {
       Renderer r = RENDERERS.get(h);
       return r == null ? null : r.kind();

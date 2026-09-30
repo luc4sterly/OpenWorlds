@@ -1,37 +1,37 @@
 package net.openworlds.rwg;
 
 /**
- * Un registro de PLST tal como lo lee RwReadStreamChunk(PLST) de
- * RWL21.DLL (0x1003a6d9):
+ * A PLST record as read by RWL21.DLL's RwReadStreamChunk(PLST)
+ * (0x1003a6d9):
  *
  * <pre>
- *  siempre      material (índice base 1 en la lista de MALT; 0 o fuera de
- *               rango = sin material), número de vértices n
- *  siempre      n índices base 1 (contando desde el vértice 1 de RW, o sea
- *               el registro 8 de VLST)
- *  bandera 1    normal de cara (3 reales)            -> polígono +0x10..
- *  bandera 4    3 reales a 16.16 (x 65536)           -> polígono +0x04..+0x0c
- *  bandera 0x10 tag (entero; se guarda en 16 bits)   -> polígono +0x38
+ *  always       material (1-based index into the MALT list; 0 or out of
+ *               range = no material), number of vertices n
+ *  always       n 1-based indices (counting from RW's vertex 1, i.e.
+ *               VLST record 8)
+ *  flag 1       face normal (3 reals)                -> polygon +0x10..
+ *  flag 4       3 reals in 16.16 (x 65536)           -> polygon +0x04..+0x0c
+ *  flag 0x10    tag (integer; stored in 16 bits)     -> polygon +0x38
  * </pre>
  *
- * El primer campo, que antes se leía como "id/flag", es el índice de
- * material: en ball.rwg cuenta 1..512 porque ese fichero trae 512
- * materiales en MALT, uno por triángulo.
+ * The first field, which used to be read as "id/flag", is the material
+ * index: in ball.rwg it counts 1..512 because that file carries 512
+ * materials in MALT, one per triangle.
  */
 public final class RwgPolygon {
-   /** Índice base 1 en {@link RwgModel#materials}; 0 = sin material. */
+   /** 1-based index into {@link RwgModel#materials}; 0 = no material. */
    public final int materialIndex;
-   /** Índices 0-based en {@link RwgAtom#vertices} (el fichero los trae base 1). */
+   /** 0-based indices into {@link RwgAtom#vertices} (the file carries them 1-based). */
    public final int[] vertexIndices;
-   /** Normal de cara (bandera 1), o null. */
+   /** Face normal (flag 1), or null. */
    private final float[] normal;
    /**
-    * ⚠️ VERIFICAR: los 3 reales de la bandera 4 (polígono +0x04..+0x0c a
-    * 16.16); ninguna función de RWL21 revisada los nombra. En el corpus
-    * son siempre 0.
+    * ⚠️ VERIFY: the 3 reals of flag 4 (polygon +0x04..+0x0c in
+    * 16.16); no RWL21 function reviewed names them. In the corpus
+    * they are always 0.
     */
    public final float[] extra;
-   /** Tag del polígono (bandera 0x10), truncado a 16 bits como en +0x38; 0 sin bandera. */
+   /** Polygon tag (flag 0x10), truncated to 16 bits as at +0x38; 0 without the flag. */
    public final short tag;
 
    public RwgPolygon(int materialIndex, int[] vertexIndices, float[] normal, float[] extra, short tag) {
@@ -42,7 +42,7 @@ public final class RwgPolygon {
       this.tag = tag;
    }
 
-   /** Normal de cara guardada (bandera 1 del STRT de PLST), o null si el fichero no la trae. */
+   /** Stored face normal (flag 1 of PLST's STRT), or null if the file does not carry it. */
    public float[] normal() {
       return this.normal == null ? null : this.normal.clone();
    }

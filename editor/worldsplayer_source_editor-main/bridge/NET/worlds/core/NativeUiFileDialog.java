@@ -7,34 +7,34 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * FileSysDialog.nativeRun (0x004051d0): GetOpenFileNameA (modo 0) o
- * GetSaveFileNameA (modo 1) con {@link FileDialog} de AWT.
+ * FileSysDialog.nativeRun (0x004051d0): GetOpenFileNameA (mode 0) or
+ * GetSaveFileNameA (mode 1) with AWT's {@link FileDialog}.
  *
- * <p>Del original: OPENFILENAME con Flags 0x180e (OFN_OVERWRITEPROMPT |
+ * <p>From the original: OPENFILENAME with Flags 0x180e (OFN_OVERWRITEPROMPT |
  * OFN_HIDEREADONLY | OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST |
- * OFN_FILEMUSTEXIST), nFilterIndex 1, nMaxFile 0x104; fileName se parte en
- * el ultimo '\\' (strrchr, FUN_0044d7d0): lo de detras va a lpstrFile y lo de
- * delante a lpstrInitialDir (dejando "C:\\" si el separador sigue a ':');
- * typesAndExts "desc|patron|desc|patron" pasa a la lista de filtros de
- * Windows cambiando '|' por '\0'. Devuelve la ruta elegida o null (cancelar,
- * o modo distinto de 0/1).
+ * OFN_FILEMUSTEXIST), nFilterIndex 1, nMaxFile 0x104; fileName is split at
+ * the last '\\' (strrchr, FUN_0044d7d0): what comes after goes to lpstrFile
+ * and what comes before to lpstrInitialDir (leaving "C:\\" if the separator
+ * follows ':'); typesAndExts "desc|pattern|desc|pattern" becomes the Windows
+ * filter list by changing '|' to '\0'. Returns the chosen path or null
+ * (cancel, or a mode other than 0/1).
  *
- * <p>Equivalencias: el dialogo nativo de AWT ya pide confirmacion al
- * sobrescribir y solo deja abrir ficheros que existen. La ruta se parte por
- * el separador del sistema ademas de '\\' (Windows aceptaba tambien una ruta
- * completa en lpstrFile, que abre en ese directorio: es el mismo efecto).
- * ⚠️ AWT no tiene la lista desplegable de filtros: se aceptan los ficheros
- * de CUALQUIER filtro de la lista (el union de lo que el usuario podia
- * elegir en Windows; con nFilterIndex 1 Windows mostraba solo el primero).
- * ⚠️ lpstrDefExt apunta al primer patron ("*.world"): la extension que
- * comdlg32 anadiria a un nombre sin extension no sale de gamma.dll y no se
- * anade.
+ * <p>Equivalences: AWT's native dialog already asks for confirmation when
+ * overwriting and only lets you open files that exist. The path is split at
+ * the system separator as well as '\\' (Windows also accepted a full path in
+ * lpstrFile, which opens in that directory: it is the same effect).
+ * ⚠️ AWT has no drop-down list of filters: files of ANY filter in the list
+ * are accepted (the union of what the user could choose in Windows; with
+ * nFilterIndex 1 Windows showed only the first one).
+ * ⚠️ lpstrDefExt points to the first pattern ("*.world"): the extension that
+ * comdlg32 would append to a name without an extension does not come from
+ * gamma.dll, and it is not appended.
  */
 public final class NativeUiFileDialog {
    private NativeUiFileDialog() {
    }
 
-   /** Los patrones ("*.world", "*.*"...) de la lista de filtros. */
+   /** The patterns ("*.world", "*.*"...) of the filter list. */
    static List<String> patterns(String typesAndExts) {
       List<String> out = new ArrayList<String>();
       if (typesAndExts == null) {
@@ -51,7 +51,7 @@ public final class NativeUiFileDialog {
       return out;
    }
 
-   /** Comparacion de comodines de Windows (* y ?), sin distinguir mayusculas. */
+   /** Windows wildcard comparison (* and ?), case-insensitive. */
    static boolean matches(String name, List<String> pats) {
       if (pats.isEmpty()) {
          return true;
@@ -81,7 +81,7 @@ public final class NativeUiFileDialog {
       return i < s.length() && (c == '?' || c == s.charAt(i)) && glob(s, i + 1, p, j + 1);
    }
 
-   /** {directorio o null, fichero} como el reparto del original. */
+   /** {directory or null, file}, like the original's split. */
    static String[] split(String fileName) {
       if (fileName == null) {
          return new String[]{null, ""};

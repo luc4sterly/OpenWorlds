@@ -28,7 +28,7 @@ public class UiDisposeCheck {
    static int fails = 0;
 
    static void check(boolean ok, String what) {
-      System.out.println((ok ? "OK   " : "FALLA ") + what);
+      System.out.println((ok ? "OK   " : "FAIL ") + what);
       if (!ok) {
          fails++;
       }
@@ -131,13 +131,13 @@ public class UiDisposeCheck {
 
    static void giveUp() {
       // the event thread is stuck for good: what follows could not run
-      System.out.println("UiDisposeCheck: " + fails + " fallos");
+      System.out.println("UiDisposeCheck: " + fails + " failures");
       Runtime.getRuntime().halt(1);
    }
 
    public static void main(String[] a) throws Exception {
       if (GraphicsEnvironment.isHeadless()) {
-         System.out.println("sin pantalla: se omite (la CI lo pasa bajo xvfb-run)");
+         System.out.println("no display: skipped (the CI runs it under xvfb-run)");
          System.exit(0);
       }
       Frame f = new Frame("UiDisposeCheck");
@@ -150,12 +150,12 @@ public class UiDisposeCheck {
       g.pack();
       g.setVisible(true);
       boolean ended = closeUnderLock(g, f, true, 10000L, out);
-      check(ended, "con el monitor tomado y el hilo de eventos pidiendolo: termina");
+      check(ended, "with the monitor held and the event thread asking for it: it finishes");
       if (!ended) {
          giveUp();
       }
-      check(!g.isVisible() && !g.isDisplayable(), "al volver la ventana ya esta oculta y cerrada (como el dispose de 2004)");
-      check(Boolean.TRUE.equals(out[0]) && out[1] == null, "al volver el llamante vuelve a tener el monitor");
+      check(!g.isVisible() && !g.isDisplayable(), "on return the window is already hidden and closed (like the 2004 dispose)");
+      check(Boolean.TRUE.equals(out[0]) && out[1] == null, "on return the caller holds the monitor again");
 
       // 2: from the event thread and without the monitor the calls run right there
       final Grabby g2 = new Grabby(f);
@@ -166,18 +166,18 @@ public class UiDisposeCheck {
             AwtCompat.closeHoldingLock(g2, owner);
          }
       });
-      check(!g2.isDisplayable(), "desde el hilo de eventos: se cierra ahi mismo");
+      check(!g2.isDisplayable(), "from the event thread: it closes right there");
       Grabby g3 = new Grabby(f);
       g3.pack();
       AwtCompat.closeHoldingLock(g3, f);
-      check(!g3.isDisplayable(), "sin el monitor: se cierra ahi mismo");
+      check(!g3.isDisplayable(), "without the monitor: it closes right there");
 
       // 3: an exception on the event thread reaches the caller, as on its own thread
       Faulty bad = new Faulty(f);
       bad.pack();
       ended = closeUnderLock(bad, f, true, 10000L, out);
       check(ended && out[1] instanceof IllegalStateException && "prueba".equals(((Throwable) out[1]).getMessage()),
-         "una excepcion del cierre llega al llamante");
+         "an exception from the close reaches the caller");
       bad.dispose();
 
       // 4: the real case, a text field with the focus (LocationDialog),
@@ -194,29 +194,29 @@ public class UiDisposeCheck {
          if (closeUnderLock(d, f, true, 10000L, out) && !d.isDisplayable() && out[1] == null) {
             closed++;
          } else {
-            check(false, "dialogo con campo de texto enfocado " + i + ": no se cerro");
+            check(false, "dialog with a focused text field " + i + ": did not close");
             giveUp();
          }
       }
       if (tried == 0) {
-         System.out.println("(el campo de texto nunca tuvo el foco: se omite el caso real)");
+         System.out.println("(the text field never got the focus: the real case is skipped)");
       } else {
-         check(closed == tried, "dialogo con campo de texto enfocado: se cierra " + closed + " de " + tried + " veces");
+         check(closed == tried, "dialog with a focused text field: it closes " + closed + " of " + tried + " times");
       }
 
       // 5: informational, the original close on this Java
       Dialog r = focusedTextDialog(f, true);
       boolean hung = false;
       if (r == null) {
-         System.out.println("(sin foco en el campo de texto: no se prueba el cierre original)");
+         System.out.println("(no focus on the text field: the original close is not tested)");
       } else {
          hung = !closeUnderLock(r, f, false, 5000L, out);
          System.out.println(hung
-            ? "info: el cierre original con el monitor tomado se bloquea en este Java (lo que evita AwtCompat)"
-            : "info: el cierre original con el monitor tomado no se bloquea en este Java (depende del metodo de entrada)");
+            ? "info: the original close with the monitor held blocks on this Java (which AwtCompat avoids)"
+            : "info: the original close with the monitor held does not block on this Java (it depends on the input method)");
       }
 
-      System.out.println(fails == 0 ? "UiDisposeCheck: todo OK" : "UiDisposeCheck: " + fails + " fallos");
+      System.out.println(fails == 0 ? "UiDisposeCheck: all OK" : "UiDisposeCheck: " + fails + " failures");
       if (hung) {
          Runtime.getRuntime().halt(fails == 0 ? 0 : 1);
       }

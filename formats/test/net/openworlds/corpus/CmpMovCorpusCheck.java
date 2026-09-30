@@ -10,14 +10,14 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * *Check de tools/run-checks.sh (contrato de COMUN.md: main que sale con
- * codigo != 0 si falla). A diferencia de {@link CmpMovCorpusCount} (que
- * necesita que el llamador ya haya extraido tex/*.cmp y tex/*.mov con
- * `unzip`), este check es autonomo: extrae el propio content.zip con
- * java.util.zip a un directorio temporal y reusa CmpMovCorpusCount.count().
+ * A *Check run by tools/run-checks.sh (COMUN.md contract: a main that exits
+ * with code != 0 if it fails). Unlike {@link CmpMovCorpusCount} (which
+ * needs the caller to have already extracted tex/*.cmp and tex/*.mov with
+ * `unzip`), this check is self-contained: it extracts content.zip itself with
+ * java.util.zip into a temporary directory and reuses CmpMovCorpusCount.count().
  *
- * Corpus y cifra esperada (159 .cmp / 52 .mov) documentados en
- * CmpMovCorpusCount; ver tambien docs/cmp-stage1-coverage.md.
+ * Corpus and expected figures (159 .cmp / 52 .mov) documented in
+ * CmpMovCorpusCount; see also docs/cmp-stage1-coverage.md.
  */
 public final class CmpMovCorpusCheck {
    private static final int EXPECTED_CMP = 159;
@@ -26,7 +26,7 @@ public final class CmpMovCorpusCheck {
    public static void main(String[] args) throws Exception {
       File zip = new File(args.length > 0 ? args[0] : "assets/WorldsPlayer/GroundZero/content.zip");
       if (!zip.isFile()) {
-         System.out.println("FALLO: no existe " + zip.getAbsolutePath());
+         System.out.println("FAIL: not found: " + zip.getAbsolutePath());
          System.exit(2);
       }
 
@@ -34,13 +34,13 @@ public final class CmpMovCorpusCheck {
       try {
          extractTex(zip, tmp.toFile());
          CmpMovCorpusCount.Result r = CmpMovCorpusCount.count(tmp.toFile());
-         System.out.println("CMP " + r.cmpOk + "/" + r.cmpTotal + " (esperado " + EXPECTED_CMP + ")");
-         System.out.println("MOV " + r.movOk + "/" + r.movTotal + " (esperado " + EXPECTED_MOV + ")");
+         System.out.println("CMP " + r.cmpOk + "/" + r.cmpTotal + " (expected " + EXPECTED_CMP + ")");
+         System.out.println("MOV " + r.movOk + "/" + r.movTotal + " (expected " + EXPECTED_MOV + ")");
 
          boolean ok = r.cmpTotal == EXPECTED_CMP && r.cmpOk == EXPECTED_CMP
                && r.movTotal == EXPECTED_MOV && r.movOk == EXPECTED_MOV;
          if (!ok) {
-            System.out.println("FALLO: recuento distinto del esperado (" + EXPECTED_CMP + "/" + EXPECTED_MOV + ")");
+            System.out.println("FAIL: count differs from the expected one (" + EXPECTED_CMP + "/" + EXPECTED_MOV + ")");
             System.exit(1);
          }
          System.out.println("OK");
@@ -49,7 +49,7 @@ public final class CmpMovCorpusCheck {
       }
    }
 
-   /** Extrae tex/*.cmp y tex/*.mov (cualquier mayus/minus) de zip a destDir, sin subcarpetas. */
+   /** Extracts tex/*.cmp and tex/*.mov (any letter case) from zip into destDir, without subfolders. */
    private static void extractTex(File zip, File destDir) throws IOException {
       try (ZipFile zf = new ZipFile(zip)) {
          Enumeration<? extends ZipEntry> entries = zf.entries();
@@ -61,7 +61,7 @@ public final class CmpMovCorpusCheck {
             String base = slash >= 0 ? name.substring(slash + 1) : name;
             String lower = base.toLowerCase();
             if (!lower.endsWith(".cmp") && !lower.endsWith(".mov")) continue;
-            // Solo tex/ (evita duplicados de otras carpetas del zip, si las hubiera).
+            // Only tex/ (avoids duplicates from other folders of the zip, if there were any).
             if (!name.toLowerCase().startsWith("tex/")) continue;
             File out = new File(destDir, base);
             try (InputStream in = zf.getInputStream(e)) {

@@ -1,35 +1,35 @@
 package NET.worlds.core;
 
 /**
- * El movimiento de un avatar en el motor de animacion de gamma.dll:
+ * The movement of an avatar in gamma.dll's animation engine:
  *
  * <ul>
- * <li>el objeto de 0x50 bytes del animador (+0x00, FUN_004313b0, vtable
- *     0x4750d0) que mide cuanto se ha desplazado en horizontal entre dos
- *     posiciones y hacia donde; lo consume update;</li>
- * <li>{@link State}: la estructura de 0x38 bytes del Rep (+4, creada en
- *     FUN_004350c0) con la maquina de estados de los implicitos
+ * <li>the animator's 0x50-byte object (+0x00, FUN_004313b0, vtable
+ *     0x4750d0) that measures how far it has moved horizontally between two
+ *     positions and in which direction; consumed by update;</li>
+ * <li>{@link State}: the Rep's 0x38-byte structure (+4, created in
+ *     FUN_004350c0) with the state machine of the implicit animations
  *     (FUN_00434670).</li>
  * </ul>
  *
- * Cuaterniones como float[4] (w, x, y, z); vectores float[3].
+ * Quaternions as float[4] (w, x, y, z); vectors as float[3].
  */
 public final class AnimMotion {
-   /** +0x04 (vtable [0] FUN_00431650): ya tiene posicion. */
+   /** +0x04 (vtable [0] FUN_00431650): already has a position. */
    boolean hasPos;
    /** +0x0c..+0x14. */
    final float[] pos = new float[3];
-   /** +0x18: identidad al crear (FUN_00428f10). */
+   /** +0x18: identity on creation (FUN_00428f10). */
    float[] quat = {1f, 0f, 0f, 0f};
-   /** +0x2c, +0x34, +0x40: los tres se crean con la hora actual (FUN_004279e0). */
+   /** +0x2c, +0x34, +0x40: all three are created with the current time (FUN_004279e0). */
    AnimTime time;
    AnimTime dt;
    AnimTime lastUpdate;
-   /** +0x3c: 1 hacia delante, 2 hacia atras (vtable [10] FUN_004316d0). */
+   /** +0x3c: 1 forwards, 2 backwards (vtable [10] FUN_004316d0). */
    int direction;
-   /** +0x48: distancia con signo; update la lee y la pone a 0 (vtable [11] FUN_004316e0). */
+   /** +0x48: signed distance; update reads it and sets it to 0 (vtable [11] FUN_004316e0). */
    float distance;
-   /** +0x4c: distancia sin signo (vtable [12] FUN_004316f0). */
+   /** +0x4c: unsigned distance (vtable [12] FUN_004316f0). */
    float speed;
 
    AnimMotion(AnimTime now) {
@@ -38,15 +38,15 @@ public final class AnimMotion {
       this.lastUpdate = now;
    }
 
-   /** Maximo de dt entre dos posiciones: {10 s, 0} (DAT_0049dd7c, inicializado en 0x4343f0). */
+   /** Maximum dt between two positions: {10 s, 0} (DAT_0049dd7c, initialized at 0x4343f0). */
    static final AnimTime MAX_DT = new AnimTime(10, 0);
 
    /**
-    * FUN_00432a30 (desde moveto/moveby): solo se toma la posicion si es la
-    * primera (+0x2c == {0,0}) o si el tiempo cambia y cambia la posicion o
-    * la orientacion (FUN_00428eb0: |dot - 1| &gt;= 0.0005). dt = ahora -
-    * anterior, limitado a {10 s} con la comparacion sin signo
-    * FUN_00427b70 (un dt "negativo" tambien se queda en 10 s).
+    * FUN_00432a30 (from moveto/moveby): the position is only taken if it is
+    * the first one (+0x2c == {0,0}) or if the time changes and the position
+    * or the orientation changes (FUN_00428eb0: |dot - 1| &gt;= 0.0005).
+    * dt = now - previous, capped at {10 s} with the unsigned comparison
+    * FUN_00427b70 (a "negative" dt also ends up at 10 s).
     */
    void offer(float[] p, float[] q, AnimTime t) {
       boolean take = true;
@@ -73,13 +73,13 @@ public final class AnimMotion {
    }
 
    /**
-    * FUN_00431440 (vtable [1]): guarda posicion, orientacion y tiempos; la
-    * distancia es la parte horizontal del desplazamiento (se quita la
-    * componente sobre el eje Z, DAT_0049dce8 = (0,0,1)). Si en el sistema
-    * local del avatar (desplazamiento girado por la inversa de q,
-    * FUN_00429170 + FUN_004291c0) la y es &lt;= 0 (DAT_00475070) va hacia
-    * atras (+0x3c = 2) y la distancia se niega. La primera vez el
-    * desplazamiento es 0.
+    * FUN_00431440 (vtable [1]): stores position, orientation and times; the
+    * distance is the horizontal part of the displacement (the component
+    * along the Z axis is removed, DAT_0049dce8 = (0,0,1)). If in the
+    * avatar's local frame (displacement rotated by the inverse of q,
+    * FUN_00429170 + FUN_004291c0) y is &lt;= 0 (DAT_00475070) it is going
+    * backwards (+0x3c = 2) and the distance is negated. The first time the
+    * displacement is 0.
     */
    void set(float[] p, float[] q, AnimTime t, AnimTime d) {
       float[] old = this.hasPos ? this.pos.clone() : p;
@@ -107,42 +107,42 @@ public final class AnimMotion {
       }
    }
 
-   /** vtable [11] FUN_004316e0: devuelve la distancia y la pone a 0. */
+   /** vtable [11] FUN_004316e0: returns the distance and sets it to 0. */
    float takeDistance() {
       float d = this.distance;
       this.distance = 0f;
       return d;
    }
 
-   // ------------------------------------------------------------- estado de implicitos
+   // ------------------------------------------------------------- implicit animation state
 
-   /** La estructura de 0x38 bytes del Rep (+4). */
+   /** The Rep's 0x38-byte structure (+4). */
    static final class State {
       /** +0x04..+0x0c. */
       final float[] pos = new float[3];
-      /** +0x10: identidad (FUN_00428f10). */
+      /** +0x10: identity (FUN_00428f10). */
       float[] quat = {1f, 0f, 0f, 0f};
-      /** +0x24: hora de creacion (FUN_004279e0). */
+      /** +0x24: creation time (FUN_004279e0). */
       AnimTime time;
-      /** +0x2c: implicito elegido (1). */
+      /** +0x2c: chosen implicit animation (1). */
       int state = 1;
-      /** +0x30: hora del ultimo cambio ({0,0} = aun no hay). */
+      /** +0x30: time of the last change ({0,0} = none yet). */
       AnimTime lastChange = AnimTime.ZERO;
 
       State(AnimTime now) {
          this.time = now;
       }
 
-      /** DAT_004754e0..ec: {3, 3, 2, 1} por [misma posicion * 2 + misma orientacion]. */
+      /** DAT_004754e0..ec: {3, 3, 2, 1} indexed by [same position * 2 + same orientation]. */
       static final int[] MOTION = {3, 3, 2, 1};
       static final AnimTime WAIT_AFTER_STILL = new AnimTime(10, 0);
       static final AnimTime WAIT_LENGTH = new AnimTime(30, 0);
       static final AnimTime ENDWAIT_LENGTH = new AnimTime(10, 0);
 
       /**
-       * FUN_004351b0 / FUN_004352f0 (la parte del Rep): la primera vez
-       * (+0x30 == {0,0}) apunta la hora y elige 1; si no, FUN_00434670.
-       * Luego guarda posicion, orientacion y hora.
+       * FUN_004351b0 / FUN_004352f0 (the Rep's part): the first time
+       * (+0x30 == {0,0}) it records the time and picks 1; otherwise
+       * FUN_00434670. Then it stores position, orientation and time.
        */
       int moved(float[] p, float[] q, AnimTime t) {
          if (this.lastChange.same(AnimTime.ZERO)) {
@@ -158,14 +158,14 @@ public final class AnimMotion {
       }
 
       /**
-       * FUN_00434670: m = 3 si se ha movido, 2 si solo ha girado (dot de
-       * orientaciones fuera de 1 +- 0.0005), 1 si esta quieto.
-       * 1 (recien parado): gira -&gt; 2, anda -&gt; 3, 10 s quieto -&gt; 4.
-       * 2 (girando): quieto -&gt; 1, anda -&gt; 3.
-       * 3 (andando): quieto -&gt; 4, gira -&gt; 2.
-       * 4 (wait): gira -&gt; 2, anda -&gt; 3, 30 s -&gt; 5.
-       * 5 (endwait): gira -&gt; 2, anda -&gt; 3, 10 s -&gt; 4.
-       * Otro estado -&gt; 1. Cada cambio apunta la hora (+0x30).
+       * FUN_00434670: m = 3 if it has moved, 2 if it has only turned (dot of
+       * the orientations outside 1 +- 0.0005), 1 if it is still.
+       * 1 (just stopped): turns -&gt; 2, walks -&gt; 3, 10 s still -&gt; 4.
+       * 2 (turning): still -&gt; 1, walks -&gt; 3.
+       * 3 (walking): still -&gt; 4, turns -&gt; 2.
+       * 4 (wait): turns -&gt; 2, walks -&gt; 3, 30 s -&gt; 5.
+       * 5 (endwait): turns -&gt; 2, walks -&gt; 3, 10 s -&gt; 4.
+       * Any other state -&gt; 1. Each change records the time (+0x30).
        */
       int next(float[] p, float[] q, AnimTime t) {
          int samePos = p[0] == this.pos[0] && p[1] == this.pos[1] && p[2] == this.pos[2] ? 1 : 0;
@@ -224,12 +224,12 @@ public final class AnimMotion {
       }
    }
 
-   // ------------------------------------------------------------- matematicas
+   // ------------------------------------------------------------- math
 
    /**
-    * FUN_00428eb0 (distinto) = !FUN_00428e60: |dot(a, b) - 1| &lt; 0.0005
-    * (DAT_00473414 = 1, DAT_00473418 = 0.0005) es "igual"; dot en el orden
-    * z, y, w, x de FUN_00429090.
+    * FUN_00428eb0 (not equal) = !FUN_00428e60: |dot(a, b) - 1| &lt; 0.0005
+    * (DAT_00473414 = 1, DAT_00473418 = 0.0005) counts as "equal"; dot in the
+    * z, y, w, x order of FUN_00429090.
     */
    static boolean notEqual(float[] a, float[] b) {
       double dot = (double) a[3] * b[3] + (double) a[2] * b[2] + (double) a[0] * b[0] + (double) a[1] * b[1];
@@ -238,8 +238,8 @@ public final class AnimMotion {
    }
 
    /**
-    * FUN_00428f40: cuaternion de eje y angulo (radianes): (cos(a/2),
-    * eje * sin(a/2)) (DAT_00473420 = 0.5) y normalizado (FUN_00429070).
+    * FUN_00428f40: axis-angle quaternion (radians): (cos(a/2),
+    * axis * sin(a/2)) (DAT_00473420 = 0.5) and normalized (FUN_00429070).
     */
    static float[] axisAngle(float x, float y, float z, float angle) {
       double h = (double) angle * 0.5;
@@ -249,7 +249,7 @@ public final class AnimMotion {
       return q;
    }
 
-   /** FUN_004272c0: producto de Hamilton a * b. */
+   /** FUN_004272c0: Hamilton product a * b. */
    static float[] mul(float[] a, float[] b) {
       return new float[]{
          a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3],
@@ -259,7 +259,7 @@ public final class AnimMotion {
       };
    }
 
-   /** FUN_00426eb0: v' = q (0, v) q^-1 (FUN_00427220 = inversa, (w, -x, -y, -z) / |q|^2). */
+   /** FUN_00426eb0: v' = q (0, v) q^-1 (FUN_00427220 = inverse, (w, -x, -y, -z) / |q|^2). */
    static float[] rotate(float[] q, float[] v) {
       float n = 1.0F / (q[0] * q[0] + q[3] * q[3] + q[1] * q[1] + q[2] * q[2]);
       float[] inv = {q[0] * n, -n * q[1], -n * q[2], -n * q[3]};

@@ -5,24 +5,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Lector de .rwg traducido de los binarios: la cabecera la lee gamma.dll
- * (ShapeLoader.loadBinaryFile 0x0041e5d0 -&gt; FUN_0041c970, con
- * FUN_00419af0 y FUN_00419a20) y el resto RenderWare 2.1
- * (RwReadStreamChunk de RWL21.DLL, 0x10039e40), sobre un stream de
- * memoria (RwOpenStream(3, 1, {datos, tamaño}), FUN_004181d0).
+ * .rwg reader translated from the binaries: the header is read by gamma.dll
+ * (ShapeLoader.loadBinaryFile 0x0041e5d0 -&gt; FUN_0041c970, with
+ * FUN_00419af0 and FUN_00419a20) and the rest by RenderWare 2.1
+ * (RwReadStreamChunk of RWL21.DLL, 0x10039e40), over a memory
+ * stream (RwOpenStream(3, 1, {data, size}), FUN_004181d0).
  *
- * <p>Todo es big-endian (RW invierte cada entero al leerlo). Un chunk es
- * [tag de 4 bytes][longitud de 4 bytes][contenido], y RW no busca los
- * hijos por posición sino con el bucle de búsqueda que repite en cada
- * lector ({@link #find}): lee un tag; si no es el que busca, salta ese
- * chunk (RwSkipStreamChunk 0x10039cd0) y sigue. Nunca salta al final de un
- * chunk: el stream queda donde lo deja lo leído.
+ * <p>Everything is big-endian (RW reverses every integer as it reads it). A
+ * chunk is [4-byte tag][4-byte length][content], and RW does not look up
+ * the children by position but with the search loop that it repeats in each
+ * reader ({@link #find}): it reads a tag; if it is not the one being sought,
+ * it skips that chunk (RwSkipStreamChunk 0x10039cd0) and goes on. It never
+ * skips to the end of a chunk: the stream is left wherever what was read
+ * leaves it.
  *
- * <p>Errores: donde RW devuelve FALSE, aquí se lanza
- * {@link RwgFormatException} con el código de error de RW cuando lo hay
- * (0x5a = chunk no encontrado, 0x58 = fin del stream). En el cliente
- * original un FALSE en cualquier punto hace que el CLUM entero no se lea
- * y ShapeLoader.finishLoadingBinaryFile devuelva -1.
+ * <p>Errors: where RW returns FALSE, {@link RwgFormatException} is thrown
+ * here with RW's error code when there is one
+ * (0x5a = chunk not found, 0x58 = end of stream). In the original
+ * client a FALSE at any point makes the whole CLUM unreadable
+ * and ShapeLoader.finishLoadingBinaryFile return -1.
  */
 public final class RwgParser {
    static final int ZZZ = 0x5A5A5A5B; // "ZZZ["
@@ -38,12 +39,12 @@ public final class RwgParser {
    static final int PLST = 0x504C5354;
    static final int STRT = 0x53545254;
    static final int STNG = 0x53544E47;
-   /** FUN_00419af0: las dos palabras que siguen a la longitud de la cabecera. */
+   /** FUN_00419af0: the two words that follow the header length. */
    static final int HEADER_MAGIC = 0x13765342;
-   /** Registros de VLST que son la caja local, no vértices (RwGetClumpNumVertices 0x10003fe0: n - 8). */
+   /** VLST records that are the local box, not vertices (RwGetClumpNumVertices 0x10003fe0: n - 8). */
    private static final int BBOX_RECORDS = 8;
 
-   /** Un FALSE de RW, con su código de error (FUN_1000cba0) si lo hay. */
+   /** An RW FALSE, with its error code (FUN_1000cba0) if there is one. */
    public static final class RwgFormatException extends IllegalArgumentException {
       public final int rwError;
 
@@ -66,7 +67,7 @@ public final class RwgParser {
 
    // ------------------------------------------------------------ stream
 
-   /** RwReadStream (0x10039890) sobre memoria: n == 0 es error 1; si no quedan n bytes, 0x58. */
+   /** RwReadStream (0x10039890) over memory: n == 0 is error 1; if n bytes do not remain, 0x58. */
    private int take(int n, String what) {
       if (n == 0) {
          throw new RwgFormatException(1, what + ": lectura de 0 bytes");
@@ -98,7 +99,7 @@ public final class RwgParser {
       return out;
    }
 
-   /** RwSeekStream (0x10039b10) sobre memoria: 0 no hace nada; pasar del final es 0x58. */
+   /** RwSeekStream (0x10039b10) over memory: 0 does nothing; going past the end is 0x58. */
    private void seek(int n, String what) {
       if (n == 0) {
          return;
@@ -112,9 +113,10 @@ public final class RwgParser {
    }
 
    /**
-    * El bucle de búsqueda de chunk que RWL21 repite en cada lector (p. ej.
-    * 0x1003a205): lee un tag; si no es el buscado, RwSkipStreamChunk lee su
-    * longitud y la salta (0 = nada que saltar). Si algo falla, error 0x5a.
+    * The chunk search loop that RWL21 repeats in each reader (e.g.
+    * 0x1003a205): reads a tag; if it is not the one sought, RwSkipStreamChunk
+    * reads its length and skips it (0 = nothing to skip). If anything fails,
+    * error 0x5a.
     */
    private void find(int tag, String ctx) {
       while (true) {
@@ -139,15 +141,15 @@ public final class RwgParser {
       }
    }
 
-   /** Entrada de RwReadStreamChunk (0x10039e64): la longitud del chunk cuyo tag ya se leyó. */
+   /** Entry of RwReadStreamChunk (0x10039e64): the length of the chunk whose tag was already read. */
    private int chunkLength(String ctx) {
       return readInt(ctx + ": longitud");
    }
 
    /**
-    * RwReadStreamChunk(STRT, buf, max) (0x1003b17a): lee min(longitud, max)
-    * bytes y salta (longitud - max), con signo. Si la longitud es menor que
-    * max, el resto del buffer de RW queda sin escribir (aquí, 0).
+    * RwReadStreamChunk(STRT, buf, max) (0x1003b17a): reads min(length, max)
+    * bytes and skips (length - max), signed. If the length is less than
+    * max, the rest of RW's buffer is left unwritten (here, 0).
     */
    private int[] strt(int max, String ctx) {
       find(STRT, ctx);
@@ -169,11 +171,11 @@ public final class RwgParser {
 
    // ------------------------------------------------------------ gamma.dll
 
-   /** Lo que gamma.dll saca de la cabecera antes de que RW lea nada (FUN_0041c970). */
+   /** What gamma.dll extracts from the header before RW reads anything (FUN_0041c970). */
    public static final class Header {
-      /** Nombres de textura en el orden en que gamma los pide a Java. */
+      /** Texture names in the order in which gamma requests them from Java. */
       public final List<String> names;
-      /** La lista acabó en el nombre vacío: gamma marca la carga como buena (this+0xc = 1). */
+      /** The list ended in the empty name: gamma marks the load as good (this+0xc = 1). */
       public final boolean complete;
 
       Header(List<String> names, boolean complete) {
@@ -181,7 +183,7 @@ public final class RwgParser {
          this.complete = complete;
       }
 
-      /** Cada nombre con ".cmp" (DAT_00470a7c) si no lleva ningún '.'. */
+      /** Each name with ".cmp" (DAT_00470a7c) if it has no '.'. */
       public List<String> textureRequests() {
          List<String> out = new ArrayList<>();
          for (String n : this.names) {
@@ -192,10 +194,10 @@ public final class RwgParser {
    }
 
    /**
-    * La cabecera tal como la lee gamma.dll: FUN_00419af0 (tag "ZZZ[",
-    * longitud L &gt; 8, palabras 0x13765342 y 1) y FUN_00419a20 + el bucle
-    * de FUN_0041c970 sobre los L - 8 bytes. Devuelve null donde gamma no
-    * llega a pedir nada (FUN_00419af0 da 0 o la lectura falla).
+    * The header as gamma.dll reads it: FUN_00419af0 (tag "ZZZ[",
+    * length L &gt; 8, words 0x13765342 and 1) and FUN_00419a20 + the loop
+    * of FUN_0041c970 over the L - 8 bytes. Returns null where gamma never gets
+    * to request anything (FUN_00419af0 gives 0 or the read fails).
     */
    public static Header header(byte[] data) {
       RwgParser p = new RwgParser(data);
@@ -207,8 +209,8 @@ public final class RwgParser {
    }
 
    private Header readHeader() {
-      // FUN_00419af0: tag "ZZZ[", longitud L, y si L - 8 > 0 las palabras
-      // 0x13765342 y 1 (RwReadStreamInt de 8 bytes); si no, 0 y la carga falla.
+      // FUN_00419af0: tag "ZZZ[", length L, and if L - 8 > 0 the words
+      // 0x13765342 and 1 (8-byte RwReadStreamInt); otherwise, 0 and the load fails.
       if (this.data.length < 4 || be(0) != ZZZ) {
          throw new RwgFormatException(0, "no es un .rwg: falta la cabecera ZZZ[ (FUN_00419af0)");
       }
@@ -222,9 +224,9 @@ public final class RwgParser {
          throw new RwgFormatException(0, String.format("cabecera 0x%08X/0x%08X, FUN_00419af0 exige 0x%08X/1",
             magic[0], magic[1], HEADER_MAGIC));
       }
-      // FUN_00419a20 lee los L - 8 bytes; FUN_0041c970 los recorre como
-      // cadenas terminadas en NUL hasta una vacía (y solo entonces da la
-      // carga por buena, this+0xc = 1).
+      // FUN_00419a20 reads the L - 8 bytes; FUN_0041c970 walks them as
+      // NUL-terminated strings up to an empty one (and only then considers
+      // the load good, this+0xc = 1).
       int namesAt = take(headerLen - 8, "lista de texturas de la cabecera");
       int end = namesAt + headerLen - 8;
       List<String> names = new ArrayList<>();
@@ -251,12 +253,12 @@ public final class RwgParser {
    private RwgModel parseFile() {
       Header hd = readHeader();
       if (!hd.complete) {
-         // ⚠️ el original seguiría leyendo más allá de su buffer; no se imita
+         // ⚠️ the original would keep reading past its buffer; that is not imitated
          throw new RwgFormatException(0, "la lista de texturas de la cabecera no acaba en un nombre vacío");
       }
       List<String> names = hd.names;
 
-      // FUN_00419a60: RwReadStreamChunkType y, solo si es CLUM, RwReadStreamChunk(CLUM)
+      // FUN_00419a60: RwReadStreamChunkType and, only if it is CLUM, RwReadStreamChunk(CLUM)
       int type = readInt("tipo de chunk");
       if (type != CLUM) {
          throw new RwgFormatException(0, "tras la cabecera viene " + tagName(type) + ", no CLUM (FUN_00419a60)");
@@ -266,7 +268,7 @@ public final class RwgParser {
 
    // ------------------------------------------------------------ RWL21
 
-   /** RwReadStreamChunk(CLUM) (0x1003a03d): RALT, TELT y MALT (las tres listas), y el ATOM raíz. */
+   /** RwReadStreamChunk(CLUM) (0x1003a03d): RALT, TELT and MALT (the three lists), and the root ATOM. */
    private RwgModel clum(List<String> names) {
       chunkLength("CLUM");
       find(RALT, "CLUM");
@@ -280,19 +282,19 @@ public final class RwgParser {
       return new RwgModel(names, rasters, textures, materials, atom);
    }
 
-   /** RALT (0x1003c4e3): STRT [n, ?, ?] y n chunks RAST. */
+   /** RALT (0x1003c4e3): STRT [n, ?, ?] and n RAST chunks. */
    private List<RwgRaster> ralt() {
       chunkLength("RALT");
       int[] h = strt(12, "RALT");
       List<RwgRaster> out = new ArrayList<>();
-      for (int i = 0; i < h[0]; i++) { // 0x1003c5b2: comparación con signo
+      for (int i = 0; i < h[0]; i++) { // 0x1003c5b2: signed comparison
          find(RAST, "RALT");
          out.add(rast());
       }
       return out;
    }
 
-   /** RAST (0x1003c72a): STRT de 10 enteros y un DATA con los píxeles. ⚠️ sin muestra real. */
+   /** RAST (0x1003c72a): STRT of 10 integers and a DATA with the pixels. ⚠️ no real sample. */
    private RwgRaster rast() {
       chunkLength("RAST");
       int[] f = strt(0x28, "RAST");
@@ -305,12 +307,12 @@ public final class RwgParser {
    }
 
    /**
-    * TELT (0x1003cb3f): STRT [n, tamaño de registro, ?]; por entrada lee
-    * SIEMPRE 0x14 bytes y, si el tamaño de registro es menor que 0x14,
-    * además salta (0x14 - tamaño) bytes hacia delante (0x1003cc68); después
-    * busca el STNG. Con un registro de 16 bytes (cube.rwg) eso se come el
-    * tag STNG y su longitud, y la búsqueda del STNG falla: RW no lee ese
-    * fichero.
+    * TELT (0x1003cb3f): STRT [n, record size, ?]; for each entry it ALWAYS
+    * reads 0x14 bytes and, if the record size is less than 0x14,
+    * also skips (0x14 - size) bytes forward (0x1003cc68); then
+    * it looks for the STNG. With a 16-byte record (cube.rwg) that eats the
+    * STNG tag and its length, and the search for the STNG fails: RW does not
+    * read that file.
     */
    private List<RwgTexture> telt() {
       chunkLength("TELT");
@@ -327,7 +329,7 @@ public final class RwgParser {
       return out;
    }
 
-   /** STNG (0x1003b111): longitud 0 -&gt; null; si no, la cadena C que contiene. */
+   /** STNG (0x1003b111): length 0 -&gt; null; otherwise, the C string it contains. */
    private String stng() {
       int len = chunkLength("STNG");
       if (len == 0) {
@@ -341,7 +343,7 @@ public final class RwgParser {
       return new String(this.data, at, z - at, StandardCharsets.ISO_8859_1);
    }
 
-   /** MALT (0x1003bfce): STRT [n, tamaño de registro, ?]; lee 0x28 bytes por material y salta el resto. */
+   /** MALT (0x1003bfce): STRT [n, record size, ?]; reads 0x28 bytes per material and skips the rest. */
    private List<RwgMaterial> malt() {
       chunkLength("MALT");
       int[] h = strt(12, "MALT");
@@ -356,7 +358,7 @@ public final class RwgParser {
       return out;
    }
 
-   /** ATOM (0x1003b569): STRT de 13, dos MATX, VLST, PLST y los ATOM hijos que diga el STRT[11]. */
+   /** ATOM (0x1003b569): STRT of 13, two MATX, VLST, PLST and the child ATOMs that STRT[11] says. */
    private RwgAtom atom() {
       chunkLength("ATOM");
       int[] h = strt(0x34, "ATOM");
@@ -374,7 +376,7 @@ public final class RwgParser {
       for (RwgPolygon poly : polys) {
          for (int idx : poly.vertexIndices) {
             if (idx < 0 || idx >= verts.size()) {
-               // RW indexaría su tabla de vértices fuera de rango
+               // RW would index its vertex table out of range
                throw new RwgFormatException(0, "PLST: índice " + (idx + 1) + " fuera de 1.." + verts.size());
             }
          }
@@ -387,7 +389,7 @@ public final class RwgParser {
       return a;
    }
 
-   /** MATX (0x1003c3e8): STRT de 16 reales. */
+   /** MATX (0x1003c3e8): STRT of 16 reals. */
    private float[] matx() {
       chunkLength("MATX");
       int[] v = strt(0x40, "MATX");
@@ -399,9 +401,9 @@ public final class RwgParser {
    }
 
    /**
-    * VLST (0x1003b1be): STRT [n, tamaño, banderas]; el registro base es
-    * 12 + 12 (bandera 1) + 8 (bandera 2) + 12 (bandera 4) y, si el tamaño
-    * declarado es mayor, se salta la diferencia tras cada registro.
+    * VLST (0x1003b1be): STRT [n, size, flags]; the base record is
+    * 12 + 12 (flag 1) + 8 (flag 2) + 12 (flag 4) and, if the declared
+    * size is larger, the difference is skipped after each record.
     */
    private List<RwgVertex> vlst() {
       chunkLength("VLST");
@@ -432,11 +434,11 @@ public final class RwgParser {
    }
 
    /**
-    * PLST (0x1003a583): STRT [n, tamaño, banderas]; el registro base (sin
-    * los índices) es 8 + 12 (bandera 1) + 12 (bandera 4) + 4 (bandera
-    * 0x10). Cada polígono pasa por FUN_10001220, que quita los índices
-    * repetidos seguidos (y el último si repite el primero) y falla si
-    * quedan menos de 3: entonces falla el PLST entero (0x1003a7a0).
+    * PLST (0x1003a583): STRT [n, size, flags]; the base record (without
+    * the indices) is 8 + 12 (flag 1) + 12 (flag 4) + 4 (flag
+    * 0x10). Each polygon goes through FUN_10001220, which removes
+    * consecutive repeated indices (and the last one if it repeats the first)
+    * and fails if fewer than 3 remain: then the whole PLST fails (0x1003a7a0).
     */
    private List<RwgPolygon> plst() {
       chunkLength("PLST");
@@ -474,8 +476,8 @@ public final class RwgParser {
    }
 
    /**
-    * FUN_10001220 (RWL21): deja un solo índice de cada tirada de índices
-    * iguales consecutivos y quita el último si es igual al primero.
+    * FUN_10001220 (RWL21): leaves a single index from each run of
+    * consecutive equal indices and removes the last one if it equals the first.
     */
    static int[] compactIndices(int[] in) {
       int[] a = in.clone();

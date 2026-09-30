@@ -6,20 +6,20 @@ import java.io.IOException;
 import java.io.PrintStream;
 
 /**
- * DirectShow y CD de audio sin sus equivalentes: el camino de fallo del
- * binario. Casos a mano:
- *  - nInit(0) -> renderer de audio; nInit(hwnd) -> DX8 falla -> DX7, con los
- *    mensajes literales de 0x00477cf0/0x00478354/0x004780a4 en ese orden.
- *  - nOpen imprime "Can't create filter graph for <f>" (0x00478030) y el
- *    estado sigue en 0: nTick = 0 -> WMPSoundPlayer.getState = IS_STOPPED.
- *  - CD: 0 unidades, cada nativo lanza IOException con la cadena del binario
- *    (resumeAudio con "pauseAudio"); MSF: 4500 frames = 1 min.
+ * DirectShow and audio CD with no system equivalent available: the binary's
+ * failure path. Hand-made cases:
+ *  - nInit(0) -> audio renderer; nInit(hwnd) -> DX8 fails -> DX7, with the
+ *    literal messages of 0x00477cf0/0x00478354/0x004780a4 in that order.
+ *  - nOpen prints "Can't create filter graph for <f>" (0x00478030) and the
+ *    state stays at 0: nTick = 0 -> WMPSoundPlayer.getState = IS_STOPPED.
+ *  - CD: 0 drives, each native throws IOException with the binary's string
+ *    (resumeAudio with "pauseAudio"); MSF: 4500 frames = 1 min.
  */
 public class MediaDevicesCheck {
    static int fails = 0;
 
    static void check(boolean ok, String what) {
-      System.out.println((ok ? "OK   " : "FALLO") + " " + what);
+      System.out.println((ok ? "OK   " : "FAIL ") + " " + what);
       if (!ok) {
          fails++;
       }
@@ -32,9 +32,9 @@ public class MediaDevicesCheck {
    static void throwsIo(String msg, Io r) {
       try {
          r.run();
-         check(false, msg + ": deberia lanzar IOException");
+         check(false, msg + ": should throw IOException");
       } catch (IOException e) {
-         check(msg.equals(e.getMessage()), "IOException(\"" + msg + "\") (lanzada: " + e.getMessage() + ")");
+         check(msg.equals(e.getMessage()), "IOException(\"" + msg + "\") (thrown: " + e.getMessage() + ")");
       }
    }
 
@@ -55,34 +55,34 @@ public class MediaDevicesCheck {
       // --- DirectShow, audio (WMPSoundPlayer) ---
       final int[] h = new int[1];
       String out = capture(() -> h[0] = NativeMediaVideo.nInit(0));
-      check("audio".equals(NativeMediaVideo.kindOf(h[0])), "nInit(0) crea el renderer de audio");
-      check(out.isEmpty(), "el renderer de audio no imprime nada al iniciar");
-      check(NativeMediaVideo.nTick(h[0]) == 0, "estado inicial 0");
+      check("audio".equals(NativeMediaVideo.kindOf(h[0])), "nInit(0) creates the audio renderer");
+      check(out.isEmpty(), "the audio renderer prints nothing on start");
+      check(NativeMediaVideo.nTick(h[0]) == 0, "initial state 0");
       out = capture(() -> NativeMediaVideo.nOpen(h[0], "c:\\x.mp3"));
-      check(out.contains("Can't create filter graph for c:\\x.mp3\n"), "nOpen: mensaje de 0x00478030 con el nombre");
+      check(out.contains("Can't create filter graph for c:\\x.mp3\n"), "nOpen: message of 0x00478030 with the name");
       NativeMediaVideo.nPlay(h[0], 1);
-      check(NativeMediaVideo.nTick(h[0]) == 0, "tras nPlay sigue en 0 (play exige estado 1 o 2)");
+      check(NativeMediaVideo.nTick(h[0]) == 0, "after nPlay it stays at 0 (play requires state 1 or 2)");
       NativeMediaVideo.nPause(h[0]);
       NativeMediaVideo.nStop(h[0]);
-      check(NativeMediaVideo.nTick(h[0]) == 0, "pause/stop sin efecto");
+      check(NativeMediaVideo.nTick(h[0]) == 0, "pause/stop have no effect");
       NativeMediaVideo.nShutdown(h[0]);
-      check(NativeMediaVideo.kindOf(h[0]) == null, "nShutdown borra el renderer");
+      check(NativeMediaVideo.kindOf(h[0]) == null, "nShutdown deletes the renderer");
 
       // --- DirectShow, video (VideoSurface/VideoTexture) ---
       out = capture(() -> h[0] = NativeMediaVideo.nInit(0x1234));
       String esperado = "Could not create filter graph.\n"
          + "Could not create DirectX 8 media renderer; falling back to DX7.\n"
          + "Couldn't create DirectDrawFactory\n";
-      check(esperado.equals(out), "nInit(hwnd): DX8 falla, cae a DX7, un solo DirectDrawFactory (recibido: " + out.replace("\n", "|") + ")");
-      check("DX7".equals(NativeMediaVideo.kindOf(h[0])), "renderer DX7 de respaldo");
+      check(esperado.equals(out), "nInit(hwnd): DX8 fails, falls back to DX7, a single DirectDrawFactory (received: " + out.replace("\n", "|") + ")");
+      check("DX7".equals(NativeMediaVideo.kindOf(h[0])), "fallback DX7 renderer");
       out = capture(() -> NativeMediaVideo.nOpen(h[0], "http://x/eminem.asf"));
-      check(out.contains("Could not create a CLSID_MultiMediaStream object\nCheck you have run regsvr32 amstream.dll\n\n"), "nOpen DX7: mensaje de 0x004781b4");
+      check(out.contains("Could not create a CLSID_MultiMediaStream object\nCheck you have run regsvr32 amstream.dll\n\n"), "nOpen DX7: message of 0x004781b4");
       NativeMediaVideo.nPlay(h[0], 1);
       NativeMediaVideo.nRenderTo(h[0], 0x1234, 0);
-      check(NativeMediaVideo.nTick(h[0]) == 0, "video: estado 0");
+      check(NativeMediaVideo.nTick(h[0]) == 0, "video: state 0");
       NativeMediaVideo.nShutdown(h[0]);
 
-      // --- la clase Java real ---
+      // --- the real Java class ---
       DirectShow ds = new DirectShow();
       ds.nOpen("u:\\sonido.asf");
       ds.nPlay(1);
@@ -91,7 +91,7 @@ public class MediaDevicesCheck {
 
       // --- CD ---
       check(NativeMediaCd.getNumDrives() == 0, "getNumDrives = 0");
-      check(NativeMediaCd.getNumDrives() == 0, "getNumDrives cacheado = 0");
+      check(NativeMediaCd.getNumDrives() == 0, "getNumDrives cached = 0");
       check(NativeMediaCd.getDriveLetterOffset(0) == -65, "getDriveLetterOffset(0) = 0 - 'A' = -65");
       throwsIo("openDrive", () -> NativeMediaCd.openDrive(0));
       throwsIo("closeDrive", () -> NativeMediaCd.closeDrive(1));
@@ -110,7 +110,7 @@ public class MediaDevicesCheck {
       check(NativeMediaCd.fromMsf(0x030201) == 4653, "fromMsf(0x030201) = 4653");
       check(NET.worlds.scape.CDPlayerAction.getNumDrives() == 0, "CDPlayerAction.getNumDrives Java = 0");
 
-      System.out.println(fails == 0 ? "MediaDevicesCheck: todo OK" : "MediaDevicesCheck: " + fails + " fallos");
+      System.out.println(fails == 0 ? "MediaDevicesCheck: all OK" : "MediaDevicesCheck: " + fails + " failures");
       System.exit(fails == 0 ? 0 : 1);
    }
 }

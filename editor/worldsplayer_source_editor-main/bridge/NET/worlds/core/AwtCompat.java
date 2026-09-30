@@ -51,7 +51,7 @@ public final class AwtCompat {
     * NewVersionDialog.confirmRestart and UpgradeDialog.confirmUpgrade do, are
     * not affected by the notifyAll.
     *
-    * <p>⚠️ VERIFICAR: other code of the client still touches AWT while it
+    * <p>⚠️ VERIFY: other code of the client still touches AWT while it
     * holds a dialog's monitor: build/pack/show on a dialog's first
     * mainCallback, and the activeCallback of LoginWizard or
     * TransformEditorDialog. On X11 that can deadlock the same way if a text

@@ -10,15 +10,15 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 
 /**
- * WAV IMA ADPCM (WAVE_FORMAT_IMA_ADPCM = 0x11). PlaySound y MCI "waveaudio"
- * lo reproducian en Windows a traves del codec ACM del sistema
- * (imaadp32.acm); el JDK no trae ese codec. Es el caso de
- * GroundZero/wav/S.wav, el unico WAV comprimido de la instalacion (los otros
- * dos son PCM). Decodificador IMA/DVI estandar: tablas de indice y de paso
- * de la recomendacion IMA de 1992, bloques con cabecera de 4 bytes por canal
- * (muestra inicial int16, indice de paso) y nibbles bajos primero; en
- * estereo, grupos de 4 bytes (8 muestras) alternando canales. La cuenta de
- * muestras del chunk "fact" recorta el ultimo bloque.
+ * IMA ADPCM WAV (WAVE_FORMAT_IMA_ADPCM = 0x11). PlaySound and MCI "waveaudio"
+ * played it on Windows through the system's ACM codec
+ * (imaadp32.acm); the JDK does not ship that codec. This is the case of
+ * GroundZero/wav/S.wav, the only compressed WAV in the installation (the
+ * other two are PCM). Standard IMA/DVI decoder: index and step tables from
+ * the 1992 IMA recommendation, blocks with a 4-byte header per channel
+ * (initial int16 sample, step index) and low nibbles first; in
+ * stereo, groups of 4 bytes (8 samples) alternating channels. The sample
+ * count of the "fact" chunk trims the last block.
  */
 public final class ImaAdpcmWav {
    private ImaAdpcmWav() {
@@ -32,7 +32,7 @@ public final class ImaAdpcmWav {
       18500, 20350, 22385, 24623, 27086, 29794, 32767
    };
 
-   /** Estado de un canal: prediccion y indice de paso. */
+   /** State of one channel: predictor and step index. */
    public static final class Channel {
       public int predictor;
       public int index;
@@ -42,7 +42,7 @@ public final class ImaAdpcmWav {
          this.index = index;
       }
 
-      /** Decodifica un nibble y devuelve la muestra de 16 bits. */
+      /** Decodes one nibble and returns the 16-bit sample. */
       public int decode(int nibble) {
          int step = STEP_TABLE[this.index];
          int diff = step >> 3;
@@ -65,7 +65,7 @@ public final class ImaAdpcmWav {
       }
    }
 
-   /** Formato 0x11 segun la cabecera RIFF, o false. */
+   /** True if the RIFF header declares format 0x11, false otherwise. */
    public static boolean isImaAdpcm(File f) {
       try {
          byte[] d = Files.readAllBytes(f.toPath());
@@ -100,7 +100,7 @@ public final class ImaAdpcmWav {
       return null;
    }
 
-   /** Decodifica el fichero entero a PCM 16 bits con signo, little-endian. */
+   /** Decodes the whole file to signed 16-bit little-endian PCM. */
    public static AudioInputStream open(File f) throws IOException {
       byte[] d = Files.readAllBytes(f.toPath());
       ByteBuffer fmt = chunk(d, "fmt ");
@@ -139,7 +139,7 @@ public final class ImaAdpcmWav {
       return new AudioInputStream(new ByteArrayInputStream(out), af, frames);
    }
 
-   /** Bloques completos o el ultimo parcial; muestras entrelazadas por canal. */
+   /** Whole blocks or the last partial one; samples interleaved by channel. */
    public static short[] decode(ByteBuffer data, int ch, int blockAlign, int spb) {
       int n = data.limit();
       int blocks = (n + blockAlign - 1) / blockAlign;
@@ -161,7 +161,7 @@ public final class ImaAdpcmWav {
 
          int written = 1;
          int p = base + 4 * ch;
-         // grupos de 4 bytes (8 muestras) por canal, alternando
+         // groups of 4 bytes (8 samples) per channel, alternating
          while (p + 4 * ch <= end && written < spb) {
             for (int c = 0; c < ch; c++) {
                for (int k = 0; k < 4; k++) {

@@ -4,36 +4,36 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Un ATOM = un clump, como lo lee RwReadStreamChunk(ATOM) de RWL21.DLL
- * (0x1003b569). El STRT de 13 enteros se reparte así (0x1003b648..):
+ * An ATOM = a clump, as read by RWL21.DLL's RwReadStreamChunk(ATOM)
+ * (0x1003b569). The 13-integer STRT is distributed like this (0x1003b648..):
  *
  * <pre>
- *  [0]  clump+0x8c (RwCreateClump pone 1)   ⚠️ VERIFICAR significado
- *  [1]  clump+0x90 (RwCreateClump pone 4)   ⚠️ VERIFICAR significado
+ *  [0]  clump+0x8c (RwCreateClump sets 1)   ⚠️ VERIFY meaning
+ *  [1]  clump+0x90 (RwCreateClump sets 4)   ⚠️ VERIFY meaning
  *  [2]  tag                                 clump+0xe8 (RwGetClumpTag 0x100044a0)
- *  [3..7] no los lee RW
- *  [8]  hints                               RwSetClumpHints al final
- *  [9]  alineación de ejes                  clump+0x18c (RwGetClumpAxisAlignment)
- *  [10] estado (1 OFF, 2 ON)                clump+0x190 (RwGetClumpState)
- *  [11] número de ATOM hijos                se leen tras PLST y se cuelgan con RwAddChildToClump
- *  [12] frecuencia de muestreo de luz       RwSetClumpLightSampleRate (real; 0 pone +0x19b a 0)
+ *  [3..7] not read by RW
+ *  [8]  hints                               RwSetClumpHints at the end
+ *  [9]  axis alignment                      clump+0x18c (RwGetClumpAxisAlignment)
+ *  [10] state (1 OFF, 2 ON)                 clump+0x190 (RwGetClumpState)
+ *  [11] number of child ATOMs               read after PLST and hung with RwAddChildToClump
+ *  [12] light sampling rate                 RwSetClumpLightSampleRate (real; 0 sets +0x19b to 0)
  * </pre>
  *
- * Después, dos MATX (16 reales cada uno, RwSetMatrixElements) que van a
- * clump+0xec y clump+0x130, VLST y PLST, y los hijos. ⚠️ sin muestra real:
- * todos los .rwg del corpus tienen [11] = 0, así que la lectura de hijos
- * sigue al binario pero no se ha visto nunca en un fichero.
+ * Then two MATX (16 reals each, RwSetMatrixElements) that go to
+ * clump+0xec and clump+0x130, VLST and PLST, and the children. ⚠️ no real
+ * sample: all the corpus's .rwg files have [11] = 0, so the reading of
+ * children follows the binary but has never been seen in a file.
  */
 public final class RwgAtom {
-   /** Los 13 enteros del STRT tal cual. */
+   /** The 13 STRT integers as they are. */
    public final int[] headerRaw;
-   /** Primer MATX (clump+0xec), 16 reales en el orden del fichero. */
+   /** First MATX (clump+0xec), 16 reals in file order. */
    public final float[] matrix1;
-   /** Segundo MATX (clump+0x130). */
+   /** Second MATX (clump+0x130). */
    public final float[] matrix2;
-   /** Registros 0..7 de VLST: la caja local (RwGetClumpNumVertices 0x10003fe0 resta 8). */
+   /** VLST records 0..7: the local box (RwGetClumpNumVertices 0x10003fe0 subtracts 8). */
    public final List<RwgVertex> boundingBoxCorners;
-   /** Registros 8.. de VLST: el índice n (base 1) de PLST es vertices.get(n - 1). */
+   /** VLST records 8..: PLST's index n (1-based) is vertices.get(n - 1). */
    public final List<RwgVertex> vertices;
    public final List<RwgPolygon> polygons;
    public final List<RwgAtom> children = new ArrayList<>();

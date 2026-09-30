@@ -11,23 +11,23 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 
 /**
- * Web embebida sin IE/DDE y la decision abrir/registrar de las URLs.
- * Nunca abre un navegador: el proceso corre con java.awt.headless=true
- * (Desktop no soportado) y sin -Dopenworlds.openUrls salvo en el hijo, que
- * tampoco tiene origen de usuario. Casos a mano:
- *  - decide(flag, usuario): solo (1,1) abre.
- *  - origen de usuario por pila: dialogDone / DefaultConsole.action si;
+ * Embedded web control without IE/DDE and the open/log decision for URLs.
+ * It never opens a browser: the process runs with java.awt.headless=true
+ * (Desktop not supported) and without -Dopenworlds.openUrls except in the
+ * child process, which has no user origin either. Hand-made cases:
+ *  - decide(flag, user): only (1,1) opens.
+ *  - user origin by stack: dialogDone / DefaultConsole.action yes;
  *    DialogAction.trigger, scripts, LoginWizard.selectScreen no.
- *  - IE: nativeInit false -> WebControlFactory lanza NoWebControlException.
+ *  - IE: nativeInit false -> WebControlFactory throws NoWebControlException.
  *  - openBrowser -> IOException("nWebBrowser"); IWebBrowserApp -> IOException("nIWebBrowserApp").
  *  - DDE: create/Request false; sendURL.get 0.
- *  - TextureSurface: ventana y DIB 5-6-5 de w*h, liberado en finalize.
+ *  - TextureSurface: window and 5-6-5 DIB of w*h, released in finalize.
  */
 public class MediaWebCheck {
    static int fails = 0;
 
    static void check(boolean ok, String what) {
-      System.out.println((ok ? "OK   " : "FALLO") + " " + what);
+      System.out.println((ok ? "OK   " : "FAIL ") + " " + what);
       if (!ok) {
          fails++;
       }
@@ -50,11 +50,11 @@ public class MediaWebCheck {
    }
 
    public static void main(String[] args) throws Exception {
-      // Antes de tocar AWT: sin Desktop no hay navegador que abrir aunque fallara la logica.
+      // Before touching AWT: without Desktop there is no browser to open even if the logic failed.
       System.setProperty("java.awt.headless", "true");
 
       if (args.length > 0 && args[0].equals("hijo")) {
-         // -Dopenworlds.openUrls=1 pero sin origen de usuario: solo registra.
+         // -Dopenworlds.openUrls=1 but no user origin: it only logs.
          boolean r = launch("http://example.invalid/hijo");
          int g = NET.worlds.scape.sendURL.get("http://example.invalid/bump");
          System.out.println("HIJO " + NativeMediaUrl.OPEN_URLS + " " + r + " " + g);
@@ -62,31 +62,31 @@ public class MediaWebCheck {
       }
 
       // --- decision ---
-      check(NativeMediaUrl.decide(false, false) == NativeMediaUrl.Decision.LOG_DISABLED, "sin flag, sin usuario -> registrar");
-      check(NativeMediaUrl.decide(false, true) == NativeMediaUrl.Decision.LOG_DISABLED, "sin flag, con usuario -> registrar");
-      check(NativeMediaUrl.decide(true, false) == NativeMediaUrl.Decision.LOG_NOT_USER, "con flag, sin usuario -> registrar");
-      check(NativeMediaUrl.decide(true, true) == NativeMediaUrl.Decision.OPEN, "con flag y usuario -> abrir");
+      check(NativeMediaUrl.decide(false, false) == NativeMediaUrl.Decision.LOG_DISABLED, "no flag, no user -> log");
+      check(NativeMediaUrl.decide(false, true) == NativeMediaUrl.Decision.LOG_DISABLED, "no flag, with user -> log");
+      check(NativeMediaUrl.decide(true, false) == NativeMediaUrl.Decision.LOG_NOT_USER, "with flag, no user -> log");
+      check(NativeMediaUrl.decide(true, true) == NativeMediaUrl.Decision.OPEN, "with flag and user -> open");
 
       check(NativeMediaUrl.isUserOrigin(stack("NET.worlds.scape.SendURLAction.startBrowser", "NET.worlds.scape.SendURLAction.doIt", "NET.worlds.scape.DialogAction.dialogDone")),
-         "OK del dialogo Browse? es origen de usuario");
-      check(NativeMediaUrl.isUserOrigin(stack("NET.worlds.scape.SendURLAction.startBrowser", "NET.worlds.console.DefaultConsole.action")), "menu de la consola es origen de usuario");
-      check(NativeMediaUrl.isUserOrigin(stack("NET.worlds.scape.SendURLAction.doIt", "NET.worlds.scape.Billboard.billboardClicked")), "clic en cartel es origen de usuario");
+         "OK in the Browse? dialog is a user origin");
+      check(NativeMediaUrl.isUserOrigin(stack("NET.worlds.scape.SendURLAction.startBrowser", "NET.worlds.console.DefaultConsole.action")), "console menu is a user origin");
+      check(NativeMediaUrl.isUserOrigin(stack("NET.worlds.scape.SendURLAction.doIt", "NET.worlds.scape.Billboard.billboardClicked")), "click on a billboard is a user origin");
       check(!NativeMediaUrl.isUserOrigin(stack("NET.worlds.scape.SendURLAction.doIt", "NET.worlds.scape.DialogAction.trigger", "NET.worlds.scape.Sensor.trigger")),
-         "DialogAction.trigger sin dialogo (disparador del mundo) no lo es");
-      check(!NativeMediaUrl.isUserOrigin(stack("NET.worlds.scape.SendURLAction.doIt", "NET.worlds.scape.WorldScriptToolkitImp.showWebPage")), "script del mundo no lo es");
-      check(!NativeMediaUrl.isUserOrigin(stack("NET.worlds.scape.SendURLAction.startBrowser", "NET.worlds.console.LoginWizard.selectScreen")), "LoginWizard.selectScreen (automatico) no lo es");
-      check(!NativeMediaUrl.isUserOrigin(null), "sin pila no lo es");
-      check(!NativeMediaUrl.isUserOrigin(Thread.currentThread().getStackTrace()), "la pila de esta prueba no lo es");
+         "DialogAction.trigger without a dialog (world trigger) is not");
+      check(!NativeMediaUrl.isUserOrigin(stack("NET.worlds.scape.SendURLAction.doIt", "NET.worlds.scape.WorldScriptToolkitImp.showWebPage")), "world script is not");
+      check(!NativeMediaUrl.isUserOrigin(stack("NET.worlds.scape.SendURLAction.startBrowser", "NET.worlds.console.LoginWizard.selectScreen")), "LoginWizard.selectScreen (automatic) is not");
+      check(!NativeMediaUrl.isUserOrigin(null), "without a stack it is not");
+      check(!NativeMediaUrl.isUserOrigin(Thread.currentThread().getStackTrace()), "this test's stack is not");
 
-      // --- sin flag nunca se abre ---
-      check(!NativeMediaUrl.OPEN_URLS, "openworlds.openUrls no puesto en la prueba");
+      // --- without the flag it never opens ---
+      check(!NativeMediaUrl.OPEN_URLS, "openworlds.openUrls not set in the test");
       NativeMediaUrl.setPendingUserOrigin(true);
-      check(!launch("http://example.invalid/menu"), "launchViaRegistry sin flag -> false aunque venga del usuario");
-      check(NET.worlds.scape.sendURL.get("http://example.invalid/x") == 0, "sendURL.get sin flag -> 0");
-      check(NET.worlds.scape.sendURL.silent_get("http://example.invalid/x") == 0, "sendURL.silent_get sin flag -> 0");
-      check(NET.worlds.scape.sendURL.init("NETSCAPE") == 0, "sendURL.init sin DDEML -> 0");
+      check(!launch("http://example.invalid/menu"), "launchViaRegistry without the flag -> false even if it comes from the user");
+      check(NET.worlds.scape.sendURL.get("http://example.invalid/x") == 0, "sendURL.get without the flag -> 0");
+      check(NET.worlds.scape.sendURL.silent_get("http://example.invalid/x") == 0, "sendURL.silent_get without the flag -> 0");
+      check(NET.worlds.scape.sendURL.init("NETSCAPE") == 0, "sendURL.init without DDEML -> 0");
 
-      // --- con flag y sin usuario, en otro proceso ---
+      // --- with the flag and no user, in another process ---
       String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
       Process p = new ProcessBuilder(java, "-Xmx128m", "-Djava.awt.headless=true", "-Dopenworlds.openUrls=1", "-cp", System.getProperty("java.class.path"), "MediaWebCheck", "hijo")
          .redirectErrorStream(true)
@@ -107,10 +107,10 @@ public class MediaWebCheck {
       }
 
       p.waitFor();
-      check("HIJO true false 0".equals(hijo), "con openUrls=1 y sin origen de usuario: no abre (" + hijo + ")");
-      check(notUserLogged, "y lo registra como 'no viene de una accion del usuario'");
+      check("HIJO true false 0".equals(hijo), "with openUrls=1 and no user origin: does not open (" + hijo + ")");
+      check(notUserLogged, "and logs it as 'no viene de una accion del usuario' (not from a user action)");
 
-      // --- IE embebido ---
+      // --- embedded IE ---
       check(!NativeMediaWeb.ieNativeInit(0x1234, true), "IEWebControlImp.nativeInit -> false");
       boolean threw = false;
       try {
@@ -119,42 +119,42 @@ public class MediaWebCheck {
          threw = true;
       }
 
-      check(threw, "WebControlFactory.createWebControlImp lanza NoWebControlException");
+      check(threw, "WebControlFactory.createWebControlImp throws NoWebControlException");
 
       // --- WebBrowser / IWebBrowserApp ---
       try {
          NativeMediaWeb.openBrowser();
-         check(false, "openBrowser deberia lanzar");
+         check(false, "openBrowser should throw");
       } catch (Exception e) {
          check(e instanceof IOException && "nWebBrowser".equals(e.getMessage()), "openBrowser -> IOException(\"nWebBrowser\")");
       }
 
       try {
          NativeMediaWeb.webBrowserAppCall("Navigate");
-         check(false, "IWebBrowserApp deberia lanzar");
+         check(false, "IWebBrowserApp should throw");
       } catch (Exception e) {
          check(e instanceof IOException && "nIWebBrowserApp".equals(e.getMessage()), "IWebBrowserApp -> IOException(\"nIWebBrowserApp\")");
       }
 
       // --- DDEMLClass ---
       DDEMLClass dde = new DDEMLClass("NETSCAPE", "WWW_Activate");
-      check(!dde.Request("-1,0"), "DDEMLClass.Request sin conversacion -> false");
-      check(!dde.Poke("a", "b"), "DDEMLClass.Poke sin conversacion -> false");
+      check(!dde.Request("-1,0"), "DDEMLClass.Request without a conversation -> false");
+      check(!dde.Poke("a", "b"), "DDEMLClass.Poke without a conversation -> false");
       dde.destroy();
 
       // --- TextureSurface ---
       TextureSurface ts = new TextureSurface(null, 1, 468, 60);
-      check(ts.getHwnd() != 0, "TextureSurface: ventana oculta con HWND != 0");
+      check(ts.getHwnd() != 0, "TextureSurface: hidden window with HWND != 0");
       int dc = NativeMediaWeb.surfaceMakeDC(ts.getHwnd(), 468, 60);
       NativeMediaWeb.Dib dib = NativeMediaWeb.dibOf(dc);
-      check(dib != null && dib.pixels.length == 468 * 60 && dib.pixels[0] == 0, "DIB 5-6-5 de 468x60 a cero");
+      check(dib != null && dib.pixels.length == 468 * 60 && dib.pixels[0] == 0, "5-6-5 DIB of 468x60, zeroed");
       NativeMediaWeb.surfaceDestroyDC(dc);
-      check(NativeMediaWeb.dibOf(dc) == null, "nativeDestroyDC libera el DIB");
+      check(NativeMediaWeb.dibOf(dc) == null, "nativeDestroyDC releases the DIB");
       ts.sendLeftClick(10, 10);
       ts.finalize();
-      check(true, "sendLeftClick y finalize sin efecto ni excepcion");
+      check(true, "sendLeftClick and finalize have no effect and throw no exception");
 
-      System.out.println(fails == 0 ? "MediaWebCheck: todo OK" : "MediaWebCheck: " + fails + " fallos");
+      System.out.println(fails == 0 ? "MediaWebCheck: all OK" : "MediaWebCheck: " + fails + " failures");
       System.exit(fails == 0 ? 0 : 1);
    }
 }

@@ -5,9 +5,9 @@ import java.util.List;
 
 /**
  * Shape.convertSpecial (gamma.dll 0x0041f1b0 -> FUN_0041efd0 / FUN_0041ee70
- * / FUN_0041e780) en NativeShapes: nombre empaquetado en el tag, esquinas
- * (Q, P) del rectángulo vertical calculadas a mano, intercambio de x/z,
- * LTM, errores y recorrido en post-orden. Sale con 1 si algo falla.
+ * / FUN_0041e780) in NativeShapes: name packed into the tag, corners
+ * (Q, P) of the vertical rectangle calculated by hand, x/z swap,
+ * LTM, errors and post-order traversal. Exits with 1 if anything fails.
  */
 public final class ShapeSpecialCheck {
    private static int failures = 0;
@@ -22,26 +22,26 @@ public final class ShapeSpecialCheck {
       int scene = NativeScene.createScene();
       NativeScene.setSceneData(scene, room);
 
-      // raíz: Rect (0x20000000) trasladada (10,0,0); hijo: portal "door"
+      // root: Rect (0x20000000) translated (10,0,0); child: portal "door"
       int root = NativeScene.createClump();
       NativeScene.setClumpTag(root, 0x20000000);
       float[] m = NativeRw.identity();
       NativeRw.translate(m, 10.0F, 0.0F, 0.0F, NativeRw.REPLACE);
       NativeScene.transformClump(root, m, NativeRw.REPLACE);
-      // a=(0,0,0) b=(2,0,0) c=(2,3,0): base a-b, P=c sobre b -> Q=a, sin intercambio
+      // a=(0,0,0) b=(2,0,0) c=(2,3,0): base a-b, P=c above b -> Q=a, no swap
       tri(root, new float[][]{{0, 0, 0}, {2, 0, 0}, {2, 3, 0}});
-      // a=(0,0,0) b=(2,0,0) c=(0,3,0): P=c sobre a -> Q=b e intercambio x/z: P=(2,3,0) Q=(0,0,0)
+      // a=(0,0,0) b=(2,0,0) c=(0,3,0): P=c above a -> Q=b and x/z swap: P=(2,3,0) Q=(0,0,0)
       tri(root, new float[][]{{0, 0, 0}, {2, 0, 0}, {0, 3, 0}});
-      // P por debajo de Q: nada (a=(0,3,0) b=(2,3,0) c=(2,0,0))
+      // P below Q: nothing (a=(0,3,0) b=(2,3,0) c=(2,0,0))
       tri(root, new float[][]{{0, 3, 0}, {2, 3, 0}, {2, 0, 0}});
-      // base no horizontal: error y nada
+      // non-horizontal base: error and nothing
       tri(root, new float[][]{{0, 0, 0}, {1, 1, 0}, {2, 2, 0}});
 
       int door = NativeScene.createClump();
-      // "DOOR " en 6 bits (c - 0x20) desde el bit 24: D=0x24 O=0x2f O=0x2f R=0x32 ' '=0
+      // "DOOR " in 6 bits (c - 0x20) from bit 24: D=0x24 O=0x2f O=0x2f R=0x32 ' '=0
       int tag = 0x40000000 | 0x24 << 24 | 0x2f << 18 | 0x2f << 12 | 0x32 << 6;
       NativeScene.setClumpTag(door, tag);
-      // b.y = c.y: P=a; a sobre c -> Q=b con intercambio: P=(1,4,5) Q=(3,0,5)... ver abajo
+      // b.y = c.y: P=a; a above c -> Q=b with swap: P=(1,4,5) Q=(3,0,5)... see below
       tri(door, new float[][]{{1, 4, 5}, {3, 0, 5}, {1, 0, 5}});
       NativeScene.addChildToClump(root, door);
       NativeScene.addClumpToScene(scene, root);
@@ -51,13 +51,13 @@ public final class ShapeSpecialCheck {
             made.add(r + " " + name + " " + v(q) + " " + v(p));
          }
       });
-      // hijo primero (post-orden). door: a=(1,4,5) b=(3,0,5) c=(1,0,5): b.y=c.y -> P=a;
-      // a sobre b? no; a sobre c (x 1, z 5) -> Q=b, con intercambio -> P=(1,4,5) sin tocar, Q=(3,0,5).
-      // El LTM del hijo es el del padre por el suyo: (10,0,0) de traslación.
-      eq("objetos", made.toString(),
+      // child first (post-order). door: a=(1,4,5) b=(3,0,5) c=(1,0,5): b.y=c.y -> P=a;
+      // a above b? no; a above c (x 1, z 5) -> Q=b, with swap -> P=(1,4,5) untouched, Q=(3,0,5).
+      // The child's LTM is the parent's times its own: (10,0,0) of translation.
+      eq("objects", made.toString(),
          "[sala door (13,0,5) (11,4,5), sala null (10,0,0) (12,3,0), sala null (10,0,0) (12,3,0)]");
 
-      // un clump fuera de escena (RwGetSceneData 0): nada
+      // a clump outside a scene (RwGetSceneData 0): nothing
       made.clear();
       int loose = NativeScene.createClump();
       NativeScene.setClumpTag(loose, 0x20000000);
@@ -67,15 +67,15 @@ public final class ShapeSpecialCheck {
             made.add(name);
          }
       });
-      eq("sin escena no hace nada", made.size(), 0);
+      eq("without a scene it does nothing", made.size(), 0);
 
-      // FUN_004189c0: los polígonos sin tag se retaguean 1..n en orden
+      // FUN_004189c0: polygons without a tag are re-tagged 1..n in order
       NativeScene.Clump rc = NativeScene.clump(root);
-      eq("tag del polígono 1", rc.polys.get(0).tag, 1);
-      eq("tag del polígono 4", rc.polys.get(3).tag, 4);
+      eq("tag of polygon 1", rc.polys.get(0).tag, 1);
+      eq("tag of polygon 4", rc.polys.get(3).tag, 4);
 
       if (failures > 0) {
-         System.out.println(failures + " fallos");
+         System.out.println(failures + " failures");
          System.exit(1);
       }
       System.out.println("ShapeSpecialCheck OK");
@@ -96,7 +96,7 @@ public final class ShapeSpecialCheck {
    private static void eq(String what, Object got, Object want) {
       if (got == null ? want != null : !got.equals(want)) {
          failures++;
-         System.out.println("FALLA " + what + ": " + got + " != " + want);
+         System.out.println("FAIL " + what + ": " + got + " != " + want);
       }
    }
 

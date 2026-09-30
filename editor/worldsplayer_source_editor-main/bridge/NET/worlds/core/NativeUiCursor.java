@@ -10,33 +10,33 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Cursores de gamma.dll (Console.Cursor, 0x0040bd70..0x0040bfb0) y su
- * aplicacion (Window.setCursor 0x0040e710 + WndProc 0x0040c970).
+ * gamma.dll's cursors (Console.Cursor, 0x0040bd70..0x0040bfb0) and their
+ * application (Window.setCursor 0x0040e710 + WndProc 0x0040c970).
  *
- * <p>Un HCURSOR es aqui un indice (&gt;0) en una tabla de {@link java.awt.Cursor}.
- * LoadCursor(NULL, IDC_*) devuelve siempre el mismo handle compartido para
- * cada IDC, asi que cada cursor de sistema tiene un handle fijo.
+ * <p>An HCURSOR here is an index (&gt;0) into a table of {@link java.awt.Cursor}.
+ * LoadCursor(NULL, IDC_*) always returns the same shared handle for
+ * each IDC, so each system cursor has a fixed handle.
  */
 public final class NativeUiCursor {
    private NativeUiCursor() {
    }
 
    /**
-    * Tabla de 0x0046e81c (12 pares nombre / IDC_*, leida del .data con
-    * pe), comparada con strcmp (FUN_0044d730, distingue mayusculas).
-    * Equivalente AWT por forma del cursor de Windows; las que AWT no tiene
-    * van marcadas:
+    * Table at 0x0046e81c (12 name / IDC_* pairs, read from .data with
+    * pe), compared with strcmp (FUN_0044d730, case-sensitive).
+    * AWT equivalent by shape of the Windows cursor; the ones AWT lacks
+    * are marked:
     */
    static final String[] NAMES = {"IDC_APPSTARTING", "IDC_ARROW", "IDC_CROSS", "IDC_IBEAM", "IDC_NO", "IDC_SIZEALL",
       "IDC_SIZENESW", "IDC_SIZENS", "IDC_SIZENWSE", "IDC_SIZEWE", "IDC_UPARROW", "IDC_WAIT"};
    static final int[] IDC = {32650, 32512, 32515, 32513, 32648, 32646, 32643, 32645, 32642, 32644, 32516, 32514};
    static final int[] AWT = {
-      java.awt.Cursor.WAIT_CURSOR, // APPSTARTING (flecha + reloj): ⚠️ AWT no tiene la mezcla
+      java.awt.Cursor.WAIT_CURSOR, // APPSTARTING (arrow + hourglass): ⚠️ AWT does not have the mix
       java.awt.Cursor.DEFAULT_CURSOR, java.awt.Cursor.CROSSHAIR_CURSOR, java.awt.Cursor.TEXT_CURSOR,
-      java.awt.Cursor.DEFAULT_CURSOR, // NO (circulo tachado): ⚠️ sin equivalente AWT predefinido
+      java.awt.Cursor.DEFAULT_CURSOR, // NO (crossed-out circle): ⚠️ no predefined AWT equivalent
       java.awt.Cursor.MOVE_CURSOR, java.awt.Cursor.NE_RESIZE_CURSOR, java.awt.Cursor.N_RESIZE_CURSOR,
       java.awt.Cursor.NW_RESIZE_CURSOR, java.awt.Cursor.E_RESIZE_CURSOR,
-      java.awt.Cursor.HAND_CURSOR, // UPARROW (flecha vertical), que el cliente llama HAND_CURSOR: ⚠️ forma distinta
+      java.awt.Cursor.HAND_CURSOR, // UPARROW (vertical arrow), which the client calls HAND_CURSOR: ⚠️ different shape
       java.awt.Cursor.WAIT_CURSOR};
 
    private static final List<java.awt.Cursor> handles = new ArrayList<java.awt.Cursor>();
@@ -51,7 +51,7 @@ public final class NativeUiCursor {
       return h >= 1 && h <= handles.size() ? handles.get(h - 1) : null;
    }
 
-   /** Cursor.loadSystemCursor (0x0040bed0): 0 si el nombre no esta en la tabla. */
+   /** Cursor.loadSystemCursor (0x0040bed0): 0 if the name is not in the table. */
    public static synchronized int loadSystemCursor(String name) {
       if (name == null) {
          return 0;
@@ -70,12 +70,12 @@ public final class NativeUiCursor {
    }
 
    /**
-    * Cursor.loadCursor (0x0040bd70): null -> 0. Ruta que no empieza por
-    * '\\' o '/' ni tiene ':' en la segunda posicion -> se antepone el
-    * directorio actual (_getcwd, 300 bytes) con '\\' si no acaba en
-    * separador; si strlen(ruta)+strlen(cwd)+2 &gt;= 300, asercion "nCursor"
-    * linea 0x25. Luego LoadCursorFromFileA: aqui el .cur se decodifica con
-    * {@link #decodeCur}; un fichero ilegible devuelve 0 como la API.
+    * Cursor.loadCursor (0x0040bd70): null -> 0. A path that does not start
+    * with '\\' or '/' and has no ':' in the second position -> the current
+    * directory is prepended (_getcwd, 300 bytes) with '\\' if it does not end
+    * in a separator; if strlen(path)+strlen(cwd)+2 &gt;= 300, assertion
+    * "nCursor" line 0x25. Then LoadCursorFromFileA: here the .cur is decoded
+    * with {@link #decodeCur}; an unreadable file returns 0 like the API.
     */
    public static int loadCursor(String path) {
       if (path == null) {
@@ -110,7 +110,7 @@ public final class NativeUiCursor {
       }
    }
 
-   /** getSystemCursorWidth/Height (GetSystemMetrics SM_CXCURSOR 13 / SM_CYCURSOR 14): tamano de cursor del sistema. */
+   /** getSystemCursorWidth/Height (GetSystemMetrics SM_CXCURSOR 13 / SM_CYCURSOR 14): system cursor size. */
    public static int systemCursorSize(boolean height) {
       try {
          java.awt.Dimension d = Toolkit.getDefaultToolkit().getBestCursorSize(32, 32);
@@ -120,7 +120,7 @@ public final class NativeUiCursor {
       }
    }
 
-   /** getSystemCursorDepth (GetDeviceCaps(GetDC(NULL), BITSPIXEL)): bits por pixel de la pantalla. */
+   /** getSystemCursorDepth (GetDeviceCaps(GetDC(NULL), BITSPIXEL)): bits per pixel of the screen. */
    public static int systemCursorDepth() {
       try {
          java.awt.GraphicsDevice g = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
@@ -132,14 +132,14 @@ public final class NativeUiCursor {
    }
 
    /**
-    * Fichero .cur (formato ICO con tipo 2): cabecera de 6 bytes, entradas de
-    * 16 con el punto caliente en los campos planos/bits (u16 @+4/+6), y un
-    * DIB por entrada (BITMAPINFOHEADER con alto doble: mapa XOR y mascara
-    * AND de 1 bpp, filas de abajo arriba, rellenas a 4 bytes). Se toma la
-    * primera entrada, como hace LoadCursorFromFile con cursores de un
-    * tamano. AND=1 y XOR=0 es transparente; AND=0 es el color XOR; AND=1 y
-    * XOR!=0 (invertir la pantalla) ⚠️ no existe en AWT: se pinta negro.
-    * Devuelve {BufferedImage, Point} o null. Los .ani (RIFF) no se decodifican.
+    * .cur file (ICO format with type 2): 6-byte header, 16-byte entries with
+    * the hot spot in the planes/bits fields (u16 @+4/+6), and one DIB per
+    * entry (BITMAPINFOHEADER with double height: XOR map and 1 bpp AND mask,
+    * rows bottom to top, padded to 4 bytes). The first entry is taken, as
+    * LoadCursorFromFile does with single-size cursors. AND=1 and XOR=0 is
+    * transparent; AND=0 is the XOR color; AND=1 and XOR!=0 (invert the
+    * screen) ⚠️ does not exist in AWT: it is painted black.
+    * Returns {BufferedImage, Point} or null. .ani files (RIFF) are not decoded.
     */
    public static Object[] decodeCur(byte[] b) {
       if (b.length < 22 || u16(b, 0) != 0 || u16(b, 2) != 2 || u16(b, 4) < 1) {
@@ -202,19 +202,19 @@ public final class NativeUiCursor {
       return (u16(b, o) | (long) u16(b, o + 2) << 16) & 0xFFFFFFFFL;
    }
 
-   // --------------------------------------------------- aplicacion del cursor
+   // --------------------------------------------------- cursor application
 
-   /** DAT_004891c8: el cursor elegido. */
+   /** DAT_004891c8: the chosen cursor. */
    private static int current;
 
    /**
-    * Window.setCursor (0x0040e710): sin ventana principal solo se guarda
-    * (Window.install lo manda despues, 0x0040db60); con ella, mensaje 0x8067
-    * a la WndProc (0x0040c970), que guarda el cursor y lo pone ya si el
-    * raton esta sobre la ventana; en WM_SETCURSOR con HTCLIENT la WndProc
-    * vuelve a ponerlo. Equivalente AWT: {@code Component.setCursor} en el
-    * componente de la ventana principal (el RenderCanvas), que AWT muestra
-    * mientras el raton esta sobre su area cliente.
+    * Window.setCursor (0x0040e710): without a main window it is only stored
+    * (Window.install sends it later, 0x0040db60); with one, message 0x8067
+    * to the WndProc (0x0040c970), which stores the cursor and sets it right
+    * away if the mouse is over the window; on WM_SETCURSOR with HTCLIENT the
+    * WndProc sets it again. AWT equivalent: {@code Component.setCursor} on the
+    * main window's component (the RenderCanvas), which AWT shows while the
+    * mouse is over its client area.
     */
    public static synchronized void setCursor(int h) {
       current = h;
@@ -222,9 +222,9 @@ public final class NativeUiCursor {
    }
 
    /**
-    * El cursor elegido (DAT_004891c8), o el de por defecto si no hay: lo que
-    * el WndProc vuelve a poner con WM_SETCURSOR al salir del modo de cursor
-    * oculto.
+    * The chosen cursor (DAT_004891c8), or the default one if there is none:
+    * what the WndProc sets again with WM_SETCURSOR on leaving hidden-cursor
+    * mode.
     */
    public static synchronized java.awt.Cursor current() {
       java.awt.Cursor c = get(current);

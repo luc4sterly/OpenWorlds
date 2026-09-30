@@ -5,17 +5,17 @@ import java.lang.reflect.Constructor;
 import java.nio.file.Files;
 
 /**
- * Mock de IniFile (apply_mock.sh) frente a GetPrivateProfileString /
- * WritePrivateProfileString de kernel32: seccion y clave sin distinguir
- * mayusculas, y escritura inmediata al fichero (si la clave existe cambia
- * solo el valor; si no, se anade al final de su seccion; si no hay seccion,
- * se crea al final), conservando los finales CRLF.
+ * The IniFile mock (apply_mock.sh) against kernel32's GetPrivateProfileString /
+ * WritePrivateProfileString: section and key case-insensitive, and immediate
+ * write to the file (if the key exists only the value changes; if not, it is
+ * appended at the end of its section; if there is no section, it is created
+ * at the end), preserving the CRLF line endings.
  */
 public class IniPersistCheck {
    static int fails = 0;
 
    static void check(boolean ok, String what) {
-      System.out.println((ok ? "OK   " : "FALLA ") + what);
+      System.out.println((ok ? "OK   " : "FAIL ") + what);
       if (!ok) {
          fails++;
       }
@@ -33,7 +33,7 @@ public class IniPersistCheck {
       Files.write(f.toPath(), "[Gamma]\r\nLogFile=Gamma.Log\r\n\r\n[127.0.0.1:6650]\r\nUser0=FWTestA\r\n".getBytes("ISO-8859-1"));
 
       IniFile g = open(f, "gamma");
-      check("Gamma.Log".equals(g.getIniString("logfile", "")), "getIniString(\"logfile\") en [Gamma] con LogFile= -> \"Gamma.Log\"");
+      check("Gamma.Log".equals(g.getIniString("logfile", "")), "getIniString(\"logfile\") in [Gamma] with LogFile= -> \"Gamma.Log\"");
 
       IniFile s = open(f, "127.0.0.1:6650");
       s.setIniString("password0", "xyz");
@@ -43,18 +43,18 @@ public class IniPersistCheck {
 
       String out = new String(Files.readAllBytes(f.toPath()), "ISO-8859-1");
       String want = "[Gamma]\r\nLogFile=Gamma.Log\r\nnetdebug=4\r\n\r\n[127.0.0.1:6650]\r\nUser0=FWTestB\r\npassword0=xyz\r\n[Nueva]\r\nk=v\r\n";
-      check(want.equals(out), "fichero tras escribir = " + want.replace("\r\n", "|") + " (sale " + out.replace("\r\n", "|") + ")");
+      check(want.equals(out), "file after writing = " + want.replace("\r\n", "|") + " (got " + out.replace("\r\n", "|") + ")");
 
-      // lectura desde cero (otro proceso): lo escrito sigue ahi
+      // read from scratch (another process): what was written is still there
       java.lang.reflect.Field cache = IniFile.class.getDeclaredField("cache");
       cache.setAccessible(true);
       ((java.util.Map<?, ?>) cache.get(null)).clear();
-      check("xyz".equals(open(f, "127.0.0.1:6650").getIniString("Password0", "")), "Password0 persiste en disco");
-      check(4 == open(f, "GAMMA").getIniInt("NetDebug", 0), "netdebug persiste en disco (seccion GAMMA)");
+      check("xyz".equals(open(f, "127.0.0.1:6650").getIniString("Password0", "")), "Password0 persists on disk");
+      check(4 == open(f, "GAMMA").getIniInt("NetDebug", 0), "netdebug persists on disk (section GAMMA)");
 
       f.delete();
       dir.delete();
-      System.out.println(fails == 0 ? "IniPersistCheck: OK" : "IniPersistCheck: " + fails + " fallos");
+      System.out.println(fails == 0 ? "IniPersistCheck: OK" : "IniPersistCheck: " + fails + " failures");
       System.exit(fails == 0 ? 0 : 1);
    }
 }

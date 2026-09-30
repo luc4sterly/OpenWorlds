@@ -4,20 +4,20 @@ import java.io.File;
 import java.net.URI;
 
 /**
- * Abrir una URL fuera del cliente: {@code SendURLAction.launchViaRegistry}
+ * Opening a URL outside the client: {@code SendURLAction.launchViaRegistry}
  * (0x00413a10, {@code ShellExecuteA(NULL, "open", url, NULL, NULL,
- * SW_SHOWNORMAL)}) y {@code sendURL.get/silent_get} (0x004210a0/0x00421300,
- * DDE {@code WWW_OpenURL} al navegador). Aqui eso es el navegador del
- * sistema ({@code java.awt.Desktop}), con dos candados:
+ * SW_SHOWNORMAL)}) and {@code sendURL.get/silent_get} (0x004210a0/0x00421300,
+ * DDE {@code WWW_OpenURL} to the browser). Here that is the system browser
+ * ({@code java.awt.Desktop}), with two locks:
  * <ol>
- * <li>solo con {@code -Dopenworlds.openUrls=1}; sin el, la URL se registra
- *     en el log y no se abre nada;</li>
- * <li>solo si la peticion sale de una accion explicita del usuario: la pila
- *     de la llamada que la origino contiene uno de los puntos de entrada de
- *     {@link #USER_ORIGINS} (confirmar el dialogo "Browse?" de
- *     {@code SendURLAction}, un menu, un boton del mapa o del asistente, un
- *     clic en un cartel). Todo lo demas (disparadores del mundo, scripts,
- *     banners, carga de sala) solo se registra.</li>
+ * <li>only with {@code -Dopenworlds.openUrls=1}; without it, the URL is
+ *     logged and nothing is opened;</li>
+ * <li>only if the request comes from an explicit user action: the stack of
+ *     the call that originated it contains one of the entry points of
+ *     {@link #USER_ORIGINS} (confirming {@code SendURLAction}'s "Browse?"
+ *     dialog, a menu, a button of the map or of the wizard, a click on a
+ *     billboard). Everything else (world triggers, scripts, banners, room
+ *     loading) is only logged.</li>
  * </ol>
  */
 public final class NativeMediaUrl {
@@ -27,16 +27,16 @@ public final class NativeMediaUrl {
    public static final boolean OPEN_URLS = "1".equals(System.getProperty("openworlds.openUrls"))
       || "true".equalsIgnoreCase(System.getProperty("openworlds.openUrls"));
 
-   /** Metodos (clase.metodo) que solo se ejecutan por una accion del usuario. */
+   /** Methods (class.method) that only run because of a user action. */
    static final String[] USER_ORIGINS = new String[]{
-      "NET.worlds.scape.DialogAction.dialogDone", // OK en el dialogo de SendURLAction
-      "NET.worlds.console.DefaultConsole.action", // menus de la consola
-      "NET.worlds.console.DefaultConsole$2.actionPerformed", // menu de ayuda "file:"
-      "NET.worlds.console.MapPart.imageButtonsCallback", // botones del mapa
-      "NET.worlds.console.LoginWizard.action", // botones del asistente
-      "NET.worlds.network.UpgradeDialog.action", // "mas informacion" de la actualizacion
-      "NET.worlds.scape.Billboard.billboardClicked", // clic en un cartel
-      "NET.worlds.scape.WebPageWall.handle" // clic en un WebPageWall (ver ⚠️ en el informe)
+      "NET.worlds.scape.DialogAction.dialogDone", // OK in SendURLAction's dialog
+      "NET.worlds.console.DefaultConsole.action", // console menus
+      "NET.worlds.console.DefaultConsole$2.actionPerformed", // "file:" help menu
+      "NET.worlds.console.MapPart.imageButtonsCallback", // map buttons
+      "NET.worlds.console.LoginWizard.action", // wizard buttons
+      "NET.worlds.network.UpgradeDialog.action", // the update's "more information"
+      "NET.worlds.scape.Billboard.billboardClicked", // click on a billboard
+      "NET.worlds.scape.WebPageWall.handle" // click on a WebPageWall (see the ⚠️ in the report)
    };
 
    public enum Decision {
@@ -45,7 +45,7 @@ public final class NativeMediaUrl {
       LOG_NOT_USER
    }
 
-   /** true si alguna de las entradas de pila es un origen de usuario. */
+   /** true if any of the stack entries is a user origin. */
    public static boolean isUserOrigin(StackTraceElement[] stack) {
       if (stack == null) {
          return false;
@@ -63,7 +63,7 @@ public final class NativeMediaUrl {
       return false;
    }
 
-   /** La decision, pura: con el flag y con origen de usuario se abre. */
+   /** The decision, pure: with the flag and a user origin, it opens. */
    public static Decision decide(boolean openUrls, boolean userOrigin) {
       if (!openUrls) {
          return Decision.LOG_DISABLED;
@@ -73,9 +73,9 @@ public final class NativeMediaUrl {
    }
 
    /**
-    * Origen de la peticion en curso de este hilo. SendURLAction lo anota en
-    * startBrowser (la pila aun tiene el menu o el dialogo) porque tryLaunch
-    * puede correr despues desde Main.mainCallback, con otra pila.
+    * Origin of this thread's current request. SendURLAction records it in
+    * startBrowser (the stack still has the menu or the dialog) because
+    * tryLaunch may run later from Main.mainCallback, with another stack.
     */
    private static final ThreadLocal<Boolean> PENDING_USER = new ThreadLocal<>();
 
@@ -90,10 +90,10 @@ public final class NativeMediaUrl {
    }
 
    // 0x00413a10 SendURLAction.launchViaRegistry: ShellExecuteA("open", url);
-   // exito si devuelve > 32. Si falla: "Error <n> in ShellExecuting <url>.\n"
-   // y, solo con ERROR_FILE_NOT_FOUND (2), un reintento. Registrar sin
-   // abrir devuelve false (no se lanzo nada): el Java imprime entonces su
-   // mensaje "Unable-to-launch" en la consola.
+   // success if it returns > 32. On failure: "Error <n> in ShellExecuting <url>.\n"
+   // and, only with ERROR_FILE_NOT_FOUND (2), one retry. Logging without
+   // opening returns false (nothing was launched): the Java code then prints its
+   // "Unable-to-launch" message on the console.
    public static boolean launchViaRegistry(String url) {
       Decision d = decide(OPEN_URLS, takePendingUserOrigin());
       if (!report("launchViaRegistry", url, d)) {
@@ -114,7 +114,7 @@ public final class NativeMediaUrl {
       return r > 32;
    }
 
-   /** DDE WWW_OpenURL de sendURL.get/silent_get: 1 si se abrio, 0 como un DdeConnect fallido. */
+   /** DDE WWW_OpenURL of sendURL.get/silent_get: 1 if opened, 0 like a failed DdeConnect. */
    public static int ddeOpenUrl(String via, String url) {
       Decision d = decide(OPEN_URLS, takePendingUserOrigin());
       if (!report(via, url, d)) {
@@ -138,7 +138,7 @@ public final class NativeMediaUrl {
       }
    }
 
-   /** Equivalente de ShellExecute "open": >32 exito, 2 no encontrado, 31 sin asociacion. */
+   /** Equivalent of ShellExecute "open": >32 success, 2 not found, 31 no association. */
    static int shellOpen(String target) {
       try {
          if (!java.awt.Desktop.isDesktopSupported()) {

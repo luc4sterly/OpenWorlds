@@ -1,20 +1,20 @@
 package net.openworlds.rwg;
 
 /**
- * Un RAST de la lista RALT, como lo lee RwReadStreamChunk(RAST) de
- * RWL21.DLL (0x1003c72a): un STRT de 10 enteros y un chunk DATA con los
- * píxeles. RW crea un raster de [0] x [1] (RwCreateRaster 0x100210d0); si
- * los campos [4..9] coinciden con el formato de ese raster copia DATA fila
- * a fila con el paso [3] (0x1003c905), y si no lo convierte con el driver
- * (dispositivo+0x48, 0x1003c9ef).
+ * A RAST of the RALT list, as read by RWL21.DLL's RwReadStreamChunk(RAST)
+ * (0x1003c72a): an STRT of 10 integers and a DATA chunk with the
+ * pixels. RW creates a raster of [0] x [1] (RwCreateRaster 0x100210d0); if
+ * fields [4..9] match that raster's format it copies DATA row
+ * by row with pitch [3] (0x1003c905), and if not it converts it with the
+ * driver (device+0x48, 0x1003c9ef).
  *
- * ⚠️ sin muestra real: ningún .rwg del corpus tiene RALT con registros
- * (todos dicen 0), así que aquí solo se guardan los campos y los bytes;
- * el significado exacto de [2] y [4..9] (formato del raster del driver) no
- * se ha extraído.
+ * ⚠️ no real sample: no .rwg in the corpus has a RALT with records
+ * (they all say 0), so only the fields and the bytes are stored here;
+ * the exact meaning of [2] and [4..9] (the driver raster's format) has
+ * not been extracted.
  */
 public final class RwgRaster {
-   /** Los 10 enteros del STRT: [0] ancho, [1] alto, [3] bytes por fila, resto formato. */
+   /** The 10 STRT integers: [0] width, [1] height, [3] bytes per row, the rest is format. */
    public final int[] fields;
    public final byte[] data;
 

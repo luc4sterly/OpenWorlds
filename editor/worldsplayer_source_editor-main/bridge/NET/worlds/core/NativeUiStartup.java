@@ -13,54 +13,54 @@ import java.nio.channels.FileLock;
 import java.nio.file.Files;
 
 /**
- * Startup de gamma.dll: numero de serie del volumen (0x00409e70/0x00409e80)
- * y la instancia unica (synchronizeStartup 0x004098b0 y su pareja
- * FUN_00409ce0, que Window.install llama via 0x0040f250).
+ * gamma.dll's Startup: volume serial number (0x00409e70/0x00409e80)
+ * and the single instance (synchronizeStartup 0x004098b0 and its counterpart
+ * FUN_00409ce0, which Window.install calls via 0x0040f250).
  *
- * <p><b>Serie del volumen</b> (DAT_0049fa6c, .bss: 0 hasta que se calcula).
- * computeVolumeInfo hace GetVolumeInformationA(raiz o NULL = unidad del
- * directorio actual) y, si falla, la asercion "nStartup" linea 0x9c.
- * Equivalente POSIX elegido: el atributo {@code unix:dev} (st_dev, el
- * identificador del dispositivo que contiene el fichero): como la serie de
- * Win32, identifica el volumen y es estable mientras no se reformatee o
- * remonte con otro numero. ⚠️ No es el mismo numero que tuviera ese disco
- * en Windows: una contrasena guardada en un worlds.ini de 2004 no se
- * descifra aqui salvo que se de su serie con
- * {@code -Dopenworlds.volumeSerial=0xXXXXXXXX}. Si el sistema no tiene la
- * vista "unix" el valor se queda en 0 (el de .bss) con un aviso.
+ * <p><b>Volume serial</b> (DAT_0049fa6c, .bss: 0 until it is computed).
+ * computeVolumeInfo does GetVolumeInformationA(root or NULL = the current
+ * directory's drive) and, if that fails, the assertion "nStartup" line 0x9c.
+ * Chosen POSIX equivalent: the {@code unix:dev} attribute (st_dev, the
+ * identifier of the device that contains the file): like Win32's serial,
+ * it identifies the volume and is stable as long as it is not reformatted
+ * or remounted with another number. ⚠️ It is not the same number that disk
+ * had on Windows: a password stored in a 2004 worlds.ini is not
+ * decrypted here unless its serial is given with
+ * {@code -Dopenworlds.volumeSerial=0xXXXXXXXX}. If the system does not have
+ * the "unix" view the value stays at 0 (that of .bss) with a warning.
  *
- * <p><b>Instancia unica.</b> El original crea el semaforo con nombre
- * "GammaUniqueStartupSemaphore_kjsd838jd382" (cuenta 0, maximo 1):
+ * <p><b>Single instance.</b> The original creates the named semaphore
+ * "GammaUniqueStartupSemaphore_kjsd838jd382" (count 0, maximum 1):
  * <ul>
- * <li>si es nuevo, es la primera instancia: DAT_0046dba0 = 0, devuelve true;
- * <li>si ya existia y es autoplay, DAT_0046dba0 = 1 y devuelve false;
- * <li>si no, espera hasta 20 s a que la primera lo libere (lo hace
- * FUN_00409ce0 cuando su ventana esta instalada, tras guardar su HWND con
- * "%lu" en HKCU\Software\WorldsInc\Gamma\HWND), lee ese HWND, le manda la
- * URL por WM_COPYDATA (cbData = strlen+1), libera el semaforo y devuelve
- * false (esta segunda instancia termina). La primera, en su WndProc
- * (0x0040c970, mensaje 0x4a), restaura y trae al frente la ventana y encola
- * la URL como teletransporte (FUN_00416aa0 -> NativeInput.addTeleport).
+ * <li>if it is new, this is the first instance: DAT_0046dba0 = 0, returns true;
+ * <li>if it already existed and this is autoplay, DAT_0046dba0 = 1 and returns false;
+ * <li>otherwise, it waits up to 20 s for the first one to release it (which
+ * FUN_00409ce0 does when its window is installed, after storing its HWND with
+ * "%lu" in HKCU\Software\WorldsInc\Gamma\HWND), reads that HWND, sends it the
+ * URL by WM_COPYDATA (cbData = strlen+1), releases the semaphore and returns
+ * false (this second instance ends). The first one, in its WndProc
+ * (0x0040c970, message 0x4a), restores the window and brings it to the front
+ * and queues the URL as a teleport (FUN_00416aa0 -> NativeInput.addTeleport).
  * </ul>
- * Equivalentes: semaforo = cerrojo de fichero ({@link FileLock}, que el
- * sistema suelta al morir el proceso igual que se cierra el handle), HWND
- * del registro = puerto TCP en 127.0.0.1 escrito en un fichero,
- * WM_COPYDATA = conexion a ese puerto con los bytes de la URL y su 0.
- * ⚠️ Ambito: el semaforo de Win32 es de toda la sesion; aqui es por
- * directorio de instalacion (el directorio de trabajo), porque el puente
- * corre a proposito varias copias independientes a la vez (dos clientes
- * contra whirl, varios agentes). Con MULTIRUN=1 en [Gamma] el cliente no
- * llama a esto, como en el original.
+ * Equivalents: semaphore = file lock ({@link FileLock}, which the
+ * system releases when the process dies, just as the handle is closed),
+ * registry HWND = TCP port on 127.0.0.1 written to a file,
+ * WM_COPYDATA = connection to that port with the URL's bytes and its 0.
+ * ⚠️ Scope: Win32's semaphore is session-wide; here it is per
+ * installation directory (the working directory), because the bridge
+ * deliberately runs several independent copies at once (two clients
+ * against whirl, several agents). With MULTIRUN=1 in [Gamma] the client does
+ * not call this, as in the original.
  */
 public final class NativeUiStartup {
    private NativeUiStartup() {
    }
 
-   // ------------------------------------------------------ serie del volumen
+   // ------------------------------------------------------ volume serial
 
    private static volatile int volumeSerial;
 
-   /** Startup.getVolumeInfo (0x00409e70) y la clave de Console.encrypt. */
+   /** Startup.getVolumeInfo (0x00409e70) and Console.encrypt's key. */
    public static int volumeInfo() {
       return volumeSerial;
    }
@@ -74,7 +74,7 @@ public final class NativeUiStartup {
       }
       File f = new File(root == null ? System.getProperty("user.dir") : root);
       if (!f.exists()) {
-         // GetVolumeInformationA falla con una raiz que no existe
+         // GetVolumeInformationA fails with a root that does not exist
          NativeAssert.fail("nStartup", 0x9c);
          return;
       }
@@ -90,19 +90,19 @@ public final class NativeUiStartup {
       }
    }
 
-   // ------------------------------------------------------- instancia unica
+   // ------------------------------------------------------- single instance
 
    static final String SEMAPHORE = "GammaUniqueStartupSemaphore_kjsd838jd382";
    /** WaitForSingleObject(DAT_004890c8, 20000). */
    static final int WAIT_MS = 20000;
 
-   /** DAT_0046dba0: 1 si esta instancia no es la primera. */
+   /** DAT_0046dba0: 1 if this instance is not the first. */
    private static int notFirst;
    private static FileChannel semChannel;
    private static FileLock semLock;
    private static ServerSocket copyDataServer;
 
-   /** Directorio de los ficheros del semaforo y del "HWND" (ver ambito arriba). */
+   /** Directory of the semaphore and "HWND" files (see scope above). */
    static File stateDir() {
       String cwd;
       try {
@@ -133,7 +133,7 @@ public final class NativeUiStartup {
          return false;
       }
       if (semLock != null) {
-         // semaforo nuevo (GetLastError() == 0): primera instancia, cuenta 0
+         // new semaphore (GetLastError() == 0): first instance, count 0
          hwndFile().delete();
          notFirst = 0;
          return true;
@@ -142,7 +142,7 @@ public final class NativeUiStartup {
       try {
          semChannel.close();
       } catch (IOException e) {
-         // nada
+         // nothing
       }
       semChannel = null;
       if (autoplay) {
@@ -170,7 +170,7 @@ public final class NativeUiStartup {
          System.err.println("RegQueryValue() failed: " + e);
          return false;
       }
-      // SendMessageA(hWnd, WM_COPYDATA, 0, {0, strlen+1, url}): sincrono
+      // SendMessageA(hWnd, WM_COPYDATA, 0, {0, strlen+1, url}): synchronous
       try {
          Socket s = new Socket(InetAddress.getLoopbackAddress(), Integer.parseInt(port));
          OutputStream o = s.getOutputStream();
@@ -180,7 +180,7 @@ public final class NativeUiStartup {
          s.getInputStream().read();
          s.close();
       } catch (Exception e) {
-         // SendMessage a un HWND que ya no existe devuelve 0 sin mas
+         // SendMessage to an HWND that no longer exists simply returns 0
          System.err.println("[STARTUP] WM_COPYDATA a la primera instancia fallo: " + e);
       }
       notFirst = 1;
@@ -188,8 +188,8 @@ public final class NativeUiStartup {
    }
 
    /**
-    * FUN_00409ce0 (llamada por Window.install, 0x0040f250): la primera
-    * instancia publica su "HWND" y libera el semaforo. Devuelve 1 si lo hizo.
+    * FUN_00409ce0 (called by Window.install, 0x0040f250): the first
+    * instance publishes its "HWND" and releases the semaphore. Returns 1 if it did.
     */
    public static synchronized int instanceReady() {
       if (notFirst != 0 || semLock == null || copyDataServer != null) {

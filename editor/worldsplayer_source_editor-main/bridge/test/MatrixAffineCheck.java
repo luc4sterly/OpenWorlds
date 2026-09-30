@@ -1,18 +1,18 @@
 import NET.worlds.core.NativeRw;
 
 /**
- * RwMultiplyMatrix (RWL21.DLL 0x1001db10 -> 0x1005118c) es un producto
- * AFIN: la cuarta columna de las matrices (elementos 3, 7, 11 y 15) ni se
- * lee ni se escribe. Los Transform que vienen del .world la traen con datos
- * internos de RW (en WObject2/ShapeStand del Auditorium: 0x03ddff04 y
- * 0x02890088 leidos como float, m[15] = 2.0130646e-37), y el producto 4x4
- * de antes perdia con eso la traslacion del padre: todo lo que cuelga de un
- * WObject contenedor se dibujaba en el origen de la sala.
+ * RwMultiplyMatrix (RWL21.DLL 0x1001db10 -> 0x1005118c) is an AFFINE
+ * product: the fourth column of the matrices (elements 3, 7, 11 and 15) is
+ * neither read nor written. The Transforms that come from the .world carry
+ * RW's internal data there (in the Auditorium's WObject2/ShapeStand:
+ * 0x03ddff04 and 0x02890088 read as float, m[15] = 2.0130646e-37), and the
+ * earlier 4x4 product lost the parent's translation because of that:
+ * everything hanging from a container WObject was drawn at the room origin.
  *
- * Casos a mano: hijo con la matriz real de ShapeStand bajo WObject2
- * (giro de 24 grados y traslacion (0, 1000, 0)) -> la traslacion del hijo es
- * (0, 1000, 0); con matrices limpias el resultado coincide con el producto
- * 4x4 de siempre (mismo orden de sumas, bit a bit).
+ * Hand-calculated cases: a child with ShapeStand's real matrix under WObject2
+ * (24-degree turn and translation (0, 1000, 0)) -> the child's translation is
+ * (0, 1000, 0); with clean matrices the result matches the usual 4x4
+ * product (same order of sums, bit for bit).
  */
 public class MatrixAffineCheck {
    private static int fails;
@@ -26,7 +26,7 @@ public class MatrixAffineCheck {
 
    public static void main(String[] args) {
       float junk7 = Float.intBitsToFloat(0x03ddff04), junk15 = Float.intBitsToFloat(0x02890088);
-      // WObject2 (modeling tal como lo deja Transform en el puente)
+      // WObject2 (modeling as Transform leaves it in the bridge)
       float[] parent = {0.91354555f, 0.40673667f, 0.0f, -0.0f, -0.40673667f, 0.91354555f, 0.0f, junk7,
          0.0f, 0.0f, 1.0f, -0.0f, 0.0f, 1000.0f, 0.0f, junk15};
       // ShapeStand
@@ -35,13 +35,13 @@ public class MatrixAffineCheck {
       float[] ltm = new float[16];
       NativeRw.mulInto(child, parent, ltm);
       check(ltm[12] == 0f && ltm[13] == 1000f && ltm[14] == 0f,
-         "ShapeStand bajo WObject2 en (" + ltm[12] + ", " + ltm[13] + ", " + ltm[14] + ") = (0, 1000, 0)");
-      check(ltm[3] == 0f && ltm[7] == 0f && ltm[11] == 0f && ltm[15] == 1f, "cuarta columna del resultado (0, 0, 0, 1)");
-      // 3x3: la fila 0 del hijo por el giro del padre
+         "ShapeStand under WObject2 at (" + ltm[12] + ", " + ltm[13] + ", " + ltm[14] + ") = (0, 1000, 0)");
+      check(ltm[3] == 0f && ltm[7] == 0f && ltm[11] == 0f && ltm[15] == 1f, "fourth column of the result (0, 0, 0, 1)");
+      // 3x3: the child's row 0 times the parent's rotation
       float want0 = child[0] * parent[0] + child[1] * parent[4] + child[2] * parent[8];
-      check(ltm[0] == want0, "elemento [0][0] = " + ltm[0]);
+      check(ltm[0] == want0, "element [0][0] = " + ltm[0]);
 
-      // con matrices limpias, igual que el 4x4 de siempre
+      // with clean matrices, the same as the usual 4x4
       float[] a = NativeRw.identity();
       NativeRw.rotate(a, 0.3f, 0.5f, 0.8f, 33f, NativeRw.REPLACE);
       NativeRw.translate(a, 12.5f, -7f, 300f, NativeRw.POSTCONCAT);
@@ -64,9 +64,9 @@ public class MatrixAffineCheck {
          same &= Float.floatToIntBits(got[e]) == Float.floatToIntBits(full[e])
             || (got[e] == 0f && full[e] == 0f);
       }
-      check(same, "matrices limpias: bit a bit igual que el 4x4");
+      check(same, "clean matrices: bit for bit the same as the 4x4");
 
-      System.out.println(fails == 0 ? "MatrixAffineCheck: OK" : "MatrixAffineCheck: " + fails + " fallos");
+      System.out.println(fails == 0 ? "MatrixAffineCheck: OK" : "MatrixAffineCheck: " + fails + " failures");
       System.exit(fails == 0 ? 0 : 1);
    }
 }

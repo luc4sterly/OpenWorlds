@@ -48,7 +48,7 @@ import java.util.zip.Inflater;
  * Files get the date of their archive entry, as the Wise installer leaves
  * them. Not reproduced: the install log (%MAINDIR%\&lt;World&gt;.log) and the
  * reads of the desktop and Start menu folders, which nothing uses.
- * ⚠️ VERIFICAR: the script is read by its strings, not by decoding each Wise
+ * ⚠️ VERIFY: the script is read by its strings, not by decoding each Wise
  * item; the "same world" test is done without case (NSIS's StrCmp in the
  * newer packages is without case; Wise's If/While is assumed to be).
  */

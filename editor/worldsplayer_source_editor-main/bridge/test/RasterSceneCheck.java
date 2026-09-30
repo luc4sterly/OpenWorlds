@@ -1,9 +1,9 @@
 import NET.worlds.core.NativeScene;
 
 /**
- * RwDestroyScene (RWL21 0x100306b0) en el puente: destruye las luces y
- * cada clump de la escena (padres e hijos, cada uno por su nodo); un clump
- * de otra escena no se toca.
+ * RwDestroyScene (RWL21 0x100306b0) in the bridge: destroys the lights and
+ * every clump of the scene (parents and children, each through its node); a
+ * clump of another scene is not touched.
  */
 public final class RasterSceneCheck {
    public static void main(String[] args) {
@@ -22,15 +22,15 @@ public final class RasterSceneCheck {
       NativeScene.addLightToScene(s, light);
       NativeScene.destroyScene(s);
       if (NativeScene.clump(root) != null || NativeScene.clump(child) != null || NativeScene.clump(grandchild) != null) {
-         System.out.println("FALLA: quedan clumps de la escena destruida");
+         System.out.println("FAIL: clumps of the destroyed scene remain");
          failures++;
       }
       if (NativeScene.light(light) != null) {
-         System.out.println("FALLA: queda la luz");
+         System.out.println("FAIL: the light remains");
          failures++;
       }
       if (NativeScene.scene(s) != null || NativeScene.clump(outside) == null || NativeScene.scene(other) == null) {
-         System.out.println("FALLA: escena propia viva u otra escena tocada");
+         System.out.println("FAIL: own scene still alive or another scene touched");
          failures++;
       }
       if (failures != 0) {

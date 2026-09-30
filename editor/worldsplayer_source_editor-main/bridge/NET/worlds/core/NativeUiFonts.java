@@ -9,23 +9,23 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Plataforma, no gamma.dll: las fuentes con que el cliente de 2004 media su
- * interfaz. El JRE 1.4 de la instalacion (assets/WorldsPlayer/lib/
- * font.properties) resolvia los nombres logicos a fuentes de Windows:
- * dialog.0 y sansserif.0 = Arial, serif.0 = Times New Roman, monospaced.0 y
- * dialoginput.0 = Courier New; y Windows sustituia Helvetica por Arial
- * (FontSubstitutes). Un JDK moderno los resuelve a DejaVu Sans (Linux) o
- * Lucida Grande (macOS), mas anchas: el texto de la barra de estado no
- * cabia en su celda de 93 px ("Jse arrow keys") y otras etiquetas se
- * cortaban igual.
+ * Platform, not gamma.dll: the fonts with which the 2004 client measured its
+ * interface. The installation's JRE 1.4 (assets/WorldsPlayer/lib/
+ * font.properties) resolved the logical names to Windows fonts:
+ * dialog.0 and sansserif.0 = Arial, serif.0 = Times New Roman, monospaced.0
+ * and dialoginput.0 = Courier New; and Windows replaced Helvetica with Arial
+ * (FontSubstitutes). A modern JDK resolves them to DejaVu Sans (Linux) or
+ * Lucida Grande (macOS), which are wider: the status bar text did not fit
+ * in its 93 px cell ("Jse arrow keys") and other labels were cut off in the
+ * same way.
  *
- * build_gamma.sh (bridge/ui_fonts.py) cambia cada {@code new Font(nombre,
- * estilo, tamano)} del Java decompilado por {@link #font} y le da a
- * GammaFrame la fuente por defecto de AWT de entonces ({@link #windowFont}:
- * Dialog 12 = Arial 12). La fuente elegida es la de 2004 si esta instalada
- * (Arial en macOS y Windows) o una con sus mismas metricas (Liberation /
- * Arimo / Tinos / Cousine en Linux); si no hay ninguna, el nombre pedido,
- * como antes.
+ * build_gamma.sh (bridge/ui_fonts.py) changes each {@code new Font(name,
+ * style, size)} of the decompiled Java to {@link #font} and gives
+ * GammaFrame the AWT default font of the time ({@link #windowFont}:
+ * Dialog 12 = Arial 12). The font chosen is the 2004 one if it is installed
+ * (Arial on macOS and Windows) or one with the same metrics (Liberation /
+ * Arimo / Tinos / Cousine on Linux); if there is none, the requested name,
+ * as before.
  */
 public final class NativeUiFonts {
    private NativeUiFonts() {
@@ -60,7 +60,7 @@ public final class NativeUiFonts {
                installed.add(f.toLowerCase(Locale.ROOT));
             }
          } catch (Throwable e) {
-            // sin lista de fuentes: se usan los nombres tal cual
+            // no font list: the names are used as they are
          }
       }
       return installed;

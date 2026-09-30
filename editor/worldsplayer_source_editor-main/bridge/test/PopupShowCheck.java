@@ -19,7 +19,7 @@ import java.awt.PopupMenu;
 public final class PopupShowCheck {
    public static void main(String[] args) throws Exception {
       if (GraphicsEnvironment.isHeadless()) {
-         System.out.println("PopupShowCheck: sin pantalla, no se comprueba");
+         System.out.println("PopupShowCheck: no display, not checked");
          return;
       }
       final Frame f = new Frame("PopupShowCheck");
@@ -55,8 +55,8 @@ public final class PopupShowCheck {
       Point fr = friends.getLocationOnScreen();
       boolean place = at[0] != null && at[0].x == r.x + 100 - fr.x && at[0].y == r.y + 50 - fr.y;
       f.dispose();
-      System.out.println("  " + (threw[0] ? "ok   " : "FALLA") + " PopupMenu.show(render) lanza \"origin not in parent's hierarchy\" (JDK 6278745)");
-      System.out.println("  " + (place ? "ok   " : "FALLA") + " AwtCompat lo muestra desde la lista de amigos en el mismo punto: " + at[0]);
+      System.out.println("  " + (threw[0] ? "ok   " : "FAIL ") + " PopupMenu.show(render) throws \"origin not in parent's hierarchy\" (JDK 6278745)");
+      System.out.println("  " + (place ? "ok   " : "FAIL ") + " AwtCompat shows it from the friends list at the same point: " + at[0]);
       System.exit(threw[0] && place ? 0 : 1);
    }
 }

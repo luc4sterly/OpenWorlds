@@ -24,7 +24,7 @@ public final class JavaCompatCheck {
          threw = true;
       }
       if (feature >= 20) {
-         System.out.println("  " + (threw ? "ok   " : "FALLA") + " Java " + feature + ": Thread.stop() lanza UnsupportedOperationException");
+         System.out.println("  " + (threw ? "ok   " : "FAIL ") + " Java " + feature + ": Thread.stop() throws UnsupportedOperationException");
          ok &= threw;
       }
       try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
@@ -34,7 +34,7 @@ public final class JavaCompatCheck {
          Thread reader = new Thread(() -> {
             try (InputStream in = client.getInputStream()) {
                while (in.read() >= 0) {
-                  // como buildMsg: lee hasta que falle
+                  // like buildMsg: reads until it fails
                }
             } catch (IOException e) {
                ioe[0] = true;
@@ -47,7 +47,7 @@ public final class JavaCompatCheck {
          reader.join(2000);
          peer.close();
          boolean ended = !reader.isAlive() && ioe[0];
-         System.out.println("  " + (ended ? "ok   " : "FALLA") + " el lector bloqueado termina con stopThread y el cierre del socket");
+         System.out.println("  " + (ended ? "ok   " : "FAIL ") + " the blocked reader ends with stopThread and the socket close");
          ok &= ended;
       }
       System.exit(ok ? 0 : 1);

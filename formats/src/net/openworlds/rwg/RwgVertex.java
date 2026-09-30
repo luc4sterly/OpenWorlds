@@ -1,21 +1,21 @@
 package net.openworlds.rwg;
 
 /**
- * Un registro de VLST tal como lo lee RwReadStreamChunk(VLST) de
- * RWL21.DLL (0x1003b328). Las banderas del STRT de VLST dicen qué campos
- * trae cada registro, en este orden:
+ * A VLST record as read by RWL21.DLL's RwReadStreamChunk(VLST)
+ * (0x1003b328). The flags of VLST's STRT say which fields
+ * each record carries, in this order:
  *
  * <pre>
- *  siempre      x, y, z (3 reales)                  -> vértice +0x0c..
- *  bandera 1    normal (3 reales), marca 0x40        -> vértice +0x04.. (normal puesta)
- *  bandera 2    u, v (2 reales) a 16.16 (x 65536)    -> vértice +0x1c/+0x20
- *  bandera 4    3 reales a 16.16 (x 65536)           -> vértice +0x10/+0x14/+0x18
+ *  always       x, y, z (3 reals)                   -> vertex +0x0c..
+ *  flag 1       normal (3 reals), mark 0x40          -> vertex +0x04.. (normal set)
+ *  flag 2       u, v (2 reals) in 16.16 (x 65536)    -> vertex +0x1c/+0x20
+ *  flag 4       3 reals in 16.16 (x 65536)           -> vertex +0x10/+0x14/+0x18
  * </pre>
  *
- * El factor 65536.0 es DAT_10052298 (double leído del binario) y el paso
- * a entero es __ftol (0x10044788). Los campos que el registro no trae
- * quedan a 0 aquí y {@link #hasNormal}/{@link #hasUv}/{@link #hasExtra}
- * lo dicen.
+ * The factor 65536.0 is DAT_10052298 (a double read from the binary) and the
+ * conversion to integer is __ftol (0x10044788). The fields that the record
+ * does not carry are left at 0 here and {@link #hasNormal}/{@link #hasUv}/{@link #hasExtra}
+ * say so.
  */
 public final class RwgVertex {
    public final float x;
@@ -30,9 +30,9 @@ public final class RwgVertex {
    public final float v;
    public final boolean hasExtra;
    /**
-    * ⚠️ VERIFICAR: los 3 reales de la bandera 4 (vértice +0x10..+0x18, a
-    * 16.16). Ninguna función exportada de RWL21 revisada lee esos campos
-    * con nombre, y en el corpus son siempre 0.
+    * ⚠️ VERIFY: the 3 reals of flag 4 (vertex +0x10..+0x18, in
+    * 16.16). No exported RWL21 function reviewed reads those fields
+    * by name, and in the corpus they are always 0.
     */
    public final float unknown8;
    public final float unknown9;
@@ -56,7 +56,7 @@ public final class RwgVertex {
       this.unknown10 = unknown10;
    }
 
-   /** RW guarda la UV como 16.16 (__ftol trunca hacia cero): el valor que ve el rasterizador. */
+   /** RW stores the UV as 16.16 (__ftol truncates toward zero): the value the rasterizer sees. */
    public static int toFixed(float f) {
       return (int) (f * 65536.0);
    }

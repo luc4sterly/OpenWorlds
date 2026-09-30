@@ -5,35 +5,36 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * RenderCanvasOverlay (0x0043ef30 / 0x0043f0d0 / 0x0043f160): la ventana
- * hija, clase "RenderCanvasOverlay" (registrada por FUN_0043ee90), que
- * aloja el control web (IEWebControlImp) sobre la vista 3D.
+ * RenderCanvasOverlay (0x0043ef30 / 0x0043f0d0 / 0x0043f160): the child
+ * window, class "RenderCanvasOverlay" (registered by FUN_0043ee90), that
+ * hosts the web control (IEWebControlImp) over the 3D view.
  *
  * <ul>
- * <li>nativeMakeChild: GetWindowRect del padre (la ventana de render);
- * ancho = ROUND(anchoPadre * xPercent * _DAT_00477c68) con
- * _DAT_00477c68 = 0.01 (bytes 7b 14 ae 47 e1 7a 84 3f), igual el alto;
- * AdjustWindowRect(WS_CHILD, sin menu) no cambia el rectangulo (WS_CHILD
- * no tiene marco); CreateWindowEx(WS_EX_NOPARENTNOTIFY, WS_CHILD |
- * WS_VISIBLE) en la esquina inferior derecha del padre (anchoPadre-ancho,
- * altoPadre-alto), con id de control DAT_00477c3c (empieza en 1, +1 cada
- * vez); guarda en GWL_USERDATA {allowFocus, env, NewGlobalRef(this),
- * methodID de handleCommand(I)V}; ShowWindow, UpdateWindow y
- * SetFocus(padre).
- * <li>su WndProc (LAB_0043edd0, desensamblada): WM_COMMAND -&gt;
- * handleCommand(LOWORD(wParam)); WM_DESTROY -&gt; DeleteGlobalRef y libera
- * el bloque; el resto a DefWindowProc.
- * <li>nativeResizeChild: el mismo AdjustWindowRect y SetWindowPos a la
- * esquina inferior derecha del area cliente del padre (SWP_NOZORDER);
- * nada si no hay padre.
+ * <li>nativeMakeChild: GetWindowRect of the parent (the render window);
+ * width = ROUND(parentWidth * xPercent * _DAT_00477c68) with
+ * _DAT_00477c68 = 0.01 (bytes 7b 14 ae 47 e1 7a 84 3f), the same for the
+ * height; AdjustWindowRect(WS_CHILD, no menu) does not change the rectangle
+ * (WS_CHILD has no frame); CreateWindowEx(WS_EX_NOPARENTNOTIFY, WS_CHILD |
+ * WS_VISIBLE) at the parent's bottom right corner (parentWidth-width,
+ * parentHeight-height), with control id DAT_00477c3c (starts at 1, +1 each
+ * time); it stores in GWL_USERDATA {allowFocus, env, NewGlobalRef(this),
+ * methodID of handleCommand(I)V}; ShowWindow, UpdateWindow and
+ * SetFocus(parent).
+ * <li>its WndProc (LAB_0043edd0, disassembled): WM_COMMAND -&gt;
+ * handleCommand(LOWORD(wParam)); WM_DESTROY -&gt; DeleteGlobalRef and frees
+ * the block; everything else goes to DefWindowProc.
+ * <li>nativeResizeChild: the same AdjustWindowRect and SetWindowPos to the
+ * bottom right corner of the parent's client area (SWP_NOZORDER);
+ * nothing if there is no parent.
  * <li>nativeKillChild: DestroyWindow.
  * </ul>
- * Aqui la hija es un registro con su rectangulo (como las "TempClass" de
- * NativeWindows) y la llamada a handleCommand; los handles empiezan en
- * {@link #BASE} para no confundirse con los de NativeWindows. ⚠️ No se crea
- * un componente AWT visible: solo aloja el control web, que en el puente
- * es un stub (grupo "Web embebida" de H5, pendiente de decidir); un panel
- * vacio encima de la vista 3D no seria mas fiel que no pintarlo.
+ * Here the child is a record with its rectangle (like NativeWindows'
+ * "TempClass" ones) and the call to handleCommand; the handles start at
+ * {@link #BASE} so as not to be confused with NativeWindows'. ⚠️ No visible
+ * AWT component is created: it only hosts the web control, which in the
+ * bridge is a stub (the "Embedded web" group of H5, still to be decided); an
+ * empty panel on top of the 3D view would not be more faithful than not
+ * painting it.
  */
 public final class NativeUiOverlay {
    private NativeUiOverlay() {
@@ -73,12 +74,12 @@ public final class NativeUiOverlay {
       return i >= 1 && i <= children.size() ? children.get(i - 1) : null;
    }
 
-   /** ROUND de x87 (FISTP con el redondeo por defecto: al par mas cercano). */
+   /** x87 ROUND (FISTP with the default rounding: to the nearest even). */
    static int round(double v) {
       return (int) Math.rint(v);
    }
 
-   /** Tamano de la hija para un padre de pw x ph y los porcentajes dados. */
+   /** Size of the child for a pw x ph parent and the given percentages. */
    static int[] size(int pw, int ph, int xPercent, int yPercent) {
       return new int[]{round((double) (pw * xPercent) * PERCENT), round((double) (ph * yPercent) * PERCENT)};
    }
@@ -95,7 +96,7 @@ public final class NativeUiOverlay {
       c.y = ph - c.h;
       children.add(c);
       if (p != null) {
-         // SetFocus(padre)
+         // SetFocus(parent)
          java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
                p.requestFocus();
@@ -127,7 +128,7 @@ public final class NativeUiOverlay {
       }
    }
 
-   /** WM_COMMAND a la hija (LAB_0043edd0): handleCommand(LOWORD(wParam)). */
+   /** WM_COMMAND to the child (LAB_0043edd0): handleCommand(LOWORD(wParam)). */
    public static void command(int hwnd, int wParam) {
       Child c = get(hwnd);
       if (c != null && c.command != null) {

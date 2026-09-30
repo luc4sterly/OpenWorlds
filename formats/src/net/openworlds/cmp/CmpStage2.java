@@ -280,7 +280,7 @@ public class CmpStage2 {
                     // unless the row ends, esi by 2. So the 2x4 block keeps
                     // what it held: the previous frame's pixels in a .mov,
                     // and in the esi row the byte of an earlier pass.
-                    // ⚠️ VERIFICAR: read from the disassembly only; no file in
+                    // ⚠️ VERIFY: read from the disassembly only; no file in
                     // the corpus or in the worlds tried takes it (tex/mug.cmp
                     // of the Blair Witch world threw here only because the
                     // old single-group CmpFrames ran past its first group's

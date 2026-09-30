@@ -15,21 +15,21 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Regresion de pixel del rasterizador del puente (NativeCamera): monta una
- * escena determinista con formas .rwx REALES de GroundZero (texturas .cmp
- * del content.zip registradas por nombre, como hace ShapeLoader antes de
- * RwReadShape) mas quads sinteticos que fuerzan cada camino del driver
- * (textura iluminada, Gouraud, plano, translucido por tramado, doble cara
- * vista por detras, recorte por el plano cercano), y la dibuja desde varias
- * camaras a 3 tamanos (132x130 del AdPart, 468x272 de la ventana por
- * defecto, 1172x848 maximizada). Compara el CRC32 del raster 5-6-5 de cada
- * vista con bridge/test/raster-golden.txt.
+ * Pixel regression of the bridge's rasterizer (NativeCamera): builds a
+ * deterministic scene with REAL .rwx shapes from GroundZero (the .cmp
+ * textures of content.zip registered by name, as ShapeLoader does before
+ * RwReadShape) plus synthetic quads that force each path of the driver
+ * (lit texture, Gouraud, flat, translucent by dithering, double-sided
+ * seen from behind, clipping by the near plane), and draws it from several
+ * cameras at 3 sizes (132x130 of the AdPart, 468x272 of the default
+ * window, 1172x848 maximized). It compares the CRC32 of each view's 5-6-5
+ * raster with bridge/test/raster-golden.txt.
  *
- * Sirve para optimizar el motor sin cambiar un pixel: cualquier cambio de
- * resultado (buscado o no) cambia un CRC. Si el cambio es intencionado, se
- * regenera con -Dgolden.write=1 y se explica en el commit.
- * -Dgolden.png=DIR guarda cada vista como PNG para mirarla.
- * -Dgolden.threads=N fuerza N hilos de raster (0 = los del puente).
+ * It serves to optimize the engine without changing a pixel: any change in
+ * the result (intended or not) changes a CRC. If the change is intentional,
+ * the file is regenerated with -Dgolden.write=1 and explained in the commit.
+ * -Dgolden.png=DIR saves each view as a PNG so it can be looked at.
+ * -Dgolden.threads=N forces N raster threads (0 = the bridge's own).
  */
 public final class RasterGoldenCheck {
    private static final String ROOT = System.getProperty("golden.root", ".");
@@ -81,8 +81,8 @@ public final class RasterGoldenCheck {
          NativeCamera.destroyCamera(cam);
       }
       long ms = (System.nanoTime() - t0) / 1000000L;
-      System.out.println("RasterGoldenCheck: " + frames + " vistas en " + ms + " ms");
-      // -Dgolden.bench=N: N frames de cada vista a 1172x848, ms por frame en regimen estable
+      System.out.println("RasterGoldenCheck: " + frames + " views in " + ms + " ms");
+      // -Dgolden.bench=N: N frames of each view at 1172x848, ms per frame in steady state
       int bench = Integer.getInteger("golden.bench", 0);
       if (bench > 0) {
          int cam = NativeCamera.createCamera(1172, 848, 0);
@@ -100,7 +100,7 @@ public final class RasterGoldenCheck {
                NativeCamera.renderScene(scene, cam, 1);
             }
             double per = (System.nanoTime() - b0) / 1e6 / bench;
-            System.out.println("bench " + (round == 0 ? "(calentando)" : "") + ": " + String.format("%.2f", per) + " ms/frame a 1172x848");
+            System.out.println("bench " + (round == 0 ? "(warming up)" : "") + ": " + String.format("%.2f", per) + " ms/frame at 1172x848");
          }
       }
       if (Boolean.getBoolean("golden.write") || "1".equals(System.getProperty("golden.write"))) {
@@ -109,7 +109,7 @@ public final class RasterGoldenCheck {
             sb.append(en.getKey()).append(' ').append(Long.toHexString(en.getValue())).append('\n');
          }
          Files.write(GOLDEN.toPath(), sb.toString().getBytes("UTF-8"));
-         System.out.println("escrito " + GOLDEN);
+         System.out.println("written " + GOLDEN);
          return;
       }
       Map<String, String> want = new LinkedHashMap<String, String>();
@@ -125,18 +125,18 @@ public final class RasterGoldenCheck {
          String w = want.get(en.getKey());
          String g = Long.toHexString(en.getValue());
          if (!g.equals(w)) {
-            System.out.println("FALLA " + en.getKey() + ": crc " + g + ", esperado " + w);
+            System.out.println("FAIL " + en.getKey() + ": crc " + g + ", expected " + w);
             bad++;
          }
       }
       if (bad != 0 || want.size() != got.size()) {
-         System.out.println("FALLA: " + bad + " vistas distintas de " + got.size() + " (golden con " + want.size() + ")");
+         System.out.println("FAIL: " + bad + " views differ out of " + got.size() + " (golden has " + want.size() + ")");
          System.exit(1);
       }
-      System.out.println("RasterGoldenCheck OK (" + got.size() + " vistas identicas al golden)");
+      System.out.println("RasterGoldenCheck OK (" + got.size() + " views identical to the golden)");
    }
 
-   /** Formas reales en rejilla + quads que fuerzan cada camino del rasterizador. */
+   /** Real shapes on a grid + quads that force each path of the rasterizer. */
    private static int buildScene() throws Exception {
       int scene = NativeScene.createScene();
       int sun = NativeScene.createLight(1, -0.4F, -0.5F, -0.75F, 0.9F);
@@ -183,27 +183,27 @@ public final class RasterGoldenCheck {
          NativeScene.addClumpToScene(scene, clump);
          placed++;
       }
-      // Suelo texturizado e iluminado, grande: la mayoria de pixeles en el camino de textura.
+      // Textured, lit floor, large: most pixels on the texture path.
       addQuad(scene, texMat(cmp, "aufloor1", 1.0F, 0), -400, -400, -2, 1600, 1600, -2, 8);
-      // Pared Gouraud (sin textura, muestreo por vertice) con normales de una rejilla curvada.
+      // Gouraud wall (no texture, per-vertex sampling) with normals from a curved grid.
       int g = NativeScene.createMaterial();
       NativeScene.setMaterialColor(g, 0.8F, 0.55F, 0.3F);
       NativeScene.setMaterialSurface(g, 0.25F, 0.7F, 0.6F);
       NativeScene.smoothShading(g);
       addBump(scene, g, 1150, -300, 0, 1150, 900, 420, 12);
-      // Pared plana sin textura.
+      // Flat wall without texture.
       int flat = NativeScene.createMaterial();
       NativeScene.setMaterialColor(flat, 0.3F, 0.8F, 0.4F);
       NativeScene.setMaterialSurface(flat, 0.3F, 0.6F, 0.0F);
       NativeScene.flatShading(flat);
       addQuad(scene, flat, -350, 1100, 0, 900, 1100, 400, 1);
-      // Cristal translucido (tramado 8x8) delante de las formas.
+      // Translucent glass (8x8 dithering) in front of the shapes.
       int glass = texMat(cmp, "auwall2", 0.5F, 0);
       addQuad(scene, glass, 100, 250, 0, 700, 250, 250, 1);
-      // Doble cara: se ve por detras desde la vista v4 (camara bajo el suelo).
+      // Double-sided: seen from behind from view v4 (camera below the floor).
       int both = texMat(cmp, "aured", 1.0F, 0x80);
       addQuad(scene, both, 700, 520, 0, 200, 520, 240, 2);
-      System.out.println("RasterGoldenCheck: " + placed + " formas .rwx reales de " + rwx.length + " + 5 superficies de prueba");
+      System.out.println("RasterGoldenCheck: " + placed + " real .rwx shapes out of " + rwx.length + " + 5 test surfaces");
       return scene;
    }
 
@@ -222,7 +222,7 @@ public final class RasterGoldenCheck {
       return m;
    }
 
-   /** Rejilla n x n de quads entre (x0,y0,z0) y (x1,y1,z1) (plano z o plano vertical). */
+   /** n x n grid of quads between (x0,y0,z0) and (x1,y1,z1) (z plane or vertical plane). */
    private static void addQuad(int scene, int mat, float x0, float y0, float z0, float x1, float y1, float z1, int n) {
       int k = NativeScene.createClump();
       boolean horizontal = z0 == z1;
@@ -247,7 +247,7 @@ public final class RasterGoldenCheck {
       NativeScene.addClumpToScene(scene, k);
    }
 
-   /** Pared vertical abombada (para que el Gouraud tenga gradiente real). */
+   /** Bulging vertical wall (so that Gouraud has a real gradient). */
    private static void addBump(int scene, int mat, float x0, float y0, float z0, float x1, float y1, float z1, int n) {
       int k = NativeScene.createClump();
       for (int j = 0; j <= n; j++) {

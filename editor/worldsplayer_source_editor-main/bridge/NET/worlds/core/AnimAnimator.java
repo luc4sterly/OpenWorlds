@@ -4,34 +4,34 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * El animador de un avatar (objeto de 0x3c bytes, FUN_00432880):
+ * An avatar's animator (0x3c-byte object, FUN_00432880):
  *
  * <pre>
- * +0x00  movimiento (0x50 bytes, FUN_004313b0; lo usa update)
- * +0x05  activo (param_2 != 0; CreateRep pasa 1)
- * +0x08  W1: hueco de los implicitos (placeholder)
- * +0x10  W2: raiz, un placeholder que contiene W1 o los explicitos encima
- * +0x18  claves de los implicitos del tipo (copia)
- * +0x24  secuencias de los implicitos (copia, la cambian los changeimp)
- * +0x30  tipo actual (-1)
- * +0x34  implicito actual (1)
- * +0x38  ultimo explicito (0)
+ * +0x00  motion (0x50 bytes, FUN_004313b0; used by update)
+ * +0x05  active (param_2 != 0; CreateRep passes 1)
+ * +0x08  W1: slot for the implicit animations (placeholder)
+ * +0x10  W2: root, a placeholder that contains W1 or the explicit animations on top
+ * +0x18  keys of the type's implicit animations (copy)
+ * +0x24  sequences of the implicit animations (copy, changed by the changeimps)
+ * +0x30  current type (-1)
+ * +0x34  current implicit animation (1)
+ * +0x38  last explicit animation (0)
  * </pre>
  */
 public final class AnimAnimator {
    /**
-    * Tabla de implicitos (0x475288, 12 bytes por indice 0..9): nombre,
-    * arg1 (0 = por distancia, 1 = por tiempo) y arg2 (modo de fin:
-    * 1 = quedarse en el ultimo key, 2 = bucle). Los indices 1 y 2 no tienen
-    * nombre (pipe vacio): 1 = quieto recien llegado, 2 = girando en el sitio.
+    * Table of implicit animations (0x475288, 12 bytes per index 0..9): name,
+    * arg1 (0 = by distance, 1 = by time) and arg2 (end mode:
+    * 1 = stay on the last key, 2 = loop). Indices 1 and 2 have no
+    * name (empty pipe): 1 = just arrived and standing still, 2 = turning in place.
     */
    static final String[] IMP_NAMES = {"", "", "", "walk", "wait", "endwait", "run", "fly", "hover", "sit"};
    static final int[] IMP_ARG1 = {0, 0, 0, 0, 1, 1, 0, 0, 1, 1};
    static final int[] IMP_ARG2 = {0, 0, 0, 2, 1, 1, 2, 2, 2, 2};
-   /** Mezcla de cambio de implicito: {0 s, 0xfa ms} (FUN_00432d10). */
+   /** Blend for an implicit animation change: {0 s, 0xfa ms} (FUN_00432d10). */
    static final AnimTime SHIFT_TIME = new AnimTime(0, 250);
 
-   /** Diagnostico: -Dopenworlds.animLog=1 traza cada cambio de implicito y cada explicito. */
+   /** Diagnostics: -Dopenworlds.animLog=1 traces every implicit animation change and every explicit animation. */
    static final boolean LOG = "1".equals(System.getProperty("openworlds.animLog")) || Boolean.getBoolean("openworlds.animLog");
 
    final AnimMotion motion;
@@ -50,9 +50,9 @@ public final class AnimAnimator {
    }
 
    /**
-    * FUN_00433420 (tambien endanimations): implicito 1, explicito 0, W1 =
-    * placeholder(pipe vacio) y raiz = placeholder(W1). No toca el tipo ni
-    * las listas de implicitos.
+    * FUN_00433420 (also endanimations): implicit 1, explicit 0, W1 =
+    * placeholder(empty pipe) and root = placeholder(W1). It does not touch
+    * the type or the lists of implicit animations.
     */
    synchronized void reset() {
       this.imp = 1;
@@ -62,13 +62,13 @@ public final class AnimAnimator {
    }
 
    /**
-    * FUN_004330a0: si cambia el tipo copia sus implicitos; si expIdx
-    * (1..n) tiene un bloque changeimp y NoImpChange != 1, sustituye las
-    * secuencias de esos implicitos. ⚠️ Error del original: si una clave del
-    * bloque no esta entre los implicitos, compara con el final de la lista
-    * de EXPLICITOS (0x433378 contra -0x164 = FUN_0042bd40) y escribe una
-    * posicion mas alla del vector; como nadie lee esa posicion aqui se
-    * ignora.
+    * FUN_004330a0: if the type changes it copies its implicit animations; if
+    * expIdx (1..n) has a changeimp block and NoImpChange != 1, it replaces the
+    * sequences of those implicit animations. ⚠️ Bug in the original: if a key
+    * of the block is not among the implicit animations, it compares with the
+    * end of the list of EXPLICIT ones (0x433378 against -0x164 =
+    * FUN_0042bd40) and writes one position past the vector; since nobody
+    * reads that position here, it is ignored.
     */
    boolean applyChangeImp(int type, int expIdx) {
       AnimRegistry.AvatarType t = AnimRegistry.get().type(type);
@@ -105,9 +105,10 @@ public final class AnimAnimator {
    }
 
    /**
-    * FUN_00433a70: pipe del implicito idx (fuera de 1..9 se toma 1). Sin
-    * nombre en la tabla, sin tipo o sin esa clave entre los implicitos del
-    * avatar -&gt; pipe vacio; si no, el pipe de su secuencia con arg1/arg2.
+    * FUN_00433a70: pipe of implicit animation idx (outside 1..9, 1 is taken).
+    * With no name in the table, no type, or no such key among the avatar's
+    * implicit animations -&gt; empty pipe; otherwise the pipe of its sequence
+    * with arg1/arg2.
     */
    AnimGraph.Pipe implicitPipe(int type, int idx) {
       if (idx < 1 || 9 < idx) {
@@ -124,7 +125,7 @@ public final class AnimAnimator {
       return AnimGraph.pipe(this.impValues.get(j), IMP_ARG1[idx], IMP_ARG2[idx]);
    }
 
-   /** FUN_00433f70: pipe del explicito idx (1..n) por tiempo y modo 0, o null. */
+   /** FUN_00433f70: pipe of explicit animation idx (1..n) by time and mode 0, or null. */
    static AnimGraph.Pipe explicitPipe(int type, int idx) {
       AnimRegistry.AvatarType t = AnimRegistry.get().type(type);
       if (t == null) {
@@ -137,7 +138,7 @@ public final class AnimAnimator {
       return AnimGraph.pipe(t.expValues.get(i), 1, 0);
    }
 
-   /** FUN_00433e90: indice 1..n del explicito por su clave (strcmp) o -1. */
+   /** FUN_00433e90: index 1..n of the explicit animation by its key (strcmp) or -1. */
    static int explicitIndex(int type, String lowerName) {
       AnimRegistry.AvatarType t = AnimRegistry.get().type(type);
       if (t == null) {
@@ -148,11 +149,11 @@ public final class AnimAnimator {
    }
 
    /**
-    * FUN_00432d10: primero FUN_004330a0; si impIdx &gt;= 0 y cambia, W1 pasa
-    * a ser shiftto(lo que habia, nuevo implicito, 250 ms); si expIdx &gt;= 0,
-    * la raiz pasa a ser overlay(lo que habia, pipe del explicito, su
-    * duracion) y se devuelve esa duracion en segundos (s + ms / 1000,
-    * DAT_00472020 = 1000). Si no, 0.
+    * FUN_00432d10: first FUN_004330a0; if impIdx &gt;= 0 and it changes, W1
+    * becomes shiftto(what was there, new implicit animation, 250 ms); if
+    * expIdx &gt;= 0, the root becomes overlay(what was there, the explicit
+    * animation's pipe, its duration) and that duration is returned in seconds
+    * (s + ms / 1000, DAT_00472020 = 1000). Otherwise 0.
     */
    public synchronized float play(int type, int impIdx, int expIdx) {
       if (!this.active) {
@@ -195,22 +196,23 @@ public final class AnimAnimator {
    }
 
    /**
-    * El paso de grafo de FUN_00433710: raiz = raiz.avanzar(cantidad, dt)
-    * (vtable +4 sobre +0x14, FUN_00434350 guarda el resultado).
+    * The graph step of FUN_00433710: root = root.advance(amount, dt)
+    * (vtable +4 on +0x14, FUN_00434350 stores the result).
     */
    public synchronized void step(float amount, AnimTime dt) {
-      // W2 es un placeholder (FUN_00439aa0), que siempre se devuelve a si mismo.
+      // W2 is a placeholder (FUN_00439aa0), which always returns itself.
       this.root.advance(amount, dt);
    }
 
    /**
-    * FUN_00433710 (desde update): apunta la hora (vtable [6]); si hay
-    * clump1 le pone la posicion y orientacion del movimiento
-    * (FUN_00434440 -&gt; FUN_004318e0); cantidad = distancia * |escala|
-    * (vtable [11]); dt = ahora - hora del update anterior; avanza la raiz
-    * y, si hay figura (clump2), le aplica la pose (FUN_00434470). El quinto
-    * argumento de update (lejos &gt; 700) llega aqui y no se lee (0x43372b
-    * y 0x433854 hacen ret 0x14 sin tocar 0x18(%ebp)).
+    * FUN_00433710 (from update): records the time (vtable [6]); if there is a
+    * clump1 it sets the movement's position and orientation on it
+    * (FUN_00434440 -&gt; FUN_004318e0); amount = distance * |scale|
+    * (vtable [11]); dt = now - time of the previous update; advances the root
+    * and, if there is a figure (clump2), applies the pose to it
+    * (FUN_00434470). The fifth argument of update (far &gt; 700) arrives here
+    * and is not read (0x43372b and 0x433854 do ret 0x14 without touching
+    * 0x18(%ebp)).
     */
    public synchronized void update(AnimTime t, int clump1, int clump2, float scale) {
       AnimTime prev = this.motion.lastUpdate;
@@ -236,9 +238,9 @@ public final class AnimAnimator {
    }
 
    /**
-    * Parte comun de FUN_004351b0 (moveto) y FUN_004352f0 (moveby) una vez
-    * calculadas posicion y orientacion: estado de implicitos del Rep,
-    * FUN_00432a30 y FUN_00432d10(tipo, estado, -1).
+    * Common part of FUN_004351b0 (moveto) and FUN_004352f0 (moveby) once
+    * position and orientation have been computed: the Rep's implicit
+    * animation state, FUN_00432a30 and FUN_00432d10(type, state, -1).
     */
    synchronized void moved(AnimMotion.State st, int type, float[] p, float[] q, AnimTime t) {
       int state = st.moved(p, q, t);
@@ -247,29 +249,29 @@ public final class AnimAnimator {
    }
 
 
-   /** La pose de la raiz (vtable +8 sobre +0x14). */
+   /** The root's pose (vtable +8 on +0x14). */
    public synchronized AnimPose pose() {
       return this.root.pose();
    }
 
-   /** Para las comprobaciones: implicito actual (+0x34). */
+   /** For the checks: current implicit animation (+0x34). */
    public synchronized int implicitIndex() {
       return this.imp;
    }
 
-   /** Para las comprobaciones: ¿la raiz tiene solo el hueco de implicitos (ningun explicito encima)? */
+   /** For the checks: does the root have only the implicit animation slot (no explicit animation on top)? */
    public synchronized boolean onlyImplicit() {
       return this.root.inner == this.w1;
    }
 
-   /** Para las comprobaciones: el nodo del hueco de implicitos. */
+   /** For the checks: the node of the implicit animation slot. */
    public synchronized AnimGraph.Node implicitNode() {
       return this.w1.inner;
    }
 
    /**
-    * FUN_00432be0: duracion del explicito idx (crea su pipe, lo que pide
-    * la secuencia si hace falta); 0 si idx &lt; 0.
+    * FUN_00432be0: duration of explicit animation idx (creates its pipe,
+    * which requests the sequence if needed); 0 if idx &lt; 0.
     */
    synchronized float duration(int type, int expIdx) {
       if (!this.active || expIdx < 0) {
