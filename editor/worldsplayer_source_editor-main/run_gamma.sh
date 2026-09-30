@@ -141,7 +141,7 @@ while [ -f gdkup.pending ]; do
    GRC=$?
    cat gdkup.out
    [ "$GRC" -eq 10 ] || break
-   RESTART="$(sed -n 's/^\[gdkup\] reinicio: *//p' gdkup.out | tail -1)"
+   RESTART="$(sed -n 's/^\[gdkup\] restart: *//p' gdkup.out | tail -1)"
    echo "run_gamma: reinicio tras la actualizacion: ${RESTART:-world:restart}"
    "$JAVA" ${JAVA_OPTS:-} -cp "$CP" $MAIN ${RESTART:-world:restart}
    RC=$?

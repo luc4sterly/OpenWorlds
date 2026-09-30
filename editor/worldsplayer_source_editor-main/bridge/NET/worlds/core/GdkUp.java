@@ -40,7 +40,7 @@ import java.util.List;
  * a world package (&lt;World&gt;\&lt;World&gt;N.exe) is installed by
  * {@link WisePackage} or {@link NsisPackage}, as its installer would; run.exe
  * is the client itself, so the restart is handed back to the caller (exit
- * code {@link #RESTART}, arguments on a "[gdkup] reinicio:" line); an xdelta
+ * code {@link #RESTART}, arguments on a "[gdkup] restart:" line); an xdelta
  * patch (the incremental upgrades of the old worlds) is not supported and ends
  * like an installer that fails. Only a missing file or one that is not a
  * Windows executable (no "MZ") counts as a line that cannot start.
@@ -87,7 +87,7 @@ public final class GdkUp {
             for (int k = 1; k < argv.size(); k++) {
                rest.append(k > 1 ? " " : "").append(argv.get(k));
             }
-            log.println("[gdkup] reinicio: " + rest);
+            log.println("[gdkup] restart: " + rest);
             return RESTART;
          }
          try {
@@ -111,7 +111,7 @@ public final class GdkUp {
          }
          File f = child(dir, done.replace('\\', '/'));
          if (f.isFile() && !f.delete()) {
-            log.println("[gdkup] no se pudo borrar " + f);
+            log.println("[gdkup] could not delete " + f);
          }
       }
       return 0;
@@ -152,7 +152,7 @@ public final class GdkUp {
       } else if (WisePackage.is(d)) {
          WisePackage.install(exe, dir, log);
       } else {
-         throw new IOException(exe.getName() + " no es un paquete de mundo conocido (Wise o NSIS)");
+         throw new IOException(exe.getName() + " is not a known world package (Wise or NSIS)");
       }
    }
 

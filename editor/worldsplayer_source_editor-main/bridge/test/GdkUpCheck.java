@@ -108,7 +108,7 @@ public class GdkUpCheck {
       write(new File(home, "updates.lst"), "Meteor\\Meteor25.exe" + CRLF + "GroundZero\\GroundZero37-40.exe" + CRLF
          + "run.exe world:restart" + CRLF);
       Object[] r = gdkup(home, "updates.lst", "4242");
-      check((Integer) r[0] == GdkUp.RESTART && ((String) r[1]).contains("[gdkup] reinicio: world:restart"),
+      check((Integer) r[0] == GdkUp.RESTART && ((String) r[1]).contains("[gdkup] restart: world:restart"),
          "three lines: ends by asking for the restart with world:restart (code 10)");
       String[] got = new File(home, "Meteor").list();
       Arrays.sort(got);
