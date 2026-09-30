@@ -1,4 +1,4 @@
-package net.openworlds.launcher;
+package net.openworlds.ui;
 
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
@@ -41,13 +41,54 @@ import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.function.IntConsumer;
 
-/** The launcher's controls, in the logo's colours (see {@link Theme}). */
-final class Ui {
+/** The controls of the OpenWorlds apps, in the icon's colours (see {@link Theme}). */
+public final class Ui {
    private Ui() {
    }
 
+   /**
+    * The cross-platform look (everything visible is painted by these classes
+    * anyway) with tooltips in the theme's colours. Call once, on the event
+    * thread, after {@link Theme#use}.
+    */
+   public static void installLookAndFeel() {
+      try {
+         javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getCrossPlatformLookAndFeelClassName());
+      } catch (Exception ignored) {
+         // the default look does just as well
+      }
+      javax.swing.UIManager.put("ToolTip.background", Theme.TIP);
+      javax.swing.UIManager.put("ToolTip.foreground", Theme.TEXT);
+      javax.swing.UIManager.put("ToolTip.font", Theme.regular(12f));
+      javax.swing.UIManager.put("ToolTip.border", BorderFactory.createCompoundBorder(
+         BorderFactory.createLineBorder(Theme.CARD_EDGE), BorderFactory.createEmptyBorder(5, 8, 5, 8)));
+   }
+
+   /** A filled circle of {@code size} px (status lights; Poppins has no U+25CF). */
+   public static Icon dot(Color color, int size) {
+      return new Icon() {
+         @Override
+         public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = Theme.smooth(g);
+            g2.setColor(color);
+            g2.fill(new Ellipse2D.Float(x, y, size, size));
+            g2.dispose();
+         }
+
+         @Override
+         public int getIconWidth() {
+            return size;
+         }
+
+         @Override
+         public int getIconHeight() {
+            return size;
+         }
+      };
+   }
+
    /** Small caps caption above a group of controls ("WORLD", "SERVER"). */
-   static JLabel caption(String text) {
+   public static JLabel caption(String text) {
       JLabel l = new JLabel(text.toUpperCase(java.util.Locale.ROOT));
       l.setFont(Theme.semibold(11f).deriveFont(java.util.Collections.singletonMap(
          java.awt.font.TextAttribute.TRACKING, 0.12f)));
@@ -55,14 +96,14 @@ final class Ui {
       return l;
    }
 
-   static JLabel text(String text, Font font, Color color) {
+   public static JLabel text(String text, Font font, Color color) {
       JLabel l = new JLabel(text);
       l.setFont(font);
       l.setForeground(color);
       return l;
    }
 
-   static JPanel row(int gap, Component... cs) {
+   public static JPanel row(int gap, Component... cs) {
       JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, gap, 0));
       p.setOpaque(false);
       for (Component c : cs) {
@@ -71,15 +112,15 @@ final class Ui {
       return p;
    }
 
-   // ------------------------------------------------------------------ botones
+   // ------------------------------------------------------------------ buttons
 
    /** Rounded pill: PRIMARY wears the ring's gradient (the Play button), QUIET is a translucent one. */
-   static final class Pill extends JButton {
-      enum Kind { PRIMARY, QUIET }
+   public static final class Pill extends JButton {
+      public enum Kind { PRIMARY, QUIET }
 
       private Kind kind;
 
-      Pill(String text, Glyph glyph, Kind kind, float size) {
+      public Pill(String text, Glyph glyph, Kind kind, float size) {
          super(text, glyph);
          setKind(kind);
          setFont(Theme.semibold(size));
@@ -94,7 +135,7 @@ final class Ui {
          setBorder(BorderFactory.createEmptyBorder(v, Math.round(size * 1.6f), v, Math.round(size * 1.6f)));
       }
 
-      void setKind(Kind k) {
+      public void setKind(Kind k) {
          kind = k;
          repaint();
       }
@@ -144,8 +185,8 @@ final class Ui {
    }
 
    /** Flat text button with a hairline outline on hover (footer actions). */
-   static final class Ghost extends JButton {
-      Ghost(String text, Glyph glyph) {
+   public static final class Ghost extends JButton {
+      public Ghost(String text, Glyph glyph) {
          super(text, glyph);
          setFont(Theme.medium(12.5f));
          setIconTextGap(7);
@@ -201,13 +242,13 @@ final class Ui {
       g2.drawString(text, x + iw, (h - fm.getHeight()) / 2 + fm.getAscent());
    }
 
-   // ------------------------------------------------------------ superficies
+   // ------------------------------------------------------------ surfaces
 
    /** Translucent rounded panel with a hairline edge. */
-   static class Card extends JPanel {
+   public static class Card extends JPanel {
       private final int radius;
 
-      Card(LayoutManager layout, int radius) {
+      public Card(LayoutManager layout, int radius) {
          super(layout);
          this.radius = radius;
          setOpaque(false);
@@ -217,7 +258,7 @@ final class Ui {
       protected void paintComponent(Graphics g) {
          Graphics2D g2 = Theme.smooth(g);
          RoundRectangle2D shape = new RoundRectangle2D.Float(0.5f, 0.5f, getWidth() - 1, getHeight() - 1, radius, radius);
-         g2.setColor(new Color(14, 9, 44, 165));
+         g2.setColor(Theme.CARD_BASE);
          g2.fill(shape);
          g2.setColor(Theme.CARD);
          g2.fill(shape);
@@ -227,12 +268,12 @@ final class Ui {
       }
    }
 
-   // ------------------------------------------------------------ campos
+   // ------------------------------------------------------------ fields
 
-   static final class Field extends JTextField {
+   public static final class Field extends JTextField {
       private final String placeholder;
 
-      Field(int columns, String placeholder) {
+      public Field(int columns, String placeholder) {
          super(columns);
          this.placeholder = placeholder;
          styleText(this);
@@ -246,10 +287,10 @@ final class Ui {
       }
    }
 
-   static final class Secret extends JPasswordField {
+   public static final class Secret extends JPasswordField {
       private final String placeholder;
 
-      Secret(int columns, String placeholder) {
+      public Secret(int columns, String placeholder) {
          super(columns);
          this.placeholder = placeholder;
          styleText(this);
@@ -289,7 +330,7 @@ final class Ui {
    private static void paintField(Graphics g, JTextComponent t) {
       Graphics2D g2 = Theme.smooth(g);
       RoundRectangle2D shape = new RoundRectangle2D.Float(0.5f, 0.5f, t.getWidth() - 1, t.getHeight() - 1, 14, 14);
-      g2.setColor(t.isEnabled() ? Theme.FIELD : new Color(10, 7, 36, 70));
+      g2.setColor(t.isEnabled() ? Theme.FIELD : Theme.FIELD_OFF);
       g2.fill(shape);
       g2.setColor(t.isFocusOwner() ? Theme.alpha(Theme.SEA, 210) : t.isEnabled() ? Theme.FIELD_EDGE : new Color(255, 255, 255, 18));
       g2.setStroke(new BasicStroke(t.isFocusOwner() ? 1.6f : 1f));
@@ -310,14 +351,14 @@ final class Ui {
       g2.dispose();
    }
 
-   // ------------------------------------------------------ selector segmentado
+   // ------------------------------------------------------ segmented control
 
    /** A row of mutually exclusive choices on one track (the server mode). */
-   static final class Segmented extends JPanel {
+   public static final class Segmented extends JPanel {
       private final JToggleButton[] items;
       private final ButtonGroup group = new ButtonGroup();
 
-      Segmented(String... labels) {
+      public Segmented(String... labels) {
          super(new GridLayout(1, labels.length, 4, 0));
          setOpaque(false);
          setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
@@ -331,7 +372,7 @@ final class Ui {
          items[0].setSelected(true);
       }
 
-      int selected() {
+      public int selected() {
          for (int i = 0; i < items.length; i++) {
             if (items[i].isSelected()) {
                return i;
@@ -340,11 +381,11 @@ final class Ui {
          return 0;
       }
 
-      void select(int i) {
+      public void select(int i) {
          items[Math.max(0, Math.min(items.length - 1, i))].setSelected(true);
       }
 
-      void onChange(IntConsumer l) {
+      public void onChange(IntConsumer l) {
          for (JToggleButton b : items) {
             b.addItemListener(e -> {
                if (b.isSelected()) {
@@ -416,7 +457,7 @@ final class Ui {
 
    // ------------------------------------------------------------ casillas
 
-   static JCheckBox check(String text) {
+   public static JCheckBox check(String text) {
       JCheckBox c = new JCheckBox(text);
       c.setOpaque(false);
       c.setFont(Theme.regular(13f));
@@ -479,13 +520,13 @@ final class Ui {
    // ------------------------------------------------------ paso a paso (hilos)
 
    /** "−  Auto  +": a small integer from 0 (shown as the zero label) to max. */
-   static final class Stepper extends JPanel {
+   public static final class Stepper extends JPanel {
       private final JLabel value = new JLabel("", SwingConstants.CENTER);
       private final String zero;
       private final int max;
       private int v;
 
-      Stepper(int initial, int max, String zero) {
+      public Stepper(int initial, int max, String zero) {
          super(new FlowLayout(FlowLayout.LEFT, 4, 0));
          this.zero = zero;
          this.max = max;
@@ -503,19 +544,19 @@ final class Ui {
          set(initial);
       }
 
-      void set(int n) {
+      public void set(int n) {
          v = Math.max(0, Math.min(max, n));
          value.setText(v == 0 ? zero : Integer.toString(v));
       }
 
-      int get() {
+      public int get() {
          return v;
       }
    }
 
    // ------------------------------------------------------------ scroll
 
-   static JScrollPane scroll(JComponent view) {
+   public static JScrollPane scroll(JComponent view) {
       JScrollPane sp = new JScrollPane(view);
       sp.setOpaque(false);
       sp.getViewport().setOpaque(false);
@@ -579,12 +620,12 @@ final class Ui {
     * CSS width in its own units and clips). Until it is laid out it asks for
     * the given width.
     */
-   static final class Note extends JComponent {
+   public static final class Note extends JComponent {
       private String text = "";
       private final int widthHint;
       private int laidOutWidth = -1;
 
-      Note(String text, Font font, Color color, int widthHint) {
+      public Note(String text, Font font, Color color, int widthHint) {
          this.widthHint = widthHint;
          setFont(font);
          setForeground(color);
@@ -592,13 +633,13 @@ final class Ui {
          setText(text);
       }
 
-      void setText(String t) {
+      public void setText(String t) {
          text = t == null ? "" : t;
          revalidate();
          repaint();
       }
 
-      String getText() {
+      public String getText() {
          return text;
       }
 
@@ -656,18 +697,203 @@ final class Ui {
       }
    }
 
-   // ------------------------------------------------------------ logotipo
+   // ------------------------------------------------------------ lists
 
-   /** "OpenWorlds": "Open" in white and "Worlds" in the ring's gradient. */
-   static final class Wordmark extends JComponent {
+   /** A transparent panel for {@link #scroll} that follows the viewport's width and only scrolls vertically. */
+   public static class ScrollPanel extends JPanel implements javax.swing.Scrollable {
+      public ScrollPanel(LayoutManager layout) {
+         super(layout);
+         setOpaque(false);
+      }
+
+      @Override
+      public Dimension getPreferredScrollableViewportSize() {
+         return getPreferredSize();
+      }
+
+      @Override
+      public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
+         return 18;
+      }
+
+      @Override
+      public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
+         return Math.max(18, visible.height - 36);
+      }
+
+      @Override
+      public boolean getScrollableTracksViewportWidth() {
+         return true;
+      }
+
+      @Override
+      public boolean getScrollableTracksViewportHeight() {
+         return false;
+      }
+   }
+
+   /**
+    * A list on the card: rounded rows that light up under the mouse and when
+    * selected, each painted by a {@link Painter} (see {@link #drawRow} for
+    * the usual dot, title, subtitle and badges).
+    */
+   public static final class Rows<T> extends javax.swing.JList<T> {
+      public interface Painter<T> {
+         void paint(Graphics2D g, T value, int width, int height, boolean enabled);
+      }
+
+      private int hover = -1;
+
+      public Rows(javax.swing.ListModel<T> model, int rowHeight, Painter<T> painter) {
+         super(model);
+         setOpaque(false);
+         setBackground(new Color(0, 0, 0, 0));
+         setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+         setFixedCellHeight(rowHeight);
+         setCellRenderer(new javax.swing.ListCellRenderer<T>() {
+            private final RowView view = new RowView();
+
+            @Override
+            public Component getListCellRendererComponent(javax.swing.JList<? extends T> list, T value, int index,
+                                                          boolean selected, boolean focus) {
+               view.set(value, selected, index == hover, list.isEnabled());
+               return view;
+            }
+
+            final class RowView extends JComponent {
+               private T value;
+               private boolean selected;
+               private boolean hovered;
+               private boolean enabled;
+
+               void set(T v, boolean s, boolean h, boolean e) {
+                  value = v;
+                  selected = s;
+                  hovered = h;
+                  enabled = e;
+               }
+
+               @Override
+               protected void paintComponent(Graphics g) {
+                  Graphics2D g2 = Theme.smooth(g);
+                  int w = getWidth();
+                  int h = getHeight();
+                  RoundRectangle2D row = new RoundRectangle2D.Float(1, 2, w - 4, h - 4, 14, 14);
+                  if (selected) {
+                     g2.setColor(Theme.SELECTED);
+                     g2.fill(row);
+                     g2.setColor(Theme.alpha(Theme.SEA, enabled ? 130 : 60));
+                     g2.draw(row);
+                  } else if (hovered && enabled) {
+                     g2.setColor(Theme.HOVER);
+                     g2.fill(row);
+                  }
+                  if (value != null) {
+                     painter.paint(g2, value, w, h, enabled);
+                  }
+                  g2.dispose();
+               }
+            }
+         });
+         addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+            @Override
+            public void mouseMoved(java.awt.event.MouseEvent e) {
+               int i = locationToIndex(e.getPoint());
+               int h = i >= 0 && getCellBounds(i, i).contains(e.getPoint()) ? i : -1;
+               if (h != hover) {
+                  hover = h;
+                  repaint();
+               }
+            }
+         });
+         addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+               hover = -1;
+               repaint();
+            }
+         });
+      }
+   }
+
+   /**
+    * The usual row: a status dot, a title and a subtitle, and small badges
+    * ("VIP", "TLS"...) on the right.
+    */
+   public static void drawRow(Graphics2D g2, int w, int h, Color dot, String title, String subtitle, boolean enabled,
+                              String... badges) {
+      int right = w - 12;
+      g2.setFont(Theme.semibold(10f));
+      FontMetrics bm = g2.getFontMetrics();
+      for (int i = badges.length - 1; i >= 0; i--) {
+         String b = badges[i];
+         if (b == null || b.isEmpty()) {
+            continue;
+         }
+         int bw = bm.stringWidth(b) + 14;
+         RoundRectangle2D pill = new RoundRectangle2D.Float(right - bw, h / 2f - 9, bw, 18, 18, 18);
+         g2.setColor(Theme.alpha(Theme.SEA, enabled ? 40 : 20));
+         g2.fill(pill);
+         g2.setColor(Theme.alpha(Theme.SEA, enabled ? 150 : 70));
+         g2.draw(pill);
+         g2.setColor(enabled ? Theme.TEXT : Theme.FAINT);
+         g2.drawString(b, right - bw + 7, h / 2 + bm.getAscent() / 2 - 1);
+         right -= bw + 6;
+      }
+      if (dot != null) {
+         g2.setColor(enabled ? dot : Theme.alpha(dot, 110));
+         g2.fill(new Ellipse2D.Float(14, h / 2f - 4.5f, 9, 9));
+      }
+      int x = dot != null ? 34 : 14;
+      g2.setFont(Theme.semibold(13.5f));
+      g2.setColor(enabled ? Theme.TEXT : Theme.FAINT);
+      g2.drawString(fit(title, g2.getFontMetrics(), right - x - 6), x, subtitle == null ? h / 2 + 5 : h / 2 - 2);
+      if (subtitle != null) {
+         g2.setFont(Theme.regular(11f));
+         g2.setColor(enabled ? Theme.MUTED : Theme.FAINT);
+         g2.drawString(fit(subtitle, g2.getFontMetrics(), right - x - 6), x, h / 2 + 13);
+      }
+   }
+
+   /** {@code s} cut with an ellipsis to fit {@code width}. */
+   public static String fit(String s, FontMetrics fm, int width) {
+      if (s == null) {
+         return "";
+      }
+      if (fm.stringWidth(s) <= width) {
+         return s;
+      }
+      String t = s;
+      while (t.length() > 1 && fm.stringWidth(t + "\u2026") > width) {
+         t = t.substring(0, t.length() - 1);
+      }
+      return t + "\u2026";
+   }
+
+   // ------------------------------------------------------------ wordmark
+
+   /** An app's name with one part in the ring's gradient: "Open" + "Worlds", or "J " + "Solar" + " Server". */
+   public static final class Wordmark extends JComponent {
       private final Font font;
+      private final String before;
+      private final String accent;
+      private final String after;
 
-      Wordmark(float size) {
+      /** "OpenWorlds". */
+      public Wordmark(float size) {
+         this("Open", "Worlds", "", size);
+      }
+
+      public Wordmark(String before, String accent, String after, float size) {
+         this.before = before;
+         this.accent = accent;
+         this.after = after;
          font = Theme.bold(size);
          setOpaque(false);
          FontMetrics fm = getFontMetrics(font);
-         setPreferredSize(new Dimension(fm.stringWidth("OpenWorlds") + 4, fm.getAscent() + fm.getDescent()));
+         setPreferredSize(new Dimension(fm.stringWidth(before + accent + after) + 4, fm.getAscent() + fm.getDescent()));
          setMaximumSize(getPreferredSize());
+         setMinimumSize(getPreferredSize());
       }
 
       @Override
@@ -675,21 +901,23 @@ final class Ui {
          Graphics2D g2 = Theme.smooth(g);
          g2.setFont(font);
          FontMetrics fm = g2.getFontMetrics();
-         int x = (getWidth() - fm.stringWidth("OpenWorlds")) / 2;
+         int x = (getWidth() - fm.stringWidth(before + accent + after)) / 2;
          int y = fm.getAscent();
          g2.setColor(Theme.TEXT);
-         g2.drawString("Open", x, y);
-         int wx = x + fm.stringWidth("Open");
-         g2.setPaint(Theme.ring(wx, wx + fm.stringWidth("Worlds"), 0));
-         g2.drawString("Worlds", wx, y);
+         g2.drawString(before, x, y);
+         int ax = x + fm.stringWidth(before);
+         g2.setPaint(Theme.ring(ax, ax + fm.stringWidth(accent), 0));
+         g2.drawString(accent, ax, y);
+         g2.setColor(Theme.TEXT);
+         g2.drawString(after, ax + fm.stringWidth(accent), y);
          g2.dispose();
       }
    }
 
-   // ------------------------------------------------------------ dialogos
+   // ------------------------------------------------------------ dialogs
 
-   /** A modal message in the launcher's colours; returns true if the first button was pressed. */
-   static boolean ask(Component parent, String title, String message, String yes, String no) {
+   /** A modal message in the app's colours; returns true if the first button was pressed. */
+   public static boolean ask(Component parent, String title, String message, String yes, String no) {
       java.awt.Window owner = parent == null ? null : javax.swing.SwingUtilities.getWindowAncestor(parent);
       if (owner == null && parent instanceof java.awt.Window) {
          owner = (java.awt.Window) parent;
@@ -722,16 +950,17 @@ final class Ui {
       return answer[0];
    }
 
-   // ------------------------------------------------------------ iconos
+   // ------------------------------------------------------------ icons
 
    /** Vector icons drawn in the text colour of their button (no emoji: they depend on the system fonts). */
-   static final class Glyph implements Icon {
-      enum Kind { PLAY, STOP, GEAR, FOLDER, DOWNLOAD, REFRESH, PLUS, MINUS, CLOSE }
+   public static final class Glyph implements Icon {
+      public enum Kind { PLAY, STOP, GEAR, FOLDER, DOWNLOAD, REFRESH, PLUS, MINUS, CLOSE, USER, LOCK, CHAT, SEND, COPY,
+         TRASH, STAR, POWER, KEY, PUZZLE, CHECK, GLOBE }
 
-      final Kind kind;
-      final int size;
+      public final Kind kind;
+      public final int size;
 
-      Glyph(Kind kind, int size) {
+      public Glyph(Kind kind, int size) {
          this.kind = kind;
          this.size = size;
       }
@@ -753,7 +982,7 @@ final class Ui {
          g2.dispose();
       }
 
-      void paint(Graphics2D g, int x, int y, Color color) {
+      public void paint(Graphics2D g, int x, int y, Color color) {
          Graphics2D g2 = (Graphics2D) g.create();
          g2.translate(x, y);
          float s = size;
@@ -825,6 +1054,99 @@ final class Ui {
             case CLOSE:
                g2.drawLine(Math.round(s * 0.2f), Math.round(s * 0.2f), Math.round(s * 0.8f), Math.round(s * 0.8f));
                g2.drawLine(Math.round(s * 0.8f), Math.round(s * 0.2f), Math.round(s * 0.2f), Math.round(s * 0.8f));
+               break;
+            case USER:
+               g2.fill(new Ellipse2D.Float(s * 0.32f, s * 0.06f, s * 0.36f, s * 0.36f));
+               g2.fill(new java.awt.geom.Arc2D.Float(s * 0.12f, s * 0.5f, s * 0.76f, s * 0.8f, 0, 180, java.awt.geom.Arc2D.CHORD));
+               break;
+            case LOCK:
+               g2.draw(new java.awt.geom.Arc2D.Float(s * 0.27f, s * 0.08f, s * 0.46f, s * 0.5f, 0, 180, java.awt.geom.Arc2D.OPEN));
+               g2.drawLine(Math.round(s * 0.27f), Math.round(s * 0.33f), Math.round(s * 0.27f), Math.round(s * 0.44f));
+               g2.drawLine(Math.round(s * 0.73f), Math.round(s * 0.33f), Math.round(s * 0.73f), Math.round(s * 0.44f));
+               g2.fill(new RoundRectangle2D.Float(s * 0.14f, s * 0.42f, s * 0.72f, s * 0.52f, s * 0.14f, s * 0.14f));
+               break;
+            case CHAT: {
+               Area a = new Area(new RoundRectangle2D.Float(s * 0.06f, s * 0.1f, s * 0.88f, s * 0.62f, s * 0.3f, s * 0.3f));
+               Path2D.Float tail = new Path2D.Float();
+               tail.moveTo(s * 0.24f, s * 0.6f);
+               tail.lineTo(s * 0.2f, s * 0.92f);
+               tail.lineTo(s * 0.5f, s * 0.66f);
+               tail.closePath();
+               a.add(new Area(tail));
+               g2.draw(a);
+               break;
+            }
+            case SEND: {
+               Path2D.Float p = new Path2D.Float();
+               p.moveTo(s * 0.06f, s * 0.46f);
+               p.lineTo(s * 0.94f, s * 0.08f);
+               p.lineTo(s * 0.62f, s * 0.92f);
+               p.lineTo(s * 0.46f, s * 0.56f);
+               p.closePath();
+               g2.fill(p);
+               break;
+            }
+            case COPY:
+               g2.draw(new RoundRectangle2D.Float(s * 0.3f, s * 0.08f, s * 0.6f, s * 0.6f, s * 0.14f, s * 0.14f));
+               g2.draw(new RoundRectangle2D.Float(s * 0.1f, s * 0.32f, s * 0.6f, s * 0.6f, s * 0.14f, s * 0.14f));
+               break;
+            case TRASH: {
+               g2.drawLine(Math.round(s * 0.1f), Math.round(s * 0.22f), Math.round(s * 0.9f), Math.round(s * 0.22f));
+               g2.drawLine(Math.round(s * 0.38f), Math.round(s * 0.08f), Math.round(s * 0.62f), Math.round(s * 0.08f));
+               Path2D.Float p = new Path2D.Float();
+               p.moveTo(s * 0.2f, s * 0.3f);
+               p.lineTo(s * 0.26f, s * 0.92f);
+               p.lineTo(s * 0.74f, s * 0.92f);
+               p.lineTo(s * 0.8f, s * 0.3f);
+               g2.draw(p);
+               break;
+            }
+            case STAR: {
+               Path2D.Float p = new Path2D.Float();
+               for (int i = 0; i < 10; i++) {
+                  double r = i % 2 == 0 ? s * 0.48 : s * 0.2;
+                  double a = -Math.PI / 2 + i * Math.PI / 5;
+                  float px = (float) (s / 2 + Math.cos(a) * r);
+                  float py = (float) (s * 0.54 + Math.sin(a) * r);
+                  if (i == 0) {
+                     p.moveTo(px, py);
+                  } else {
+                     p.lineTo(px, py);
+                  }
+               }
+               p.closePath();
+               g2.fill(p);
+               break;
+            }
+            case POWER:
+               g2.draw(new java.awt.geom.Arc2D.Float(s * 0.12f, s * 0.14f, s * 0.76f, s * 0.76f, 125, 290, java.awt.geom.Arc2D.OPEN));
+               g2.drawLine(Math.round(s * 0.5f), Math.round(s * 0.06f), Math.round(s * 0.5f), Math.round(s * 0.46f));
+               break;
+            case KEY:
+               g2.draw(new Ellipse2D.Float(s * 0.06f, s * 0.3f, s * 0.38f, s * 0.38f));
+               g2.drawLine(Math.round(s * 0.44f), Math.round(s * 0.49f), Math.round(s * 0.94f), Math.round(s * 0.49f));
+               g2.drawLine(Math.round(s * 0.78f), Math.round(s * 0.49f), Math.round(s * 0.78f), Math.round(s * 0.7f));
+               g2.drawLine(Math.round(s * 0.92f), Math.round(s * 0.49f), Math.round(s * 0.92f), Math.round(s * 0.66f));
+               break;
+            case PUZZLE: {
+               Area a = new Area(new RoundRectangle2D.Float(s * 0.08f, s * 0.24f, s * 0.64f, s * 0.64f, s * 0.12f, s * 0.12f));
+               a.add(new Area(new Ellipse2D.Float(s * 0.28f, s * 0.04f, s * 0.24f, s * 0.26f)));
+               a.add(new Area(new Ellipse2D.Float(s * 0.66f, s * 0.44f, s * 0.26f, s * 0.24f)));
+               g2.fill(a);
+               break;
+            }
+            case CHECK: {
+               Path2D.Float p = new Path2D.Float();
+               p.moveTo(s * 0.12f, s * 0.52f);
+               p.lineTo(s * 0.4f, s * 0.8f);
+               p.lineTo(s * 0.9f, s * 0.22f);
+               g2.draw(p);
+               break;
+            }
+            case GLOBE:
+               g2.draw(new Ellipse2D.Float(s * 0.08f, s * 0.08f, s * 0.84f, s * 0.84f));
+               g2.draw(new Ellipse2D.Float(s * 0.3f, s * 0.08f, s * 0.4f, s * 0.84f));
+               g2.drawLine(Math.round(s * 0.08f), Math.round(s * 0.5f), Math.round(s * 0.92f), Math.round(s * 0.5f));
                break;
             default:
                break;

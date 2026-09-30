@@ -1,26 +1,25 @@
 #!/usr/bin/env bash
-# run-checks.sh — runner de comprobaciones unitarias del hito H0 de
-# docs/roadmap.md: compila y ejecuta todos los *Check.java que haya bajo
-# formats/test/** (classpath de las clases de formats/), bajo
-# editor/worldsplayer_source_editor-main/bridge/test/ (classpath
-# editor/.build-gamma/out) y bajo launcher/test/** (el lanzador compilado).
-# Contrato (COMUN.md): un *Check es una clase con `main` que sale con codigo 0
-# si pasa, != 0 si falla.
+# run-checks.sh - runs every unit check of the repository: compiles and runs
+# each *Check.java under formats/test/** (classpath: the formats/ classes),
+# editor/worldsplayer_source_editor-main/bridge/test/ (classpath:
+# editor/.build-gamma/out), launcher/test/** (the launcher and ui/ modules)
+# and server/test/** (J Solar Server and ui/).
+# Contract: a *Check is a class with a `main` that exits 0 when it passes and
+# non-zero when it fails.
 #
-# Uso:
+# Usage:
 #   tools/run-checks.sh [--no-bridge] [--formats-build DIR]
-#     --no-bridge         no construye ni ejecuta los checks de bridge/test
-#                          (utils si no quieres pagar build_gamma.sh).
-#     --formats-build DIR reusa un build ya compilado de formats/src+test en
-#                          DIR en vez de compilar uno propio - lo usa
-#                          verify-corpus.sh para no compilar dos veces.
+#     --no-bridge         neither builds nor runs the checks of bridge/test
+#                         (handy when you do not want to pay for build_gamma.sh).
+#     --formats-build DIR reuses a build of formats/src+test already compiled in
+#                         DIR instead of compiling one; verify-corpus.sh uses it
+#                         so as not to compile twice.
 #
-# Si bridge/test tiene *Check.java pero editor/.build-gamma/out no existe
-# todavia, este script llama a build_gamma.sh primero (compila el puente
-# completo: puede tardar). Si bridge/test no tiene ningun *Check.java no se
-# toca el puente para nada (ni se construye).
+# If bridge/test has *Check.java files but editor/.build-gamma/out does not
+# exist yet (or is older than the bridge sources), this script calls
+# build_gamma.sh first (it compiles the whole bridge: it can take a while).
 #
-# bash 3.2 compatible: sin arrays vacios bajo `set -u`.
+# bash 3.2 compatible: no empty arrays under `set -u`.
 set -eu
 set -o pipefail
 
@@ -51,10 +50,10 @@ while [ $# -gt 0 ]; do
       --no-bridge) NO_BRIDGE=1; shift ;;
       --formats-build) FORMATS_BUILD="$2"; shift 2 ;;
       -h|--help)
-         echo "Uso: $0 [--no-bridge] [--formats-build DIR]"
+         echo "Usage: $0 [--no-bridge] [--formats-build DIR]"
          exit 0 ;;
       *)
-         echo "Argumento desconocido: $1" >&2
+         echo "Unknown argument: $1" >&2
          exit 2 ;;
    esac
 done
@@ -70,15 +69,15 @@ ROWS="$WORK/rows.txt"
 N_TOTAL=0
 
 report() {
-   # report <grupo> <clase> <estado(PASA|FALLA)> <detalle>
+   # report <group> <class> <state (PASS|FAIL)> <detail>
    printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" >> "$ROWS"
    N_TOTAL=$((N_TOTAL + 1))
-   if [ "$3" = "FALLA" ]; then
+   if [ "$3" = "FAIL" ]; then
       FAILED=1
    fi
 }
 
-# class_name_for_java_file <fichero.java>  ->  FQN (paquete.Clase o Clase si no hay `package`)
+# class_name_for_java_file <file.java>  ->  FQN (package.Class, or Class without a `package`)
 class_name_for_java_file() {
    local f="$1" pkg base
    pkg="$(grep -m1 -E '^package ' "$f" 2>/dev/null | sed -E 's/^package[[:space:]]+([A-Za-z0-9_.]+);.*/\1/')"
@@ -87,6 +86,25 @@ class_name_for_java_file() {
       echo "$pkg.$base"
    else
       echo "$base"
+   fi
+}
+
+# run_check <group> <classpath> <file.java>
+run_check() {
+   local group="$1" cp="$2" f="$3" cls rel rc
+   cls="$(class_name_for_java_file "$f")"
+   rel="${f#"$ROOT"/}"
+   set +e
+   java $JMEM -cp "$cp" "$cls" > "$WORK/last.txt" 2>&1
+   rc=$?
+   set -e
+   if [ "$rc" -eq 0 ]; then
+      echo "  PASS  $rel"
+      report "$group" "$cls" "PASS" "exit 0"
+   else
+      echo "  FAIL  $rel (exit $rc)"
+      sed 's/^/    /' "$WORK/last.txt"
+      report "$group" "$cls" "FAIL" "exit $rc"
    fi
 }
 
@@ -102,9 +120,9 @@ fi
 N_FORMATS_CHECKS=$(wc -l < "$FORMATS_CHECKS" | tr -d ' ')
 
 if [ -n "$FORMATS_BUILD" ]; then
-   echo "--- formats: reusando build ya compilado en $FORMATS_BUILD ---"
+   echo "--- formats: reusing the build in $FORMATS_BUILD ---"
 else
-   echo "--- formats: compilando formats/src + formats/test ---"
+   echo "--- formats: compiling formats/src + formats/test ---"
    FORMATS_BUILD="$WORK/formats-out"
    mkdir -p "$FORMATS_BUILD"
    SRC_LIST="$WORK/formats-sources.txt"
@@ -114,28 +132,15 @@ else
       find "$ROOT/formats/test" -name "*.java" >> "$SRC_LIST"
    fi
    javac -d "$FORMATS_BUILD" @"$SRC_LIST"
-   echo "compilado OK -> $FORMATS_BUILD"
+   echo "compiled -> $FORMATS_BUILD"
 fi
 
 if [ "$N_FORMATS_CHECKS" -eq 0 ]; then
-   echo "0 *Check.java en formats/test — nada que ejecutar ahi"
+   echo "no *Check.java in formats/test"
 else
-   echo "$N_FORMATS_CHECKS *Check.java encontrados en formats/test:"
+   echo "$N_FORMATS_CHECKS *Check.java in formats/test:"
    while IFS= read -r f; do
-      CLS="$(class_name_for_java_file "$f")"
-      REL="${f#"$ROOT"/}"
-      set +e
-      java $JMEM -cp "$FORMATS_BUILD" "$CLS" > "$WORK/last.txt" 2>&1
-      RC=$?
-      set -e
-      if [ "$RC" -eq 0 ]; then
-         echo "  PASA  $REL"
-         report "formats" "$CLS" "PASA" "exit 0"
-      else
-         echo "  FALLA $REL (exit $RC)"
-         sed 's/^/    /' "$WORK/last.txt"
-         report "formats" "$CLS" "FALLA" "exit $RC"
-      fi
+      run_check formats "$FORMATS_BUILD" "$f"
    done < "$FORMATS_CHECKS"
 fi
 echo
@@ -153,102 +158,87 @@ else
 fi
 N_BRIDGE_CHECKS=$(wc -l < "$BRIDGE_CHECKS" | tr -d ' ')
 
-echo "--- bridge: $N_BRIDGE_CHECKS *Check.java en bridge/test ---"
+echo "--- bridge: $N_BRIDGE_CHECKS *Check.java in bridge/test ---"
 if [ "$N_BRIDGE_CHECKS" -eq 0 ]; then
-   echo "0 *Check.java en bridge/test — nada que construir ni ejecutar ahi"
+   echo "no *Check.java in bridge/test: nothing to build or run there"
 elif [ "$NO_BRIDGE" -eq 1 ]; then
-   echo "--no-bridge: se saltan los $N_BRIDGE_CHECKS *Check.java de bridge/test"
+   echo "--no-bridge: skipping the $N_BRIDGE_CHECKS *Check.java of bridge/test"
 else
    BRIDGE_OUT="$(cd "$BRIDGE_DIR/.." 2>/dev/null && pwd)/.build-gamma/out"
    if [ ! -d "$BRIDGE_OUT" ]; then
-      echo "editor/.build-gamma/out no existe: construyendo con build_gamma.sh (puede tardar) ..."
+      echo "editor/.build-gamma/out does not exist: building it with build_gamma.sh (it takes a while) ..."
       "$BRIDGE_DIR/build_gamma.sh"
    elif [ -n "$(find "$BRIDGE_DIR/bridge/NET" "$BRIDGE_DIR/bridge" "$BRIDGE_DIR/apply_mock.sh" "$BRIDGE_DIR/build_gamma.sh" \
                   "$ROOT/formats/src/net/openworlds/cmp" "$ROOT/formats/src/net/openworlds/rwg" "$ROOT/formats/src/net/openworlds/bod" \
                   -maxdepth 4 \( -name '*.java' -o -name '*.patch' -o -name '*.sh' \) -not -path '*/bridge/test/*' \
                   -newer "$BRIDGE_OUT" 2>/dev/null | head -1)" ]; then
-      # Una build vieja compila los checks contra clases que ya no existen
-      # (o peor, los pasa contra codigo que ya cambio): se rehace.
-      echo "editor/.build-gamma/out es anterior a cambios del puente: reconstruyendo con build_gamma.sh ..."
+      # an old build would compile the checks against classes that are gone
+      # (or, worse, pass them against code that has changed): rebuild it
+      echo "editor/.build-gamma/out is older than changes to the bridge: rebuilding with build_gamma.sh ..."
       "$BRIDGE_DIR/build_gamma.sh"
    fi
    if [ ! -d "$BRIDGE_OUT" ]; then
-      echo "build_gamma.sh no dejo $BRIDGE_OUT - no se pueden ejecutar los checks de bridge/test" >&2
-      report "bridge" "(build_gamma.sh)" "FALLA" "no genero $BRIDGE_OUT"
+      echo "build_gamma.sh did not make $BRIDGE_OUT: the checks of bridge/test cannot run" >&2
+      report "bridge" "(build_gamma.sh)" "FAIL" "no $BRIDGE_OUT"
    else
       BRIDGE_TEST_BUILD="$WORK/bridge-test-out"
       mkdir -p "$BRIDGE_TEST_BUILD"
       javac -cp "$BRIDGE_OUT" -d "$BRIDGE_TEST_BUILD" @"$BRIDGE_CHECKS"
       while IFS= read -r f; do
-         CLS="$(class_name_for_java_file "$f")"
-         REL="${f#"$ROOT"/}"
-         set +e
-         java $JMEM -cp "$BRIDGE_OUT:$BRIDGE_TEST_BUILD" "$CLS" > "$WORK/last.txt" 2>&1
-         RC=$?
-         set -e
-         if [ "$RC" -eq 0 ]; then
-            echo "  PASA  $REL"
-            report "bridge" "$CLS" "PASA" "exit 0"
-         else
-            echo "  FALLA $REL (exit $RC)"
-            sed 's/^/    /' "$WORK/last.txt"
-            report "bridge" "$CLS" "FALLA" "exit $RC"
-         fi
+         run_check bridge "$BRIDGE_OUT:$BRIDGE_TEST_BUILD" "$f"
       done < "$BRIDGE_CHECKS"
    fi
 fi
 echo
 
 # ---------------------------------------------------------------------
-# launcher/test/**/*Check.java (classpath: launcher/src compilado + sus recursos)
+# Java modules on the shared ui/ module: launcher/ and server/ (J Solar
+# Server), each with its src/, resources/ and test/**/*Check.java
 # ---------------------------------------------------------------------
-LAUNCHER_CHECKS="$WORK/launcher-checks.txt"
-if [ -d "$ROOT/launcher/test" ]; then
-   find "$ROOT/launcher/test" -name "*Check.java" 2>/dev/null | sort > "$LAUNCHER_CHECKS" || true
-else
-   : > "$LAUNCHER_CHECKS"
-fi
-N_LAUNCHER_CHECKS=$(wc -l < "$LAUNCHER_CHECKS" | tr -d ' ')
-echo "--- launcher: $N_LAUNCHER_CHECKS *Check.java en launcher/test ---"
-if [ "$N_LAUNCHER_CHECKS" -gt 0 ]; then
-   LAUNCHER_BUILD="$WORK/launcher-out"
-   mkdir -p "$LAUNCHER_BUILD"
-   find "$ROOT/launcher/src" "$ROOT/launcher/test" -name "*.java" > "$WORK/launcher-sources.txt"
-   javac --release 17 -nowarn -encoding UTF-8 -d "$LAUNCHER_BUILD" @"$WORK/launcher-sources.txt"
-   cp -R "$ROOT/launcher/resources/." "$LAUNCHER_BUILD/"
-   while IFS= read -r f; do
-      CLS="$(class_name_for_java_file "$f")"
-      REL="${f#"$ROOT"/}"
-      set +e
-      java $JMEM -cp "$LAUNCHER_BUILD" "$CLS" > "$WORK/last.txt" 2>&1
-      RC=$?
-      set -e
-      if [ "$RC" -eq 0 ]; then
-         echo "  PASA  $REL"
-         report "launcher" "$CLS" "PASA" "exit 0"
-      else
-         echo "  FALLA $REL (exit $RC)"
-         sed 's/^/    /' "$WORK/last.txt"
-         report "launcher" "$CLS" "FALLA" "exit $RC"
+# module_checks <name>
+module_checks() {
+   local name="$1" list build n
+   list="$WORK/$name-checks.txt"
+   if [ -d "$ROOT/$name/test" ]; then
+      find "$ROOT/$name/test" -name "*Check.java" 2>/dev/null | sort > "$list" || true
+   else
+      : > "$list"
+   fi
+   n=$(wc -l < "$list" | tr -d ' ')
+   echo "--- $name: $n *Check.java in $name/test ---"
+   if [ "$n" -gt 0 ]; then
+      build="$WORK/$name-out"
+      mkdir -p "$build"
+      find "$ROOT/ui/src" "$ROOT/$name/src" "$ROOT/$name/test" -name "*.java" > "$WORK/$name-sources.txt"
+      javac --release 17 -nowarn -encoding UTF-8 -d "$build" @"$WORK/$name-sources.txt"
+      cp -R "$ROOT/ui/resources/." "$build/"
+      if [ -d "$ROOT/$name/resources" ]; then
+         cp -R "$ROOT/$name/resources/." "$build/"
       fi
-   done < "$LAUNCHER_CHECKS"
-fi
-echo
+      while IFS= read -r f; do
+         run_check "$name" "$build" "$f"
+      done < "$list"
+   fi
+   echo
+}
+
+module_checks launcher
+module_checks server
 
 # ---------------------------------------------------------------------
-# resumen
+# summary
 # ---------------------------------------------------------------------
-echo "--- resumen run-checks ---"
+echo "--- run-checks summary ---"
 if [ "$N_TOTAL" -eq 0 ]; then
-   echo "0 *Check.java encontrados en total (formats/test ni bridge/test tienen ninguno todavia)"
+   echo "no *Check.java found at all"
 else
-   printf '%-10s %-55s %-6s %s\n' "Grupo" "Clase" "Estado" "Detalle"
+   printf '%-10s %-55s %-6s %s\n' "Group" "Class" "State" "Detail"
    while IFS="$(printf '\t')" read -r a b c d; do
       printf '%-10s %-55s %-6s %s\n' "$a" "$b" "$c" "$d"
    done < "$ROWS"
-   N_PASA=$(awk -F'\t' '$3=="PASA"{n++} END{print n+0}' "$ROWS")
+   N_PASS=$(awk -F'\t' '$3=="PASS"{n++} END{print n+0}' "$ROWS")
    echo
-   echo "$N_PASA / $N_TOTAL checks OK"
+   echo "$N_PASS / $N_TOTAL checks OK"
 fi
 
 if [ "$FAILED" -eq 1 ]; then

@@ -1,4 +1,4 @@
-package net.openworlds.launcher;
+package net.openworlds.ui;
 
 import javax.swing.JComponent;
 import javax.swing.Timer;
@@ -18,24 +18,38 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The logo's planet, drawn live: the same 80-face icosphere, light,
- * continents and ring as tools/icons/make_icons.py (at rest it is the icon),
- * turning slowly about its own axis. The animation stops while hidden or
- * paused (the game's software rasterizer wants the CPU).
+ * The icon's planet, drawn live: the same 80-face icosphere, light, colours
+ * and ring as tools/icons/make_icons.py (at rest it is the icon), turning
+ * slowly about its own axis. {@link Style#WORLDS} is the game's planet (sea
+ * and continents); {@link Style#SOLAR} is J Solar Server's banded gas giant,
+ * leaning with its ring, with a small moon going round it. The animation
+ * stops while hidden or paused (the game's software rasterizer wants the CPU).
  */
-final class PlanetView extends JComponent {
+public final class PlanetView extends JComponent {
+   public enum Style { WORLDS, SOLAR }
+
    // make_icons.py: rot(v, radians(-14), radians(28)), light norm(-0.55, 0.62, 0.56)
    private static final double TILT_X = Math.toRadians(-14);
    private static final double TILT_Y = Math.toRadians(28);
    private static final double[] LIGHT = norm(new double[]{-0.55, 0.62, 0.56});
    private static final int[][] SEA = {{30, 34, 118}, {84, 214, 240}};
    private static final int[][] LAND = {{12, 56, 66}, {150, 245, 196}};
+   // make_icons.py BANDS (poles, middle, equator) and MOON: dark end, lit end
+   private static final int[][][] BANDS = {{{46, 16, 96}, {196, 158, 255}}, {{72, 16, 92}, {255, 150, 222}},
+      {{34, 22, 112}, {160, 150, 255}}};
+   private static final int[][] MOON = {{58, 44, 108}, {236, 226, 255}};
+   /** The ring leans this much on the picture (and so does the solar planet's equator). */
+   private static final double RING_ROLL = Math.toRadians(17);
+   /** The moon goes round every 40 s. */
+   private static final double ORBIT_PER_MS = 2 * Math.PI / 40000.0;
    /** A turn every 90 s. */
    private static final double SPIN_PER_MS = 2 * Math.PI / 90000.0;
 
+   private final Style style;
    private final double[][] verts;
    private final int[][] faces;
-   private final boolean[] land;
+   /** Per face: the colour pair (sea/land, or the band). */
+   private final int[][][] colours;
    private final double radius;
    private final Timer timer;
    /** Animation clock (ms): only runs while the planet turns, so pausing freezes it in place. */
@@ -43,19 +57,32 @@ final class PlanetView extends JComponent {
    private long last;
    private boolean paused;
 
-   PlanetView(double radius) {
+   public PlanetView(double radius) {
+      this(radius, Style.WORLDS);
+   }
+
+   public PlanetView(double radius, Style style) {
       this.radius = radius;
+      this.style = style;
       List<double[]> v = new ArrayList<>();
       List<int[]> f = new ArrayList<>();
       icosphere(v, f);
       verts = v.toArray(new double[0][]);
       faces = f.toArray(new int[0][]);
-      // the continents stick to the planet: the icon's function is evaluated at
-      // the tilted rest position, so at spin 0 this is the icon
-      land = new boolean[faces.length];
+      // the colours stick to the planet: the icon's function is evaluated at
+      // the tilted rest position (land) or in the planet's own frame (bands),
+      // so at spin 0 this is the icon
+      colours = new int[faces.length][][];
       for (int i = 0; i < faces.length; i++) {
-         double[] c = tilt(centroid(verts[faces[i][0]], verts[faces[i][1]], verts[faces[i][2]]));
-         land[i] = Math.sin(4.1 * c[0] + 1.3) + Math.sin(3.3 * c[1] + 0.4) + Math.cos(5.2 * c[2] - 0.9) > 1.05;
+         double[] own = centroid(verts[faces[i][0]], verts[faces[i][1]], verts[faces[i][2]]);
+         if (style == Style.SOLAR) {
+            double a = Math.abs(own[1]);
+            colours[i] = BANDS[a < 0.22 ? 2 : a < 0.58 ? 1 : 0];
+         } else {
+            double[] c = tilt(own);
+            boolean land = Math.sin(4.1 * c[0] + 1.3) + Math.sin(3.3 * c[1] + 0.4) + Math.cos(5.2 * c[2] - 0.9) > 1.05;
+            colours[i] = land ? LAND : SEA;
+         }
       }
       setOpaque(false);
       int w = (int) Math.ceil(radius * 3.4);
@@ -68,7 +95,7 @@ final class PlanetView extends JComponent {
    }
 
    /** Stops or restarts the turning (e.g. while the game runs). */
-   void setPaused(boolean p) {
+   public void setPaused(boolean p) {
       paused = p;
       updateTimer();
    }
@@ -105,10 +132,54 @@ final class PlanetView extends JComponent {
       double rx = 372 * k;
       double ry = 96 * k;
       float rw = (float) (30 * k);
+      double[] moon = style == Style.SOLAR ? moonAt(cx, cy, k) : null;
+      if (moon != null && moon[2] < 0) {
+         moon(g2, moon, k);
+      }
       ring(g2, cx, cy, rx, ry, rw, true);
       planet(g2, cx, cy, k);
       ring(g2, cx, cy, rx, ry, rw, false);
+      if (moon != null && moon[2] >= 0) {
+         moon(g2, moon, k);
+      }
       g2.dispose();
+   }
+
+   /**
+    * Where the moon is: on a tilted orbit round the planet, starting where the
+    * icon has it (top right). {x, y, depth} with depth &lt; 0 behind the planet.
+    */
+   private double[] moonAt(double cx, double cy, double k) {
+      // at clock 0 the moon is at the icon's (806, 250) from the centre (512, 512)
+      double a0 = Math.atan2(-(250 - 512), 806 - 512);
+      double a = a0 + clock * ORBIT_PER_MS;
+      double orbit = Math.hypot(806 - 512, 250 - 512) * k;
+      // an ellipse leaning like the ring, a little open so it passes behind the planet
+      double ex = Math.cos(a) * orbit;
+      double ey = Math.sin(a) * orbit * 0.55;
+      double c = Math.cos(-RING_ROLL + Math.toRadians(-38));
+      double s = Math.sin(-RING_ROLL + Math.toRadians(-38));
+      double x = ex * c - ey * s;
+      double y = ex * s + ey * c;
+      // in front on the lower half of the orbit, behind on the upper half
+      return new double[]{cx + x, cy - y, -Math.sin(a)};
+   }
+
+   private void moon(Graphics2D g2, double[] m, double k) {
+      double r = 58 * k;
+      float glowR = (float) (r + 46 * k);
+      g2.setPaint(new RadialGradientPaint(new Point2D.Double(m[0], m[1]), glowR, new float[]{0f, 1f},
+         new Color[]{Theme.alpha(Theme.GLOW, 76), Theme.alpha(Theme.GLOW, 0)}));
+      g2.fill(new Ellipse2D.Double(m[0] - glowR, m[1] - glowR, 2 * glowR, 2 * glowR));
+      double spin = clock * SPIN_PER_MS * 1.6;
+      double c = Math.cos(spin);
+      double s = Math.sin(spin);
+      double[][] p = new double[verts.length][];
+      for (int i = 0; i < verts.length; i++) {
+         double[] v = verts[i];
+         p[i] = new double[]{v[0] * c + v[2] * s, v[1], -v[0] * s + v[2] * c};
+      }
+      drawFaces(g2, p, m[0], m[1], r, k, null);
    }
 
    private void planet(Graphics2D g2, double cx, double cy, double k) {
@@ -119,8 +190,14 @@ final class PlanetView extends JComponent {
       for (int i = 0; i < verts.length; i++) {
          double[] v = verts[i];
          // spin about its own axis (the object's y), then the icon's tilt
-         p[i] = tilt(new double[]{v[0] * c + v[2] * s, v[1], -v[0] * s + v[2] * c});
+         double[] t = tilt(new double[]{v[0] * c + v[2] * s, v[1], -v[0] * s + v[2] * c});
+         p[i] = style == Style.SOLAR ? roll(t) : t;
       }
+      drawFaces(g2, p, cx, cy, radius, k, colours);
+   }
+
+   /** The front faces of a placed icosphere, far to near, flat-shaded; colours == null: the moon's. */
+   private void drawFaces(Graphics2D g2, double[][] p, double cx, double cy, double r, double k, int[][][] colours) {
       List<double[]> order = new ArrayList<>();
       for (int i = 0; i < faces.length; i++) {
          double[] a = p[faces[i][0]];
@@ -144,14 +221,14 @@ final class PlanetView extends JComponent {
       Path2D.Double tri = new Path2D.Double();
       for (double[] o : order) {
          int i = (int) o[1];
-         int[][] pal = land[i] ? LAND : SEA;
+         int[][] pal = colours == null ? MOON : colours[i];
          double lit = o[2];
          g2.setColor(new Color(lerp(pal[0][0], pal[1][0], lit), lerp(pal[0][1], pal[1][1], lit), lerp(pal[0][2], pal[1][2], lit)));
          tri.reset();
          for (int j = 0; j < 3; j++) {
             double[] v = p[faces[i][j]];
-            double x = cx + radius * v[0];
-            double y = cy - radius * v[1];
+            double x = cx + r * v[0];
+            double y = cy - r * v[1];
             if (j == 0) {
                tri.moveTo(x, y);
             } else {
@@ -164,10 +241,17 @@ final class PlanetView extends JComponent {
       }
    }
 
+   /** make_icons.py roll(): leans the solar planet's equator with the ring (counter-clockwise on the picture). */
+   private static double[] roll(double[] v) {
+      double c = Math.cos(RING_ROLL);
+      double s = Math.sin(RING_ROLL);
+      return new double[]{v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2]};
+   }
+
    /** Half of the ring: the back one (behind the planet) or the front one, turned -17 degrees. */
    private static void ring(Graphics2D g, double cx, double cy, double rx, double ry, float width, boolean back) {
       Graphics2D g2 = (Graphics2D) g.create();
-      g2.rotate(Math.toRadians(-17), cx, cy);
+      g2.rotate(-RING_ROLL, cx, cy);
       double big = rx * 4;
       g2.clip(new Rectangle.Double(cx - big, back ? cy - big : cy, 2 * big, big));
       g2.setPaint(Theme.ring((float) (cx - rx), (float) (cx + rx), (float) cy));

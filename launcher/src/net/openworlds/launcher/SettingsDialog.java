@@ -1,5 +1,8 @@
 package net.openworlds.launcher;
 
+import net.openworlds.ui.Theme;
+import net.openworlds.ui.Ui;
+import net.openworlds.ui.SpaceBackground;
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;

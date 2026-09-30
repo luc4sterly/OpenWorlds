@@ -1,5 +1,9 @@
 package net.openworlds.launcher;
 
+import net.openworlds.ui.Theme;
+import net.openworlds.ui.Ui;
+import net.openworlds.ui.PlanetView;
+import net.openworlds.ui.SpaceBackground;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -12,7 +16,6 @@ import javax.swing.JPanel;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -77,16 +80,7 @@ final class LauncherWindow {
 
    static void open(Layout layout, Settings settings, String[] args) {
       SwingUtilities.invokeLater(() -> {
-         try {
-            UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
-         } catch (Exception ignored) {
-            // the default look does just as well: everything visible is painted here
-         }
-         UIManager.put("ToolTip.background", new Color(0x1d, 0x16, 0x4a));
-         UIManager.put("ToolTip.foreground", Theme.TEXT);
-         UIManager.put("ToolTip.font", Theme.regular(12f));
-         UIManager.put("ToolTip.border", BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Theme.CARD_EDGE), BorderFactory.createEmptyBorder(5, 8, 5, 8)));
+         Ui.installLookAndFeel();
          new LauncherWindow(layout, settings, args).build();
       });
    }

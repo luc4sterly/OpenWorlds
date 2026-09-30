@@ -1,4 +1,4 @@
-package net.openworlds.launcher;
+package net.openworlds.ui;
 
 import javax.swing.JPanel;
 import java.awt.Color;
@@ -20,16 +20,16 @@ import java.util.Random;
  * gradient, a faint violet haze and stars with the icon's two sparkles. Drawn
  * once per size into an image, so animating the planet on top costs nothing.
  */
-class SpaceBackground extends JPanel {
+public class SpaceBackground extends JPanel {
    private BufferedImage cache;
    private final boolean sparkles;
 
-   SpaceBackground(LayoutManager layout) {
+   public SpaceBackground(LayoutManager layout) {
       this(layout, true);
    }
 
    /** {@code sparkles}: the icon's four-pointed stars; dialogs go without, they would fall on their cards. */
-   SpaceBackground(LayoutManager layout, boolean sparkles) {
+   public SpaceBackground(LayoutManager layout, boolean sparkles) {
       super(layout);
       this.sparkles = sparkles;
       setOpaque(true);
@@ -58,13 +58,13 @@ class SpaceBackground extends JPanel {
       g.drawImage(cache, 0, 0, w, h, null);
    }
 
-   static void paintSky(Graphics2D g, int w, int h, boolean sparkles) {
+   public static void paintSky(Graphics2D g, int w, int h, boolean sparkles) {
       g.setPaint(new GradientPaint(0, 0, Theme.SKY_TOP, w, h, Theme.SKY_BOTTOM));
       g.fillRect(0, 0, w, h);
       // violet haze at the top left, where the icon has its light
       float r = Math.max(w, h) * 0.75f;
       g.setPaint(new RadialGradientPaint(new Point2D.Float(w * 0.18f, h * 0.12f), r, new float[]{0f, 1f},
-         new Color[]{new Color(0x6a, 0x4c, 0xd8, 60), new Color(0x6a, 0x4c, 0xd8, 0)}));
+         new Color[]{Theme.alpha(Theme.HAZE, 60), Theme.alpha(Theme.HAZE, 0)}));
       g.fillRect(0, 0, w, h);
       // stars: the icon's rules (radius 2.5-7 of 1024, opacity 0.35-0.95),
       // at the window's scale and with a fixed seed
@@ -89,7 +89,7 @@ class SpaceBackground extends JPanel {
    }
 
    /** The icon's four-pointed sparkle (make_icons.py sparkle()). */
-   static void sparkle(Graphics2D g, double x, double y, double s, float opacity) {
+   public static void sparkle(Graphics2D g, double x, double y, double s, float opacity) {
       Path2D.Double p = new Path2D.Double();
       p.moveTo(x, y - s);
       p.quadTo(x, y, x + s, y);

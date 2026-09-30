@@ -28,6 +28,7 @@ final class Config {
    /** A new name creates its account the first time it signs in (with the password typed then). */
    boolean openSignup = true;
    boolean guests = true;
+   /** Players online at once; 0 = no limit. */
    int maxUsers = 100;
    /** The admin window starts the server as soon as it opens. */
    boolean autoStart = true;

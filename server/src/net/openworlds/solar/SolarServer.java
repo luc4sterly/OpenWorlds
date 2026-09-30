@@ -431,7 +431,7 @@ public final class SolarServer {
             refuse(c, refusedCode, refusedWhy);
             return;
          }
-         if (online.size() >= config.maxUsers) {
+         if (config.maxUsers > 0 && online.size() >= config.maxUsers) {
             refuse(c, Props.NAK_MAX_ORDINARY, "the server is full");
             return;
          }

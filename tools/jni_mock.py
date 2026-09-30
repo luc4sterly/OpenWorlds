@@ -101,28 +101,26 @@ for f, cls, method in declarations:
 
 # --- Write caller map doc ---
 out = []
-out.append("# Mapa de llamadas a métodos `native` (previo al mock JNI)\n\n")
+out.append("# Call map of `native` methods (before the JNI mock)\n\n")
 out.append(
-    "Generado antes de convertir cada `native` en un stub con logging, para "
-    "saber qué rutas de código realmente los ejercitan en tiempo de "
-    "ejecución. `(self)` = llamada sin calificar dentro del propio archivo "
-    "que declara el método.\n\n"
-    "⚠️ **Limitación conocida, léase antes de sacar conclusiones**: esto es "
-    "un grep por texto (`Clase.metodo(` calificado, o `metodo(` sin "
-    "calificar dentro del mismo archivo). No entiende polimorfismo "
-    "(llamar a través de una interfaz o una referencia de la superclase), "
-    "ni `this.metodo()` invocado desde una subclase, ni reflection. Con "
-    "esta heurística, **167 de los 365** métodos salen como \"sin llamadas "
-    "encontradas\" — eso NO significa que los 167 sean código muerto, solo "
-    "que esta herramienta no les encontró un call site de forma trivial. "
-    "Los únicos dos casos confirmados como código muerto de verdad "
-    "(`PendingCacheDrone.nativeDestroy`, `Console.getVolumeInfo`) se "
-    "verificaron aparte, cruzando además contra los exports reales de "
-    "`gamma.dll` — ver `docs/native-methods-map.md`. Para cualquier otro "
-    "método de esta lista, \"sin llamadas encontradas\" es una pista para "
-    "investigar, no una conclusión.\n\n"
+    "Generated before converting each `native` into a logging stub, to find "
+    "out which code paths actually exercise them at run time. `(self)` = "
+    "unqualified call inside the file that declares the method itself.\n\n"
+    "⚠️ **Known limitation, read before drawing conclusions**: this is a text "
+    "grep (`Class.method(` qualified, or `method(` unqualified inside the "
+    "same file). It does not understand polymorphism (calling through an "
+    "interface or a superclass reference), nor `this.method()` invoked from "
+    "a subclass, nor reflection. With this heuristic, **167 of the 365** "
+    "methods come out as \"no calls found\" — that does NOT mean that all "
+    "167 are dead code, only that this tool did not trivially find a call "
+    "site for them. The only two cases confirmed as truly dead code "
+    "(`PendingCacheDrone.nativeDestroy`, `Console.getVolumeInfo`) were "
+    "verified separately, also cross-checking against the real exports of "
+    "`gamma.dll` — see `docs/native-methods-map.md`. For any other method "
+    "in this list, \"no calls found\" is a lead to investigate, not a "
+    "conclusion.\n\n"
 )
-out.append(f"Total de declaraciones `native`: **{len(declarations)}**\n\n")
+out.append(f"Total `native` declarations: **{len(declarations)}**\n\n")
 for f, cls, method in sorted(declarations, key=lambda t: (t[1], t[2])):
     key = f"{cls}.{method}"
     callers = caller_map.get(key, [])
@@ -131,7 +129,7 @@ for f, cls, method in sorted(declarations, key=lambda t: (t[1], t[2])):
         for c in callers:
             out.append(f"- {c}\n")
     else:
-        out.append("- *(sin llamadas encontradas en el código decompilado)*\n")
+        out.append("- *(no calls found in the decompiled code)*\n")
     out.append("\n")
 CALLER_MAP_OUT.write_text("".join(out))
 print(f"Caller map written to {CALLER_MAP_OUT} ({len(declarations)} declarations)")
