@@ -1,333 +1,333 @@
-# Hoja de ruta — OpenWorlds
+# Roadmap — OpenWorlds
 
-Preparada el 2026-09-22 a partir del árbol real en `89d4548`, más el diff
-sin commitear de `NativeCamera`/`NativeTextures`. Lo que no se ha podido
-comprobar en esta revisión va marcado ⚠️ VERIFICAR.
+Prepared on 2026-09-22 from the real tree at `89d4548`, plus the uncommitted
+diff of `NativeCamera`/`NativeTextures`. Whatever could not be
+checked in this review is marked ⚠️ VERIFY.
 
-## 0. Qué cambia respecto a CLAUDE.md
+## 0. What changes with respect to CLAUDE.md
 
-1. **Los frames > 0 de `.mov` ya se decodifican, pero solo en el puente.**
-   `CmpFrames` (commit `496f102`) decodifica todos los frames y
-   `bridge/NET/worlds/core/ScapePic.java:27` lo usa. El cliente propio sigue
-   en `CmpStage1.decodeMovFrame0` (`client/.../cmp/CmpTexture.java:144`),
-   con los dos errores que documenta ese commit: en `cave`/`cbirda4`/`club…`
-   coge el **último** frame, y en `windr3` intercambia ancho y alto.
-2. **La animación de avatares del original pasa por `DroneAnimator`, y no
-   está en el puente.** Sus 16 nativos están todos exportados por gamma.dll
-   (`docs/gamma-dll-exports.txt`) y decompilados
+1. **Frames > 0 of `.mov` are already decoded, but only in the bridge.**
+   `CmpFrames` (commit `496f102`) decodes all the frames and
+   `bridge/NET/worlds/core/ScapePic.java:27` uses it. Our own client is still
+   on `CmpStage1.decodeMovFrame0` (`client/.../cmp/CmpTexture.java:144`),
+   with the two errors that commit documents: in `cave`/`cbirda4`/`club…`
+   it takes the **last** frame, and in `windr3` it swaps width and height.
+2. **The original's avatar animation goes through `DroneAnimator`, and it is
+   not in the bridge.** Its 16 natives are all exported by gamma.dll
+   (`docs/gamma-dll-exports.txt`) and decompiled
    (`decompiled-native/gamma_dll/004165c0_…animate…`, `00416530_…moveto…`,
-   …). La parte Java que los llama ya corre: `PosableShape.java:1180`
+   …). The Java part that calls them already runs: `PosableShape.java:1180`
    (`animate`), `:1237` (`moveto`), `PendingDrone.java:192` (`loadconfig`
-   de `avatars.dat`). O sea, el abierto nº 1 ("qué secuencia elige el
-   cliente") se resuelve **traduciendo esos nativos**, no deduciéndolo.
-3. **"UI 0 %" solo vale para el cliente propio.** Bajo el puente, la UI AWT
-   del original ya se monta: `-Dopenworlds.dumpWindow` muestra
-   `FriendsListPart`, `MapPart`, chat de 280×100 y campo de entrada. Lo que
-   falta ahí son nativos concretos (tabla de H5) y un servidor con el que
-   hablar.
-4. **`server/whirl` no comprueba la contraseña.** `distributor.rs:78-83`
-   solo lee `VAR_USERNAME` del `SessInit`. Si lo compilamos en local (Rust
-   fijado a `nightly-2024-06-03`, SQLite incluido en la build, instalable
-   con rustup sin Homebrew), podemos probar el flujo con sesión (chat,
-   amigos, salas, varios clientes) sin la cuenta real. ⚠️ VERIFICAR que el
-   cliente acepta el tipo de servidor que anuncia whirl: el primario
-   responde `#15=1`, lo que lleva a `UserServer`.
-5. **El `Light.setLightTransform` que falta en el puente no afecta a nada:**
-   `lightID` nunca se asigna en el Java decompilado. La luz de sala va por
-   `Room.addLight`/`setLightPosition`, que sí están traducidos.
-6. **Hay trabajo sin commitear:** la auditoría de texturas
-   (`-Dopenworlds.matStats` vuelca ahora el inventario del diccionario y
-   las texturas que no son de 128×128; `-Dopenworlds.fps` da el % de píxeles
-   con textura). Está ligada al ⚠️ `StretchBlt(HALFTONE)` del puente.
-7. **No hay runner de regresión.** Las cifras ✅ (118 / 25-578-103 / 231 /
-   51 / 159 / 52) se volvieron a ejecutar a mano en la auditoría del
-   2026-09-15. No hay tests automáticos; lo único parecido son los
-   `RunTest4b*.java` del decodificador `.cmp`.
-8. **`.git` ocupa ahora 82 MB.** La purga de historia que quedaba pendiente
-   ya no hace falta.
+   of `avatars.dat`). In other words, open item #1 ("which sequence does the
+   client choose") is solved **by translating those natives**, not by deducing it.
+3. **"UI 0 %" only applies to our own client.** Under the bridge, the original's
+   AWT UI already gets built: `-Dopenworlds.dumpWindow` shows
+   `FriendsListPart`, `MapPart`, a 280×100 chat and an input field. What
+   is missing there are specific natives (the H5 table) and a server to
+   talk to.
+4. **`server/whirl` does not check the password.** `distributor.rs:78-83`
+   only reads `VAR_USERNAME` from the `SessInit`. If we build it locally (Rust
+   pinned to `nightly-2024-06-03`, SQLite included in the build, installable
+   with rustup without Homebrew), we can test the session flow (chat,
+   friends, rooms, several clients) without the real account. ⚠️ VERIFY that the
+   client accepts the server type that whirl announces: the primary
+   answers `#15=1`, which leads to `UserServer`.
+5. **The `Light.setLightTransform` missing from the bridge affects nothing:**
+   `lightID` is never assigned in the decompiled Java. The room light goes through
+   `Room.addLight`/`setLightPosition`, which are translated.
+6. **There is uncommitted work:** the texture audit
+   (`-Dopenworlds.matStats` now dumps the dictionary inventory and
+   the textures that are not 128×128; `-Dopenworlds.fps` gives the % of pixels
+   with a texture). It is tied to the bridge's ⚠️ `StretchBlt(HALFTONE)`.
+7. **There is no regression runner.** The ✅ figures (118 / 25-578-103 / 231 /
+   51 / 159 / 52) were re-run by hand in the audit of
+   2026-09-15. There are no automatic tests; the only thing close to it are the
+   `RunTest4b*.java` of the `.cmp` decoder.
+8. **`.git` now takes up 82 MB.** The history purge that was still pending
+   is no longer needed.
 
-## 1. La decisión estratégica: un solo motor (2026-09-26)
+## 1. The strategic decision: a single engine (2026-09-26)
 
-Hasta el 2026-09-26 convivían dos clientes: **A**, el original de 2004 con
-el puente (`editor/worldsplayer_source_editor-main/bridge/`: los nativos
-traducidos del C decompilado, rasterizador por software en Java puro), y
-**B**, una reimplementación aparte (`client/src/net/openworlds/`: parsers
-propios más LWJGL con OpenGL de función fija). Esta hoja de ruta
-recomendaba A como línea principal y B como destino del porteo.
+Until 2026-09-26 two clients coexisted: **A**, the 2004 original with
+the bridge (`editor/worldsplayer_source_editor-main/bridge/`: the natives
+translated from the decompiled C, a software rasterizer in pure Java), and
+**B**, a separate reimplementation (`client/src/net/openworlds/`: our own
+parsers plus LWJGL with fixed-function OpenGL). This roadmap
+recommended A as the main line and B as the target of the port.
 
-**Decidido por el usuario: solo A.** B se quitó entero del repo (código,
-visores, su parte del lanzador, scripts, LWJGL y capturas); está en el
-historial de git hasta el commit `8cd795d`. Los lectores de `.bod`/`.seq`,
-`.rwg` y `.cmp`/`.mov` que A importa siguen en `formats/`.
+**Decided by the user: only A.** B was removed entirely from the repo (code,
+viewers, its part of the launcher, scripts, LWJGL and captures); it is in the
+git history up to commit `8cd795d`. The `.bod`/`.seq`,
+`.rwg` and `.cmp`/`.mov` readers that A imports remain in `formats/`.
 
-- A ya tiene la lógica de juego, la UI y la red del original. Cada nativo
-  traducido cierra un hueco y se puede verificar contra el C.
-- A es Java + AWT puro, así que en principio corre en Linux y OpenBSD sin
-  Wine (⚠️ VERIFICAR OpenBSD).
+- A already has the original's game logic, UI and networking. Each
+  translated native closes a gap and can be verified against the C.
+- A is pure Java + AWT, so in principle it runs on Linux and OpenBSD without
+  Wine (⚠️ VERIFY OpenBSD).
 
-**El primer hito con sentido de preservación** es este: el cliente de 2004,
-sin Windows ni Wine, dibujando, con avatares animados y chat contra un
-servidor local. Eso es H1 + H2 + H3.
+**The first milestone that makes sense for preservation** is this: the 2004 client,
+without Windows or Wine, drawing, with animated avatars and chat against a
+local server. That is H1 + H2 + H3.
 
-Queda abierta para la fase 5 una segunda pregunta: cómo llegar a la PSVita,
-donde no hay JVM práctica (⚠️ VERIFICAR) ni la UI AWT de A. No bloquea nada
-hasta H6.
+A second question remains open for phase 5: how to get to the PSVita,
+where there is no practical JVM (⚠️ VERIFY) nor A's AWT UI. It blocks nothing
+until H6.
 
-## 1b. Estado a 2026-09-26
+## 1b. Status as of 2026-09-26
 
-Todo lo marcado [x] está fusionado en `main` y verificado:
-`tools/verify-corpus.sh` sin fallos y `tools/run-checks.sh` 37/37. El
-coordinador comprobó en el ensamblador la afirmación clave de cada rama
-antes de fusionarla (constantes y direcciones citadas en cada merge).
-[~] = hecho en parte, con la causa anotada.
+Everything marked [x] is merged into `main` and verified:
+`tools/verify-corpus.sh` with no failures and `tools/run-checks.sh` 37/37. The
+coordinator checked the key claim of each branch in the assembly
+before merging it (constants and addresses cited in each merge).
+[~] = partly done, with the cause noted.
 
-| Hito | Estado | Lo que queda |
+| Milestone | Status | What remains |
 |---|---|---|
 | H0 | ✅ | — |
-| H1 | 🟢 casi | BSP de clumps de escena y z-buffer de 16 bits por grupo (documentado en ASM, sin traducir); rasterizadores translúcido y Gouraud texturizado; referencia de píxel bajo Wine y la captura del fallo visual (dependen de ti) |
-| H2 | ✅ regla / 🟡 en juego | el animador recibe `moveto`/`update` en GroundZero, pero allí solo hay estatuas que giran (estados 1/2, sin secuencia): falta ver un drone andando |
-| H3 | 🟡 | login + misma sala + chat entre dos clientes contra whirl ✅; **no se ven** porque whirl no manda APPRACTR (`hub.rs:246` comentado, no se toca whirl); cuenta real pendiente |
-| H4 | retirado | era «que el cliente propio alcance al original»: el motor nuevo se quitó el 2026-09-26 (sección 1) |
-| H5 | ✅ en el original | UI, sistema/COM y sonido/web traducidos; chat con Intro |
-| H6 | ⬜ | no se puede hacer en esta máquina (sin Linux, OpenBSD ni Vita) |
+| H1 | 🟢 almost | scene clump BSP and 16-bit z-buffer per group (documented in ASM, untranslated); translucent and textured Gouraud rasterizers; pixel reference under Wine and the capture of the visual glitch (they depend on you) |
+| H2 | ✅ rule / 🟡 in game | the animator receives `moveto`/`update` in GroundZero, but there are only statues that spin there (states 1/2, no sequence): seeing a drone walk is still missing |
+| H3 | 🟡 | login + same room + chat between two clients against whirl ✅; **they cannot see each other** because whirl does not send APPRACTR (`hub.rs:246` commented out, whirl is not touched); real account pending |
+| H4 | retired | it was "our own client catches up with the original": the new engine was removed on 2026-09-26 (section 1) |
+| H5 | ✅ in the original | UI, system/COM and sound/web translated; chat with Enter |
+| H6 | ⬜ | cannot be done on this machine (no Linux, OpenBSD or Vita) |
 
-Hallazgos que corrigen lo que se creía:
-- Un `.mov` no es una película: sus frames son celdas de un Material.
-- El escalado de texturas es COLORONCOLOR, no HALFTONE (0x422682).
-- El C de Ghidra de `Surface.addSubPolys` está mal (x/u de los vértices 1-2).
-- El key de animación se trunca, no se redondea.
-- La cabecera `.rwg` es la lista de texturas, y el "id/flag" de PLST es el
-  índice de material.
-- `cube.rwg` no lo carga RW 2.1.
-- La build del puente estaba rota desde el merge `71648da`.
+Findings that correct what was believed:
+- A `.mov` is not a movie: its frames are cells of a Material.
+- Texture scaling is COLORONCOLOR, not HALFTONE (0x422682).
+- Ghidra's C for `Surface.addSubPolys` is wrong (x/u of vertices 1-2).
+- The animation key is truncated, not rounded.
+- The `.rwg` header is the list of textures, and PLST's "id/flag" is the
+  material index.
+- `cube.rwg` is not loaded by RW 2.1.
+- The bridge build had been broken since merge `71648da`.
 
-Decisiones que te tocan:
-- Parchear o no la carrera `_connectThread` del cliente de 2004 (cuelga
-  unas 4 de cada 27 conexiones contra un servidor local).
-- Corregir o no el fallo del original en `setDIBPixelInts`.
-- Cómo llegar a la PSVita en la fase 5 (sección 1).
+Decisions that are up to you:
+- Whether or not to patch the `_connectThread` race of the 2004 client (it hangs
+  about 4 out of 27 connections against a local server).
+- Whether or not to fix the original's bug in `setDIBPixelInts`.
+- How to get to the PSVita in phase 5 (section 1).
 
-## 1c. Sesión de empaquetado (2026-09-26)
+## 1c. Packaging session (2026-09-26)
 
-Encargo: menús que no salían, lag, fallos visuales, revisar el motor,
-builds empaquetadas en GitHub (sin depender de los scripts de arranque) y
-aprovisionar la máquina. Hecho en un contenedor Linux x64 de Claude Code
-en la web, sin Wine: el cliente original bajo el puente corre igual que en
-el Mac (xvfb para la ventana). Verificado al cerrar: `verify-corpus.sh` sin
-fallos y `run-checks.sh` 38/38.
+Task: menus that did not show up, lag, visual glitches, review the engine,
+packaged builds on GitHub (not depending on the startup scripts) and
+provision the machine. Done in a Linux x64 container of Claude Code
+on the web, without Wine: the original client under the bridge runs the same as on
+the Mac (xvfb for the window). Verified at the end: `verify-corpus.sh` with no
+failures and `run-checks.sh` 38/38.
 
-| Frente | Estado | Evidencia / lo que queda |
+| Area | Status | Evidence / what remains |
 |---|---|---|
-| Menús del original fuera de Windows | ✅ | el panel de botones (Help, Options, Teleport, Quit, mapa…) salía negro en macOS y Linux: el cliente abre rutas `u:/…` en minúsculas (parche de `URL`) con `Toolkit.getImage`/`java.io.File`, que solo existen en Windows. `HostPath` + `bridge/host_paths.py` las resuelven en la copia de build (151 aperturas en 50 clases; `source/` intacto). También arregla la lectura de `redir.txt` |
-| Ventana negra al arrancar | ✅ | `Std.initSyncTime` abría un `Socket` sin timeout a time.worlds.net:37 dentro del hilo de render (negro hasta el timeout de TCP). Ahora la base sale del reloj local con la misma resta del bytecode (`ldc2_w -1141367296l; lsub`) y el servidor se consulta en otro hilo con 2 s de timeout |
-| Fuentes | ✅ | las del JRE 1.4 (`font.properties`: Arial, Times New Roman, Courier New) o sus sustitutos métricos (Liberation); arregla textos cortados ("Jse arrow keys") |
-| Lag del rasterizador del puente | ✅ | lista de triángulos diferida + franjas en varios hilos con el mismo orden de escritura por píxel. 1172×848: 13,5 → 4,7 ms (4 hilos); el cliente pasa de ~25 a ~53 fps. `RasterGoldenCheck`: 18 vistas con CRC idéntico al motor anterior |
-| Puente: matrices | ✅ | producto afín como RWL21 (0x1005118c): lo que cuelga de un `WObject` contenedor caía en el origen (soporte del Auditorium, puerta en iris) |
-| Puente: material `.bod` | ✅ | gamma.dll FUN_0041d950: `RwSetMaterialSurface(0.32, 0.55, 0)` + liso; era (0.75, 0, 0) facetado y las estatuas salían planas |
-| Paquete | ✅ | `launcher/` (ventana, menú de terminal `--tui`, CLI) + `tools/build-dist.sh`: portable (.zip, Java 17+) y app con Java incluido (jlink + jpackage). Copia de la instalación en la carpeta de datos del usuario; servidor de actualización local en Java |
-| CI | ✅ | cada push: checks, corpus, apps de Linux, macOS Intel, macOS Apple Silicon y Windows, y en cada una la prueba de humo del original empaquetado (tiene que dibujar; obligatoria). Ejecución #5: GroundZero en los cuatro con la cámara en (230,180,170), 62 fps en ARM y 102 en Windows; con un tag `v*`, release |
-| Aprovisionamiento | ✅ | `tools/setup-linux.sh` (idempotente) y el hook `SessionStart` de la web |
-| Un solo motor | ✅ | el motor nuevo (`client/`, su parte del lanzador, LWJGL, scripts y capturas) se quitó entero por decisión tuya (sección 1); los lectores que usa el puente pasaron a `formats/` |
+| The original's menus outside Windows | ✅ | the button panel (Help, Options, Teleport, Quit, map…) came out black on macOS and Linux: the client opens `u:/…` paths in lowercase (`URL` patch) with `Toolkit.getImage`/`java.io.File`, which only exist on Windows. `HostPath` + `bridge/host_paths.py` resolve them in the build copy (151 file opens in 50 classes; `source/` untouched). It also fixes the reading of `redir.txt` |
+| Black window on startup | ✅ | `Std.initSyncTime` opened a `Socket` with no timeout to time.worlds.net:37 inside the render thread (black until the TCP timeout). Now the base comes from the local clock with the same subtraction as the bytecode (`ldc2_w -1141367296l; lsub`) and the server is queried on another thread with a 2 s timeout |
+| Fonts | ✅ | those of JRE 1.4 (`font.properties`: Arial, Times New Roman, Courier New) or their metric-compatible substitutes (Liberation); fixes cut-off text ("Jse arrow keys") |
+| Lag of the bridge's rasterizer | ✅ | deferred triangle list + bands on several threads with the same per-pixel write order. 1172×848: 13.5 → 4.7 ms (4 threads); the client goes from ~25 to ~53 fps. `RasterGoldenCheck`: 18 views with a CRC identical to the previous engine |
+| Bridge: matrices | ✅ | affine product like RWL21 (0x1005118c): whatever hangs from a container `WObject` ended up at the origin (the Auditorium stand, the iris door) |
+| Bridge: `.bod` material | ✅ | gamma.dll FUN_0041d950: `RwSetMaterialSurface(0.32, 0.55, 0)` + smooth; it was (0.75, 0, 0) faceted and the statues came out flat |
+| Package | ✅ | `launcher/` (window, `--tui` terminal menu, CLI) + `tools/build-dist.sh`: portable (.zip, Java 17+) and an app with Java included (jlink + jpackage). Copy of the installation in the user's data folder; local update server in Java |
+| CI | ✅ | on every push: checks, corpus, apps for Linux, macOS Intel, macOS Apple Silicon and Windows, and on each one the smoke test of the packaged original (it has to draw; mandatory). Run #5: GroundZero on all four with the camera at (230,180,170), 62 fps on ARM and 102 on Windows; with a `v*` tag, a release |
+| Provisioning | ✅ | `tools/setup-linux.sh` (idempotent) and the web `SessionStart` hook |
+| A single engine | ✅ | the new engine (`client/`, its part of the launcher, LWJGL, scripts and captures) was removed entirely by your decision (section 1); the readers the bridge uses moved to `formats/` |
 
-Lo nuevo que queda:
-- **`cache.index`** no estaba versionado (`.gitignore`): sin él, el clon
-  limpio, la CI y los paquetes no encuentran los avatares cacheados de
-  2004. Solo está en tu Mac: `git add -f assets/WorldsPlayer/cachedir/cache.index`.
-- Probar las apps a mano en máquinas reales (Gatekeeper con firma ad hoc,
-  SmartScreen en Windows): la CI solo prueba que arrancan y dibujan.
+New items that remain:
+- **`cache.index`** was not versioned (`.gitignore`): without it, a clean
+  clone, the CI and the packages cannot find the cached avatars from
+  2004. It is only on your Mac: `git add -f assets/WorldsPlayer/cachedir/cache.index`.
+- Test the apps by hand on real machines (Gatekeeper with ad hoc signing,
+  SmartScreen on Windows): the CI only tests that they start and draw.
 
 
-## 1d. Decompilado entero, viajes entre mundos y todo el juego probado (2026-09-26)
+## 1d. Fully decompiled, travel between worlds and the whole game tested (2026-09-26)
 
-Pedido: terminar de decompilar el juego con Ghidra, probar el viaje a otros
-mundos y probar todo lo que se puede hacer en el juego.
+Request: finish decompiling the game with Ghidra, test travelling to other
+worlds and test everything that can be done in the game.
 
-| Frente | Estado | Evidencia / lo que queda |
+| Area | Status | Evidence / what remains |
 |---|---|---|
-| Ghidra | ✅ | los 9 binarios propios del juego, 0 fallos: además de gamma.dll, RWL21 y RWDL6D21 (con su barrido de vtables, +21 y +26), `run.exe`, `gdkup.exe`, `sfmain.exe` (chat de voz) y los drivers de 8 bits, MMX y DirectDraw. `tools/ghidra-scripts/decompile-all.sh`. Lo que no se decompila es de terceros (Java de Sun 1.4.2, msvcrt, xdelta/glib, Wise): `decompiled-native/README.md` |
-| Viajes entre mundos | ✅ | `us1.worlds.net` vuelve a responder (espejo de LibreWorlds). Los 11 mundos que no trae la instalación de 2004 se descargan e instalan como en Windows: `gdkup.pending` → `GdkUp` (Wise y NSIS) → reinicio con `world:restart`. Probados: AvatarGallery, WorldsChat, AnimalHouse, lets, Meteor, Dcn, PolyGram, DressingRoom, Chaos (Bowie), BWStreet y The Blair Witch World; GroundZero 37 → 40 con Upgrade Now |
-| Todo el juego | ✅ | `docs/pruebas-juego.md`: menús Help/Options/WorldsMail/WorldsMark/Teleport/Actions/VIP, amigos, correo, mapa del universo, cámaras, chat. Arreglados: cierre de diálogos (bloqueo en X11), mapa del universo (cerraba el juego), reloj (giro lento), `.cmp` de varios grupos y byte 13, 5 instrucciones NSIS, gdkup que no reiniciaba tras un aborto |
-| Tests | ✅ | `run-checks.sh` 38/38: `CmpGroupsCheck`, `GdkUpCheck` (paquetes reales en `assets/packages/`), `UiDisposeCheck` |
+| Ghidra | ✅ | all 9 of the game's own binaries, 0 failures: besides gamma.dll, RWL21 and RWDL6D21 (with their vtable sweep, +21 and +26), `run.exe`, `gdkup.exe`, `sfmain.exe` (voice chat) and the 8-bit, MMX and DirectDraw drivers. `tools/ghidra-scripts/decompile-all.sh`. What is not decompiled is third-party (Sun Java 1.4.2, msvcrt, xdelta/glib, Wise): `decompiled-native/README.md` |
+| Travel between worlds | ✅ | `us1.worlds.net` responds again (the LibreWorlds mirror). The 11 worlds that the 2004 installation does not include are downloaded and installed as on Windows: `gdkup.pending` → `GdkUp` (Wise and NSIS) → restart with `world:restart`. Tested: AvatarGallery, WorldsChat, AnimalHouse, lets, Meteor, Dcn, PolyGram, DressingRoom, Chaos (Bowie), BWStreet and The Blair Witch World; GroundZero 37 → 40 with Upgrade Now |
+| The whole game | ✅ | `docs/game-tests.md`: Help/Options/WorldsMail/WorldsMark/Teleport/Actions/VIP menus, friends, mail, universe map, cameras, chat. Fixed: closing dialogs (deadlock on X11), universe map (it closed the game), clock (slow turning), `.cmp` with several groups and byte 13, 5 NSIS instructions, gdkup that did not restart after an abort |
+| Tests | ✅ | `run-checks.sh` 38/38: `CmpGroupsCheck`, `GdkUpCheck` (real packages in `assets/packages/`), `UiDisposeCheck` |
 
-Lo que queda de esto: los parches xdelta de los mundos viejos, el chat de
-voz sin traducir, el gesto "Sleep" invisible en el pingüino, y ⚠️ otros
-sitios del código de 2004 que tocan AWT con el monitor de un diálogo
-tomado. **Decisión tuya:** guardar o no en el repo los paquetes de mundo
-del espejo (Bowie son 13 MB; PolyGram, 12,6 MB).
+What remains from this: the xdelta patches of the old worlds, the voice
+chat (untranslated), the "Sleep" gesture that is invisible on the penguin, and ⚠️ other
+places in the 2004 code that touch AWT while holding a dialog's
+monitor. **Your decision:** whether or not to keep the mirror's world packages
+in the repo (Bowie is 13 MB; PolyGram, 12.6 MB).
 
-## 1e. Lanzador con la estética del logo, actualizador, releases y whirl local (2026-09-29)
+## 1e. Launcher with the logo's look, updater, releases and local whirl (2026-09-29)
 
-Pedido: el lanzador con la estética del logo, sin lo de los registros, con
-actualización automática; las releases de la CI publicadas en GitHub; y
-arreglar fallos (mundos que no arrancan tras el reinicio, clic en un usuario
-que no hace nada, whirl local que no va) y pulir.
+Request: the launcher with the logo's look, without the logs part, with
+automatic updates; the CI releases published on GitHub; and
+fix bugs (worlds that do not start after the restart, clicking on a user
+does nothing, local whirl that does not work) and polish.
 
-| Frente | Estado | Evidencia / lo que queda |
+| Area | Status | Evidence / what remains |
 |---|---|---|
-| Lanzador | ✅ | la paleta de `tools/icons/make_icons.py`: cielo índigo con estrellas, el planeta low-poly dibujado en vivo (`PlanetView`, la misma icosfera; en reposo es el icono) girando y parado mientras se juega, "Worlds" con el degradado del anillo, botón Jugar con ese degradado, Poppins (OFL) empaquetada. Sin panel de registro, botón Registros ni "FPS en el registro" (los ficheros siguen en `logs/`, los 20 últimos). Lista de mundos con su estado, que se relee al acabar cada partida, y los instalados desde el mapa del universo; servidor en tres opciones; Ajustes aparte |
-| Actualizador | ✅ | `Updater` + `Bootstrap`: la release más nueva con paquete portable, SHA-256 comprobado, instalada en `<datos>/app/<versión>`; al arrancar la app cede el paso a esa versión en la misma JVM, sin reescribirse. Versión rota → `app/bad` y vuelta a la incluida. `UpdaterCheck` (34 comprobaciones contra un GitHub falso). ⚠️ El repositorio es privado: sin token de solo lectura en Ajustes, GitHub contesta 404 y no hay actualizaciones |
-| Releases | ✅ en la CI | cada push a `main` publica `v1.0.<commits>` con los cinco paquetes y `SHA256SUMS.txt`; tags `v*` igual; prerelease a mano desde otra rama (Run workflow). La versión (`launcher/VERSION` + nº de commits) va igual en el tag y en el jar |
-| whirl local | ✅ | `LocalWhirl` arranca el whirl de la app si nada escucha en el puerto, rellena User0 y Password0 (cifrada con el `Console.encode` del puente; whirl no la comprueba: basta "Sign In") y lo para al acabar. La CI lo compila en los cuatro runners y lo mete en las apps (Windows: nightly de 2023, ver `build.yml`); prueba de humo con whirl en Linux |
-| Copia del juego | ✅ | `Install.prepare` con manifiesto: una versión nueva (o la plantilla en otra ruta, App Translocation de macOS) ya no pisa lo que cambió el cliente o gdkup (deshacía GroundZero 37 → 40). `InstallCheck` |
-| Pulido | ✅ parcial | "Un jugador" sin el diálogo de "no puedo conectar" (`bridge/natives-launcher.patch`, solo con `-Dopenworlds.singleUser`); ventana del juego a dos tercios de la pantalla la primera vez (antes 568×424) |
+| Launcher | ✅ | the palette of `tools/icons/make_icons.py`: indigo sky with stars, the low-poly planet drawn live (`PlanetView`, the same icosphere; at rest it is the icon) spinning, and still while the game is being played, "Worlds" with the ring's gradient, Play button with that gradient, Poppins (OFL) bundled. No log panel, Logs button or "FPS in the log" (the files are still in `logs/`, the last 20). List of worlds with their status, re-read at the end of each game session, plus those installed from the universe map; server with three options; Settings kept separate |
+| Updater | ✅ | `Updater` + `Bootstrap`: the newest release with a portable package, SHA-256 checked, installed in `<data>/app/<version>`; on startup the app hands over to that version in the same JVM, without rewriting itself. Broken version → `app/bad` and back to the bundled one. `UpdaterCheck` (34 checks against a fake GitHub). ⚠️ The repository is private: without a read-only token in Settings, GitHub answers 404 and there are no updates |
+| Releases | ✅ in CI | every push to `main` publishes `v1.0.<commits>` with the five packages and `SHA256SUMS.txt`; `v*` tags likewise; a prerelease by hand from another branch (Run workflow). The version (`launcher/VERSION` + number of commits) is the same in the tag and in the jar |
+| Local whirl | ✅ | `LocalWhirl` starts the app's whirl if nothing is listening on the port, fills in User0 and Password0 (encrypted with the bridge's `Console.encode`; whirl does not check it: just "Sign In") and stops it when done. The CI builds it on the four runners and puts it in the apps (Windows: a 2023 nightly, see `build.yml`); smoke test with whirl on Linux |
+| Game copy | ✅ | `Install.prepare` with a manifest: a new version (or the template at another path, macOS App Translocation) no longer overwrites what the client or gdkup changed (it undid GroundZero 37 → 40). `InstallCheck` |
+| Polish | ✅ partial | "Single player" without the "cannot connect" dialog (`bridge/natives-launcher.patch`, only with `-Dopenworlds.singleUser`); the game window at two thirds of the screen the first time (before, 568×424) |
 
-## 2. Hitos
+## 2. Milestones
 
-Tamaños: **S** ≈ 1 sesión · **M** ≈ 2–4 sesiones · **L** = más.
+Sizes: **S** ≈ 1 session · **M** ≈ 2–4 sessions · **L** = more.
 
-Orden recomendado: **H0 → H2 → H1 (H3 en paralelo, es independiente) → H5 → H6.**
-H2 va antes que H1 porque cierra el abierto nº 1 con evidencia del
-binario, mientras que H1 está en parte bloqueado por capturas (sección 3).
+Recommended order: **H0 → H2 → H1 (H3 in parallel, it is independent) → H5 → H6.**
+H2 goes before H1 because it closes open item #1 with evidence from the
+binary, while H1 is partly blocked by captures (section 3).
 
-### H0 — Suelo firme (S)
+### H0 — Solid ground (S)
 
-- [x] Commitear o descartar el diff de la auditoría de texturas.
-- [x] `tools/verify-corpus.sh` (compatible con bash 3.2): un solo comando
-      que vuelve a ejecutar los recuentos ✅ y falla si alguno cambia.
-      Cubre `.seq` 231, `.bod` 51, `.cmp` 159 y `.mov` 52 (hasta el
-      2026-09-26 también RWX 118, `.world` 25/578/103 y los avatares
-      146/148, con lectores del motor nuevo, quitados con él).
-- [x] Panel de progreso (la herramienta nº 2 de
-      `worlds-chat-project.md`, que nunca se construyó): contar
-      ⚠️/VERIFICAR/TODO por fichero y generar `docs/progress.md`. Hoy hay 33
-      marcas entre `client/` y el puente.
-- [x] Node para macOS x64 en `tools/node-macos/` para el arnés RWX contra
-      `three-rwx-loader` (arnés y node se quitaron con el motor nuevo el
+- [x] Commit or discard the diff of the texture audit.
+- [x] `tools/verify-corpus.sh` (compatible with bash 3.2): a single command
+      that re-runs the ✅ counts and fails if any of them changes.
+      It covers `.seq` 231, `.bod` 51, `.cmp` 159 and `.mov` 52 (until
+      2026-09-26 also RWX 118, `.world` 25/578/103 and the avatars
+      146/148, with readers from the new engine, removed along with it).
+- [x] Progress panel (tool #2 of
+      `worlds-chat-project.md`, which was never built): count
+      ⚠️/VERIFY/TODO per file and generate `docs/progress.md`. Today there are 33
+      markers between `client/` and the bridge.
+- [x] Node for macOS x64 in `tools/node-macos/` for the RWX harness against
+      `three-rwx-loader` (harness and node were removed with the new engine on
       2026-09-26).
-- [x] Actualizar CLAUDE.md con los puntos 1–3 y 8 de la sección 0.
+- [x] Update CLAUDE.md with points 1–3 and 8 of section 0.
 
-**Hecho cuando** `verify-corpus.sh` pase en limpio en este Mac.
+**Done when** `verify-corpus.sh` passes cleanly on this Mac.
 
-### H2 — Avatares vivos: `DroneAnimator` (M) ← abierto nº 1
+### H2 — Living avatars: `DroneAnimator` (M) ← open item #1
 
-- [x] Traducir los 16 nativos de `DroneAnimator` desde
+- [x] Translate the 16 natives of `DroneAnimator` from
       `decompiled-native/gamma_dll/`: `init`, `loadconfig`, `getnameindex`,
       `getindexgeom`, `prepFigure`, `addtype`/`deltype`,
       `CreateRep`/`DestroyRep`, `moveto`/`moveby`, `update`, `animate`,
-      `getAnimationTime`, `getActionList` y `endanimations`. Además,
+      `getAnimationTime`, `getActionList` and `endanimations`. Also
       `PendingCacheDrone.notifySeqLoaded`/`nativeInit`/`nativeDestroy`.
-- [x] Reusar el decodificador `.seq` (231/231, hoy en `formats/`), igual
-      que el puente ya reusa `CmpFrames`.
-- [x] Escribir en `docs/seq-animation-reference.md`, con direcciones, la
-      regla real de walk/wait, la sincronía con la velocidad y la mezcla de
-      250.
-- [x] Casos de prueba calculados a mano: dada una serie de `moveto` con sus
-      tiempos, qué acción y qué frame salen.
+- [x] Reuse the `.seq` decoder (231/231, now in `formats/`), just
+      as the bridge already reuses `CmpFrames`.
+- [x] Write down in `docs/seq-animation-reference.md`, with addresses, the
+      real walk/wait rule, the synchronization with speed and the 250
+      blend.
+- [x] Hand-computed test cases: given a series of `moveto` calls with their
+      times, which action and which frame come out.
 
-**Hecho cuando**, en GroundZero y bajo el puente, un drone y el piloto
-anden y se paren con la secuencia que dicta el C, y la regla esté escrita.
+**Done when**, in GroundZero and under the bridge, a drone and the pilot
+walk and stop with the sequence that the C dictates, and the rule is written down.
 
-### H1 — Que el original dibuje fiel (M)
+### H1 — Make the original draw faithfully (M)
 
-Los pendientes vienen de `bridge/README.md`, sección "⚠️ Pendiente de
-verificar":
+The pending items come from `bridge/README.md`, section "⚠️ Pending
+verification":
 
-- [ ] Reproducir el fallo visual que reportaste. Hace falta una **captura**,
-      o dar permiso de Grabación de pantalla al terminal/java, o pillar el
-      momento con `-Dopenworlds.dumpRange`.
-- [ ] **Referencia de píxel.** Capturar Reception y GroundZero con el
-      original bajo Wine en la máquina Linux/WSL2 (`tools/run-original.sh`),
-      desde la misma posición de cámara (`-Dopenworlds.fps` ya imprime
-      posición y dirección), y compararlas con el puente. Sin esto, "fiel"
-      es opinión.
-- [x] Orden de dibujo: sustituir el z-buffer global por el recorrido BSP
-      `0x1002cae0` más el árbol por clump `0x10033750` de RWL21.
-- [x] Perspectiva por tramos de 16 px y pendientes con la tabla de
-      recíprocos `DAT_10079214` (RWDL6D21). Hoy se hace por píxel y en coma
-      flotante.
-- [x] Extraer el espacio de interpolación de Gouraud y el dithering de
-      texturas.
-- [x] Texturas que no son de 128×128: `StretchBlt(HALFTONE)` y
-      `RwReadTexture`, que hoy se resuelven con un promedio por cajas. Sigue
-      la auditoría que está sin commitear.
-- [x] `.rwg`: decodificar las tablas MALT/TELT. Hoy esas formas salen con
-      el material por defecto.
-- [x] `StringTexture` (2 nativos): rótulos y nametags (`NametagDrone`).
-- [x] Menores del README: UV fuera del rango del driver, `RwDestroyScene`,
-      `Shape.convertSpecial` y resaltado.
+- [ ] Reproduce the visual glitch you reported. A **capture** is needed,
+      or granting Screen Recording permission to the terminal/java, or catching the
+      moment with `-Dopenworlds.dumpRange`.
+- [ ] **Pixel reference.** Capture Reception and GroundZero with the
+      original under Wine on the Linux/WSL2 machine (`tools/run-original.sh`),
+      from the same camera position (`-Dopenworlds.fps` already prints
+      position and direction), and compare them with the bridge. Without this, "faithful"
+      is an opinion.
+- [x] Draw order: replace the global z-buffer with the BSP traversal
+      `0x1002cae0` plus the per-clump tree `0x10033750` of RWL21.
+- [x] Perspective in 16 px spans and slopes with the reciprocal table
+      `DAT_10079214` (RWDL6D21). Today it is done per pixel and in floating
+      point.
+- [x] Extract the Gouraud interpolation space and the texture
+      dithering.
+- [x] Textures that are not 128×128: `StretchBlt(HALFTONE)` and
+      `RwReadTexture`, which are resolved today with a box average. This continues
+      the uncommitted audit.
+- [x] `.rwg`: decode the MALT/TELT tables. Today those shapes come out with
+      the default material.
+- [x] `StringTexture` (2 natives): signs and nametags (`NametagDrone`).
+- [x] Minor items from the README: UVs outside the driver's range, `RwDestroyScene`,
+      `Shape.convertSpecial` and highlighting.
 
-**Hecho cuando** haya un diff de píxeles contra la referencia de Wine en al
-menos 3 salas, con cada diferencia explicada.
+**Done when** there is a pixel diff against the Wine reference in at
+least 3 rooms, with each difference explained.
 
-### H3 — Red con sesión, en local (M)
+### H3 — Networking with a session, locally (M)
 
-- [x] Instalar Rust con rustup en el home (`x86_64-apple-darwin`, la
-      toolchain de `server/whirl/rust-toolchain.toml`) y compilar whirl.
-      **Sin tocar su código.** Si hiciera falta algún ajuste, va en un
-      parche aparte y documentado.
-- [x] Apuntar el original bajo el puente a whirl, en la copia temporal de
-      `worlds.ini`, igual que ya se hace con `upgradeServer`.
-- [~] Probar con dos instancias: login, entrar en una sala, verse, chatear
-      y lista de amigos.
-- [ ] Login real contra `worlds.worlio.com`: **hace falta que registres una
-      cuenta** (ver `docs/net-real-account-login-requisitos.md`). Queda
-      como verificación final y ya no bloquea nada.
+- [x] Install Rust with rustup in the home directory (`x86_64-apple-darwin`, the
+      toolchain of `server/whirl/rust-toolchain.toml`) and build whirl.
+      **Without touching its code.** If any adjustment were needed, it goes in a
+      separate, documented patch.
+- [x] Point the original under the bridge at whirl, in the temporary copy of
+      `worlds.ini`, just as is already done with `upgradeServer`.
+- [~] Test with two instances: login, entering a room, seeing each other, chatting
+      and the friends list.
+- [ ] Real login against `worlds.worlio.com`: **you need to register an
+      account** (see `docs/net-real-account-login.md`). It remains
+      as a final verification and no longer blocks anything.
 
-**Hecho cuando** dos clientes originales en este Mac se vean moverse (con
-H2) y chateen a través de whirl.
+**Done when** two original clients on this Mac see each other move (with
+H2) and chat through whirl.
 
-### H4 — Que el cliente propio alcance al original (retirado)
+### H4 — Our own client catches up with the original (retired)
 
-Retirado el 2026-09-26: el motor nuevo se quitó del repo (sección 1). Lo
-que llegó a hacer está en el historial de git hasta el commit `8cd795d`.
-⚠️ El `.rwg` con varios joints sigue sin un corpus que lo confirme: no
-inventar.
+Retired on 2026-09-26: the new engine was removed from the repo (section 1). What
+it got to do is in the git history up to commit `8cd795d`.
+⚠️ The `.rwg` with several joints still has no corpus to confirm it: do not
+make it up.
 
-### H5 — UI y periféricos, fase 4 (L)
+### H5 — UI and peripherals, phase 4 (L)
 
-Hay 41 ficheros con nativos fuera del puente. `FastDataInput`, `IniFile` y
-`DNSLookup` ya tienen mock con E/S real, `DroneAnimator` va en H2,
-`StringTexture` en H1 y `Light` es inocuo. Quedan:
+There are 41 files with natives outside the bridge. `FastDataInput`, `IniFile` and
+`DNSLookup` already have a mock with real I/O, `DroneAnimator` goes in H2,
+`StringTexture` in H1 and `Light` is harmless. What remains:
 
-| Grupo | Clases (nº de nativos) | Propuesta |
+| Group | Classes (no. of natives) | Proposal |
 |---|---|---|
-| Cursor, overlay y menús | `Cursor` 6, `RenderCanvasOverlay` 3, `RightMenu` 6, `Console` 3, `FileSysDialog` 1, `Startup` 3 | traducir |
-| Sonido | `WavSoundPlayer` 4, `MCISoundPlayer` 6, `ASFSoundPlayer` 1, `DirectShow` 9, `CDPlayerAction` 14 | `javax.sound` para WAV/MIDI; el resto, stub documentado |
-| Web embebida | `IEWebControlImp` 12, `IWebBrowserApp` 5, `WebBrowser` 3, `TextureSurface` 6, `DDEMLClass` 5, `sendURL` 3, `SendURLAction` 1, `NSProtocolHandler` 1 | abrir en el navegador del sistema; superficies web ⚠️ decidir |
-| Sistema y COM | `RegKey` 9, `SystemInfo` 10, `IUnknown` 4, `IDispatch` 1, `IClassFactory` 2, `INetscapeRegistry` 2 | mock con valores fijos documentados |
-| Otros | `VehicleShape` 10, `ImageConverter` 6, `ScapePicImage` 3, `ScapePicCanvas` 1, `Restorer` 1, `Pilot` 1, `RenderWare` 2, `NetUpdate` 1, `VoiceChat` 1 | según aparezcan en uso |
+| Cursor, overlay and menus | `Cursor` 6, `RenderCanvasOverlay` 3, `RightMenu` 6, `Console` 3, `FileSysDialog` 1, `Startup` 3 | translate |
+| Sound | `WavSoundPlayer` 4, `MCISoundPlayer` 6, `ASFSoundPlayer` 1, `DirectShow` 9, `CDPlayerAction` 14 | `javax.sound` for WAV/MIDI; the rest, a documented stub |
+| Embedded web | `IEWebControlImp` 12, `IWebBrowserApp` 5, `WebBrowser` 3, `TextureSurface` 6, `DDEMLClass` 5, `sendURL` 3, `SendURLAction` 1, `NSProtocolHandler` 1 | open in the system browser; web surfaces ⚠️ to be decided |
+| System and COM | `RegKey` 9, `SystemInfo` 10, `IUnknown` 4, `IDispatch` 1, `IClassFactory` 2, `INetscapeRegistry` 2 | mock with documented fixed values |
+| Others | `VehicleShape` 10, `ImageConverter` 6, `ScapePicImage` 3, `ScapePicCanvas` 1, `Restorer` 1, `Pilot` 1, `RenderWare` 2, `NetUpdate` 1, `VoiceChat` 1 | as they show up in use |
 
-### H6 — Portabilidad, fase 5 (L)
+### H6 — Portability, phase 5 (L)
 
-- [x] Linux: A corre en Linux x64 sin Wine (contenedor de la web y CI,
-      con Xvfb; §1c). Lo específico de macOS era de rutas (`HostPath`) y
-      fuentes (`NativeUiFonts`), no de `build_gamma.sh`.
-- [ ] OpenBSD: A con el OpenJDK de ports (⚠️ VERIFICAR versión y AWT).
-- [~] macOS Apple Silicon: la CI genera la app arm64 (Java arm64 del
-      runner `macos-15`); ⚠️ VERIFICAR en una
-      máquina real.
-- [~] Windows: la CI genera la app x64 (carpeta con `OpenWorlds.exe`); el
-      puente no hace nada con las rutas en Windows (`HostPath`). ⚠️
-      VERIFICAR en una máquina real.
-- [ ] PSVita: exige un motor nativo (C + SDL2/vitaGL, ⚠️ VERIFICAR). Hay que
-      decidirlo antes de empezar (sección 1).
+- [x] Linux: A runs on Linux x64 without Wine (the web container and CI,
+      with Xvfb; §1c). What was macOS-specific was about paths (`HostPath`) and
+      fonts (`NativeUiFonts`), not `build_gamma.sh`.
+- [ ] OpenBSD: A with the OpenJDK from ports (⚠️ VERIFY the version and AWT).
+- [~] macOS Apple Silicon: the CI generates the arm64 app (arm64 Java from the
+      `macos-15` runner); ⚠️ VERIFY on a
+      real machine.
+- [~] Windows: the CI generates the x64 app (a folder with `OpenWorlds.exe`); the
+      bridge does nothing with paths on Windows (`HostPath`). ⚠️
+      VERIFY on a real machine.
+- [ ] PSVita: requires a native engine (C + SDL2/vitaGL, ⚠️ VERIFY). It has to be
+      decided before starting (section 1).
 
-## 3. Lo que depende de ti
+## 3. What depends on you
 
-1. Una captura del fallo visual, o permiso de Grabación de pantalla (H1).
-2. Capturas de referencia en la máquina Linux con Wine (H1).
-3. Una cuenta registrada en `worlds.worlio.com/register`, cuando lleguemos
-   a H3.
-4. Cómo llegar a la PSVita en la fase 5 (sección 1); la decisión A/B ya
-   está tomada: solo A.
-5. Buscar fuera (Wayback, archivos) los 7 `.mov` de Julie, Roxanne y Simon:
-   `cfemaleb`, `cfemaleba`, `cfemalec`, `cfc`, `fga`, `fja` y `mga`. Y el
-   vestuario perdido: 196 de 210 texturas y 116 de 141 `.bod`. Bastaría con
-   dejarlos en `assets/gammatutorial-samples/base-avatars/`.
-6. Subir `assets/WorldsPlayer/cachedir/cache.index` desde tu Mac (§1c): no
-   hay otra copia en el repo ni en la CI.
-7. Probar las apps en tu Mac Intel y, si puedes, en Windows y un Mac ARM:
-   desde que esta rama llegue a `main`, en la página de Releases.
-8. **Actualizaciones con el repositorio privado:** el actualizador pregunta
-   a la API de GitHub, que a un lanzador sin credenciales le contesta 404.
-   O el repositorio pasa a público, o en cada máquina se pone en Ajustes un
-   token «fine-grained» de solo lectura (Contents: Read) sobre este repo.
-9. Fusionar la rama en `main` para que salga la primera release (la CI
-   publica en cada push a `main`).
+1. A capture of the visual glitch, or Screen Recording permission (H1).
+2. Reference captures on the Linux machine with Wine (H1).
+3. An account registered at `worlds.worlio.com/register`, when we get
+   to H3.
+4. How to get to the PSVita in phase 5 (section 1); the A/B decision has already
+   been made: only A.
+5. Search elsewhere (Wayback, archives) for the 7 `.mov` of Julie, Roxanne and Simon:
+   `cfemaleb`, `cfemaleba`, `cfemalec`, `cfc`, `fga`, `fja` and `mga`. And the
+   lost wardrobe: 196 of 210 textures and 116 of 141 `.bod`. It would be enough to
+   drop them in `assets/gammatutorial-samples/base-avatars/`.
+6. Upload `assets/WorldsPlayer/cachedir/cache.index` from your Mac (§1c): there
+   is no other copy in the repo or in the CI.
+7. Test the apps on your Intel Mac and, if you can, on Windows and an ARM Mac:
+   once this branch reaches `main`, on the Releases page.
+8. **Updates with the private repository:** the updater queries
+   the GitHub API, which answers 404 to a launcher without credentials.
+   Either the repository becomes public, or on each machine a read-only
+   "fine-grained" token (Contents: Read) for this repo is set in Settings.
+9. Merge the branch into `main` so that the first release comes out (the CI
+   publishes on every push to `main`).
 
-## 4. Menores y aparcados
+## 4. Minor and parked
 
-- `csq` sin ejemplar propio.
-- Starbright World sin investigar.
-- Repos de Wirlaburla en 404.
-- Comparador de versiones del `.jar` (herramienta nº 5).
+- `csq` without a sample of its own.
+- Starbright World not investigated.
+- Wirlaburla's repos return 404.
+- Version comparator for the `.jar` (tool #5).
