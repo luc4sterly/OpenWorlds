@@ -1,0 +1,21 @@
+--- a/NET/worlds/console/Console.java
++++ b/NET/worlds/console/Console.java
+@@ -90,7 +90,8 @@
+    private Hashtable menus = new Hashtable();
+    protected static boolean autoFullVIP = IniFile.override().getIniInt("tieredVIP", 0) == 0;
+    protected static boolean isRedLightWorld = IniFile.override().getIniString("ProductName", "").equalsIgnoreCase("RedLightWorld");
+-   protected static int vip = IniFile.gamma().getIniInt("VIP", 0) != 0 ? (autoFullVIP ? 2 : 1) : 0;
++   // J Worlds Injector, VIP: full VIP whatever the server says
++   protected static int vip = 2;
+    protected static int spguest = IniFile.gamma().getIniInt("SPGUEST", 0) != 0 ? 2 : 0;
+    private boolean canBroadcast = false;
+    protected URL lastPilotRequested;
+@@ -638,7 +639,7 @@
+    }
+ 
+    public void setVIP(boolean var1) {
+-      vip = var1 ? 1 : 0;
++      vip = 2;
+       this.checkCourtesyVIP();
+       IniFile.gamma().setIniInt("VIP", vip);
+       if (autoFullVIP && var1) {

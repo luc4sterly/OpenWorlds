@@ -2,8 +2,10 @@
 # run-checks.sh - runs every unit check of the repository: compiles and runs
 # each *Check.java under formats/test/** (classpath: the formats/ classes),
 # editor/worldsplayer_source_editor-main/bridge/test/ (classpath:
-# editor/.build-gamma/out), launcher/test/** (the launcher and ui/ modules)
-# and server/test/** (J Solar Server and ui/).
+# editor/.build-gamma/out), injector/test/** (the J Worlds Injector, whose
+# check also builds every patch against the bridge), launcher/test/** (the
+# launcher, with ui/ and the injector) and server/test/** (J Solar Server
+# and ui/).
 # Contract: a *Check is a class with a `main` that exits 0 when it passes and
 # non-zero when it fails.
 #
@@ -59,7 +61,7 @@ while [ $# -gt 0 ]; do
 done
 
 JMEM="-Xmx512m"
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/fw-run-checks.XXXXXX")"
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/ow-run-checks.XXXXXX")"
 cleanup() { rm -rf "$WORK"; }
 trap cleanup EXIT
 
@@ -192,12 +194,14 @@ fi
 echo
 
 # ---------------------------------------------------------------------
-# Java modules on the shared ui/ module: launcher/ and server/ (J Solar
-# Server), each with its src/, resources/ and test/**/*Check.java
+# Java modules on the shared ui/ module: injector/ (J Worlds Injector),
+# launcher/ and server/ (J Solar Server), each with its src/, resources/ and
+# test/**/*Check.java
 # ---------------------------------------------------------------------
-# module_checks <name>
+# module_checks <name> [<module whose src/ it also needs>...]
 module_checks() {
-   local name="$1" list build n
+   local name="$1" list build n dep
+   shift
    list="$WORK/$name-checks.txt"
    if [ -d "$ROOT/$name/test" ]; then
       find "$ROOT/$name/test" -name "*Check.java" 2>/dev/null | sort > "$list" || true
@@ -210,6 +214,9 @@ module_checks() {
       build="$WORK/$name-out"
       mkdir -p "$build"
       find "$ROOT/ui/src" "$ROOT/$name/src" "$ROOT/$name/test" -name "*.java" > "$WORK/$name-sources.txt"
+      for dep in "$@"; do
+         find "$ROOT/$dep/src" -name "*.java" >> "$WORK/$name-sources.txt"
+      done
       javac --release 17 -nowarn -encoding UTF-8 -d "$build" @"$WORK/$name-sources.txt"
       cp -R "$ROOT/ui/resources/." "$build/"
       if [ -d "$ROOT/$name/resources" ]; then
@@ -222,7 +229,8 @@ module_checks() {
    echo
 }
 
-module_checks launcher
+module_checks injector
+module_checks launcher injector
 module_checks server
 
 # ---------------------------------------------------------------------

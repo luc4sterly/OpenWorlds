@@ -21,6 +21,12 @@ final class Settings {
    /** The last "other server" typed, kept while another choice is in use. */
    String customServer = "";
    String user = "";
+   /** The password for {@link #user} on {@link #server}, filled in the game's sign-in (only the owner can read this file). */
+   String password = "";
+   /** Talk to the server over TLS (needs the "tls" patch; the certificate is checked with the player first, see Trust). */
+   boolean encrypted = false;
+   /** J Worlds Injector patches to build into the game, comma-separated ids. */
+   String patches = "";
    /** Ask the install's upgrade server (us1.worlds.net, LibreWorlds' mirror) for what the local copy lacks: worlds, avatars. */
    boolean mirror = true;
    /** 0 = automatic. */
@@ -32,7 +38,7 @@ final class Settings {
    boolean autoUpdate = true;
    /** Also take test builds (pre-releases). */
    boolean prerelease = false;
-   /** Read-only token, only needed while the repository is private. */
+   /** GitHub token for the update checks (optional: only for GitHub's rate limits). */
    String githubToken = "";
    /** owner/name of the repository with the releases; empty = the one the build names. */
    String updateRepo = "";
@@ -53,6 +59,9 @@ final class Settings {
       s.world = p.getProperty("world", s.world);
       s.server = p.getProperty("server", s.server);
       s.user = p.getProperty("user", s.user);
+      s.password = p.getProperty("password", s.password);
+      s.encrypted = Boolean.parseBoolean(p.getProperty("encrypted", "false"));
+      s.patches = p.getProperty("patches", s.patches);
       try {
          s.rasterThreads = Integer.parseInt(p.getProperty("rasterThreads", "0"));
       } catch (NumberFormatException e) {
@@ -77,13 +86,16 @@ final class Settings {
    /**
     * Writes the settings: to a temporary file first and then over the old one,
     * so a crash never leaves them half written; only the user may read them
-    * (the GitHub token is there) where the file system knows permissions.
+    * (a server password is there) where the file system knows permissions.
     */
    synchronized void save(File f) {
       Properties p = new Properties();
       p.setProperty("world", world);
       p.setProperty("server", server);
       p.setProperty("user", user);
+      p.setProperty("password", password);
+      p.setProperty("encrypted", Boolean.toString(encrypted));
+      p.setProperty("patches", patches);
       p.setProperty("rasterThreads", Integer.toString(rasterThreads));
       p.setProperty("showFps", Boolean.toString(showFps));
       p.setProperty("mirror", Boolean.toString(mirror));

@@ -1,0 +1,11 @@
+--- a/NET/worlds/network/WSConnecting.java
++++ b/NET/worlds/network/WSConnecting.java
+@@ -106,7 +106,7 @@
+       Socket var3 = null;
+ 
+       try {
+-         var3 = new Socket(var1, this._port);
++         var3 = SecureConnect.open(var1, this._port); // J Worlds Injector, Encrypted connection
+          synchronized (this) {
+             if (var2) {
+                try {

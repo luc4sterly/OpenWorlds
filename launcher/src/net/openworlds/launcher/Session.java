@@ -1,5 +1,8 @@
 package net.openworlds.launcher;
 
+import net.openworlds.injector.Injector;
+import net.openworlds.injector.Patch;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -8,35 +11,39 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 
 /**
  * One run of the original client in its own JVM: it needs the install copy
  * as its working directory (every relative path of the 2004 code, and
  * Gamma's "home:"), and calls System.exit. Output goes to the session log.
  *
- * <p>When the client installs a world or an upgrade it asks for gdkup.exe
- * and quits (NetUpdate.runUpdates, then Main.end); the bridge leaves that
- * request in gdkup.pending. The session then runs the Java gdkup
+ * <p>A world chosen in the launcher that is not installed yet is installed
+ * before the start ({@link WorldInstall}). When the client itself installs a
+ * world or an upgrade (the universe map, "Upgrade Now") it asks for
+ * gdkup.exe and quits (NetUpdate.runUpdates, then Main.end); the bridge
+ * leaves that request in gdkup.pending. The session then runs the Java gdkup
  * (NET.worlds.core.GdkUp) on the install copy and, as gdkup does with
  * "run.exe world:restart", starts the client again, with the same local
- * upgrade server and log (in the world the session was started for, if the
- * update has just installed it: {@link #restartWith}).
+ * upgrade server and log.
  *
- * <p>With a world server on this machine ("whirl local") the session also
- * starts whirl if nothing listens there yet, and stops it at the end
- * ({@link LocalWhirl}); the restarts after an update keep it.
+ * <p>Before the first start, the J Worlds Injector builds the patches the
+ * player chose (and the "tls" one for an encrypted server) into classes that
+ * go before worldsplayer.jar on the class path; for a world server the
+ * game's sign-in is filled in ({@link Login}).
  */
 final class Session {
    private final Layout layout;
    private final Settings settings;
    final Log log;
-   private Process process;
+   private volatile Process process;
    private Thread pump;
    private UpgradeServer upgrade;
-   private LocalWhirl whirl;
+   /** The J Worlds Injector's classes for this session's patches, or null. */
+   private File patchClasses;
    private volatile boolean stopping;
-   /** The world asked for when its package was not installed yet; null once the restart has gone there. */
-   private String awaitedWorld;
+   /** What the preparation is doing, for the window ("Downloading Meteor… 42%"). */
+   private volatile WorldInstall.Progress progress = (text, percent) -> { };
 
    Session(Layout layout, Settings settings) {
       this.layout = layout;
@@ -44,9 +51,16 @@ final class Session {
       this.log = new Log(layout.logDir, "worldsplayer");
    }
 
+   /** Where to report the preparation's steps (called on the thread that runs {@link #start}). */
+   void onProgress(WorldInstall.Progress p) {
+      progress = p == null ? (text, percent) -> { } : p;
+   }
+
    /**
-    * Prepares and starts the game; returns at once. If a step fails, what
-    * was already running (upgrade server, whirl) is stopped again.
+    * Prepares and starts the game; returns once it runs (after installing the
+    * chosen world, if it is not installed yet). If a step fails, what was
+    * already running (the upgrade server) is stopped again; {@link #stop}
+    * during the preparation ends it with a {@link CancellationException}.
     */
    synchronized void start() throws IOException {
       try {
@@ -58,22 +72,44 @@ final class Session {
       }
    }
 
+   private void step(String text, int percent) {
+      if (stopping) {
+         throw new CancellationException("stopped");
+      }
+      progress.step(text, percent);
+   }
+
    private void prepareAndLaunch() throws IOException {
+      step("Getting the game ready…", 0);
       Install.prepare(layout, log);
       String mirror = settings.mirror ? Install.mirrorOf(layout) : null;
+      // a world of the list that is not installed yet is installed first,
+      // from the mirror, as the game's own download would (but without its
+      // detour through GroundZero and a restart)
+      String pkg = Install.packageOf(settings.world);
+      if (pkg != null && !Install.installed(layout, pkg)) {
+         try {
+            WorldInstall.install(layout, pkg, mirror, log, this::step);
+         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("interrupted while installing " + pkg);
+         }
+      }
       upgrade = new UpgradeServer(layout.template, layout.baseAvatars, mirror, new File(layout.dataDir, "mirror"), log);
       upgrade.start();
       log.line("[launcher] local upgrade server at http://127.0.0.1:" + upgrade.port() + "/3DCDup"
          + (mirror == null ? " (no mirror)" : ", anything missing is fetched from " + mirror));
       Install.configure(layout, upgrade.port(), settings.server, settings.user, settings.keepGammaLog, log);
-      whirl = LocalWhirl.startIfNeeded(layout, settings.server, log);
-      LocalWhirl.prefillLogin(layout, settings.server, settings.user, log);
+      Login.prefill(layout, settings.server, settings.user, settings.password, log);
+      List<Patch> patches = patches(layout, settings);
+      if (!patches.isEmpty()) {
+         step("Building the patches…", 100);
+      }
+      patchClasses = Injector.build(patches, layout.jar("worldsplayer-src.zip"), layout.jar("worldsplayer.jar"),
+         new File(layout.dataDir, "injector"), log::line);
+      step("Starting WorldsPlayer…", 100);
       log.line("[launcher] OpenWorlds " + Layout.versionLong() + ", java " + System.getProperty("java.version")
          + " (" + System.getProperty("os.name") + " " + System.getProperty("os.arch") + ")");
-      // a world of the list not installed yet: the client downloads it and
-      // restarts with world:restart, which does not lead there (see restartWith)
-      String pkg = Install.packageOf(settings.world);
-      awaitedWorld = pkg != null && !Install.installed(layout, pkg) ? settings.world : null;
       launch(settings.world);
    }
 
@@ -89,7 +125,8 @@ final class Session {
       cmd.add("-cp");
       // "." = the install copy: MessagesBundle*.properties and other
       // resources are loaded from the class path (run_gamma.sh did the same)
-      cmd.add("." + File.pathSeparator + layout.jar("worldsplayer.jar").getPath());
+      cmd.add("." + File.pathSeparator + (patchClasses != null ? patchClasses.getPath() + File.pathSeparator : "")
+         + layout.jar("worldsplayer.jar").getPath());
       cmd.add("NET.worlds.console.Gamma");
       if (world != null && !world.isEmpty()) {
          cmd.add(world);
@@ -102,6 +139,9 @@ final class Session {
       pb.environment().remove("JAVA_TOOL_OPTIONS");
       Process p = pb.start();
       process = p;
+      if (stopping) {
+         p.destroy();
+      }
       pump = new Thread(() -> {
          try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
             for (String s; (s = r.readLine()) != null; ) {
@@ -115,7 +155,15 @@ final class Session {
       pump.start();
    }
 
-   private void jvmFlags(List<String> cmd) {
+   private void jvmFlags(List<String> cmd) throws IOException {
+      if (!settings.server.isEmpty() && settings.encrypted) {
+         String pin = Trust.known(layout, settings.server);
+         if (pin == null) {
+            throw new IOException("The encrypted server " + settings.server + " has not been checked yet (its certificate).");
+         }
+         // the "tls" patch trusts exactly this certificate
+         cmd.add("-Dopenworlds.tls.pin=" + pin);
+      }
       if (settings.server.isEmpty()) {
          // "Single player": the client answers "Single-user mode" without showing
          // its "unable to connect" dialog (bridge/natives-launcher.patch)
@@ -135,6 +183,20 @@ final class Session {
       }
    }
 
+   /** The patches to build: the chosen ones, plus "tls" for an encrypted server. */
+   static List<Patch> patches(Layout layout, Settings settings) {
+      String ids = settings.patches;
+      if (!settings.server.isEmpty() && settings.encrypted) {
+         ids = ids + ",tls";
+      }
+      return Patch.pick(Patch.all(userPatches(layout)), ids);
+   }
+
+   /** Where the player's own patches go (one folder each, like injector/patches in the repository). */
+   static File userPatches(Layout layout) {
+      return new File(layout.dataDir, "patches");
+   }
+
    /** Waits for the game (and its restarts after an update); returns the exit code of the last run. */
    int waitFor() throws InterruptedException {
       while (true) {
@@ -152,7 +214,6 @@ final class Session {
          if (restart != null && !stopping) {
             try {
                synchronized (this) {
-                  restart = restartWith(restart);
                   log.line("[launcher] restart after the update: " + restart);
                   launch(restart);
                }
@@ -196,8 +257,8 @@ final class Session {
          try (BufferedReader r = new BufferedReader(new InputStreamReader(g.getInputStream(), StandardCharsets.ISO_8859_1))) {
             for (String s; (s = r.readLine()) != null; ) {
                log.line(s);
-               if (s.startsWith("[gdkup] reinicio:")) {
-                  restart = s.substring("[gdkup] reinicio:".length()).trim();
+               if (s.startsWith("[gdkup] restart:")) {
+                  restart = s.substring("[gdkup] restart:".length()).trim();
                }
             }
          }
@@ -210,35 +271,17 @@ final class Session {
       }
    }
 
-   /**
-    * The URL for the restart after an update. gdkup restarts the client with
-    * "world:restart" (NetUpdate.getRestartCmd), which the client resolves to
-    * [Gamma] RestartAt (TeleportAction.toURLString): where the pilot was when it
-    * quit (Gamma.RecordPosition). A world picked in the launcher before it
-    * was installed is never reached that way: the client could not load it,
-    * went to its fallback (GroundZero) and offered the download from there,
-    * so RestartAt is the fallback. When the update has just installed that
-    * world, the restart goes to it instead, once.
-    */
-   private String restartWith(String restart) {
-      String w = awaitedWorld;
-      if (w != null && restart.equals("world:restart") && Install.installed(layout, Install.packageOf(w))) {
-         awaitedWorld = null;
-         log.line("[launcher] " + Install.packageOf(w) + " is installed now: restarting in the world that was asked for");
-         return w;
-      }
-      return restart;
-   }
-
    boolean isRunning() {
       Process p = process;
       return p != null && p.isAlive();
    }
 
-   synchronized void stop() {
+   /** Ends the game, or the preparation before it (not synchronized: start may be busy downloading). */
+   void stop() {
       stopping = true;
-      if (process != null && process.isAlive()) {
-         process.destroy();
+      Process p = process;
+      if (p != null && p.isAlive()) {
+         p.destroy();
       }
    }
 
@@ -246,10 +289,6 @@ final class Session {
       if (upgrade != null) {
          upgrade.stop();
          upgrade = null;
-      }
-      if (whirl != null) {
-         whirl.stop();
-         whirl = null;
       }
       log.line("[launcher] the game ended with code " + code);
       log.close();

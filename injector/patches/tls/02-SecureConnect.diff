@@ -1,0 +1,91 @@
+--- /dev/null
++++ b/NET/worlds/network/SecureConnect.java
+@@ -0,0 +1,88 @@
++package NET.worlds.network;
++
++import java.io.IOException;
++import java.net.Socket;
++import java.security.GeneralSecurityException;
++import java.security.MessageDigest;
++import java.security.cert.CertificateException;
++import java.security.cert.X509Certificate;
++import javax.net.ssl.SSLContext;
++import javax.net.ssl.SSLSocket;
++import javax.net.ssl.TrustManager;
++import javax.net.ssl.X509TrustManager;
++
++/**
++ * J Worlds Injector, Encrypted connection: the world server connection over
++ * TLS, trusting exactly the certificate whose SHA-256 fingerprint the
++ * launcher checked with the player (-Dopenworlds.tls.pin). Without a pin the
++ * connection is the normal one.
++ */
++public final class SecureConnect {
++   private SecureConnect() {
++   }
++
++   public static Socket open(String host, int port) throws IOException {
++      String pin = System.getProperty("openworlds.tls.pin");
++      if (pin == null || pin.length() == 0) {
++         return new Socket(host, port);
++      }
++      try {
++         SSLContext ctx = SSLContext.getInstance("TLS");
++         ctx.init(null, new TrustManager[]{new Pinned(pin)}, null);
++         SSLSocket s = (SSLSocket) ctx.getSocketFactory().createSocket(host, port);
++         s.startHandshake();
++         System.out.println("[tls] encrypted connection to " + host + ":" + port + " (" + s.getSession().getProtocol()
++            + ", " + s.getSession().getCipherSuite() + ")");
++         return s;
++      } catch (GeneralSecurityException e) {
++         throw new IOException("TLS: " + e.getMessage());
++      }
++   }
++
++   static String fingerprint(X509Certificate c) throws CertificateException {
++      try {
++         byte[] d = MessageDigest.getInstance("SHA-256").digest(c.getEncoded());
++         StringBuffer sb = new StringBuffer();
++         for (int i = 0; i < d.length; i++) {
++            if (i > 0) {
++               sb.append(':');
++            }
++            String h = Integer.toHexString(d[i] & 255).toUpperCase();
++            if (h.length() < 2) {
++               sb.append('0');
++            }
++            sb.append(h);
++         }
++         return sb.toString();
++      } catch (java.security.NoSuchAlgorithmException e) {
++         throw new CertificateException(e.getMessage());
++      }
++   }
++
++   private static final class Pinned implements X509TrustManager {
++      private final String pin;
++
++      Pinned(String pin) {
++         this.pin = pin.trim().toUpperCase();
++      }
++
++      public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
++         throw new CertificateException("not a server");
++      }
++
++      public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
++         if (chain == null || chain.length == 0) {
++            throw new CertificateException("the server sent no certificate");
++         }
++         String got = fingerprint(chain[0]);
++         if (!got.equals(this.pin)) {
++            System.out.println("[tls] REFUSED: the server's certificate " + got + " is not the one you trusted (" + this.pin + ")");
++            throw new CertificateException("the server's certificate is not the one you trusted");
++         }
++      }
++
++      public X509Certificate[] getAcceptedIssuers() {
++         return new X509Certificate[0];
++      }
++   }
++}

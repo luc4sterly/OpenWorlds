@@ -3,7 +3,10 @@
 # scripts or a checkout: the game's launcher (net.openworlds.launcher), which
 # starts the 2004 client on the portable bridge with the game's data inside,
 # and J Solar Server (net.openworlds.solar), the world server with its admin
-# window. Both share the ui/ module.
+# window. Both share the ui/ module; the launcher also carries the J Worlds
+# Injector (injector/: its engine and built-in patches) and the client's
+# source as the bridge builds it (lib/worldsplayer-src.zip), which the
+# injector patches and compiles when the game starts.
 #
 # Usage:
 #   tools/build-dist.sh                 build/dist/OpenWorlds and build/dist/JSolarServer, and
@@ -104,8 +107,18 @@ if [ "$BUILD" = 1 ]; then
    printf 'Main-Class: NET.worlds.console.Gamma\nImplementation-Title: WorldsPlayer (OpenWorlds bridge)\nImplementation-Version: %s\n' "$VERSION" > "$OUT/manifest-gamma.txt"
    "$JDK/bin/jar" cfm "$LIB/worldsplayer.jar" "$OUT/manifest-gamma.txt" -C "$ROOT/editor/.build-gamma/out" .
 
-   echo "[dist] launcher"
-   javac_module "$OUT/classes/launcher" ui launcher
+   echo "[dist] launcher, with the ui module and the J Worlds Injector"
+   javac_module "$OUT/classes/launcher" ui injector launcher
+   # the injector's built-in patches next to its classes, listed in index.txt
+   # ("<patch>/<file>" lines: Patch.builtIn reads them as resources)
+   PATCHES="$OUT/classes/launcher/net/openworlds/injector/patches"
+   mkdir -p "$PATCHES"
+   cp -R "$ROOT/injector/patches/." "$PATCHES/"
+   (cd "$ROOT/injector/patches" && find . -mindepth 2 -maxdepth 2 -type f | sed 's|^\./||' | LC_ALL=C sort) > "$PATCHES/index.txt"
+   # the client's source as the bridge builds it (the pristine decompiled
+   # source with the bridge's patches): what the injector's diffs apply to
+   rm -f "$LIB/worldsplayer-src.zip"
+   (cd "$ROOT/editor/.build-gamma/source" && "$JDK/bin/jar" cfM "$LIB/worldsplayer-src.zip" .)
    printf 'Main-Class: net.openworlds.launcher.Launcher\nImplementation-Title: OpenWorlds\nImplementation-Version: %s\nOpenWorlds-Commit: %s\nOpenWorlds-Update-Repo: %s\n' \
       "$VERSION" "$COMMIT" "$UPDATE_REPO" > "$OUT/manifest-launcher.txt"
    "$JDK/bin/jar" cfm "$LIB/openworlds-launcher.jar" "$OUT/manifest-launcher.txt" -C "$OUT/classes/launcher" .
@@ -229,7 +242,7 @@ if [ "$APP_IMAGE" = 1 ]; then
    STAGE="$OUT/jpackage-input"
    rm -rf "$STAGE"
    mkdir -p "$STAGE"
-   cp "$LIB"/*.jar "$STAGE/"
+   cp "$LIB"/*.jar "$LIB"/*.zip "$STAGE/"
    cp -R "$DIST/game" "$STAGE/game"
    # jdk.compiler: the J Worlds Injector compiles the chosen client patches when the game starts
    app_image OpenWorlds "$STAGE" openworlds-launcher.jar net.openworlds.launcher.Launcher \

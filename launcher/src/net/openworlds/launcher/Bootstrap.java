@@ -19,9 +19,8 @@ import java.util.Arrays;
  * bundled launcher's classes leak in) and its {@code main} runs with the same
  * arguments, in this same JVM: same Java, same Dock icon and process. The
  * newer launcher finds its own worldsplayer.jar and game data next to its jar
- * (the portable layout); {@code openworlds.bundledLib} tells it where the
- * app's own files are (e.g. a bundled whirl). A version that fails to start is
- * written to {@code app/bad} and skipped from then on.
+ * (the portable layout). A version that fails to start is written to
+ * {@code app/bad} and skipped from then on.
  */
 final class Bootstrap {
    private Bootstrap() {
@@ -57,12 +56,6 @@ final class Bootstrap {
       String before = System.getProperty("openworlds.handedOff");
       try {
          System.setProperty("openworlds.handedOff", own.text);
-         if (System.getProperty("openworlds.bundledLib") == null) {
-            File lib = Layout.codeDirOrNull();
-            if (lib != null) {
-               System.setProperty("openworlds.bundledLib", lib.getPath());
-            }
-         }
          URLClassLoader cl = new URLClassLoader("openworlds-" + next.text, new URL[]{jar.toURI().toURL()},
             ClassLoader.getPlatformClassLoader());
          Class<?> main = Class.forName("net.openworlds.launcher.Launcher", true, cl);

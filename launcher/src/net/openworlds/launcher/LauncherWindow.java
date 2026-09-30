@@ -1,20 +1,19 @@
 package net.openworlds.launcher;
 
-import net.openworlds.ui.Theme;
-import net.openworlds.ui.Ui;
 import net.openworlds.ui.PlanetView;
 import net.openworlds.ui.SpaceBackground;
+import net.openworlds.ui.Theme;
+import net.openworlds.ui.Ui;
+
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
+import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JPanel;
-import javax.swing.ListCellRenderer;
-import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -22,9 +21,6 @@ import java.awt.Component;
 import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -32,21 +28,25 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.RoundRectangle2D;
 import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.CancellationException;
 
 /**
  * The launcher's window, dressed as the logo: the planet turning on the
- * left, and on the right what to play (world and server) and the Play button.
- * The session log is not shown (it is still written to logs/ in the data
- * folder, for bug reports and the CI); the footer carries the update status.
+ * left, and on the right what to play (world, server, patches) and the Play
+ * button. The session log is not shown (it is still written to logs/ in the
+ * data folder, for bug reports and the CI); the footer carries the update
+ * status.
+ *
+ * <p>Play runs, on a worker thread: the certificate check of an encrypted
+ * server (the first time, with the player: {@link Trust}), then the session,
+ * which installs the chosen world if needed, builds the patches and starts
+ * the game ({@link Session}). Until the game ends, Play is Stop.
  */
 final class LauncherWindow {
-   static final String LOCAL_WHIRL = "127.0.0.1:6650";
    private static final int SINGLE = 0;
-   private static final int WHIRL = 1;
-   private static final int OTHER = 2;
+   private static final int ONLINE = 1;
 
    private final Layout layout;
    private final Settings settings;
@@ -55,21 +55,27 @@ final class LauncherWindow {
    private final JFrame frame = new JFrame("OpenWorlds");
    private final PlanetView planet = new PlanetView(116);
    private final DefaultListModel<Install.World> worldModel = new DefaultListModel<>();
-   private final JList<Install.World> worldList = new JList<>(worldModel);
-   private final Ui.Segmented server = new Ui.Segmented("Single player", "Local whirl", "Online");
-   private final Ui.Field host = new Ui.Field(12, "host:port");
+   private final Ui.Rows<Install.World> worldList = new Ui.Rows<>(worldModel, 48, this::paintWorld);
+   private final Ui.Segmented server = new Ui.Segmented("Single player", "Online");
+   private final JPanel online = new JPanel(new GridBagLayout());
+   private final Ui.Field host = new Ui.Field(14, "server address, e.g. 192.168.1.20");
    private final Ui.Field user = new Ui.Field(10, "your name");
+   private final Ui.Secret password = new Ui.Secret(10, "password");
+   private final JCheckBox encrypted = Ui.check("Encrypted connection");
    private final Ui.Note hint = new Ui.Note("", Theme.regular(11.5f), Theme.MUTED, 376);
+   private final Ui.Ghost patchesButton = new Ui.Ghost("Patches", new Ui.Glyph(Ui.Glyph.Kind.PUZZLE, 14));
+   private final JLabel patchesLabel = Ui.text(" ", Theme.regular(12f), Theme.MUTED);
    private final Ui.Pill play = new Ui.Pill("Play", new Ui.Glyph(Ui.Glyph.Kind.PLAY, 15), Ui.Pill.Kind.PRIMARY, 17f);
    private final JLabel gameStatus = Ui.text(" ", Theme.regular(12f), Theme.MUTED);
    private final JLabel updateLabel = Ui.text(" ", Theme.regular(12f), Theme.MUTED);
    private final Ui.Pill updateNow = new Ui.Pill("Restart to update", new Ui.Glyph(Ui.Glyph.Kind.REFRESH, 12),
       Ui.Pill.Kind.PRIMARY, 12f);
    private final Ui.Ghost settingsButton = new Ui.Ghost("Settings", new Ui.Glyph(Ui.Glyph.Kind.GEAR, 14));
-   private Session running;
-   /** From Play until the session ends (the game process may not exist yet). */
-   private boolean busy;
-   private boolean stoppedByUser;
+   /** The session of this Play, once the worker has made it. */
+   private volatile Session running;
+   /** From Play until the session ends: certificate check, world install, patches, the game. */
+   private volatile boolean busy;
+   private volatile boolean stoppedByUser;
 
    private LauncherWindow(Layout layout, Settings settings, String[] args) {
       this.layout = layout;
@@ -125,11 +131,11 @@ final class LauncherWindow {
 
          @Override
          public void windowDeiconified(WindowEvent e) {
-            planet.setPaused(running != null && running.isRunning());
+            planet.setPaused(busy);
          }
       });
-      frame.setMinimumSize(new Dimension(880, 600));
-      frame.setSize(new Dimension(960, 640));
+      frame.setMinimumSize(new Dimension(900, 660));
+      frame.setSize(new Dimension(980, 700));
       frame.setLocationRelativeTo(null);
       frame.setVisible(true);
       worldList.requestFocusInWindow();
@@ -179,30 +185,7 @@ final class LauncherWindow {
       c.insets = new Insets(8, 0, 0, 0);
       c.fill = GridBagConstraints.BOTH;
       c.weighty = 1;
-      worldList.setOpaque(false);
-      worldList.setBackground(new Color(0, 0, 0, 0));
-      worldList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-      worldList.setFixedCellHeight(48);
-      WorldCell cell = new WorldCell();
-      worldList.setCellRenderer(cell);
-      worldList.addMouseMotionListener(new MouseAdapter() {
-         @Override
-         public void mouseMoved(MouseEvent e) {
-            int i = worldList.locationToIndex(e.getPoint());
-            int hover = i >= 0 && worldList.getCellBounds(i, i).contains(e.getPoint()) ? i : -1;
-            if (hover != cell.hover) {
-               cell.hover = hover;
-               worldList.repaint();
-            }
-         }
-      });
       worldList.addMouseListener(new MouseAdapter() {
-         @Override
-         public void mouseExited(MouseEvent e) {
-            cell.hover = -1;
-            worldList.repaint();
-         }
-
          @Override
          public void mouseClicked(MouseEvent e) {
             if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e) && worldList.isEnabled()) {
@@ -222,25 +205,51 @@ final class LauncherWindow {
       c.insets = new Insets(8, 0, 0, 0);
       card.add(server, c);
 
-      JPanel fields = new JPanel(new GridBagLayout());
-      fields.setOpaque(false);
+      online.setOpaque(false);
       GridBagConstraints f = new GridBagConstraints();
       f.fill = GridBagConstraints.HORIZONTAL;
-      f.weightx = 0.56;
-      fields.add(host, f);
+      f.gridx = 0;
+      f.gridy = 0;
+      f.gridwidth = 2;
+      f.weightx = 1;
+      online.add(host, f);
+      f.gridy = 1;
+      f.gridwidth = 1;
+      f.weightx = 0.5;
+      f.insets = new Insets(8, 0, 0, 0);
+      online.add(user, f);
       f.gridx = 1;
-      f.weightx = 0.44;
-      f.insets = new Insets(0, 8, 0, 0);
-      fields.add(user, f);
+      f.insets = new Insets(8, 8, 0, 0);
+      online.add(password, f);
+      f.gridx = 0;
+      f.gridy = 2;
+      f.gridwidth = 2;
+      f.insets = new Insets(8, 2, 0, 0);
+      encrypted.setToolTipText("Names, passwords and chat travel encrypted (TLS). J Solar Server's encrypted port is 6651.");
+      online.add(encrypted, f);
       c.gridy++;
-      card.add(fields, c);
+      card.add(online, c);
 
       c.gridy++;
       c.insets = new Insets(7, 2, 0, 0);
       card.add(hint, c);
 
+      JPanel patches = new JPanel(new BorderLayout(10, 0));
+      patches.setOpaque(false);
+      patchesButton.setToolTipText("J Worlds Injector: patches built into the game when you press Play");
+      patchesButton.addActionListener(e -> {
+         PatchesDialog.open(frame, layout, settings);
+         showPatches();
+      });
+      patches.add(patchesButton, BorderLayout.WEST);
+      patches.add(patchesLabel, BorderLayout.CENTER);
+      showPatches();
       c.gridy++;
-      c.insets = new Insets(16, 0, 0, 0);
+      c.insets = new Insets(12, -6, 0, 0);
+      card.add(patches, c);
+
+      c.gridy++;
+      c.insets = new Insets(14, 0, 0, 0);
       play.addActionListener(e -> start());
       card.add(play, c);
       c.gridy++;
@@ -248,11 +257,13 @@ final class LauncherWindow {
       gameStatus.setHorizontalAlignment(JLabel.CENTER);
       card.add(gameStatus, c);
 
-      host.setText(settings.customServer.isEmpty() && !settings.server.isEmpty() && !settings.server.equals(LOCAL_WHIRL)
-         ? settings.server : settings.customServer);
+      host.setText(settings.customServer.isEmpty() ? settings.server : settings.customServer);
       user.setText(settings.user);
-      server.select(settings.server.isEmpty() ? SINGLE : settings.server.equals(LOCAL_WHIRL) ? WHIRL : OTHER);
+      password.setText(settings.password);
+      encrypted.setSelected(settings.encrypted);
+      server.select(settings.server.isEmpty() ? SINGLE : ONLINE);
       server.onChange(i -> syncServer());
+      encrypted.addItemListener(e -> syncServer());
       syncServer();
       return card;
    }
@@ -269,7 +280,10 @@ final class LauncherWindow {
       foot.add(left, BorderLayout.WEST);
       JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
       right.setOpaque(false);
-      settingsButton.addActionListener(e -> SettingsDialog.open(frame, layout, settings, updater));
+      settingsButton.addActionListener(e -> {
+         SettingsDialog.open(frame, layout, settings, updater);
+         worldList.repaint(); // "download what is missing" changes what the rows say
+      });
       Ui.Ghost data = new Ui.Ghost("Data folder", new Ui.Glyph(Ui.Glyph.Kind.FOLDER, 14));
       data.setToolTipText(layout.dataDir.getPath());
       data.addActionListener(e -> openDir(layout.dataDir));
@@ -281,7 +295,7 @@ final class LauncherWindow {
 
    // ------------------------------------------------------------ worlds
 
-   /** (Re)reads the worlds, keeping the selection (a download may have installed one). */
+   /** (Re)reads the worlds, keeping the selection (a session may have installed one). */
    private void fillWorlds() {
       Install.World sel = worldList.getSelectedValue();
       String want = sel != null ? sel.url : settings.world;
@@ -300,90 +314,32 @@ final class LauncherWindow {
       worldList.ensureIndexIsVisible(index);
    }
 
-   /** A world in the list: status dot, name and one line on what "Play" will do with it. */
-   private static final class WorldCell extends JComponent implements ListCellRenderer<Install.World> {
-      int hover = -1;
-      private Install.World world;
-      private boolean selected;
-      private boolean hovered;
-      private boolean enabled;
-
-      @Override
-      public Component getListCellRendererComponent(JList<? extends Install.World> list, Install.World value, int index,
-                                                    boolean isSelected, boolean cellHasFocus) {
-         world = value;
-         selected = isSelected;
-         hovered = index == hover;
-         enabled = list.isEnabled();
-         return this;
-      }
-
-      @Override
-      protected void paintComponent(Graphics g) {
-         Graphics2D g2 = Theme.smooth(g);
-         int w = getWidth();
-         int h = getHeight();
-         RoundRectangle2D row = new RoundRectangle2D.Float(1, 2, w - 4, h - 4, 14, 14);
-         if (selected) {
-            g2.setColor(Theme.SELECTED);
-            g2.fill(row);
-            g2.setColor(Theme.alpha(Theme.SEA, enabled ? 130 : 60));
-            g2.draw(row);
-         } else if (hovered && enabled) {
-            g2.setColor(Theme.HOVER);
-            g2.fill(row);
-         }
-         boolean login = world.url.isEmpty();
-         Color dot = login ? Theme.MUTED : world.installed ? Theme.LAND : Theme.RING_B;
-         g2.setColor(enabled ? dot : Theme.alpha(dot, 110));
-         g2.fill(new Ellipse2D.Float(14, h / 2f - 4.5f, 9, 9));
-         String sub = login ? "The game's own sign-in screen"
-            : world.installed ? "Installed" : "Downloaded the first time (us1.worlds.net)";
-         g2.setFont(Theme.semibold(13.5f));
-         FontMetrics fm = g2.getFontMetrics();
-         g2.setColor(enabled ? Theme.TEXT : Theme.FAINT);
-         g2.drawString(fit(world.name, fm, w - 48), 34, h / 2 - 2);
-         g2.setFont(Theme.regular(11f));
-         g2.setColor(enabled ? Theme.MUTED : Theme.FAINT);
-         g2.drawString(fit(sub, g2.getFontMetrics(), w - 48), 34, h / 2 + 13);
-         g2.dispose();
-      }
-
-      private static String fit(String s, FontMetrics fm, int width) {
-         if (fm.stringWidth(s) <= width) {
-            return s;
-         }
-         String t = s;
-         while (t.length() > 1 && fm.stringWidth(t + "…") > width) {
-            t = t.substring(0, t.length() - 1);
-         }
-         return t + "…";
-      }
+   /** A world in the list: status dot, name and one line on what Play will do with it. */
+   private void paintWorld(java.awt.Graphics2D g2, Install.World world, int w, int h, boolean enabled) {
+      boolean login = world.url.isEmpty();
+      Color dot = login ? Theme.MUTED : world.installed ? Theme.LAND : Theme.RING_B;
+      String sub = login ? "The game's own sign-in screen"
+         : world.installed ? "Installed"
+         : settings.mirror ? "Not installed yet: Play downloads it (us1.worlds.net)"
+         : "Not installed (downloading is off in Settings)";
+      Ui.drawRow(g2, w, h, dot, world.name, sub, enabled);
    }
 
    // ------------------------------------------------------------ server
 
    private void syncServer() {
-      int mode = server.selected();
-      host.setEnabled(!busy && mode == OTHER);
-      user.setEnabled(!busy && mode != SINGLE);
-      if (mode == WHIRL) {
-         host.setText(LOCAL_WHIRL);
-      } else if (host.getText().equals(LOCAL_WHIRL)) {
-         host.setText(settings.customServer);
+      boolean isOnline = server.selected() == ONLINE;
+      online.setVisible(isOnline);
+      if (!isOnline) {
+         setHint("No server: the world is all yours.", false);
+      } else if (encrypted.isSelected()) {
+         setHint("Encrypted with TLS (port 6651 unless you type one). The first time, you confirm the server's "
+            + "certificate.", false);
+      } else {
+         setHint("The address your J Solar Server shows. The first time, any name and password make your account.",
+            false);
       }
-      switch (mode) {
-         case SINGLE:
-            setHint("No server: the world is all yours. Other worlds download when you visit them.", false);
-            break;
-         case WHIRL:
-            setHint(LocalWhirl.available(layout)
-               ? "A whirl server on this computer (127.0.0.1:6650): it starts and stops with the game."
-               : "Needs whirl running on 127.0.0.1:6650 (tools/run-whirl.sh): this package does not bring it.", false);
-            break;
-         default:
-            setHint("A world server, as host:port. The user name is your name in the chat.", false);
-      }
+      online.revalidate();
    }
 
    private void setHint(String text, boolean error) {
@@ -391,83 +347,129 @@ final class LauncherWindow {
       hint.setForeground(error ? Theme.ERROR : Theme.MUTED);
    }
 
+   private void showPatches() {
+      String names = PatchesDialog.summary(layout, settings);
+      patchesLabel.setText(names.isEmpty() ? "None: the game as it was in 2004" : names);
+      patchesLabel.setForeground(names.isEmpty() ? Theme.FAINT : Theme.TEXT);
+      patchesLabel.setToolTipText(names.isEmpty() ? null : names);
+   }
+
    /** Settings from the window; false (with the reason under the fields) if something is missing. */
    private boolean collect() {
       Install.World w = worldList.getSelectedValue();
       settings.world = w == null ? settings.world : w.url;
-      int mode = server.selected();
-      String typed = host.getText().trim();
-      if (mode != WHIRL && !typed.equals(LOCAL_WHIRL)) {
-         settings.customServer = typed;
-      }
+      settings.customServer = host.getText().trim();
       settings.user = user.getText().trim();
+      settings.password = new String(password.getPassword());
+      settings.encrypted = encrypted.isSelected();
       boolean ok = true;
-      if (mode == SINGLE) {
+      if (server.selected() == SINGLE) {
          settings.server = "";
-      } else if (mode == WHIRL) {
-         settings.server = LOCAL_WHIRL;
-      } else if (!validHostPort(typed)) {
-         setHint("Type the server as host:port (for example, 127.0.0.1:6650).", true);
-         host.requestFocusInWindow();
-         ok = false;
       } else {
-         settings.server = typed;
+         String address = Launcher.serverAddress(settings.customServer, settings.encrypted);
+         if (address == null) {
+            setHint(settings.customServer.isEmpty() ? "Type the address of the server (J Solar Server shows it)."
+               : "That is not a server address: type it as host or host:port, e.g. 192.168.1.20.", true);
+            host.requestFocusInWindow();
+            ok = false;
+         } else {
+            settings.server = address;
+         }
       }
       settings.save(layout.settingsFile);
       return ok;
    }
 
-   static boolean validHostPort(String s) {
-      int colon = s.lastIndexOf(':');
-      if (colon <= 0 || colon == s.length() - 1 || s.contains(" ")) {
-         return false;
-      }
-      try {
-         int port = Integer.parseInt(s.substring(colon + 1));
-         return port > 0 && port < 65536;
-      } catch (NumberFormatException e) {
-         return false;
-      }
-   }
-
    // ------------------------------------------------------------ game
 
    private void start() {
-      if (running != null && running.isRunning()) {
+      if (busy) {
+         // Stop: the game, or what comes before it (the download of a world...)
          stoppedByUser = true;
-         running.stop();
+         Session s = running;
+         if (s != null) {
+            s.stop();
+         }
+         status("Stopping…", false);
          return;
-      }
-      if (running != null) {
-         return; // still closing the previous one
       }
       if (!collect()) {
          return;
       }
       syncServer();
-      Session s = new Session(layout, settings);
-      running = s;
       stoppedByUser = false;
       setRunning(true);
-      gameStatus.setForeground(Theme.MUTED);
-      gameStatus.setText("Starting WorldsPlayer…");
-      Thread t = new Thread(() -> {
-         int code;
-         String failure = null;
-         try {
-            s.start();
-            SwingUtilities.invokeLater(() -> gameStatus.setText("WorldsPlayer is running"));
-            code = s.waitFor();
-         } catch (Exception e) {
-            failure = e.getMessage() == null ? e.toString() : e.getMessage();
-            code = -1;
-         }
-         final int exit = code;
-         final String why = failure;
-         SwingUtilities.invokeLater(() -> finished(exit, why));
-      }, "openworlds-session");
+      status("Getting ready…", false);
+      Thread t = new Thread(this::runSession, "openworlds-session");
       t.setDaemon(true);
       t.start();
+   }
+
+   /** The worker behind Play: certificate, session (world install, patches, game) and its end. */
+   private void runSession() {
+      int code = -1;
+      String failure = null;
+      try {
+         if (!settings.server.isEmpty() && settings.encrypted && !trusted()) {
+            failure = "The server's certificate was not trusted, so the game did not start.";
+         } else if (!stoppedByUser) {
+            Session s = new Session(layout, settings);
+            s.onProgress((text, percent) -> SwingUtilities.invokeLater(() -> {
+               if (!stoppedByUser) {
+                  status(text, false);
+               }
+            }));
+            running = s;
+            if (stoppedByUser) {
+               s.stop();
+            }
+            s.start();
+            SwingUtilities.invokeLater(() -> status("WorldsPlayer is running", false));
+            code = s.waitFor();
+         }
+      } catch (CancellationException e) {
+         stoppedByUser = true;
+      } catch (Exception e) {
+         failure = e.getMessage() == null ? e.toString() : e.getMessage();
+      }
+      final int exit = code;
+      final String why = failure;
+      SwingUtilities.invokeLater(() -> finished(exit, why));
+   }
+
+   /**
+    * For an encrypted server: true if its certificate is the one trusted
+    * before, or the player trusts it now (the first time, or after it
+    * changed). Runs on the worker; the question goes to the event thread.
+    */
+   private boolean trusted() throws Exception {
+      String address = settings.server;
+      SwingUtilities.invokeLater(() -> status("Checking " + address + "…", false));
+      Trust.Check c;
+      try {
+         c = Trust.check(layout, address);
+      } catch (IOException e) {
+         boolean plainPort = address.endsWith(":" + Launcher.PLAIN_PORT);
+         throw new IOException(address + " does not answer an encrypted connection (" + e.getMessage() + ")."
+            + (plainPort ? " J Solar Server's encrypted port is " + Launcher.TLS_PORT + "." : ""), e);
+      }
+      if (c.trusted()) {
+         return true;
+      }
+      String message = c.changed()
+         ? address + " shows a different certificate than last time:\n\n" + Trust.pretty(c.fingerprint)
+            + "\n\nIf the server's owner made a new one, compare this fingerprint with the one J Solar Server shows. "
+            + "If they did not, someone may be in the middle: do not connect."
+         : "The first encrypted connection to " + address + ". Its certificate's fingerprint is:\n\n"
+            + Trust.pretty(c.fingerprint) + "\n\nIt should match the one J Solar Server shows (Network). "
+            + "If it does, trust it: OpenWorlds remembers it and warns you if it ever changes.";
+      boolean[] yes = {false};
+      SwingUtilities.invokeAndWait(() -> yes[0] = Ui.ask(frame, c.changed() ? "The certificate changed" : "Check this server",
+         message, c.changed() ? "Trust the new one" : "Trust it", "Cancel"));
+      if (yes[0]) {
+         Trust.remember(layout, address, c.fingerprint);
+      }
+      return yes[0];
    }
 
    private void finished(int code, String failure) {
@@ -475,20 +477,21 @@ final class LauncherWindow {
       setRunning(false);
       fillWorlds();
       if (failure != null) {
-         gameStatus.setForeground(Theme.ERROR);
-         gameStatus.setText("The game could not start");
+         status("The game did not start", true);
          setHint(failure, true);
       } else if (stoppedByUser) {
-         gameStatus.setForeground(Theme.MUTED);
-         gameStatus.setText("Game stopped");
+         status("Game stopped", false);
       } else if (code != 0) {
-         gameStatus.setForeground(Theme.ERROR);
-         gameStatus.setText("The game closed with an error (code " + code + ")");
+         status("The game closed with an error (code " + code + ")", true);
       } else {
-         gameStatus.setForeground(Theme.MUTED);
-         gameStatus.setText("See you next time");
+         status("See you next time", false);
       }
       frame.toFront();
+   }
+
+   private void status(String text, boolean error) {
+      gameStatus.setForeground(error ? Theme.ERROR : Theme.MUTED);
+      gameStatus.setText(text);
    }
 
    private void setRunning(boolean on) {
@@ -500,7 +503,9 @@ final class LauncherWindow {
       play.setKind(on ? Ui.Pill.Kind.QUIET : Ui.Pill.Kind.PRIMARY);
       worldList.setEnabled(!on);
       server.setEnabled(!on);
-      syncServer();
+      for (JComponent field : new JComponent[]{host, user, password, encrypted, patchesButton}) {
+         field.setEnabled(!on);
+      }
       updateNow.setEnabled(!on);
       planet.setPaused(on);
    }
@@ -554,8 +559,7 @@ final class LauncherWindow {
             } else {
                frame.setVisible(true);
                planet.setPaused(false);
-               gameStatus.setForeground(Theme.ERROR);
-               gameStatus.setText("The new version does not start; keeping this one");
+               status("The new version does not start; keeping this one", true);
             }
          });
       }, "openworlds-restart");
@@ -565,13 +569,17 @@ final class LauncherWindow {
    // ------------------------------------------------------------ misc
 
    private void quit() {
-      Session s = running;
-      if (s != null && s.isRunning()) {
-         if (!Ui.ask(frame, "OpenWorlds", "The game is still open. Close it and quit?", "Close and quit", "Keep playing")) {
+      if (busy) {
+         Session s = running;
+         boolean playing = s != null && s.isRunning();
+         if (!Ui.ask(frame, "OpenWorlds", playing ? "The game is still open. Close it and quit?"
+            : "The game is getting ready. Stop and quit?", playing ? "Close and quit" : "Stop and quit", "Keep playing")) {
             return;
          }
          stoppedByUser = true;
-         s.stop();
+         if (s != null) {
+            s.stop();
+         }
       }
       collect();
       frame.dispose();

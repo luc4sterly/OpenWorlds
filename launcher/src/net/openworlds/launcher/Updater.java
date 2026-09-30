@@ -36,11 +36,13 @@ import java.util.zip.ZipFile;
  * installed app is never rewritten (no admin rights, no files in use on
  * Windows, the macOS bundle keeps its signature): on the next start
  * {@link Bootstrap} finds the newer version and runs it instead of the
- * bundled one, on the same Java. Updating the app itself (its Java, the
- * bundled whirl) is a matter of downloading it again.
+ * bundled one, on the same Java. Updating the app itself (its Java) is a
+ * matter of downloading it again.
  *
- * <p>A private repository needs a token (Settings, or OPENWORLDS_GITHUB_TOKEN):
- * without one GitHub answers 404, as if there were no releases.
+ * <p>The repository is public, so no token is needed; one (the githubToken
+ * setting, or OPENWORLDS_GITHUB_TOKEN) only raises GitHub's rate limit, and
+ * is what a private fork would need (without it GitHub answers 404, as if
+ * there were no releases).
  */
 final class Updater {
    static final String DEFAULT_REPO = "luc4sterly/OpenWorlds";

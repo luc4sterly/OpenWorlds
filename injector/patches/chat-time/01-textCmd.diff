@@ -1,0 +1,22 @@
+--- a/NET/worlds/network/textCmd.java
++++ b/NET/worlds/network/textCmd.java
+@@ -63,7 +63,8 @@
+       String var3 = FilthFilter.get().filterName(var1);
+       String var4 = "";
+       if (IniFile.gamma().getIniInt("classicChatBox", 1) == 1) {
+-         var4 = var3 + "> ";
++         // J Worlds Injector, Time in the chat
++         var4 = new java.text.SimpleDateFormat("[HH:mm] ").format(new java.util.Date()) + var3 + "> ";
+          var4 = var4 + FilthFilter.get().filter(var2);
+          BlackBox.getInstance().submitEvent(new BBChatCommand(var4));
+          Console.println(var4);
+@@ -80,7 +81,8 @@
+             var5 = true;
+          }
+ 
+-         var4 = var4 + "<b> " + var3 + "> </b>  ";
++         // J Worlds Injector, Time in the chat
++         var4 = var4 + new java.text.SimpleDateFormat("[HH:mm] ").format(new java.util.Date()) + "<b> " + var3 + "> </b>  ";
+          if (var5) {
+             var4 = var4 + " " + GammaTextArea.colorEndTag + " ";
+          }

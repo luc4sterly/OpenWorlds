@@ -1,0 +1,12 @@
+--- a/NET/worlds/network/FilthFilter.java
++++ b/NET/worlds/network/FilthFilter.java
+@@ -28,7 +28,8 @@
+          this.encryptFilthFile();
+       }
+ 
+-      this.allowObscenities = IniFile.gamma().getIniInt("allowObscenities", 0) == 1 || IniFile.override().getIniInt("allowObscentiies", 0) == 1;
++      // J Worlds Injector, No word filter
++      this.allowObscenities = true;
+       this.loadFilth();
+    }
+ 

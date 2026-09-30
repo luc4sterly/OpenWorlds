@@ -1,0 +1,29 @@
+--- a/NET/worlds/scape/SmoothDriver.java
++++ b/NET/worlds/scape/SmoothDriver.java
+@@ -178,7 +178,7 @@
+ 
+       float var2;
+       if (var1.key == '\ue326') {
+-         var2 = this.FB_key;
++         var2 = this.FB_key * 1.8F; // J Worlds Injector, Walk faster
+       } else {
+          if (var1.key != '\ue328') {
+             float var3;
+@@ -197,7 +197,7 @@
+             return true;
+          }
+ 
+-         var2 = -this.FB_key;
++         var2 = -this.FB_key * 1.8F; // J Worlds Injector, Walk faster
+       }
+ 
+       this.applyFrameForce(var1);
+@@ -233,7 +233,7 @@
+    public boolean handle(MouseDownEvent var1) {
+       if (var1.key == '\ue302' && this.isDelta(var1)) {
+          this.applyFrameForce(var1);
+-         this.FB_force = this.FB_key;
++         this.FB_force = this.FB_key * 1.8F; // J Worlds Injector, Walk faster
+          this.FB_forceFromMouse = true;
+       }
+ 
