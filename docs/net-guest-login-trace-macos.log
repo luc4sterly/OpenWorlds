@@ -1,22 +1,22 @@
-Trace real de `tools/net-probe/run-guest-login.sh` en macOS Intel, sin
-Xvfb/Wine (AWT nativo via Cocoa), JDK Temurin 25.0.4.1 portable
-(tools/jdk/Contents/Home/bin). Reproduce en Mac la corrida ya documentada
-en tools/net-probe/README.md (2026-09-10, Linux+Xvfb): mismo resultado,
-mismo servidor vivo. Recortado (se han colapsado las lineas repetidas
-`[NATIVE-MOCK] Std.nativeGetMillis()` del polling de perFrame, sin quitar
-ninguna linea con contenido de protocolo/estado/error). Sin datos
-personales: el nick "FWProbe174" lo genera la propia sonda al azar
-(GuestLoginProbe.main, sin argv), no es una cuenta real.
+Real trace of `tools/net-probe/run-guest-login.sh` on macOS Intel, no
+Xvfb/Wine (native AWT through Cocoa), portable Temurin JDK 25.0.4.1
+(tools/jdk/Contents/Home/bin). It reproduces on a Mac the run already
+documented in tools/net-probe/README.md (2026-09-10, Linux+Xvfb): same
+result, same live server. Trimmed (the repeated lines
+`[NATIVE-MOCK] Std.nativeGetMillis()` of the perFrame polling are
+collapsed, without removing any line with protocol/state/error content).
+No personal data: the nick "FWProbe174" is made up at random by the probe
+itself (GuestLoginProbe.main, no argv), it is not a real account.
 
-Comando: tools/net-probe/run-guest-login.sh <workdir-temporal>
-(construye el mock + las sondas en el workdir, copia assets/WorldsPlayer
-a un CWD limpio, ejecuta GuestLoginProbe gippsland.worlio.com 8265).
+Command: tools/net-probe/run-guest-login.sh <temporary-workdir>
+(builds the mock + the probes in the workdir, copies assets/WorldsPlayer
+to a clean CWD, runs GuestLoginProbe gippsland.worlio.com 8265).
 
-== [3/6] javac --release 8 del cliente mockeado (out/) ==
-compiladas 737 clases
-== [4/6] javac --release 8 de las sondas (NetProbe + NET/worlds/network/*Probe*) ==
-sondas compiladas OK
-== [6/6] ejecutando GuestLoginProbe contra gippsland.worlio.com:8265 ==
+== [3/6] javac --release 8 of the mocked client (out/) ==
+737 classes compiled
+== [4/6] javac --release 8 of the probes (NetProbe + NET/worlds/network/*Probe*) ==
+probes compiled OK
+== [6/6] running GuestLoginProbe against gippsland.worlio.com:8265 ==
 [NATIVE-MOCK] IniFile.nativeInit()
 netdebug(harness-override)=1260
 [NATIVE-MOCK] Std.getClientVersion()
@@ -70,21 +70,21 @@ Galaxy[worldserver://gippsland.worlio.com:8265/AutoServer/]: addActiveServer(gip
 LWDB: calling LoginWizard0 setConnected
 live state -> 12 MAINLOOP
 gippsland.worlio.com:8265: recv(TEXT     Gippsland: Welcome to WorlioWorlds Gippsland, an anonymous free-for-all. Be wary of links, impersonation, and spam. Keep your mute buttons greased. )
-[... ~65 lineas "[NATIVE-MOCK] Std.nativeGetMillis()" del polling de
-     perFrame cada 200ms durante los 12s de estabilidad, colapsadas ...]
+[... ~65 lines "[NATIVE-MOCK] Std.nativeGetMillis()" of the perFrame
+     polling every 200ms during the 12s of stability, collapsed ...]
 MAINLOOP stable 12s, stopping
 live final state=12 MAINLOOP lastError=null
 closed cleanly
 == GuestLoginProbe exit=0 ==
 
-RESULTADO: estado 12 MAINLOOP alcanzado y estable 12s, lastError=null,
-cierre limpio, exit 0 - identico en sustancia al resultado del
-2026-09-10 documentado en tools/net-probe/README.md (esa vez bajo Linux
-con Xvfb). Confirma que el camino real del cliente decompilado
-(AutoServer -> AnonRoomServer -> sessionInit -> MAINLOOP) no depende de
-Xvfb ni de nada especifico de Linux: en macOS con AWT nativo (Cocoa) el
-mismo codigo, contra el mismo servidor vivo, produce el mismo resultado.
-El "a server tried to murder another!" es el mismo aviso benigno ya
-documentado (ServerTracker.killServer solo imprime, no lanza - la sonda
-GuestLoginProbe hereda AutoServer sin registrarse via findOrMake, un
-artefacto propio del harness, no del cliente real).
+RESULT: state 12 MAINLOOP reached and stable for 12s, lastError=null,
+clean close, exit 0 - in substance identical to the result of
+2026-09-10 documented in tools/net-probe/README.md (that time on Linux
+with Xvfb). It confirms that the real path of the decompiled client
+(AutoServer -> AnonRoomServer -> sessionInit -> MAINLOOP) depends neither
+on Xvfb nor on anything Linux-specific: on macOS with native AWT (Cocoa)
+the same code, against the same live server, gives the same result.
+The "a server tried to murder another!" is the same benign warning
+already documented (ServerTracker.killServer only prints, it does not
+throw - the GuestLoginProbe probe inherits AutoServer without registering
+through findOrMake, an artefact of the harness, not of the real client).

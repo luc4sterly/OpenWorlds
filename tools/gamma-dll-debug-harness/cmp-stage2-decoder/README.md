@@ -220,7 +220,7 @@ where the decoder's bit reader first disagrees with the real one about
 which branch to take (not which offset to use — that part is now
 right).
 
-## 2026-09-10, round 4 (LÍNEA A): `test4b.cmp` byte-exact, real texture
+## 2026-09-10, round 4 (LINE A): `test4b.cmp` byte-exact, real texture
 ## `rustwood.cmp` at 99.37%, THREE more real bugs found and fixed
 
 **Bug found in the capture tool itself, not the decoder**: `cmp_capture.py`'s
@@ -306,7 +306,7 @@ that most or all of it is further capture-tool artifacts rather than
 decoder bugs (per the pattern in both `rustwood.cmp` and `sball.cmp` so
 far) — but that is not yet proven, only suggestive.
 
-## 2026-09-10, round 5 (LÍNEA A): `sball.cmp` CLOSED — fourth real bug
+## 2026-09-10, round 5 (LINE A): `sball.cmp` CLOSED — fourth real bug
 ## (`ROL` emits byte3, not byte1); all 3 files byte-exact; pipeline connected
 
 Starting point: `test4b.cmp` 256/256, `rustwood.cmp` 4070/4096,

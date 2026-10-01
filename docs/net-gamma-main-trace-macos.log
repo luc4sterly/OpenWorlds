@@ -1,17 +1,18 @@
-Trace real de `tools/net-probe/run-gamma-main.sh` en macOS Intel (sin
-Xvfb/Wine, AWT nativo via Cocoa), JDK Temurin 25.0.4.1 portable, contra
-una copia limpia de assets/WorldsPlayer/ como CWD (worlds.ini real, con
-RestartAt=home:GroundZero/GroundZero.world). Objetivo: arrancar
-NET.worlds.console.Gamma.main tal cual (sin argv), ver hasta donde llega
-hoy en Mac. Tres ejecuciones independientes (2026-09-16), misma pared en
-las tres. Recortado: se colapsan las lineas repetidas
+Real trace of `tools/net-probe/run-gamma-main.sh` on macOS Intel (no
+Xvfb/Wine, native AWT through Cocoa), portable Temurin JDK 25.0.4.1,
+against a clean copy of assets/WorldsPlayer/ as the CWD (the real
+worlds.ini, with RestartAt=home:GroundZero/GroundZero.world). Goal: start
+NET.worlds.console.Gamma.main as it is (no argv) and see how far it gets
+on a Mac today. Three independent runs (2026-09-16), the same wall in all
+three. Trimmed: the repeated lines
 `[NATIVE-MOCK] Transform.makeIdentity()/setGuts(...)/Material.paramChange()`
-del setup de escena (avatar/sala por defecto), sin quitar nada de las
-fases de arranque (mock, cache, DNS, tablas) ni las excepciones finales.
+of the scene setup (default avatar/room) are collapsed, without removing
+anything from the start phases (mock, cache, DNS, tables) or the final
+exceptions.
 
-== compilando el mock (--release 8) ==
-compiladas 737 clases
-== lanzando NET.worlds.console.Gamma (max 60s) ==
+== compiling the mock (--release 8) ==
+737 classes compiled
+== starting NET.worlds.console.Gamma (max 60s) ==
 User running java version 25.0.4.1 from vendor Eclipse Adoptium
 Loading: <workdir>/gamma-cwd/gamma.dll
 WARNING: A restricted method in java.lang.System has been called
@@ -56,9 +57,9 @@ Adding table invList
 Adding table permittedHoloList
 Adding table permittedList
 Adding table secretList
-... (avatar por defecto avatar:pengo.mov, camara, sala/RoomEnvironment,
-     ~8 Transform/Material.paramChange del setup de la sala por defecto,
-     colapsados) ...
+... (default avatar avatar:pengo.mov, camera, room/RoomEnvironment,
+     ~8 Transform/Material.paramChange of the default room's setup,
+     collapsed) ...
 [NATIVE-MOCK] Window.isActivated()
 [NATIVE-MOCK] IniFile.getIniInt(DISABLEACTIVEX, 0)
 [NATIVE-MOCK] ActiveX.initActiveX()
@@ -78,35 +79,35 @@ NET.worlds.core.AssertionException
 	at NET.worlds.console.Main.mainLoop(Main.java:31)
 	at NET.worlds.console.Gamma.run(Gamma.java:436)
 	at java.base/java.lang.Thread.run(Thread.java:1474)
-== Gamma terminado solo (sin necesitar kill) tras ~5-8s, exit=0 ==
+== Gamma ended by itself (no kill needed) after ~5-8s, exit=0 ==
 
-PRIMERA PARED REAL (reproducida 3/3 veces, 2026-09-16): al montar la
-escena por defecto, mainCallback intenta traer un control ActiveX de
-Netscape embebido (Netscape.mainCallback -> NSProtocolHandler ->
-IUnknown.init) - mecanismo COM/ActiveX exclusivo de Windows, sin
-equivalente en el mock. IUnknown.init(IUnknown.java:15) abre con
-Debug.dAssert(false) (marcador "no implementado" del propio codigo de
-los 90, igual patron que el dAssert de WorldServer.state_XMIT_SI
-documentado en README.md), lanza AssertionException (unchecked). Se
-propaga hasta Netscape.mainCallback y de ahi a IUnknown.Release, que a
-su vez lanza OLEInvalidObjectException al intentar liberar un objeto
-que nunca se inicializo - ambas excepciones se imprimen (try/catch con
-printStackTrace en el propio codigo del cliente, NO en el mock) y el
-hilo "Gamma Main" sigue vivo. El proceso termina solo con exit 0 pocos
-segundos despues sin mas salida por consola: no hay ventana Frame
-visible en ningun momento del log (ni un solo "GammaFrame"/"setVisible"
-antes de este punto), asi que cuando "Gamma Main" acaba su iteracion de
-mainCallback y no hay ninguna ventana AWT mostrada reteniendo la JVM, el
-proceso sale limpio en cuanto el hilo "main" real (bloqueado en
-Object.wait, ver mas abajo) se libera.
+FIRST REAL WALL (reproduced 3/3 times, 2026-09-16): while building the
+default scene, mainCallback tries to bring up an embedded Netscape
+ActiveX control (Netscape.mainCallback -> NSProtocolHandler ->
+IUnknown.init) - a COM/ActiveX mechanism exclusive to Windows, with no
+equivalent in the mock. IUnknown.init(IUnknown.java:15) opens with
+Debug.dAssert(false) (the "not implemented" marker of the 90s code
+itself, the same pattern as the dAssert of WorldServer.state_XMIT_SI
+documented in README.md) and throws AssertionException (unchecked). It
+propagates up to Netscape.mainCallback and from there to IUnknown.Release,
+which in turn throws OLEInvalidObjectException while releasing an object
+that was never initialized - both exceptions are printed (try/catch with
+printStackTrace in the client's own code, NOT in the mock) and the
+"Gamma Main" thread stays alive. The process ends by itself with exit 0
+a few seconds later with no more console output: no Frame window is
+visible at any point of the log (not a single "GammaFrame"/"setVisible"
+before this point), so when "Gamma Main" finishes its mainCallback
+iteration and no AWT window is shown holding the JVM, the process exits
+cleanly as soon as the real "main" thread (blocked in Object.wait, see
+below) is released.
 
-Alcance honesto: este assert NO mata el mainloop (esta cazado con
-try/catch en el propio Netscape.java, codigo real de 2004, no un
-artefacto del mock) y NO impide que el resto del arranque (tablas,
-avatar, sala, cache) haya ocurrido correctamente antes. Es una pared
-real pero acotada: cualquier funcionalidad que dependa de ese control
-Netscape/ActiveX (contenido HTML embebido en la consola, tipico de la
-UI de 2004) no funcionara nunca via mock sin reimplementar ese
-subsistema entero - no es candidato a fix de mock (no hay "valor real"
-que devolver: es una ausencia estructural de COM en macOS/Linux, no un
-getter con un valor nativo por descubrir), documentado tal cual.
+Honest scope: this assert does NOT kill the main loop (it is caught with
+try/catch in Netscape.java itself, real 2004 code, not an artefact of the
+mock) and does NOT prevent the rest of the start (tables, avatar, room,
+cache) from having happened correctly before. It is a real but bounded
+wall: any feature that depends on that Netscape/ActiveX control (HTML
+content embedded in the console, typical of the 2004 UI) will never work
+through the mock without re-implementing that whole subsystem - it is not
+a candidate for a mock fix (there is no "real value" to return: it is a
+structural absence of COM on macOS/Linux, not a getter with a native value
+to discover), documented as it is.

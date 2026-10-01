@@ -1,12 +1,12 @@
-Evidencia de hilos (jstack) del modelo Cache/NetUpdate en macOS, real
-contra NET.worlds.console.Gamma.main con el mock, sin Xvfb. Dos fuentes,
-mismo Mac, mismo codigo:
+Thread evidence (jstack) of the Cache/NetUpdate model on macOS, real,
+against NET.worlds.console.Gamma.main with the mock, without Xvfb. Two
+sources, same Mac, same code:
 
-(A) Captura completa del 2026-09-15 (sesion anterior, mismo checkout):
-    jstack tomado mientras el proceso seguia vivo, ~3s tras arrancar,
-    build identica (737 clases, mismo apply_mock.sh). Rutas locales
-    recortadas a <workdir> (sin datos personales, solo el prefijo del
-    directorio temporal de sesion).
+(A) Full capture of 2026-09-15 (previous session, same checkout):
+    jstack taken while the process was still alive, ~3 s after start,
+    identical build (737 classes, same apply_mock.sh). Local paths
+    trimmed to <workdir> (no personal data, only the prefix of the
+    session's temporary directory).
 
 "main" #3 in Object.wait()
    at java.lang.Thread.join(Thread.java:1887) - locked <...> (a java.lang.Thread)
@@ -59,47 +59,46 @@ mismo Mac, mismo codigo:
 "Keep-Alive-Timer" daemon TIMED_WAITING (sleeping)
    at sun.net.www.http.KeepAliveCache.run(KeepAliveCache.java:224)
 
-(B) Tres corridas frescas del 2026-09-16 (esta sesion, mismo checkout,
-    via tools/net-probe/run-gamma-main.sh, ver docs/net-gamma-main-trace-
-    macos.log): ninguna llego a bloquearse en CacheFile.waitUntilLoaded -
-    las tres terminaron solas con exit 0 a los ~4-8s, justo despues del
-    muro de ActiveX/Netscape (docs/net-gamma-main-trace-macos.log), sin
-    necesitar kill ni jstack de emergencia. jstack a los ~3s en dos de
-    ellas no capturo nada relevante (proceso aun en el arranque de la
-    JVM, "not ready to participate in attach handshake") o el proceso ya
-    habia terminado.
+(B) Three fresh runs of 2026-09-16 (this session, same checkout,
+    through tools/net-probe/run-gamma-main.sh, see docs/net-gamma-main-trace-
+    macos.log): none of them got stuck in CacheFile.waitUntilLoaded -
+    all three ended by themselves with exit 0 after ~4-8 s, right after
+    the ActiveX/Netscape wall (docs/net-gamma-main-trace-macos.log),
+    without needing kill or an emergency jstack. jstack at ~3 s in two of
+    them captured nothing relevant (process still in the JVM's start,
+    "not ready to participate in attach handshake") or the process had
+    already ended.
 
-CONCLUSION (evidencia real, sin inventar el porque exacto de la
-diferencia de timing entre (A) y (B) - depende de la respuesta de red al
-intentar cargar la tabla de servidor de GroundZero/GroundZero.world, un
-mundo multiusuario real (RestartAt en worlds.ini), no de un bug de
-hilos):
+CONCLUSION (real evidence, without making up the exact reason for the
+timing difference between (A) and (B) - it depends on the network's
+answer when loading the server table of GroundZero/GroundZero.world, a
+real multi-user world (RestartAt in worlds.ini), not on a threading
+bug):
 
-1. El modelo de hilos de Cache/NetUpdate SI corre nativamente en macOS
-   sin Xvfb: "File Downloader N" (CacheEntry.run) hace E/S de red real
-   via NIO (SocketDispatcher.read0), "Thread-0" (NetUpdate.run) hace su
-   poll periodico propio via Thread.sleep, "Thread-1"
-   (BackgroundLoader.run) espera en su cola - los tres arrancan y
-   corren sin excepciones nativas ni fallos de AWT/threading especificos
-   de macOS. No hay evidencia de deadlock: cada wait() en la traza tiene
-   un notify() correspondiente en el codigo (CacheFile.waitUntilLoaded
-   lo libera CacheEntry al terminar la descarga - visto en (B), donde
-   el mismo camino de codigo se ejecuta y el proceso sigue adelante en
-   vez de congelarse).
-2. Lo que SI bloquea (por diseño, no por bug) es el hilo de aplicacion
-   "Gamma Main": URLSelfLoader.syncBackgroundLoad hace, literalmente,
-   una carga SINCRONA sobre un background loader - bloquea a proposito
-   esperando el resultado de una descarga real antes de seguir armando
-   la consola. Si esa descarga tarda o el servidor no responde, el
-   arranque entero de Gamma se queda ahi (visto en (A)); si resuelve
-   rapido (fallo rapido o exito rapido), sigue (compatible con (B), que
-   no llega a imprimir mas texto entre el muro ActiveX y el exit, pero
-   tampoco se cuelga).
-3. La JVM entera depende de esto porque el hilo "main" real (el que
-   invoca java) hace Gamma.main -> Thread.join() SIN timeout sobre el
-   hilo de trabajo "Gamma Main" (Gamma.java:221) - ese join es lo que
-   mantiene vivo el proceso mientras "Gamma Main" siga vivo, y es
-   coherente con exit 0 en (B): en cuanto "Gamma Main" termina su
-   iteracion (con o sin ventana mostrada), el join se libera y el
-   proceso sale limpio - nada de esto es especifico de macOS, es el
-   diseño real del cliente de 2004.
+1. The Cache/NetUpdate thread model DOES run natively on macOS without
+   Xvfb: "File Downloader N" (CacheEntry.run) does real network I/O
+   through NIO (SocketDispatcher.read0), "Thread-0" (NetUpdate.run) does
+   its own periodic poll through Thread.sleep, "Thread-1"
+   (BackgroundLoader.run) waits on its queue - all three start and run
+   without native exceptions or macOS-specific AWT/threading failures.
+   There is no evidence of a deadlock: every wait() in the trace has a
+   matching notify() in the code (CacheFile.waitUntilLoaded is released
+   by CacheEntry when the download finishes - seen in (B), where the
+   same code path runs and the process goes on instead of freezing).
+2. What DOES block (by design, not a bug) is the application thread
+   "Gamma Main": URLSelfLoader.syncBackgroundLoad literally does a
+   SYNCHRONOUS load on a background loader - it blocks on purpose
+   waiting for the result of a real download before it goes on building
+   the console. If that download takes long or the server does not
+   answer, Gamma's whole start stays there (seen in (A)); if it resolves
+   quickly (quick failure or quick success), it goes on (consistent with
+   (B), which prints nothing more between the ActiveX wall and the exit,
+   but does not hang either).
+3. The whole JVM depends on this because the real "main" thread (the
+   one java invokes) does Gamma.main -> Thread.join() WITHOUT a timeout
+   on the worker thread "Gamma Main" (Gamma.java:221) - that join is what
+   keeps the process alive while "Gamma Main" lives, and it is
+   consistent with exit 0 in (B): as soon as "Gamma Main" finishes its
+   iteration (with or without a window shown), the join is released and
+   the process exits cleanly - none of this is macOS-specific, it is the
+   real design of the 2004 client.

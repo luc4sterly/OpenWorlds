@@ -1,7 +1,7 @@
 # Raw dump from assets/WorldsPlayer/bin/gamma.dll's data section (Ghidra
 # headless, this session) - the 2D neighbor-offset predictor table used by
 # FUN_00442bc0/FUN_00457d88 (the .cmp/.mov scanline decoder). See
-# docs/cmp-texture-format-reference.md, "Sesión 2 (continuación)" section,
+# docs/cmp-texture-format-reference.md, "Session 2 (continuation)" section,
 # for the analysis. Read as interleaved (rowDelta, colDelta) int32 pairs
 # across the 16 overlapping-view arrays below (each array below is the
 # same underlying byte stream read starting at a different int32 offset,
