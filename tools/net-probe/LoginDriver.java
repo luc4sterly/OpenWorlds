@@ -10,33 +10,36 @@ import java.awt.Window;
 import java.awt.event.ActionEvent;
 
 /**
- * Arnes de red (tools/net-probe, docs/net-local-whirl.md): arranca el
- * NET.worlds.console.Gamma.main REAL y, en un hilo aparte, hace con la UI AWT
- * del original lo que haria una persona. No toca logica del cliente: solo
- * escribe en campos de texto y "pulsa" botones: al Button le postea en la cola
- * AWT el mismo ActionEvent que genera el peer al hacer clic (AWT lo convierte
- * al Event 1.0 que recibe LoginWizard.action); a la linea de chat le entrega
- * directamente el Event 1.0 ACTION_EVENT de Intro, porque en el JDK 25 de
- * macOS la conversion no ocurre en los TextField (ver chat()).
+ * Network harness (tools/net-probe, docs/net-local-whirl.md): starts the REAL
+ * NET.worlds.console.Gamma.main and, in a separate thread, does with the
+ * original's AWT UI what a person would do. It touches no client logic: it
+ * only types into text fields and "presses" buttons: for a Button it posts
+ * to the AWT queue the same ActionEvent the peer generates on a click (AWT
+ * converts it into the Event 1.0 that LoginWizard.action receives); to the
+ * chat line it delivers the Enter key's Event 1.0 ACTION_EVENT directly,
+ * because in macOS's JDK 25 that conversion does not happen in TextFields
+ * (see chat()).
  *
- * - OPENWORLDS_LOGIN=contrasena: cuando aparece el LoginWizard (pantalla
- *   HAVE_USERS, la de "Sign-In"), escribe la contrasena en el campo con eco
- *   '*' (knownPassword), el nombre en typedUsername si esta vacio
- *   (OPENWORLDS_USER), desmarca "Remember password" y pulsa el ForwardButton.
- *   Desmarcarlo evita Console.encode -> Console.encrypt (nativo de gamma.dll
- *   aun sin traducir en el puente: con el mock devuelve null y
- *   LoginWizard.setConnected moriria en encode(null.toCharArray())). Solo
- *   para servidores locales de prueba: whirl no comprueba la contrasena.
- * - OPENWORLDS_CHAT=MS:texto[;MS:texto...] (o -Dopenworlds.chatScript, sin
- *   espacios: run_gamma.sh parte JAVA_OPTS por espacios): a MS milisegundos de
- *   cerrarse el LoginWizard (o del arranque, sin OPENWORLDS_LOGIN) escribe el
- *   texto en la linea de chat (FocusPreservingTextField de ChatPart) y la
- *   "envia" (Intro).
- * - -Dopenworlds.dumpChat=MS[,MS...]: vuelca a stdout el contenido del area de
- *   chat (TextArea de ClassicSharedTextArea) en esos instantes, con el prefijo
- *   [CHAT].
- * - -Dopenworlds.dumpDrones=MS[,MS...]: lista los Drone (avatares de otros)
- *   de todas las salas cargadas, con su sala y posicion, prefijo [DRONES].
+ * - OPENWORLDS_LOGIN=password: when the LoginWizard shows up (the
+ *   HAVE_USERS screen, the "Sign-In" one), types the password into the field
+ *   that echoes '*' (knownPassword), the name into typedUsername if it is
+ *   empty (OPENWORLDS_USER), unticks "Remember password" and presses the
+ *   ForwardButton. Unticking it avoids Console.encode -> Console.encrypt (a
+ *   gamma.dll native not yet translated in the bridge: with the mock it
+ *   returns null and LoginWizard.setConnected would die in
+ *   encode(null.toCharArray())). Only for local test servers: whirl does not
+ *   check the password.
+ * - OPENWORLDS_CHAT=MS:text[;MS:text...] (or -Dopenworlds.chatScript, without
+ *   spaces: run_gamma.sh splits JAVA_OPTS on spaces): MS milliseconds after
+ *   the LoginWizard closes (or after startup, without OPENWORLDS_LOGIN) it
+ *   types the text into the chat line (ChatPart's FocusPreservingTextField)
+ *   and "sends" it (Enter).
+ * - -Dopenworlds.dumpChat=MS[,MS...]: dumps to stdout the contents of the
+ *   chat area (ClassicSharedTextArea's TextArea) at those instants, with the
+ *   prefix [CHAT].
+ * - -Dopenworlds.dumpDrones=MS[,MS...]: lists the Drones (other people's
+ *   avatars) in all the loaded rooms, with their room and position, prefix
+ *   [DRONES].
  */
 public class LoginDriver {
    private static final long T0 = System.currentTimeMillis();
@@ -47,7 +50,7 @@ public class LoginDriver {
             try {
                drive();
             } catch (InterruptedException e) {
-               // fin del proceso
+               // end of the process
             }
          }
       };
@@ -95,8 +98,8 @@ public class LoginDriver {
          if (!signedIn) {
             signedIn = trySignIn(password, user);
          } else if (chatBase < 0 && findWindow("NET.worlds.console.LoginWizard") == null) {
-            chatBase = now; // el asistente se cerro: sesion hecha
-            log("LoginWizard cerrado; el guion de chat cuenta desde aqui");
+            chatBase = now; // the wizard closed: signed in
+            log("LoginWizard closed; the chat script counts from here");
          }
          while (!events.isEmpty() && events.firstKey() / 1000 <= now) {
             String ev = events.remove(events.firstKey());
@@ -116,7 +119,7 @@ public class LoginDriver {
       }
    }
 
-   /** Drones (avatares remotos) de todas las salas de todos los mundos cargados. */
+   /** Drones (remote avatars) in every room of every loaded world. */
    private static void dumpDrones() {
       int n = 0;
       int nw = 0;
@@ -136,7 +139,7 @@ public class LoginDriver {
                   if (o instanceof NET.worlds.scape.Drone) {
                      NET.worlds.scape.Drone d = (NET.worlds.scape.Drone)o;
                      System.out.println("[DRONES " + (System.currentTimeMillis() - T0) + "ms] " + d.getClass().getSimpleName()
-                        + " '" + d.getName() + "' en " + r.getName() + " @ " + d.getX() + "," + d.getY() + "," + d.getZ());
+                        + " '" + d.getName() + "' in " + r.getName() + " @ " + d.getX() + "," + d.getY() + "," + d.getZ());
                      n++;
                   }
                }
@@ -146,7 +149,7 @@ public class LoginDriver {
          log("dumpDrones: " + e);
          e.printStackTrace(System.out);
       }
-      System.out.println("[DRONES " + (System.currentTimeMillis() - T0) + "ms] total " + n + " (mundos " + nw + ", salas " + nr + ")");
+      System.out.println("[DRONES " + (System.currentTimeMillis() - T0) + "ms] total " + n + " (worlds " + nw + ", rooms " + nr + ")");
    }
 
    private static Window findWindow(String className) {
@@ -179,7 +182,7 @@ public class LoginDriver {
       try {
          EventQueue.invokeAndWait(r);
       } catch (Exception e) {
-         log("error en el EDT: " + e);
+         log("error on the EDT: " + e);
       }
    }
 
@@ -209,7 +212,7 @@ public class LoginDriver {
          }
       }
       if (pw == null || forward == null) {
-         return false; // otra pantalla del asistente (o aun sin construir)
+         return false; // another wizard screen (or not built yet)
       }
       final TextField fpw = pw;
       final TextField fname = name;
@@ -225,7 +228,7 @@ public class LoginDriver {
             }
          }
       });
-      log("LoginWizard: usuario '" + (name == null ? "?" : name.getText()) + "', contrasena escrita, pulso '" + forward.getLabel() + "'");
+      log("LoginWizard: user '" + (name == null ? "?" : name.getText()) + "', password typed, pressing '" + forward.getLabel() + "'");
       press(forward, forward.getLabel());
       return true;
    }
@@ -245,23 +248,24 @@ public class LoginDriver {
          }
       }
       if (line == null) {
-         log("chat: no hay linea de chat visible, no se envia '" + text + "'");
+         log("chat: no chat line visible, not sending '" + text + "'");
          return;
       }
       final TextField fl = line;
-      log("chat: escribo '" + text + "' + Intro");
+      log("chat: typing '" + text + "' + Enter");
       onEdt(new Runnable() {
          public void run() {
             fl.setText(text);
-            // Intro en un TextField: el peer postea un ActionEvent y el
-            // Component.dispatchEventImpl de AWT lo convierte al Event 1.0
-            // (ACTION_EVENT, arg = texto) y hace postEvent, que es lo que
-            // DuplexPart.action espera. En el JDK 25 de macOS esa conversion
-            // no ocurre en ningun TextField: al crear el peer se le anade un
-            // InputMethodListener, eso pone Component.newEventsOnly = true y
-            // dispatchEventImpl ya no genera eventos 1.0 (medido: false recien
-            // creado, true tras addNotify; ni ActionEvent ni KEY_PRESSED llegan
-            // a handleEvent). Aqui se hace a mano el paso de compatibilidad.
+            // Enter in a TextField: the peer posts an ActionEvent and AWT's
+            // Component.dispatchEventImpl converts it into the Event 1.0
+            // (ACTION_EVENT, arg = text) and does postEvent, which is what
+            // DuplexPart.action expects. In macOS's JDK 25 that conversion
+            // does not happen in any TextField: creating the peer adds an
+            // InputMethodListener, which sets Component.newEventsOnly = true
+            // and dispatchEventImpl no longer generates 1.0 events (measured:
+            // false when just created, true after addNotify; neither
+            // ActionEvent nor KEY_PRESSED reach handleEvent). The
+            // compatibility step is done by hand here.
             fl.postEvent(new java.awt.Event(fl, java.awt.Event.ACTION_EVENT, fl.getText()));
          }
       });
@@ -270,14 +274,14 @@ public class LoginDriver {
       } catch (InterruptedException e) {
          return;
       }
-      // DuplexPart.trigger() vacia la linea al aceptar el texto
-      log("chat: linea tras Intro = '" + line.getText() + "'");
+      // DuplexPart.trigger() empties the line when it accepts the text
+      log("chat: line after Enter = '" + line.getText() + "'");
    }
 
    private static void dumpChat() {
       Window f = gammaFrame();
       if (f == null) {
-         log("dumpChat: sin ventana");
+         log("dumpChat: no window");
          return;
       }
       int i = 0;

@@ -1,39 +1,41 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""progress-panel.py - panel de progreso del hito H0 (docs/roadmap.md).
+"""progress-panel.py - progress panel of milestone H0 (docs/roadmap.md).
 
-Cuenta marcas de trabajo pendiente (warning ⚠️, VERIFICAR, TODO, FIXME) por
-fichero en el arbol del proyecto y genera docs/progress.md: una tabla por
-modulo/paquete y una tabla por fichero, con el total y la fecha.
+Counts pending-work markers (warning ⚠️, VERIFY, TODO, FIXME) per file in
+the project tree and generates docs/progress.md: one table per
+module/package and one table per file, with the total and the date.
 
-Ambito exacto (pedido explicitamente en la tarea del runner H0):
-  - formats/src                                       (recursivo)
-  - formats/test                                      (recursivo)
-  - editor/worldsplayer_source_editor-main/bridge/      (recursivo; en los
-    *.patch SOLO se cuentan lineas anadidas: las que empiezan por un '+'
-    literal que no sea la cabecera de fichero '+++')
-  - tools/*.py y tools/*.sh                             (solo el nivel
-    superior de tools/, sin recorrer subdirectorios - asi no se cuentan
-    herramientas de terceros como las de tools/gdk-sdk)
+Exact scope (explicitly requested in the H0 runner task):
+  - formats/src                                       (recursive)
+  - formats/test                                      (recursive)
+  - editor/worldsplayer_source_editor-main/bridge/      (recursive; in the
+    *.patch files ONLY added lines are counted: those starting with a
+    literal '+' that is not the '+++' file header)
+  - tools/*.py and tools/*.sh                           (only the top level
+    of tools/, without walking subdirectories - so third-party tools such
+    as those in tools/gdk-sdk are not counted)
 
-"VERIFICAR"/"TODO"/"FIXME" se buscan como palabra completa (limite \\b) para
-no confundir con palabras normales del espanol que las contienen como
-subcadena (p.ej. "TODOS", "todo el mundo") - un error real que se detecto
-al escribir este script: un grep ingenuo sobre "TODO" contaba comentarios
-que simplemente dicen "todos los ficheros". "⚠️" se cuenta como aparicion
-del caracter U+26A0 (WARNING SIGN), con o sin el selector de variacion
-U+FE0F que normalmente lo acompana.
+"VERIFY"/"TODO"/"FIXME" are matched as whole words (\\b boundary) so that
+ordinary words containing them as a substring are not counted - a real bug
+found while writing this script, back when the project was written in
+Spanish: a naive grep for "TODO" also counted every "TODOS"/"todos" ("all")
+in the comments. The marker was spelled "VERIFICAR" in those days; that
+legacy spelling is still counted under VERIFY, so an untranslated marker
+does not silently drop out of the panel. "⚠️" is counted as an occurrence of the character
+U+26A0 (WARNING SIGN), with or without the variation selector U+FE0F that
+usually comes with it.
 
-Sin dependencias externas (solo stdlib). Salida determinista: incluye tanto
-en el recorrido de ficheros como en el volcado de cada tabla.
+No external dependencies (stdlib only). Deterministic output: everything is
+sorted, both when walking the files and when dumping each table.
 
-Uso:
-  tools/progress-panel.py              escribe docs/progress.md
-  tools/progress-panel.py --stdout     tambien vuelca el markdown a stdout
-  tools/progress-panel.py --check      no escribe nada; sale con 1 si
-                                        docs/progress.md en disco difiere de
-                                        lo que se generaria ahora (para
-                                        verify-corpus.sh / CI)
+Usage:
+  tools/progress-panel.py              writes docs/progress.md
+  tools/progress-panel.py --stdout     also dumps the markdown to stdout
+  tools/progress-panel.py --check      writes nothing; exits with 1 if
+                                        docs/progress.md on disk differs
+                                        from what would be generated now
+                                        (for verify-corpus.sh / CI)
 """
 import argparse
 import datetime
@@ -44,18 +46,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SELF_PATH = Path(__file__).resolve()
 
-WARN = "⚠️"  # ⚠️ display (con selector de variacion)
-WARN_RE = re.compile("⚠️?")  # cuenta el aviso con o sin selector
+WARN = "⚠️"  # ⚠️ display (with the variation selector)
+WARN_RE = re.compile("⚠️?")  # counts the warning with or without the selector
 WORD_RES = [
-    ("VERIFICAR", re.compile(r"\bVERIFICAR\b")),
+    # VERIFICAR: the marker's legacy Spanish spelling (see the docstring)
+    ("VERIFY", re.compile(r"\b(?:VERIFY|VERIFICAR)\b")),
     ("TODO", re.compile(r"\bTODO\b")),
     ("FIXME", re.compile(r"\bFIXME\b")),
 ]
-MARK_NAMES = ["⚠️", "VERIFICAR", "TODO", "FIXME"]
+MARK_NAMES = ["⚠️", "VERIFY", "TODO", "FIXME"]
 
 
 def count_text(text):
-    """Cuenta ocurrencias de cada marca en un bloque de texto (varias lineas)."""
+    """Counts the occurrences of each marker in a block of text (several lines)."""
     counts = {"⚠️": len(WARN_RE.findall(text))}
     for name, rx in WORD_RES:
         counts[name] = len(rx.findall(text))
@@ -84,12 +87,12 @@ def read_text(path):
 
 
 def count_file(path):
-    """Cuenta marcas en un fichero normal (todo el contenido)."""
+    """Counts markers in a regular file (the whole content)."""
     return count_text(read_text(path))
 
 
 def count_patch(path):
-    """Cuenta marcas en un .patch, SOLO en lineas anadidas (+, no +++)."""
+    """Counts markers in a .patch, ONLY in added lines (+, not +++)."""
     added_lines = []
     for line in read_text(path).splitlines():
         if line.startswith("+++"):
@@ -100,11 +103,11 @@ def count_patch(path):
 
 
 # ---------------------------------------------------------------------
-# Descubrimiento de ficheros (determinista: todo se ordena por ruta)
+# File discovery (deterministic: everything is sorted by path)
 # ---------------------------------------------------------------------
 
 def collect_targets():
-    """Devuelve lista ordenada de (path_relativo_str, modulo, es_patch)."""
+    """Returns a sorted list of (relative_path_str, module, is_patch)."""
     targets = []
 
     def add_tree(rel_root, module_of):
@@ -119,23 +122,23 @@ def collect_targets():
             targets.append((str(rel), module_of(rel), is_patch))
 
     def formats_src_module(rel):
-        # formats/src/net/openworlds/<pkg>/Archivo.java -> "formats/src/<pkg>"
+        # formats/src/net/openworlds/<pkg>/File.java -> "formats/src/<pkg>"
         parts = rel.parts
         if len(parts) >= 5 and parts[:4] == ("formats", "src", "net", "openworlds"):
             return "formats/src/" + parts[4]
-        return "formats/src/(raiz)"
+        return "formats/src/(root)"
 
     def formats_test_module(rel):
         parts = rel.parts
         if len(parts) >= 5 and parts[:4] == ("formats", "test", "net", "openworlds"):
             return "formats/test/" + parts[4]
-        return "formats/test/(raiz)"
+        return "formats/test/(root)"
 
     def bridge_module(rel):
         # editor/worldsplayer_source_editor-main/bridge/NET/worlds/<pkg>/X.java
         #   -> "bridge/NET/worlds/<pkg>"
-        # editor/worldsplayer_source_editor-main/bridge/*.patch o README.md
-        #   -> "bridge/(raiz)"
+        # editor/worldsplayer_source_editor-main/bridge/*.patch or README.md
+        #   -> "bridge/(root)"
         parts = rel.parts
         # .../bridge/NET/worlds/<pkg>/...
         try:
@@ -144,7 +147,7 @@ def collect_targets():
             i = -1
         if i >= 0 and len(parts) >= i + 5 and parts[i + 1:i + 3] == ("NET", "worlds"):
             return "bridge/NET/worlds/" + parts[i + 3]
-        return "bridge/(raiz)"
+        return "bridge/(root)"
 
     add_tree("formats/src", formats_src_module)
     add_tree("formats/test", formats_test_module)
@@ -156,12 +159,12 @@ def collect_targets():
             if not (p.is_file() and p.suffix in (".py", ".sh")):
                 continue
             if p.resolve() == SELF_PATH:
-                # Excepcion deliberada: este propio fichero define y explica
-                # en su docstring/codigo las 4 marcas que busca (los
-                # literales "TODO", "FIXME", "VERIFICAR", el emoji ⚠️ y sus
-                # regex), asi que contarlo daria un falso "44 marcas
-                # pendientes" que no es trabajo real sin hacer, solo el
-                # vocabulario que el propio contador necesita mencionar.
+                # Deliberate exception: this very file defines and explains
+                # in its docstring/code the 4 markers it looks for (the
+                # literals "TODO", "FIXME", "VERIFY", the ⚠️ emoji and
+                # their regexes), so counting it would give a false "44
+                # pending markers" that is not real unfinished work, only
+                # the vocabulary the counter itself needs to mention.
                 continue
             rel = p.relative_to(ROOT)
             targets.append((str(rel), "tools", False))
@@ -171,7 +174,7 @@ def collect_targets():
 
 
 # ---------------------------------------------------------------------
-# Generacion del markdown
+# Markdown generation
 # ---------------------------------------------------------------------
 
 def build_report():
@@ -190,47 +193,47 @@ def build_report():
 
     lines = []
     today = datetime.date.today().isoformat()
-    lines.append("# Panel de progreso - marcas pendientes")
+    lines.append("# Progress panel - pending markers")
     lines.append("")
     lines.append(
-        "Generado por `tools/progress-panel.py` (hito H0, `docs/roadmap.md`). "
-        "Cuenta apariciones de ⚠️ / `VERIFICAR` / `TODO` / `FIXME` (palabra "
-        "completa para estas tres ultimas) en `formats/src`, `formats/test`, "
-        "`editor/worldsplayer_source_editor-main/bridge/` (en `*.patch` solo "
-        "lineas anadidas) y `tools/*.py`/`tools/*.sh` (solo el nivel superior "
-        "de `tools/`). No mide gravedad ni prioridad, solo cuenta - la lista "
-        "real esta en el codigo, este panel es un indice, no un sustituto."
+        "Generated by `tools/progress-panel.py` (milestone H0, `docs/roadmap.md`). "
+        "Counts occurrences of ⚠️ / `VERIFY` / `TODO` / `FIXME` (whole word "
+        "for the last three) in `formats/src`, `formats/test`, "
+        "`editor/worldsplayer_source_editor-main/bridge/` (in `*.patch` only "
+        "added lines) and `tools/*.py`/`tools/*.sh` (only the top level of "
+        "`tools/`). It does not measure severity or priority, it only counts - "
+        "the real list is in the code, this panel is an index, not a substitute."
     )
     lines.append("")
-    lines.append(f"**Fecha**: {today}")
-    lines.append(f"**Total**: {total_of(grand)} marcas en {len(per_file)} ficheros "
-                  f"({sum(1 for _, _, c in per_file if total_of(c) > 0)} con al menos una)")
+    lines.append(f"**Date**: {today}")
+    lines.append(f"**Total**: {total_of(grand)} markers in {len(per_file)} files "
+                  f"({sum(1 for _, _, c in per_file if total_of(c) > 0)} with at least one)")
     lines.append("")
 
-    lines.append("## Por modulo/paquete")
+    lines.append("## By module/package")
     lines.append("")
-    lines.append("| Modulo | ⚠️ | VERIFICAR | TODO | FIXME | Total |")
+    lines.append("| Module | ⚠️ | VERIFY | TODO | FIXME | Total |")
     lines.append("|---|---|---|---|---|---|")
     for module in sorted(per_module.keys()):
         c = per_module[module]
         lines.append(
-            f"| `{module}` | {c['⚠️']} | {c['VERIFICAR']} | {c['TODO']} | {c['FIXME']} | {total_of(c)} |"
+            f"| `{module}` | {c['⚠️']} | {c['VERIFY']} | {c['TODO']} | {c['FIXME']} | {total_of(c)} |"
         )
     lines.append(
-        f"| **Total** | **{grand['⚠️']}** | **{grand['VERIFICAR']}** | "
+        f"| **Total** | **{grand['⚠️']}** | **{grand['VERIFY']}** | "
         f"**{grand['TODO']}** | **{grand['FIXME']}** | **{total_of(grand)}** |"
     )
     lines.append("")
 
-    lines.append("## Por fichero (solo los que tienen al menos una marca)")
+    lines.append("## By file (only those with at least one marker)")
     lines.append("")
-    lines.append("| Fichero | ⚠️ | VERIFICAR | TODO | FIXME | Total |")
+    lines.append("| File | ⚠️ | VERIFY | TODO | FIXME | Total |")
     lines.append("|---|---|---|---|---|---|")
     for rel, module, c in per_file:
         t = total_of(c)
         if t == 0:
             continue
-        lines.append(f"| `{rel}` | {c['⚠️']} | {c['VERIFICAR']} | {c['TODO']} | {c['FIXME']} | {t} |")
+        lines.append(f"| `{rel}` | {c['⚠️']} | {c['VERIFY']} | {c['TODO']} | {c['FIXME']} | {t} |")
     lines.append("")
 
     return "\n".join(lines) + "\n"
@@ -238,9 +241,9 @@ def build_report():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--stdout", action="store_true", help="tambien volcar el markdown a stdout")
+    ap.add_argument("--stdout", action="store_true", help="also dump the markdown to stdout")
     ap.add_argument("--check", action="store_true",
-                     help="no escribir docs/progress.md; salir con 1 si difiere de lo ya escrito")
+                     help="don't write docs/progress.md; exit with 1 if it differs from what is on disk")
     args = ap.parse_args()
 
     report = build_report()
@@ -248,20 +251,20 @@ def main():
 
     if args.check:
         current = out_path.read_text(encoding="utf-8") if out_path.is_file() else None
-        # La linea de fecha cambia cada dia sin ser una regresion real:
-        # comparar ignorando esa unica linea.
+        # The date line changes every day without being a real regression:
+        # compare ignoring that one line.
         def strip_date(s):
-            return "\n".join(l for l in s.splitlines() if not l.startswith("**Fecha**:"))
+            return "\n".join(l for l in s.splitlines() if not l.startswith("**Date**:"))
         if current is None or strip_date(current) != strip_date(report):
-            print("docs/progress.md esta desactualizado respecto al arbol actual "
-                  "(o no existe) - ejecuta tools/progress-panel.py", file=sys.stderr)
+            print("docs/progress.md is out of date with the current tree "
+                  "(or missing) - run tools/progress-panel.py", file=sys.stderr)
             sys.exit(1)
-        print("docs/progress.md al dia")
+        print("docs/progress.md is up to date")
         sys.exit(0)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(report, encoding="utf-8")
-    print(f"escrito {out_path}")
+    print(f"wrote {out_path}")
     if args.stdout:
         print()
         print(report)

@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
-# run-original.sh — arranca el cliente ORIGINAL WorldsPlayer 2004
-# (bin/java.exe 1.4.2_05 + gamma.dll + RWL21.DLL reales) bajo Wine.
+# run-original.sh — starts the ORIGINAL 2004 WorldsPlayer client
+# (the real bin/java.exe 1.4.2_05 + gamma.dll + RWL21.DLL) under Wine.
 #
-# No reimplementa nada: es el juego de verdad (RenderWare real,
-# avatares reales, UI real). Lo unico anadido es el entorno:
-# prefijo Wine + fuentes + Xvfb si no hay X.
+# It reimplements nothing: this is the real game (real RenderWare, real
+# avatars, real UI). The only thing added is the environment: Wine
+# prefix + fonts + Xvfb if there is no X.
 #
-# Uso:
+# Usage:
 #   tools/run-original.sh [--display :N] [--wine-prefix dir] [--client-dir dir]
 #
-# - Copia assets/WorldsPlayer a ~/.openworlds-client (una vez; despues
-#   reutiliza para no ensuciar el repo con logs/caches del original).
-# - Sin X utilizable, levanta Xvfb propio (100-110).
-# - La linea de arranque es la del propio run.exe original:
+# - Copies assets/WorldsPlayer to ~/.openworlds-client (once; afterwards it
+#   reuses it, so the original's logs/caches don't litter the repo).
+# - Without a usable X, starts its own Xvfb (100-110).
+# - The command line is the original run.exe's own:
 #   bin\javaw.exe -Xbootclasspath:... -cp .;lib\gammacls.zip
 #   NET.worlds.console.Gamma -home . -dllpath bin
-#   (se usa java.exe en vez de javaw.exe para ver el log en consola).
+#   (java.exe is used instead of javaw.exe to see the log on the console).
 set -u
 set -o pipefail
 
-# readlink -f es GNU-only; en macOS se resuelve via cd/pwd.
+# readlink -f is GNU-only; on macOS it is resolved via cd/pwd.
 if command -v greadlink >/dev/null 2>&1; then
    ROOT="$(greadlink -f "$(dirname "$0")/..")"
 elif readlink -f "$(dirname "$0")/.." >/dev/null 2>&1; then
@@ -28,12 +28,12 @@ else
    ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 fi
 if [ "$(uname -s)" = "Darwin" ]; then
-   echo "[run-original] macOS: el cliente original 2004 (x86 Win32 + gamma.dll)"
-   echo "  no corre con Wine vanilla en Apple Silicon. Opciones:"
-   echo "  - CrossOver / Whisky / Parallels + Windows ARM, o"
-   echo "  - usar el lanzador OpenWorlds (tools/build-dist.sh) o run_gamma.sh: el"
-   echo "    mismo cliente con el puente portable, sin Wine (el camino principal)."
-   echo "  Sigo solo si pasas --force-macos con tu Wine ya configurado."
+   echo "[run-original] macOS: the original 2004 client (x86 Win32 + gamma.dll)"
+   echo "  does not run on vanilla Wine on Apple Silicon. Options:"
+   echo "  - CrossOver / Whisky / Parallels + Windows ARM, or"
+   echo "  - use the OpenWorlds launcher (tools/build-dist.sh) or run_gamma.sh: the"
+   echo "    same client with the portable bridge, no Wine (the main path)."
+   echo "  I only go on if you pass --force-macos with your Wine already set up."
    if [ "${1:-}" != "--force-macos" ]; then exit 2; fi
    shift
 fi
@@ -46,30 +46,30 @@ while [ $# -gt 0 ]; do
       --display) DISPLAY_WANT="$2"; shift 2;;
       --wine-prefix) WINEPREFIX="$2"; shift 2;;
       --client-dir) CLIENT_HOME="$2"; shift 2;;
-      *) echo "uso: $0 [--display :N] [--wine-prefix dir] [--client-dir dir]"; exit 2;;
+      *) echo "usage: $0 [--display :N] [--wine-prefix dir] [--client-dir dir]"; exit 2;;
    esac
 done
 
-# --- cliente (copia privada, el original escribe logs/caches en su CWD) ---
+# --- client (private copy, the original writes logs/caches into its CWD) ---
 if [ ! -f "$CLIENT_HOME/bin/java.exe" ]; then
-   echo "[run-original] copiando cliente a $CLIENT_HOME (una vez)..."
+   echo "[run-original] copying the client to $CLIENT_HOME (once)..."
    rm -rf "$CLIENT_HOME"
    cp -r "$ROOT/assets/WorldsPlayer" "$CLIENT_HOME"
 fi
 
-# --- prefijo Wine + fuentes (el cliente aborta sin C:\windows\Fonts) ---
+# --- Wine prefix + fonts (the client aborts without C:\windows\Fonts) ---
 export WINEPREFIX
 export WINEDEBUG=-all
 if [ ! -d "$WINEPREFIX/drive_c/windows" ]; then
-   echo "[run-original] creando prefijo Wine en $WINEPREFIX..."
+   echo "[run-original] creating the Wine prefix in $WINEPREFIX..."
    timeout 100 winecfg >/dev/null 2>&1
 fi
 mkdir -p "$WINEPREFIX/drive_c/windows/Fonts"
 if [ -z "$(ls "$WINEPREFIX/drive_c/windows/Fonts" 2>/dev/null)" ]; then
-   echo "[run-original] instalando fuentes Liberation en el prefijo..."
+   echo "[run-original] installing the Liberation fonts in the prefix..."
    cp /usr/share/fonts/liberation-sans-fonts/*.ttf "$WINEPREFIX/drive_c/windows/Fonts/" 2>/dev/null \
    || cp /usr/share/fonts/*/*.ttf "$WINEPREFIX/drive_c/windows/Fonts/" 2>/dev/null \
-   || { echo "[run-original] ERROR: no hay TTFs en /usr/share/fonts"; exit 3; }
+   || { echo "[run-original] ERROR: no TTFs in /usr/share/fonts"; exit 3; }
 fi
 
 # --- display ---
@@ -86,21 +86,21 @@ if [ -z "${DISPLAY:-}" ] || ! disp_ok "$DISPLAY"; then
          XVFB_PID=$!
          export DISPLAY=":$n"
          for _ in $(seq 1 50); do disp_ok "$DISPLAY" && break; sleep 0.2; done
-         echo "[run-original] Xvfb propio en DISPLAY=$DISPLAY (pid $XVFB_PID)"
+         echo "[run-original] own Xvfb on DISPLAY=$DISPLAY (pid $XVFB_PID)"
          break
       fi
    done
    if [ -z "${DISPLAY:-}" ] || ! disp_ok "$DISPLAY"; then
-      echo "[run-original] ERROR: sin X utilizable y no se pudo levantar Xvfb"; exit 4
+      echo "[run-original] ERROR: no usable X and Xvfb could not be started"; exit 4
    fi
 else
-   echo "[run-original] usando DISPLAY=$DISPLAY existente"
+   echo "[run-original] using the existing DISPLAY=$DISPLAY"
 fi
 
-echo "[run-original] cliente: $CLIENT_HOME | prefijo: $WINEPREFIX | display: $DISPLAY"
-echo "[run-original] sal del juego desde su propia ventana (Quit). Controles: flechas andar."
+echo "[run-original] client: $CLIENT_HOME | prefix: $WINEPREFIX | display: $DISPLAY"
+echo "[run-original] quit the game from its own window (Quit). Controls: arrow keys to walk."
 cd "$CLIENT_HOME"
-# Linea original de run.exe (con java.exe para conservar la consola).
+# The original run.exe command line (with java.exe to keep the console).
 exec wine bin/java.exe \
    "-Xbootclasspath:lib\i18ncls.zip;lib\rt.jar" \
    "-cp" ".;lib\gammacls.zip" \

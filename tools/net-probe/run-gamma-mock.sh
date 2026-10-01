@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# Arranca el flujo REAL NET.worlds.console.Gamma.main (cliente 2004 decompilado
-# + puente JNI mock) desde una copia fresca de assets/WorldsPlayer como CWD,
-# le hace volcados de hilos con jstack y lo mata al acabar el plazo.
-# macOS: AWT nativo Cocoa (la splash/consola aparecen en pantalla). Linux:
-# requiere DISPLAY (X/Xvfb).
+# Starts the REAL NET.worlds.console.Gamma.main flow (decompiled 2004 client
+# + mock JNI bridge) from a fresh copy of assets/WorldsPlayer as the CWD,
+# takes thread dumps of it with jstack and kills it when the time is up.
+# macOS: native Cocoa AWT (the splash/console show up on screen). Linux:
+# needs DISPLAY (X/Xvfb).
 #
-# Uso: tools/net-probe/run-gamma-mock.sh [argv de Gamma...]
-# Variables: FW_NET_WORK, JDK_BIN (ver lib-build.sh);
-#   GAMMA_SECONDS  vida maxima del proceso (defecto 60)
-#   JSTACK_AT      segundos (separados por espacio) en que volcar hilos
-#                  (defecto "20 50")
-# Salida en $WORK/gamma/: stdout.log (stdout+stderr), jstack-<s>.txt, y la
-# copia de la instalacion con lo que el cliente escribio (cachedir).
-# OJO tamano: con el mock actual el cliente vive en Main.mainLoop y cada
-# frame registra sus nativos: ~226 MB / 5,2 M lineas de stdout.log en 60 s.
-# Red: el cliente real resuelve y descarga de su upgradeServer
-# (us1.worlds.net, HTTP) - no abre ninguna conexion WorldServer ni login.
+# Usage: tools/net-probe/run-gamma-mock.sh [Gamma argv...]
+# Variables: FW_NET_WORK, JDK_BIN (see lib-build.sh);
+#   GAMMA_SECONDS  maximum lifetime of the process (default 60)
+#   JSTACK_AT      seconds (space-separated) at which to dump the threads
+#                  (default "20 50")
+# Output in $WORK/gamma/: stdout.log (stdout+stderr), jstack-<s>.txt, and the
+# copy of the install with whatever the client wrote (cachedir).
+# WATCH the size: with the current mock the client lives in Main.mainLoop and
+# every frame logs its natives: ~226 MB / 5.2 M lines of stdout.log in 60 s.
+# Network: the real client resolves and downloads from its upgradeServer
+# (us1.worlds.net, HTTP) - it opens no WorldServer connection and no login.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 . "$HERE/lib-build.sh"
@@ -29,7 +29,7 @@ copy_install "$RUN/WorldsPlayer"
 LOG="$RUN/stdout.log"
 rm -f "$RUN"/jstack-*.txt
 LIMIT="${GAMMA_SECONDS:-60}"
-echo "run: Gamma.main $* (CWD: $RUN/WorldsPlayer, log: $LOG, limite ${LIMIT}s)"
+echo "run: Gamma.main $* (CWD: $RUN/WorldsPlayer, log: $LOG, limit ${LIMIT}s)"
 cd "$RUN/WorldsPlayer"
 start=$(date +%s)
 "$JAVA" -cp ".:$WORK/out" NET.worlds.console.Gamma "$@" >"$LOG" 2>&1 &
@@ -54,7 +54,7 @@ done
 
 set +e
 if alive; then
-  echo "vivo tras ${elapsed}s: kill"
+  echo "alive after ${elapsed}s: kill"
   kill "$pid" 2>/dev/null
   sleep 2
   alive && kill -9 "$pid" 2>/dev/null
@@ -62,8 +62,8 @@ if alive; then
   echo "exit=killed"
 else
   wait "$pid"
-  echo "exit=$? tras ${elapsed}s (salio solo)"
+  echo "exit=$? after ${elapsed}s (exited on its own)"
 fi
 set -e
-echo "--- ultimas lineas de $LOG ---"
+echo "--- last lines of $LOG ---"
 tail -25 "$LOG"

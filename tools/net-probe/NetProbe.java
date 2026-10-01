@@ -2,16 +2,16 @@ import NET.worlds.core.IniFile;
 import NET.worlds.network.DNSLookup;
 
 /**
- * Sonda de red de sala limpia: ejercita el camino de red REAL del cliente
- * decompilado (DNSLookup, URL.make/unalias, HttpURLConnection via URL
- * resuelta, Socket TCP) sin arrancar la UI ni el main-loop de Gamma.
+ * Clean-room network probe: exercises the REAL network path of the
+ * decompiled client (DNSLookup, URL.make/unalias, HttpURLConnection via the
+ * resolved URL, TCP Socket) without starting the UI or Gamma's main loop.
  *
- * No reimplementa protocolo: cada paso llama a las clases de
- * editor/worldsplayer_source_editor-main/source tal cual, con timeouts
- * explicitos para no colgarse. Todo fallo se reporta, no se oculta.
+ * It does not reimplement the protocol: each step calls the classes of
+ * editor/worldsplayer_source_editor-main/source as they are, with explicit
+ * timeouts so it does not hang. Every failure is reported, not hidden.
  *
- * CWD debe ser un directorio de instalacion real (assets/WorldsPlayer),
- * igual que run_mock.sh, para que IniFile lea el worlds.ini de verdad.
+ * The CWD must be a real install directory (assets/WorldsPlayer), same as
+ * run_mock.sh, so that IniFile reads the real worlds.ini.
  */
 public final class NetProbe {
    private static int failures = 0;
@@ -21,17 +21,17 @@ public final class NetProbe {
       dns("us1.worlds.net");
       dns("worlds.worlio.com");
 
-      System.out.println("== [2] URL de upgrade construida como NetUpdate ==");
+      System.out.println("== [2] Upgrade URL built the way NetUpdate does ==");
       String uServer = IniFile.gamma().getIniString("upgradeServer", "");
       System.out.println("upgradeServer ini = " + uServer);
       String built = uServer + "upgrades.lst";
       String alias = NET.worlds.network.URL.make(built).unalias();
       System.out.println("URL.make(uServer+\"upgrades.lst\").unalias() = " + alias);
 
-      System.out.println("== [3] HTTP GET via DNSLookup.lookup + openConnection (patron CacheEntry.openURL) ==");
+      System.out.println("== [3] HTTP GET via DNSLookup.lookup + openConnection (CacheEntry.openURL pattern) ==");
       httpGet(alias);
 
-      System.out.println("== [4] TCP 6650 (puerto WorldServer) via IP resuelta por DNSLookup ==");
+      System.out.println("== [4] TCP 6650 (WorldServer port) via the IP resolved by DNSLookup ==");
       tcp("us1.worlds.net", 6650);
       tcp("worlds.worlio.com", 6650);
 

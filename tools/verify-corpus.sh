@@ -1,39 +1,39 @@
 #!/usr/bin/env bash
-# verify-corpus.sh — runner de regresion del hito H0 de docs/roadmap.md:
-# un solo comando que compila formats/ (src + test) y vuelve a ejecutar,
-# contra el corpus real de assets/, los recuentos que CLAUDE.md da por ✅.
-# Si alguna cifra cambia, imprime la tabla con esperado/obtenido y sale con
-# codigo != 0 - es lo unico que hasta ahora se reejecutaba a mano en cada
-# auditoria (docs/worlds-chat-project.md, seccion "AUDITORIA", 2026-09-15).
+# verify-corpus.sh — regression runner for milestone H0 of docs/roadmap.md:
+# a single command that compiles formats/ (src + test) and re-runs, against
+# the real corpus in assets/, the counts that CLAUDE.md marks as ✅.
+# If any figure changes, it prints the table with expected/got and exits
+# with a code != 0 - until now this was the one thing re-run by hand in
+# every audit (docs/worlds-chat-project.md, section "AUDIT", 2026-09-15).
 #
-# Que compara y de donde sale cada cifra (puntos de entrada reales, todos
-# en formats/src salvo el marcado [formats/test]):
-#   .seq 231/231      SeqExtractMain -q sobre TODOS los .seq de
-#                     assets/WorldsPlayer/cachedir y
+# What it compares and where each figure comes from (real entry points, all
+# in formats/src except the one marked [formats/test]):
+#   .seq 231/231      SeqExtractMain -q over ALL the .seq files in
+#                     assets/WorldsPlayer/cachedir and
 #                     assets/gammatutorial-samples/base-avatars.
-#   .bod 51/51        BodExtractMain, mismos dos directorios, *.bod.
+#   .bod 51/51        BodExtractMain, same two directories, *.bod.
 #   .cmp 159/159      [formats/test] CmpMovCorpusCheck (net.openworlds.corpus):
-#   .mov 52/52        no existia ningun *Main que decodificara el corpus
-#                     agregado (CmpStage2 solo compara un fichero de
-#                     evidencia capturada a mano). Extrae tex/*.cmp y
-#                     tex/*.mov de assets/WorldsPlayer/GroundZero/content.zip
-#                     con java.util.zip (sin depender de `unzip`) y decodifica
-#                     cada uno con CmpTexture.loadRaw/loadMov, sobre CmpFrames,
-#                     el mismo decodificador que usa el puente.
+#   .mov 52/52        there was no *Main that decoded the aggregate corpus
+#                     (CmpStage2 only compares one file of hand-captured
+#                     evidence). It extracts tex/*.cmp and tex/*.mov from
+#                     assets/WorldsPlayer/GroundZero/content.zip with
+#                     java.util.zip (no dependency on `unzip`) and decodes
+#                     each one with CmpTexture.loadRaw/loadMov, on top of
+#                     CmpFrames, the same decoder the bridge uses.
 #
-# Las filas RWX 118/118 (y contra three-rwx-loader), .world 25/578/103 y
-# nombres de avatar 146/148 se quitaron el 2026-09-26 junto con el motor
-# nuevo: sus lectores solo los usaba el. Estan en el historial de git
-# (client/src hasta el commit 8cd795d).
+# The RWX 118/118 (and against three-rwx-loader), .world 25/578/103 and
+# avatar name 146/148 rows were removed on 2026-09-26 together with the new
+# engine: only it used their readers. They are in the git history
+# (client/src up to commit 8cd795d).
 #
-# Uso:
+# Usage:
 #   tools/verify-corpus.sh [--no-checks] [--no-bridge]
-#     --no-checks   no llama a run-checks.sh al final.
-#     --no-bridge   se pasa tal cual a run-checks.sh (ver ese script).
+#     --no-checks   don't call run-checks.sh at the end.
+#     --no-bridge   passed as is to run-checks.sh (see that script).
 #
-# bash 3.2 compatible: sin arrays vacios bajo `set -u` (se usan ficheros de
-# lista + bucles `while read` en vez de arrays donde el corpus podria
-# quedar vacio).
+# bash 3.2 compatible: no empty arrays under `set -u` (list files +
+# `while read` loops are used instead of arrays wherever the corpus could
+# come out empty).
 set -eu
 set -o pipefail
 
@@ -64,10 +64,10 @@ for arg in "$@"; do
       --no-checks) RUN_CHECKS=0 ;;
       --no-bridge) PASS_NO_BRIDGE=1 ;;
       -h|--help)
-         echo "Uso: $0 [--no-checks] [--no-bridge]"
+         echo "Usage: $0 [--no-checks] [--no-bridge]"
          exit 0 ;;
       *)
-         echo "Argumento desconocido: $arg" >&2
+         echo "Unknown argument: $arg" >&2
          exit 2 ;;
    esac
 done
@@ -79,10 +79,10 @@ trap cleanup EXIT
 
 echo "=== OpenWorlds verify-corpus $(date +%Y-%m-%dT%H:%M:%S%z) ==="
 echo "root: $ROOT"
-echo "build temporal: $BUILD"
+echo "temporary build: $BUILD"
 echo
 
-echo "--- compilando formats/src + formats/test ---"
+echo "--- compiling formats/src + formats/test ---"
 SRC_LIST="$BUILD/sources.txt"
 : > "$SRC_LIST"
 find "$ROOT/formats/src" -name "*.java" >> "$SRC_LIST"
@@ -91,7 +91,7 @@ if [ -d "$ROOT/formats/test" ]; then
 fi
 N_SRC=$(wc -l < "$SRC_LIST" | tr -d ' ')
 javac -d "$BUILD" @"$SRC_LIST"
-echo "compilado OK: $N_SRC ficheros -> $BUILD"
+echo "compiled OK: $N_SRC files -> $BUILD"
 echo
 
 FAILED=0
@@ -99,16 +99,16 @@ ROWS="$BUILD/rows.txt"
 : > "$ROWS"
 
 row() {
-   # row <formato> <esperado> <obtenido> <estado(OK|FALLO|SALTADO)>
+   # row <format> <expected> <got> <status(OK|FAIL|SKIPPED)>
    printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" >> "$ROWS"
-   if [ "$4" = "FALLO" ]; then
+   if [ "$4" = "FAIL" ]; then
       FAILED=1
    fi
 }
 
 CAP="$BUILD/cap.txt"
 capture() {
-   # capture <cmd...>  ->  stdout+stderr en $CAP, codigo en $CAP_RC (nunca aborta con set -e)
+   # capture <cmd...>  ->  stdout+stderr in $CAP, exit code in $CAP_RC (never aborts under set -e)
    set +e
    "$@" > "$CAP" 2>&1
    CAP_RC=$?
@@ -132,11 +132,11 @@ if [ "$SEQ_TOTAL" -gt 0 ]; then
    if [ "${SEQ_OK:-0}" = "231" ] && [ "${SEQ_OF:-0}" = "231" ]; then
       row ".seq" "231/231" "$SEQ_OK/$SEQ_OF" "OK"
    else
-      row ".seq" "231/231" "${SEQ_OK:-?}/${SEQ_OF:-?} (total encontrado: $SEQ_TOTAL)" "FALLO"
+      row ".seq" "231/231" "${SEQ_OK:-?}/${SEQ_OF:-?} (total found: $SEQ_TOTAL)" "FAIL"
       cat "$CAP"
    fi
 else
-   row ".seq" "231/231" "0 ficheros encontrados" "FALLO"
+   row ".seq" "231/231" "0 files found" "FAIL"
 fi
 
 # ---------------------------------------------------------------------
@@ -156,15 +156,15 @@ if [ "$BOD_TOTAL" -gt 0 ]; then
    if [ "${BOD_OK:-0}" = "51" ] && [ "${BOD_OF:-0}" = "51" ]; then
       row ".bod" "51/51" "$BOD_OK/$BOD_OF" "OK"
    else
-      row ".bod" "51/51" "${BOD_OK:-?}/${BOD_OF:-?} (total encontrado: $BOD_TOTAL)" "FALLO"
+      row ".bod" "51/51" "${BOD_OK:-?}/${BOD_OF:-?} (total found: $BOD_TOTAL)" "FAIL"
       cat "$CAP"
    fi
 else
-   row ".bod" "51/51" "0 ficheros encontrados" "FALLO"
+   row ".bod" "51/51" "0 files found" "FAIL"
 fi
 
 # ---------------------------------------------------------------------
-# .cmp / .mov: 159/159, 52/52 (content.zip, ver CmpMovCorpusCheck)
+# .cmp / .mov: 159/159, 52/52 (content.zip, see CmpMovCorpusCheck)
 # ---------------------------------------------------------------------
 CONTENT_ZIP="$ROOT/assets/WorldsPlayer/GroundZero/content.zip"
 if [ -f "$CONTENT_ZIP" ]; then
@@ -175,33 +175,33 @@ if [ -f "$CONTENT_ZIP" ]; then
       row ".cmp" "159/159" "$(echo "$CMP_LINE" | sed -E 's/^CMP //')" "OK"
       row ".mov" "52/52" "$(echo "$MOV_LINE" | sed -E 's/^MOV //')" "OK"
    else
-      row ".cmp" "159/159" "$(echo "$CMP_LINE" | sed -E 's/^CMP //')" "FALLO"
-      row ".mov" "52/52" "$(echo "$MOV_LINE" | sed -E 's/^MOV //')" "FALLO"
+      row ".cmp" "159/159" "$(echo "$CMP_LINE" | sed -E 's/^CMP //')" "FAIL"
+      row ".mov" "52/52" "$(echo "$MOV_LINE" | sed -E 's/^MOV //')" "FAIL"
       cat "$CAP"
    fi
 else
-   row ".cmp" "159/159" "no existe $CONTENT_ZIP" "FALLO"
-   row ".mov" "52/52" "no existe $CONTENT_ZIP" "FALLO"
+   row ".cmp" "159/159" "$CONTENT_ZIP does not exist" "FAIL"
+   row ".mov" "52/52" "$CONTENT_ZIP does not exist" "FAIL"
 fi
 
 # ---------------------------------------------------------------------
-# Tabla final
+# Final table
 # ---------------------------------------------------------------------
 echo
-echo "--- resultado ---"
-printf '%-32s %-14s %-46s %s\n' "Formato" "Esperado" "Obtenido" "Estado"
-printf '%-32s %-14s %-46s %s\n' "-------" "--------" "--------" "------"
+echo "--- result ---"
+printf '%-32s %-14s %-46s %s\n' "Format" "Expected" "Got" "Status"
+printf '%-32s %-14s %-46s %s\n' "------" "--------" "---" "------"
 while IFS="$(printf '\t')" read -r a b c d; do
    printf '%-32s %-14s %-46s %s\n' "$a" "$b" "$c" "$d"
 done < "$ROWS"
 echo
 
 if [ "$FAILED" -eq 1 ]; then
-   echo "*** al menos una cifra no coincide con lo esperado (regresion) ***"
+   echo "*** at least one figure does not match the expected one (regression) ***"
 fi
 
 # ---------------------------------------------------------------------
-# run-checks.sh (reusa este mismo build ya compilado)
+# run-checks.sh (reuses this same, already compiled build)
 # ---------------------------------------------------------------------
 if [ "$RUN_CHECKS" -eq 1 ]; then
    echo
@@ -219,11 +219,11 @@ if [ "$RUN_CHECKS" -eq 1 ]; then
    fi
 else
    echo
-   echo "(--no-checks: se salta run-checks.sh)"
+   echo "(--no-checks: skipping run-checks.sh)"
 fi
 
 if [ "$FAILED" -eq 1 ]; then
    exit 1
 fi
-echo "=== verify-corpus: sin fallos ==="
+echo "=== verify-corpus: no failures ==="
 exit 0

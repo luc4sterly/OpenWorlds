@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
-# Arranca el flujo REAL NET.worlds.console.Gamma (main), con el mock, desde
-# una copia de assets/WorldsPlayer como CWD - para ver hasta donde llega
-# hoy en macOS (nativo, sin Xvfb). NO reimplementa nada: llama al main()
-# real tal cual. Mata el proceso a los ~60s si sigue vivo (Gamma no tiene
-# salida limpia sin UI interactiva) y, si sigue vivo, saca un jstack antes
-# de matarlo como evidencia de en que hilo/pila esta bloqueado.
+# Starts the REAL NET.worlds.console.Gamma (main) flow, with the mock, from
+# a copy of assets/WorldsPlayer as the CWD - to see how far it gets on
+# macOS today (native, no Xvfb). It reimplements NOTHING: it calls the real
+# main() as is. It kills the process after ~60s if it is still alive (Gamma
+# has no clean exit without an interactive UI) and, if it is still alive,
+# takes a jstack before killing it, as evidence of which thread/stack it is
+# blocked in.
 #
-# Reutiliza el mismo mock+sondas que run-guest-login.sh si ya estan
-# compiladas en el workdir (para no recompilar 722 fuentes dos veces);
-# si no, compila desde cero.
+# Reuses the same mock+probes as run-guest-login.sh if they are already
+# compiled in the workdir (so as not to recompile 722 sources twice);
+# otherwise it compiles from scratch.
 #
-# Uso: tools/net-probe/run-gamma-main.sh [workdir] [timeout_seconds]
+# Usage: tools/net-probe/run-gamma-main.sh [workdir] [timeout_seconds]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,7 +43,7 @@ echo "== JDK: $("$JAVA" -version 2>&1 | head -1) =="
 
 CLIENT_SRC_DIR="$WORKDIR/editor/worldsplayer_source_editor-main"
 if [ ! -d "$CLIENT_SRC_DIR/out" ] || [ -z "$(find "$CLIENT_SRC_DIR/out" -name '*.class' -print -quit 2>/dev/null)" ]; then
-   echo "== compilando el mock (no encontrado en $CLIENT_SRC_DIR/out) =="
+   echo "== compiling the mock (not found in $CLIENT_SRC_DIR/out) =="
    mkdir -p "$WORKDIR/tools" "$WORKDIR/docs"
    rm -rf "$WORKDIR/editor"
    mkdir -p "$WORKDIR/editor"
@@ -55,13 +56,13 @@ if [ ! -d "$CLIENT_SRC_DIR/out" ] || [ -z "$(find "$CLIENT_SRC_DIR/out" -name '*
    ( cd "$CLIENT_SRC_DIR" && find source -name '*.java' > "$SOURCES_LIST" )
    ( cd "$CLIENT_SRC_DIR" && "$JAVAC" --release 8 -nowarn -d out -cp source "@$SOURCES_LIST" ) \
       2> "$WORKDIR/compile-mock.log" || {
-         echo "FALLO compilando el mock, ver $WORKDIR/compile-mock.log" >&2
+         echo "FAILED compiling the mock, see $WORKDIR/compile-mock.log" >&2
          cat "$WORKDIR/compile-mock.log" >&2
          exit 1
       }
-   echo "compiladas $(find "$CLIENT_SRC_DIR/out" -name '*.class' | wc -l | tr -d ' ') clases"
+   echo "compiled $(find "$CLIENT_SRC_DIR/out" -name '*.class' | wc -l | tr -d ' ') classes"
 else
-   echo "== mock ya compilado en $CLIENT_SRC_DIR/out, reutilizando =="
+   echo "== mock already compiled in $CLIENT_SRC_DIR/out, reusing it =="
 fi
 
 CWD_DIR="$WORKDIR/gamma-cwd"
@@ -72,36 +73,36 @@ cp -R "$REPO_ROOT/assets/WorldsPlayer/." "$CWD_DIR/"
 STDOUT_LOG="$WORKDIR/gamma-stdout.log"
 JSTACK_LOG="$WORKDIR/gamma-jstack.txt"
 
-echo "== lanzando NET.worlds.console.Gamma (max ${TIMEOUT}s) =="
+echo "== launching NET.worlds.console.Gamma (max ${TIMEOUT}s) =="
 (
    cd "$CWD_DIR"
-   # exec: $! debe ser el PID de la JVM, no el de la subshell; sin exec,
-   # jstack/kill actuaban sobre la subshell y la JVM quedaba huerfana.
+   # exec: $! must be the JVM's PID, not the subshell's; without exec,
+   # jstack/kill acted on the subshell and the JVM was left orphaned.
    exec "$JAVA" -cp ".:$CLIENT_SRC_DIR/out" NET.worlds.console.Gamma
 ) > "$STDOUT_LOG" 2>&1 &
 GAMMA_PID=$!
 
-# jstack temprano (no mata el proceso): el arranque real hace una
-# teleport sincrona a NewWorld.world que puede bloquear el hilo "Gamma
-# Main" en CacheFile.waitUntilLoaded esperando una descarga HTTP de
-# verdad de un hilo "File Downloader N" - si el proceso termina solo
-# antes de esto (posible: cache ya caliente o timeout corto), esta es la
-# unica foto de esos hilos que se consigue.
+# Early jstack (does not kill the process): the real startup does a
+# synchronous teleport to NewWorld.world that can block the "Gamma Main"
+# thread in CacheFile.waitUntilLoaded, waiting for a real HTTP download by
+# a "File Downloader N" thread - if the process ends on its own before
+# this (possible: cache already warm or a short timeout), this is the only
+# snapshot of those threads we get.
 sleep 3
 EARLY_JSTACK_LOG="$WORKDIR/gamma-jstack-early.txt"
 if kill -0 "$GAMMA_PID" 2>/dev/null; then
-   "$JSTACK" "$GAMMA_PID" > "$EARLY_JSTACK_LOG" 2>&1 || echo "jstack temprano fallo" >&2
-   echo "jstack temprano (a los ~3s): $EARLY_JSTACK_LOG"
+   "$JSTACK" "$GAMMA_PID" > "$EARLY_JSTACK_LOG" 2>&1 || echo "early jstack failed" >&2
+   echo "early jstack (at ~3s): $EARLY_JSTACK_LOG"
 else
-   echo "proceso ya terminado a los ~3s, sin jstack temprano"
+   echo "process already finished at ~3s, no early jstack"
 fi
 
-# Espera a que termine solo, o hasta TIMEOUT segundos.
+# Wait for it to finish on its own, or up to TIMEOUT seconds.
 SECS=3
 while kill -0 "$GAMMA_PID" 2>/dev/null; do
    if [ "$SECS" -ge "$TIMEOUT" ]; then
-      echo "== sigue vivo a los ${TIMEOUT}s: jstack antes de matar =="
-      "$JSTACK" "$GAMMA_PID" > "$JSTACK_LOG" 2>&1 || echo "jstack fallo (ver $JSTACK_LOG)" >&2
+      echo "== still alive at ${TIMEOUT}s: jstack before killing =="
+      "$JSTACK" "$GAMMA_PID" > "$JSTACK_LOG" 2>&1 || echo "jstack failed (see $JSTACK_LOG)" >&2
       kill -9 "$GAMMA_PID" 2>/dev/null || true
       break
    fi
@@ -110,10 +111,10 @@ while kill -0 "$GAMMA_PID" 2>/dev/null; do
 done
 wait "$GAMMA_PID" 2>/dev/null
 STATUS=$?
-echo "== Gamma terminado/matado tras ~${SECS}s, exit(wait)=$STATUS =="
+echo "== Gamma finished/killed after ~${SECS}s, exit(wait)=$STATUS =="
 echo "stdout: $STDOUT_LOG"
 if [ -f "$JSTACK_LOG" ]; then
    echo "jstack: $JSTACK_LOG"
 fi
-echo "== ultimas 40 lineas de stdout =="
+echo "== last 40 lines of stdout =="
 tail -40 "$STDOUT_LOG"

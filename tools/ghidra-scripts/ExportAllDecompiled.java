@@ -7,24 +7,25 @@ import java.io.File;
 import java.io.PrintWriter;
 
 /**
- * ExportAllDecompiled — vuelca el C decompilado de TODAS las funciones del
- * programa a <outdir>/<addr>_<nombre>.c + INDEX.txt.
+ * ExportAllDecompiled — dumps the decompiled C of ALL the program's
+ * functions to <outdir>/<addr>_<name>.c + INDEX.txt.
  *
- * Uso headless:
- *   analyzeHeadless <projdir> <projname> -import <binario>
+ * Headless usage:
+ *   analyzeHeadless <projdir> <projname> -import <binary>
  *     -scriptPath tools/ghidra-scripts
  *     -postScript ExportAllDecompiled.java <outdir>
  *
- * El C es salida del decompilador (no compila tal cual: tipos/headers
- * nativos faltan); sirve como fuente de ingenieria inversa versionable,
- * no como build. Cada fichero cita su direccion para cruzar con Ghidra.
+ * The C is decompiler output (it does not compile as is: native
+ * types/headers are missing); it serves as versionable reverse-engineering
+ * source, not as a build. Each file cites its address to cross-check with
+ * Ghidra.
  */
 public class ExportAllDecompiled extends GhidraScript {
    @Override
    public void run() throws Exception {
       String[] args = getScriptArgs();
       if (args.length < 1) {
-         println("Uso: ExportAllDecompiled.java <outdir>");
+         println("Usage: ExportAllDecompiled.java <outdir>");
          return;
       }
       String outDir = args[0];
@@ -57,7 +58,7 @@ public class ExportAllDecompiled extends GhidraScript {
          String fname = addr.replace(':', '_') + "_" + safeName + ".c";
          PrintWriter w = new PrintWriter(new File(outDir, fname));
          w.println("// " + addr + " " + f.getName() + " [" + f.getParentNamespace() + "]");
-         w.println("// programa: " + currentProgram.getName());
+         w.println("// program: " + currentProgram.getName());
          if (c != null) {
             w.println(c);
          } else {
@@ -68,11 +69,11 @@ public class ExportAllDecompiled extends GhidraScript {
          index.println(addr + " " + fname + " " + f.getName());
          n++;
          if (n % 500 == 0) {
-            println("exportadas " + n + " (fallos " + failed + ")");
+            println("exported " + n + " (failures " + failed + ")");
          }
       }
       index.close();
       decomp.dispose();
-      println("TOTAL " + n + " funciones, fallos " + failed);
+      println("TOTAL " + n + " functions, failures " + failed);
    }
 }

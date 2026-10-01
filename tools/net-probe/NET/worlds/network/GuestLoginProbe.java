@@ -7,50 +7,50 @@ import java.util.Enumeration;
 import java.util.Hashtable;
 
 /**
- * Sonda de login REAL — FASE 4: completa el arranque hasta sessionInit
- * contra un servidor vivo, siguiendo el handoff genuino de AutoServer.
+ * REAL login probe — PHASE 4: completes the startup up to sessionInit
+ * against a live server, following AutoServer's genuine handoff.
  *
- * Camino 100% real del cliente decompilado:
- *   1. Igual que AutoServerProbe: initInstance + state_Initializing +
- *      WSConnecting + setSocket + state_XMIT_PROPREQ + perFrame hasta que
- *      el AutoServer handofflea (estado 17). Esto crea de verdad la
- *      subclase concreta (UserServer/AnonUserServer/AnonRoomServer según
- *      prop #15), le transfiere la conexión viva (reuseConnection),
- *      hace swapServer + setGalaxyType (que levanta el LoginWizard real
- *      bajo Xvfb, igual que al cliente).
- *   2. Recupera el servidor vivo del ServerTracker (solo lectura por
- *      reflexión: es instrumentación del harness, no cambia conducta).
- *   3. Llama a Galaxy.setAuthInfo EXACTO como lo hace
- *      LoginWizard.activeCallback (LoginWizard.java:279) cuando el
- *      usuario pulsa Sign-In — pero sin UI: el nick viene de argv.
- *      Sin este paso, buildSessionInitCmd muere en dAssert(false)
- *      (loginMode 0 UNKNOWN): el login EXIGE auth info, es el diseño.
- *   4. Conduce el servidor vivo con perFrame() real (lo que el Main loop
- *      haría): 0→3→7 (XMIT_SI envía sessionInitCmd) →8 (espera el ack
- *      del servidor) →11/12 (login aceptado) o 17 (VarError = rechazo).
+ * A 100% real path through the decompiled client:
+ *   1. Same as AutoServerProbe: initInstance + state_Initializing +
+ *      WSConnecting + setSocket + state_XMIT_PROPREQ + perFrame until the
+ *      AutoServer hands off (state 17). This really creates the concrete
+ *      subclass (UserServer/AnonUserServer/AnonRoomServer depending on
+ *      prop #15), hands it the live connection (reuseConnection), does
+ *      swapServer + setGalaxyType (which brings up the real LoginWizard
+ *      under Xvfb, same as for the client).
+ *   2. Retrieves the live server from the ServerTracker (read-only via
+ *      reflection: it is harness instrumentation, it changes no behaviour).
+ *   3. Calls Galaxy.setAuthInfo EXACTLY as
+ *      LoginWizard.activeCallback (LoginWizard.java:279) does when the
+ *      user presses Sign-In — but without UI: the nick comes from argv.
+ *      Without this step, buildSessionInitCmd dies in dAssert(false)
+ *      (loginMode 0 UNKNOWN): login REQUIRES auth info, by design.
+ *   4. Drives the live server with the real perFrame() (what the Main
+ *      loop would do): 0→3→7 (XMIT_SI sends sessionInitCmd) →8 (waits for
+ *      the server's ack) →11/12 (login accepted) or 17 (VarError =
+ *      rejected).
  *
- * Servidor objetivo por defecto: el guest de Worlio
- * (gippsland.worlio.com:8265), que según https://worlds.worlio.com/
- * "requires no registration, only a valid nickname" — el único sitio
- * donde un login real es posible sin cuenta. El servidor primario
- * (worlds.worlio.com:6650) exige cuenta registrada en la web
- * (https://worlds.worlio.com/register): SIN password esta sonda NO
- * puede pasar del sessionInit allí, y NO inventa credenciales.
- * El 4º argv opcional permite pasar un password SOLO para una cuenta
- * que uno mismo haya registrado a mano en esa web; jamás hardcodear
- * valores aquí.
+ * Default target server: Worlio's guest server (gippsland.worlio.com:8265),
+ * which according to https://worlds.worlio.com/ "requires no registration,
+ * only a valid nickname" — the only place where a real login is possible
+ * without an account. The primary server (worlds.worlio.com:6650) requires
+ * an account registered on the website (https://worlds.worlio.com/register):
+ * WITHOUT a password this probe CANNOT get past sessionInit there, and it
+ * does NOT make up credentials. The optional 4th argv lets you pass a
+ * password ONLY for an account you registered by hand on that website
+ * yourself; never hardcode values here.
  *
- * Uso: GuestLoginProbe [host] [port] [nickname] [password?] [clientVersion?]
- *   defecto: gippsland.worlio.com 8265 FWProbeNNN(aleatorio) null 2004080500
- * El clientVersion por defecto (prop 9 VAR_CLIENT del sessionInit) es el
- * valor REAL que devuelve el gamma.dll nativo de NUESTRA instalación
- * (assets/WorldsPlayer/bin/gamma.dll, build 08/05/04 Rev 1900): la
- * exportación _Java_NET_worlds_core_Std_getClientVersion@8 (RVA 0x2ff0)
- * hace NewStringUTF(env, literal en 0x46d428) = "2004080500"
- * (formato AAAAMMDDHH de la fecha de build; verificado con objdump
- * sobre la DLL real, sin ejecutar nada nativo). El mock JNI devuelve
- * null y el servidor responde a eso con VarError#7 "client out of date".
- * Una sola conexión por ejecución, se cierra al terminar.
+ * Usage: GuestLoginProbe [host] [port] [nickname] [password?] [clientVersion?]
+ *   defaults: gippsland.worlio.com 8265 FWProbeNNN(random) null 2004080500
+ * The default clientVersion (prop 9 VAR_CLIENT of the sessionInit) is the
+ * REAL value returned by the native gamma.dll of OUR install
+ * (assets/WorldsPlayer/bin/gamma.dll, build 08/05/04 Rev 1900): the
+ * export _Java_NET_worlds_core_Std_getClientVersion@8 (RVA 0x2ff0) does
+ * NewStringUTF(env, literal at 0x46d428) = "2004080500" (YYYYMMDDHH format
+ * of the build date; verified with objdump on the real DLL, without
+ * running anything native). The JNI mock returns null and the server
+ * answers that with VarError#7 "client out of date".
+ * A single connection per run, closed at the end.
  */
 public final class GuestLoginProbe extends AutoServer {
    private String connectedHost;
@@ -78,11 +78,11 @@ public final class GuestLoginProbe extends AutoServer {
 
       NET.worlds.core.Std.initProductName();
 
-      // Instrumentación SOLO del harness: el nivel sale de worlds.ini
-      // (netdebug, aquí 0) y esta sonda necesita los volcados send/recv
-      // del código real (WorldServer.sendNetMsg bit 128+1024, recv bit
-      // 64) + sessionInit (4) + tracker (8) + autodetección (32).
-      // 1260 = 1024+128+64+32+8+4. No toca source/, solo el static.
+      // Harness-ONLY instrumentation: the level comes from worlds.ini
+      // (netdebug, 0 here) and this probe needs the send/recv dumps of
+      // the real code (WorldServer.sendNetMsg bit 128+1024, recv bit
+      // 64) + sessionInit (4) + tracker (8) + autodetection (32).
+      // 1260 = 1024+128+64+32+8+4. It does not touch source/, only the static.
       Field dbg = Galaxy.class.getDeclaredField("_debugLevel");
       dbg.setAccessible(true);
       dbg.setInt(null, 1260);
@@ -111,7 +111,7 @@ public final class GuestLoginProbe extends AutoServer {
          System.exit(1);
       }
 
-      // FASE A: handshake hasta el handoff (código real).
+      // PHASE A: handshake up to the handoff (real code).
       probe.state_XMIT_PROPREQ();
       System.out.println("sent propReq, state=" + stateName(probe._state.getState()));
       int last = -99;
@@ -141,7 +141,7 @@ public final class GuestLoginProbe extends AutoServer {
          System.exit(1);
       }
 
-      // FASE B: recuperar el servidor vivo (lectura por reflexión).
+      // PHASE B: retrieve the live server (read via reflection).
       WorldServer live = findLiveServer(galaxy, probe, host + ":" + port);
       if (live == null) {
          System.out.println("NO LIVE SERVER found in tracker after handoff");
@@ -152,19 +152,20 @@ public final class GuestLoginProbe extends AutoServer {
          + " version=" + live.getVersion());
       dumpProps(live);
 
-      // El mock JNI deja _clientVersion=null (nativo real: build actual).
-      // Sin esto el sessionInit sale con VAR_CLIENT=null y el servidor
-      // lo tumba con VarError#7. Asignación directa: campo protected en
-      // el mismo paquete, solo el harness, antes del primer tick (el
-      // valor se lee en buildSessionInitCmd, estado 7).
+      // The JNI mock leaves _clientVersion=null (real native: the
+      // current build). Without this the sessionInit goes out with
+      // VAR_CLIENT=null and the server knocks it down with VarError#7.
+      // Direct assignment: a protected field in the same package, harness
+      // only, before the first tick (the value is read in
+      // buildSessionInitCmd, state 7).
       System.out.println("override _clientVersion=null -> \"" + clientVer + "\"");
       live._clientVersion = clientVer;
 
-      // FASE C: auth info, la llamada exacta del LoginWizard al Sign-In
+      // PHASE C: auth info, the LoginWizard's exact call on Sign-In
       // (LoginWizard.activeCallback: setAuthInfo(loginUserName, null,
-      // loginPassword, null, loginSerialNumber, loginMode) con mode=2
-      // AUTHENTICATE). Para UserServer/AnonUserServer/AnonRoomServer el
-      // modo 2 solo exige chatname; password/serial quedan null.
+      // loginPassword, null, loginSerialNumber, loginMode) with mode=2
+      // AUTHENTICATE). For UserServer/AnonUserServer/AnonRoomServer,
+      // mode 2 only requires the chatname; password/serial stay null.
       System.out.println("setAuthInfo(nick=" + nick
          + " password=" + (pass == null ? "null" : "***")
          + " mode=2 AUTHENTICATE)");
@@ -173,7 +174,7 @@ public final class GuestLoginProbe extends AutoServer {
       System.out.println("loginMode=" + galaxy.getLoginMode()
          + " chatname=" + galaxy.getChatname());
 
-      // FASE D: conducir el servidor vivo con perFrame real.
+      // PHASE D: drive the live server with the real perFrame.
       last = -99;
       end = System.currentTimeMillis() + 45000;
       long mainloopSince = -1;
@@ -216,14 +217,14 @@ public final class GuestLoginProbe extends AutoServer {
    }
 
    /**
-    * Deja el LoginWizard real en el estado que tendría si el usuario
-    * hubiera tecleado el nick y pulsado Sign-In (LoginWizard.
+    * Leaves the real LoginWizard in the state it would be in if the user
+    * had typed the nick and pressed Sign-In (LoginWizard.
     * validateKnownUserInfo: loginUserName=nick, loginMode=2, doLogin()
-    * con loginFrom=pantalla 0). Sin esto, setConnected() hace
-    * setIniString("User0", null) y el MOCK de IniFile lanza NPE
-    * (Hashtable no admite nulls) — artefacto del harness por saltarse
-    * la UI, no bug del cliente: en el flujo real loginUserName nunca es
-    * null aquí porque validateKnownUserInfo lo exige antes de doLogin.
+    * with loginFrom=screen 0). Without this, setConnected() does
+    * setIniString("User0", null) and the IniFile MOCK throws an NPE
+    * (Hashtable does not accept nulls) — a harness artifact from skipping
+    * the UI, not a client bug: in the real flow loginUserName is never
+    * null here because validateKnownUserInfo requires it before doLogin.
     */
    private static void preseedWizard(Galaxy galaxy, String nick) throws Exception {
       Field fWiz = Galaxy.class.getDeclaredField("_wizard");

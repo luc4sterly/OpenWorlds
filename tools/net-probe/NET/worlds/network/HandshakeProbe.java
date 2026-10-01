@@ -4,28 +4,28 @@ import NET.worlds.core.Std;
 import java.net.Socket;
 
 /**
- * Sonda de handshake contra un WorldServer real — FASE 2: habla protocolo.
+ * Handshake probe against a real WorldServer — PHASE 2: speaks the protocol.
  *
- * Camino 100% real del cliente decompilado, sin UI/consola/galaxy:
- *   1. state=4 + WSConnecting (lo mismo que WorldServer.startConnect con
- *      _sock==null) → hilos daemon + DNSLookup.lookupAll + Socket.
- *   2. setSocket REAL (super): ServerInputStream + netPacketReader thread
- *      + estado 5. Aquí solo se captura el host y se notifica.
- *   3. state_XMIT_PROPREQ() REAL: envía propReqCmd(ObjID(255)) vía
- *      sendNetMsg — el PRIMER paquete que el cliente real emite.
- *   4. perFrame() REAL en bucle (el driver de la máquina de estados que
- *      normalmente corre en el Main loop) para procesar la respuesta.
+ * A 100% real path through the decompiled client, no UI/console/galaxy:
+ *   1. state=4 + WSConnecting (the same as WorldServer.startConnect with
+ *      _sock==null) → daemon threads + DNSLookup.lookupAll + Socket.
+ *   2. REAL setSocket (super): ServerInputStream + netPacketReader thread
+ *      + state 5. Here the host is only captured and notified.
+ *   3. REAL state_XMIT_PROPREQ(): sends propReqCmd(ObjID(255)) via
+ *      sendNetMsg — the FIRST packet the real client emits.
+ *   4. REAL perFrame() in a loop (the state machine driver that normally
+ *      runs in the Main loop) to process the reply.
  *
- * Con netdebug=1152 en worlds.ini el propio sendNetMsg vuelca los bytes
- * enviados en hex (bit 1024) más la descripción (bit 128), y bit 64
- * describe lo recibido: la evidencia sale del código real, no de esta
- * sonda. Una sola conexión por ejecución, se cierra al terminar.
+ * With netdebug=1152 in worlds.ini, sendNetMsg itself dumps the sent bytes
+ * in hex (bit 1024) plus the description (bit 128), and bit 64 describes
+ * what is received: the evidence comes from the real code, not from this
+ * probe. A single connection per run, closed at the end.
  *
- * Vive fuera de source/ (herramienta) pero en el mismo paquete porque
- * WSConnecting es package-private y setSocket/state/perFrame son
- * protected. Compilar con --release 8 contra out/worlds-mock.jar.
+ * It lives outside source/ (it is a tool) but in the same package because
+ * WSConnecting is package-private and setSocket/state/perFrame are
+ * protected. Compile with --release 8 against out/worlds-mock.jar.
  *
- * Uso: java -cp <out> HandshakeProbe [host] [port]
+ * Usage: java -cp <out> HandshakeProbe [host] [port]
  */
 public final class HandshakeProbe extends WorldServer {
    private String connectedHost;
@@ -47,24 +47,24 @@ public final class HandshakeProbe extends WorldServer {
       String host = args.length > 0 ? args[0] : "worlds.worlio.com";
       int port = args.length > 1 ? Integer.parseInt(args[1]) : 6650;
 
-      // Lo mismo que Gamma.main hace al arrancar (Gamma.java): sin esto
-      // Std.getProductName() revienta en assert cuando netPacketReader
-      // carga su tabla de paquetes (whisperCmd -> Console.message ->
+      // The same thing Gamma.main does at startup (Gamma.java): without it
+      // Std.getProductName() blows up on an assert when netPacketReader
+      // loads its packet table (whisperCmd -> Console.message ->
       // Console.<clinit> -> new GammaFrame() -> getDefaultTitle()).
-      // NOTA: Console.<clinit> crea un Frame AWT real -> hace falta X
-      // (Xvfb vale, igual que el cliente mockeado).
+      // NOTE: Console.<clinit> creates a real AWT Frame -> X is needed
+      // (Xvfb will do, same as for the mocked client).
       NET.worlds.core.Std.initProductName();
 
       HandshakeProbe probe = new HandshakeProbe();
-      // initInstance real (ObjectMgr + WaitList + _serverURL): sin esto
-      // sendNetMsg->toString->getLongID revienta (NPE en _serverURL).
-      // Galaxy.getGalaxy solo crea hashtables/trackers, sin UI.
+      // Real initInstance (ObjectMgr + WaitList + _serverURL): without it
+      // sendNetMsg->toString->getLongID blows up (NPE on _serverURL).
+      // Galaxy.getGalaxy only creates hashtables/trackers, no UI.
       ServerURL surl = new ServerURL("worldserver://" + host + ":" + port);
       probe.initInstance(Galaxy.getGalaxy("worldserver://" + host + ":" + port), surl);
-      // state_Initializing REAL (no manual): registra shortID 255 +
-      // el propio server en _objTable (sin esto, el PROPUPD de respuesta
-      // muere en NPE en ObjectMgr.getObject) y arranca WSConnecting con
-      // el host/puerto parseados de _serverURL — el boot genuino.
+      // REAL state_Initializing (not by hand): registers shortID 255 +
+      // the server itself in _objTable (without it, the PROPUPD reply
+      // dies with an NPE in ObjectMgr.getObject) and starts WSConnecting
+      // with the host/port parsed from _serverURL — the genuine boot.
       probe.state_Initializing();
 
       synchronized (probe) {
@@ -113,11 +113,11 @@ public final class HandshakeProbe extends WorldServer {
       }
       System.out.println("closed cleanly");
 
-      // Experimento decisivo (2): ¿mata el assert al Main loop real?
-      // Registra el servidor (como hace findOrMake vía incRefCnt) y corre
-      // el Main.mainLoop GENUINO en un hilo: si la cadena del análisis es
-      // correcta, el tick en estado 7 propaga AssertionException fuera de
-      // mainLoop (su bytecode NO tiene exception table) y muere el hilo.
+      // Decisive experiment (2): does the assert kill the real Main loop?
+      // Registers the server (as findOrMake does via incRefCnt) and runs
+      // the GENUINE Main.mainLoop in a thread: if the analysis chain is
+      // right, the tick in state 7 propagates AssertionException out of
+      // mainLoop (its bytecode has NO exception table) and the thread dies.
       System.out.println("== Main-loop experiment: register + run genuine Main.mainLoop ==");
       probe._state.setState(7);
       NET.worlds.console.Main.register(probe);

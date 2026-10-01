@@ -4,19 +4,18 @@ import NET.worlds.console.Main;
 import java.net.Socket;
 
 /**
- * Handler minimal de WorldServer para superar el dAssert(false) en
- * state_XMIT_SI() que mata el Main loop del cliente (confirmado de
- * punta a bytecode con HandshakeProbe). No reimplementa el protocolo:
- * captura el socket, llama a Galaxy.addPendingServer() (lo que el flujo
- * real hará en el tick 8) y setea estado 8 para que perFrame siga sin
- * estrellarse. El handler no envía bytes nuevos: usa el estado ya
- * transitado (6→7→8) como si el cliente-servidor hubieran completado
- * el intercambio. El dAssert es una trampa de debug que se activa
- * siempre en este bytecode; el cliente real de 2004 debió pasar ese
- * checkpoint.
+ * Minimal WorldServer handler to get past the dAssert(false) in
+ * state_XMIT_SI() that kills the client's Main loop (confirmed end to end
+ * down to the bytecode with HandshakeProbe). It does not reimplement the
+ * protocol: it captures the socket, calls Galaxy.addPendingServer() (what
+ * the real flow will do at tick 8) and sets state 8 so that perFrame goes
+ * on without crashing. The handler sends no new bytes: it uses the state
+ * already traversed (6→7→8) as if client and server had completed the
+ * exchange. The dAssert is a debug trap that always fires in this
+ * bytecode; the real 2004 client must have got past that checkpoint.
  *
- * Uso: java -cp <out> MinimalServerHandler [host] [port]
- * Requiere Xvfb (Console.<clinit> necesita un Frame AWT real).
+ * Usage: java -cp <out> MinimalServerHandler [host] [port]
+ * Needs Xvfb (Console.<clinit> needs a real AWT Frame).
  */
 public final class MinimalServerHandler extends WorldServer {
    private Socket sock;
@@ -35,10 +34,10 @@ public final class MinimalServerHandler extends WorldServer {
 
    @Override
    protected void state_XMIT_SI() {
-      // Intercepción: el bytecode original en state_XMIT_SI() hace
-      // dAssert(false) en la línea 810, que mata el hilo Main.
-      // El cliente real de 2004 sí pasó ese checkpoint; por tanto,
-      // simulamos el continuación que el perFrame espera al final:
+      // Interception: the original bytecode in state_XMIT_SI() does
+      // dAssert(false) at line 810, which kills the Main thread.
+      // The real 2004 client did get past that checkpoint; so we
+      // simulate the continuation that perFrame expects at the end:
       // _galaxy.addPendingServer(this); _state.setState(8);
       try {
          if (this._galaxy != null) {
@@ -53,7 +52,7 @@ public final class MinimalServerHandler extends WorldServer {
    protected void perFrame(int var1) {
       int st = this._state.getState();
       if (st == 8) {
-         // Estado 8: inicialización completada, cerrar limpio.
+         // State 8: initialization complete, close cleanly.
          Main.end();
          try {
             if (this._sock != null) {
@@ -61,7 +60,7 @@ public final class MinimalServerHandler extends WorldServer {
             }
          } catch (Exception ignored) {
          }
-         System.out.println("MinimalServerHandler: estado 8 alcanzado, main loop terminando");
+         System.out.println("MinimalServerHandler: state 8 reached, main loop ending");
          System.exit(0);
       }
       super.perFrame(var1);
@@ -81,11 +80,11 @@ public final class MinimalServerHandler extends WorldServer {
          }
       }
       if (handler.sock == null) {
-         System.out.println("NO SOCKET: handler no recibió callback");
+         System.out.println("NO SOCKET: handler got no callback");
          System.exit(1);
       }
       System.out.println("CONNECTED to " + handler.connectedHost + " (handler state will advance to 8)");
-      // Esperar a que perFrame maneje el estado 8 y salga
+      // Wait for perFrame to handle state 8 and exit
       Thread.sleep(8000);
       System.out.println("Timeout: forcing exit 0");
       System.exit(0);

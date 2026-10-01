@@ -140,7 +140,7 @@ class Write1Bp(gdb.Breakpoint):
     # do "rol eax,8; mov [esi(+1)],al" - the real byte is pre-rotated into
     # AL before the store. DUAL (0x...ebb/ee5) has no such rotation - its
     # real instructions are "mov [esi],ah" / "mov [esi+1],ah" (confirmed by
-    # disassembly AND a live single-step trace, 2026-09-10, LINEA A
+    # disassembly AND a live single-step trace, 2026-09-10, LINE A
     # session). An earlier version of this script always read AL regardless
     # of address, which silently captured the WRONG byte for every DUAL
     # write - invisible against every file tested so far because none of

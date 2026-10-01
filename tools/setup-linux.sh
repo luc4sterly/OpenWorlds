@@ -1,20 +1,19 @@
 #!/usr/bin/env bash
-# setup-linux.sh — deja una maquina Linux (o el contenedor de Claude Code en
-# la web, via .claude/hooks/session-start.sh) lista para desarrollar
-# OpenWorlds. Idempotente, se puede correr las veces que haga falta:
+# setup-linux.sh — gets a Linux machine (or the Claude Code on the web
+# container, via .claude/hooks/session-start.sh) ready to develop
+# OpenWorlds. Idempotent, can be run as many times as needed:
 #
-#   1. Paquetes del sistema (apt, si hay permisos): xvfb (cliente original y
-#      checks AWT sin pantalla), patch (build_gamma.sh), zip (paquete portable),
-#      fonts-liberation (metricas de Arial, las fuentes del cliente de 2004:
-#      NativeUiFonts) y, para capturar pantallas en pruebas, xdotool,
-#      imagemagick y x11-apps.
-#   2. JDK 17 o mas nuevo: el del sistema; si no hay, un Temurin 21 portable
-#      en tools/jdk (verificado por SHA-256, como setup-macos.sh).
-#   3. Compila los lectores de formats/ y el puente (editor/.build-gamma),
-#      para que tools/run-checks.sh y tools/verify-corpus.sh arranquen en
-#      caliente.
+#   1. System packages (apt, if permitted): xvfb (original client and AWT
+#      checks without a display), patch (build_gamma.sh), zip (portable
+#      package), fonts-liberation (Arial metrics, the 2004 client's fonts:
+#      NativeUiFonts) and, for screenshots in tests, xdotool, imagemagick
+#      and x11-apps.
+#   2. JDK 17 or newer: the system one; if there is none, a portable
+#      Temurin 21 in tools/jdk (checked by SHA-256, like setup-macos.sh).
+#   3. Builds the formats/ readers and the bridge (editor/.build-gamma), so
+#      that tools/run-checks.sh and tools/verify-corpus.sh start warm.
 #
-# Uso: tools/setup-linux.sh [--quiet] [--no-build]
+# Usage: tools/setup-linux.sh [--quiet] [--no-build]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
@@ -25,13 +24,13 @@ for a in "$@"; do
    case "$a" in
       --quiet) QUIET=1;;
       --no-build) BUILD=0;;
-      *) echo "[setup] argumento desconocido: $a"; exit 2;;
+      *) echo "[setup] unknown argument: $a"; exit 2;;
    esac
 done
 say() { echo "[setup] $*"; }
 run() { if [ "$QUIET" = 1 ]; then "$@" >/dev/null 2>&1; else "$@"; fi; }
 
-# --- 1. paquetes del sistema ---
+# --- 1. system packages ---
 PKGS="xvfb patch zip unzip fonts-liberation xdotool imagemagick x11-apps"
 if command -v dpkg >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
    NEED=""
@@ -44,20 +43,20 @@ if command -v dpkg >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
          if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then SUDO="sudo -n"; else SUDO="none"; fi
       fi
       if [ "$SUDO" = "none" ]; then
-         say "AVISO: faltan paquetes y no hay permisos para instalarlos:$NEED"
+         say "WARNING: missing packages and no permission to install them:$NEED"
       else
-         say "instalando:$NEED"
+         say "installing:$NEED"
          run $SUDO apt-get update -q || true
          DEBIAN_FRONTEND=noninteractive run $SUDO apt-get install -y -q $NEED \
-            || say "AVISO: apt-get no pudo instalar:$NEED"
+            || say "WARNING: apt-get could not install:$NEED"
       fi
    fi
 else
-   say "sin apt: instala a mano los equivalentes de: $PKGS"
+   say "no apt: install the equivalents of these by hand: $PKGS"
 fi
 
 # --- 2. JDK 17+ ---
-jdk_ok() { # jdk_ok <dir con bin/javac>
+jdk_ok() { # jdk_ok <dir with bin/javac>
    [ -x "$1/bin/javac" ] || return 1
    local v
    v="$("$1/bin/java" -XshowSettings:properties -version 2>&1 | sed -n 's/^ *java.specification.version = //p')"
@@ -74,15 +73,15 @@ else
    case "$(uname -m)" in
       x86_64) ARCH=x64;;
       aarch64|arm64) ARCH=aarch64;;
-      *) say "arquitectura sin JDK portable: $(uname -m)"; exit 2;;
+      *) say "no portable JDK for this architecture: $(uname -m)"; exit 2;;
    esac
-   say "descargando un JDK 21 (Temurin) portable en tools/jdk..."
+   say "downloading a portable JDK 21 (Temurin) into tools/jdk..."
    META="$(curl -fsSL "https://api.adoptium.net/v3/assets/latest/21/hotspot?architecture=$ARCH&image_type=jdk&os=linux&vendor=eclipse" \
       | python3 -c 'import json,sys; p=json.load(sys.stdin)[0]["binary"]["package"]; print(p["link"], p["checksum"], p["name"])')"
    read -r URL SUM NAME <<<"$META"
    TMP="$(mktemp -d)"
    curl -fsSL -o "$TMP/$NAME" "$URL"
-   echo "$SUM  $TMP/$NAME" | sha256sum -c - >/dev/null || { say "SHA-256 del JDK no coincide"; exit 3; }
+   echo "$SUM  $TMP/$NAME" | sha256sum -c - >/dev/null || { say "JDK SHA-256 does not match"; exit 3; }
    mkdir -p "$TMP/x"
    tar -xzf "$TMP/$NAME" -C "$TMP/x"
    rm -rf "$ROOT/tools/jdk"
@@ -94,15 +93,15 @@ export JAVA_HOME="$JDK"
 export PATH="$JDK/bin:$PATH"
 say "JDK: $("$JDK/bin/java" -version 2>&1 | grep -v JAVA_TOOL | head -n 1)"
 
-# --- 3. compilar ---
+# --- 3. build ---
 if [ "$BUILD" = 1 ]; then
    mkdir -p "$ROOT/formats/out"
    find "$ROOT/formats/src" -name '*.java' > "$ROOT/formats/out/.sources"
    "$JDK/bin/javac" -nowarn -encoding UTF-8 -d "$ROOT/formats/out" @"$ROOT/formats/out/.sources" 2>&1 \
       | grep -v '^Picked up JAVA_TOOL_OPTIONS' || true
    rm -f "$ROOT/formats/out/.sources"
-   [ -f "$ROOT/formats/out/net/openworlds/cmp/CmpFrames.class" ] || { say "ERROR: formats/ no compila"; exit 3; }
-   run bash "$ROOT/editor/worldsplayer_source_editor-main/build_gamma.sh" || { say "ERROR: el puente no compila (editor/.build-gamma/javac.log)"; exit 3; }
-   say "formats/out y editor/.build-gamma/out compilados"
+   [ -f "$ROOT/formats/out/net/openworlds/cmp/CmpFrames.class" ] || { say "ERROR: formats/ does not compile"; exit 3; }
+   run bash "$ROOT/editor/worldsplayer_source_editor-main/build_gamma.sh" || { say "ERROR: the bridge does not compile (editor/.build-gamma/javac.log)"; exit 3; }
+   say "formats/out and editor/.build-gamma/out built"
 fi
-say "listo: tools/run-checks.sh, tools/verify-corpus.sh, tools/build-dist.sh"
+say "ready: tools/run-checks.sh, tools/verify-corpus.sh, tools/build-dist.sh"

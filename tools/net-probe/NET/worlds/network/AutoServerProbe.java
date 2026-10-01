@@ -4,31 +4,31 @@ import NET.worlds.core.Std;
 import java.net.Socket;
 
 /**
- * Sonda de handshake — FASE 3: usa la clase REAL que el cliente
- * instancia de verdad (AutoServer), no WorldServer a pelo.
+ * Handshake probe — PHASE 3: uses the REAL class the client actually
+ * instantiates (AutoServer), not a bare WorldServer.
  *
- * Investigación de la paradoja "estado 7 mata al Main loop": WorldServer
- * es efectivamente abstracta (state_XMIT_SI/state_XMIT_AI son
- * Debug.dAssert(false) — el patrón de "abstracto por assert" de este
- * código de los 90). El cliente real NUNCA instancia WorldServer a
- * pelo: ServerURL(String) pone _serverType = "AutoServer" por defecto
- * (ver el constructor, cuando la URL no trae un segmento de tipo
- * explícito) y ServerTracker.findOrMake hace
- * Class.forName("NET.worlds.network." + type).newInstance() — para una
- * conexión normal a un host:puerto, eso es SIEMPRE AutoServer.
+ * Investigation of the "state 7 kills the Main loop" paradox: WorldServer
+ * is effectively abstract (state_XMIT_SI/state_XMIT_AI are
+ * Debug.dAssert(false) — the "abstract by assert" pattern of this 90s
+ * code). The real client NEVER instantiates a bare WorldServer:
+ * ServerURL(String) sets _serverType = "AutoServer" by default (see the
+ * constructor, when the URL carries no explicit type segment) and
+ * ServerTracker.findOrMake does
+ * Class.forName("NET.worlds.network." + type).newInstance() — for a normal
+ * connection to a host:port, that is ALWAYS AutoServer.
  *
- * AutoServer.state_XMIT_SI() SÍ tiene lógica real: lee la propiedad #15
- * (ya presente en el PROPUPD real capturado de worlds.worlio.com,
- * docs/net-handshake-trace.log: "#15 [DBSTORE /POSSESS] 1"),
- * detecta el tipo de servidor, instancia la subclase concreta
- * correspondiente (tipo 1 -> UserServer), le transfiere la conexión
- * viva (reuseConnection) y la re-alimenta con las mismas props
- * (propertyUpdate) — y SOLO ENTONCES pone su propio estado a 17
- * (terminado, ya se especializó). Nunca toca el dAssert.
+ * AutoServer.state_XMIT_SI() DOES have real logic: it reads property #15
+ * (already present in the real PROPUPD captured from worlds.worlio.com,
+ * docs/net-handshake-trace.log: "#15 [DBSTORE /POSSESS] 1"), detects the
+ * server type, instantiates the matching concrete subclass (type 1 ->
+ * UserServer), hands it the live connection (reuseConnection) and feeds
+ * it the same props again (propertyUpdate) — and ONLY THEN sets its own
+ * state to 17 (finished, it has specialized). It never touches the
+ * dAssert.
  *
- * Este probe prueba esa cadena completa contra el servidor real.
+ * This probe tests that whole chain against the real server.
  *
- * Uso: java -cp <out> AutoServerProbe [host] [port]
+ * Usage: java -cp <out> AutoServerProbe [host] [port]
  */
 public final class AutoServerProbe extends AutoServer {
    private String connectedHost;
@@ -53,10 +53,10 @@ public final class AutoServerProbe extends AutoServer {
       NET.worlds.core.Std.initProductName();
 
       AutoServerProbe probe = new AutoServerProbe();
-      // Misma URL "host:port" sin segmento de tipo que usaría el
-      // cliente real para una conexión normal -> ServerURL._serverType
-      // por defecto es literalmente "AutoServer" (verificado leyendo
-      // ServerURL.java directamente, no supuesto).
+      // The same "host:port" URL with no type segment that the real
+      // client would use for a normal connection -> ServerURL._serverType
+      // defaults to literally "AutoServer" (verified by reading
+      // ServerURL.java directly, not assumed).
       ServerURL surl = new ServerURL("worldserver://" + host + ":" + port);
       probe.initInstance(Galaxy.getGalaxy("worldserver://" + host + ":" + port), surl);
       probe.state_Initializing();

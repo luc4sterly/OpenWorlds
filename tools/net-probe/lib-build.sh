@@ -1,15 +1,17 @@
-# Funciones comunes (bash 3.2) para run-guest-login.sh y run-gamma-mock.sh.
-# Se incluye con `. lib-build.sh`; espera HERE = carpeta tools/net-probe.
+# Shared functions (bash 3.2) for run-guest-login.sh and run-gamma-mock.sh.
+# Included with `. lib-build.sh`; expects HERE = the tools/net-probe folder.
 #
-# Construye el cliente mockeado + sondas en $WORK, FUERA del repo: apply_mock.sh
-# reescribe source/ EN EL SITIO y el cliente escribe logs/caches en su CWD, asi
-# que nada del repo (source/ pristino, assets/WorldsPlayer) se toca nunca.
+# Builds the mocked client + probes in $WORK, OUTSIDE the repo: apply_mock.sh
+# rewrites source/ IN PLACE and the client writes logs/caches into its CWD,
+# so nothing in the repo (pristine source/, assets/WorldsPlayer) is ever
+# touched.
 #
-# Variables de entorno:
-#   FW_NET_WORK  directorio de trabajo (defecto: mktemp -d). Si ya contiene un
-#                build completo se reutiliza (borralo para reconstruir).
-#   JDK_BIN      carpeta con java/javac/jstack (defecto: tools/jdk del repo o,
-#                dentro de un git worktree, del checkout principal: es gitignored).
+# Environment variables:
+#   FW_NET_WORK  working directory (default: mktemp -d). If it already holds a
+#                complete build, it is reused (delete it to rebuild).
+#   JDK_BIN      folder with java/javac/jstack (default: the repo's tools/jdk
+#                or, inside a git worktree, the main checkout's: it is
+#                gitignored).
 
 REPO="$(cd "$HERE/../.." && pwd)"
 EDITOR_REL=editor/worldsplayer_source_editor-main
@@ -31,11 +33,11 @@ find_jdk() {
     fi
   fi
   if [ -z "${JDK_BIN:-}" ]; then
-    # Ultimo recurso: PATH (en macOS /usr/bin/java es un stub; se comprueba).
+    # Last resort: PATH (on macOS /usr/bin/java is a stub; it is checked).
     if javac -version >/dev/null 2>&1; then JDK_BIN="$(dirname "$(command -v javac)")"; fi
   fi
   if [ -z "${JDK_BIN:-}" ]; then
-    echo "ERROR: no encuentro un JDK (tools/jdk o JDK_BIN=...)" >&2
+    echo "ERROR: cannot find a JDK (tools/jdk or JDK_BIN=...)" >&2
     exit 2
   fi
   JAVA="$JDK_BIN/java"
@@ -57,11 +59,11 @@ init_work() {
 build_mock() {
   if [ -f "$WORK/out/NET/worlds/console/Gamma.class" ] \
      && [ -f "$WORK/probeout/NET/worlds/network/GuestLoginProbe.class" ]; then
-    echo "build: reutilizando $WORK/out y $WORK/probeout"
+    echo "build: reusing $WORK/out and $WORK/probeout"
     return 0
   fi
   rm -rf "$WORK/copy" "$WORK/out" "$WORK/probeout"
-  # apply_mock.sh usa ROOT=../.. -> replicar editor/, tools/, docs/.
+  # apply_mock.sh uses ROOT=../.. -> replicate editor/, tools/, docs/.
   mkdir -p "$WORK/copy/$EDITOR_REL" "$WORK/copy/tools" "$WORK/copy/docs"
   cp -R "$REPO/$EDITOR_REL/source" "$WORK/copy/$EDITOR_REL/source"
   cp "$REPO/$EDITOR_REL/apply_mock.sh" "$WORK/copy/$EDITOR_REL/"
@@ -70,20 +72,20 @@ build_mock() {
   echo "build: apply_mock.sh (log: $WORK/apply_mock.log)"
   bash "$WORK/copy/$EDITOR_REL/apply_mock.sh" >"$WORK/apply_mock.log" 2>&1
 
-  echo "build: javac --release 8 cliente mockeado (log: $WORK/compile_mock.log)"
+  echo "build: javac --release 8 mocked client (log: $WORK/compile_mock.log)"
   (cd "$WORK/copy/$EDITOR_REL" && find source -name '*.java' >"$WORK/sources.txt")
   mkdir -p "$WORK/out"
   (cd "$WORK/copy/$EDITOR_REL" && "$JAVAC" --release 8 -encoding UTF-8 -nowarn \
      -d "$WORK/out" @"$WORK/sources.txt") >"$WORK/compile_mock.log" 2>&1
-  echo "build: $(find "$WORK/out" -name '*.class' | wc -l | tr -d ' ') clases"
+  echo "build: $(find "$WORK/out" -name '*.class' | wc -l | tr -d ' ') classes"
 
-  echo "build: sondas (log: $WORK/compile_probes.log)"
+  echo "build: probes (log: $WORK/compile_probes.log)"
   mkdir -p "$WORK/probeout"
   "$JAVAC" --release 8 -encoding UTF-8 -nowarn -cp "$WORK/out" -d "$WORK/probeout" \
      "$HERE"/NET/worlds/network/*.java "$HERE/NetProbe.java" >"$WORK/compile_probes.log" 2>&1
 }
 
-# copy_install <destino>: copia fresca de assets/WorldsPlayer (CWD del cliente).
+# copy_install <dest>: fresh copy of assets/WorldsPlayer (the client's CWD).
 copy_install() {
   rm -rf "$1"
   mkdir -p "$(dirname "$1")"

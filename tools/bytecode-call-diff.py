@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Compara, metodo a metodo, los destinos de invoke* entre el bytecode
-original (lib/gammacls.zip) y el recompilado desde el Java decompilado.
+"""Compares, method by method, the invoke* targets between the original
+bytecode (lib/gammacls.zip) and the one recompiled from the decompiled Java.
 
-Detecta errores de decompilacion que compilan pero llaman a OTRO metodo
-(p. ej. una sobrecarga distinta), que es justo lo que un test de
-compilacion no ve. Normaliza diferencias inocuas del compilador moderno
-(StringBuffer->StringBuilder, Debug.assert->assert_, accesores sinteticos).
+It catches decompilation errors that compile but call ANOTHER method (e.g.
+a different overload), which is exactly what a compilation test cannot
+see. It normalizes harmless differences from the modern compiler
+(StringBuffer->StringBuilder, Debug.assert->assert_, synthetic accessors).
 
-Uso:
-  javap -c -p -classpath ORIG  <clases> > orig.javap
-  javap -c -p -classpath NUEVO <clases> > new.javap
+Usage:
+  javap -c -p -classpath ORIG <classes> > orig.javap
+  javap -c -p -classpath NEW  <classes> > new.javap
   tools/bytecode-call-diff.py orig.javap new.javap
-Las diferencias que quedan hay que revisarlas a mano: la mayoria son
-receptores mas estrechos, cierres de try-with-resources o la propia capa
-de mocks; las que cambian de sobrecarga son errores reales.
+The differences that remain have to be reviewed by hand: most are narrower
+receivers, try-with-resources closes or the mock layer itself; the ones
+that switch overloads are real errors.
 """
 import collections
 import re
@@ -51,9 +51,9 @@ def main():
             if oc != nc:
                 count += 1
                 print(c, "|", mth)
-                print("   solo original:", dict(oc - nc))
-                print("   solo nuevo   :", dict(nc - oc))
-    print(count, "metodos con diferencias", file=sys.stderr)
+                print("   original only:", dict(oc - nc))
+                print("   new only     :", dict(nc - oc))
+    print(count, "methods with differences", file=sys.stderr)
 
 
 if __name__ == "__main__":

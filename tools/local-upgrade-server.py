@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""Servidor local de actualizaciones para el cliente original (diagnostico).
+"""Local upgrade server for the original client (diagnostics).
 
-El cliente original construye las URL de avatares, scripts de mundo, tablas,
-paquetes de mundo, etc. a partir de `upgradeServer` en worlds.ini
-(http://us1.worlds.net/3DCDup). Este servidor sirve ficheros de una carpeta
-raiz (por defecto assets/WorldsPlayer) bajo /3DCDup/ y responde 404 al
-instante a lo que no existe, en vez de esperar a un host muerto. Ademas sirve
-bajo /3DCDup/avatar/ los avatares base oficiales de
-assets/gammatutorial-samples/base-avatars (AVATARS.ZIP del instalador 2002),
-buscando sin distinguir mayusculas (el cliente pide pengo.mov y el fichero es
-PENGO.mov, como en Windows).
+The original client builds the URLs of avatars, world scripts, tables,
+world packages, etc. from `upgradeServer` in worlds.ini
+(http://us1.worlds.net/3DCDup). This server serves files from a root folder
+(assets/WorldsPlayer by default) under /3DCDup/ and answers 404 at once for
+whatever does not exist, instead of waiting on a dead host. It also serves
+under /3DCDup/avatar/ the official base avatars from
+assets/gammatutorial-samples/base-avatars (AVATARS.ZIP from the 2002
+installer), looking them up case-insensitively (the client asks for
+pengo.mov and the file is PENGO.mov, as on Windows).
 
-Con --mirror URL, lo que no hay en local se pide a ese espejo y se guarda en
---cache (us1.worlds.net vuelve a responder: es el espejo de LibreWorlds, con
-los paquetes de mundo y el vestuario de avatares). Es la version Python de
-UpgradeServer del lanzador; run_gamma.sh la usa.
+With --mirror URL, whatever is not available locally is requested from that
+mirror and stored in --cache (us1.worlds.net answers again: it is the
+LibreWorlds mirror, with the world packages and the avatar wardrobe). This is
+the Python version of the launcher's UpgradeServer; run_gamma.sh uses it.
 
-Uso: tools/local-upgrade-server.py [--port N] [--root DIR] [--mirror URL [--cache DIR]]
-     (--port 0 elige uno libre; imprime "PORT=<n>" en la primera linea)
+Usage: tools/local-upgrade-server.py [--port N] [--root DIR] [--mirror URL [--cache DIR]]
+       (--port 0 picks a free one; prints "PORT=<n>" on the first line)
 """
 import argparse
 import functools
@@ -35,7 +35,7 @@ AVATAR_PREFIX = PREFIX + "avatar/"
 
 
 def find_nocase(directory, name):
-    """Fichero de `directory` cuyo nombre coincide con `name` sin mayusculas."""
+    """File in `directory` whose name matches `name`, ignoring case."""
     if "/" in name or "\\" in name or name in ("", ".", ".."):
         return None
     want = name.lower()
@@ -49,7 +49,7 @@ def find_nocase(directory, name):
 
 
 class Mirror:
-    """Lo que falta en local, pedido al espejo y guardado en cache (como UpgradeServer)."""
+    """Whatever is missing locally, requested from the mirror and cached (like UpgradeServer)."""
 
     def __init__(self, url, cache):
         self.url = url.rstrip("/") + "/"
@@ -71,13 +71,13 @@ class Mirror:
             if os.path.isfile(dest):
                 return dest
             req = urllib.request.Request(self.url + urllib.parse.quote(rel),
-                                         headers={"User-Agent": "OpenWorlds-diagnostico"})
+                                         headers={"User-Agent": "OpenWorlds-diagnostic"})
             try:
                 with urllib.request.urlopen(req, timeout=30) as r:
                     data = r.read()
             except (urllib.error.URLError, OSError) as e:
                 code = getattr(e, "code", e)
-                sys.stderr.write("[upgrade-server] espejo %s %s\n" % (code, rel))
+                sys.stderr.write("[upgrade-server] mirror %s %s\n" % (code, rel))
                 with self.guard:
                     self.missing.add(rel)
                 return None
@@ -85,7 +85,7 @@ class Mirror:
             with open(dest + ".part", "wb") as f:
                 f.write(data)
             os.replace(dest + ".part", dest)
-            sys.stderr.write("[upgrade-server] espejo: %s (%d bytes)\n" % (rel, len(data)))
+            sys.stderr.write("[upgrade-server] mirror: %s (%d bytes)\n" % (rel, len(data)))
             return dest
 
 
@@ -95,8 +95,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def translate_path(self, path):
         path = urllib.parse.unquote(path.split("?", 1)[0].split("#", 1)[0])
-        # una ruta que no existe: send_head responde 404 (un nombre con NUL
-        # hacia que open() lanzara ValueError y la respuesta saliera vacia)
+        # a path that does not exist: send_head answers 404 (a name with a NUL
+        # made open() raise ValueError and the response came out empty)
         missing = os.path.join(self.directory, ".no-such-dir", "none")
         if not path.startswith(PREFIX):
             return missing
@@ -125,7 +125,7 @@ def main():
     ap.add_argument("--port", type=int, default=0)
     ap.add_argument("--root", default=os.path.join(here, "..", "assets", "WorldsPlayer"))
     ap.add_argument("--avatars", default=os.path.join(here, "..", "assets", "gammatutorial-samples", "base-avatars"))
-    ap.add_argument("--mirror", default=None, help="espejo para lo que falte (p. ej. http://us1.worlds.net/3DCDup)")
+    ap.add_argument("--mirror", default=None, help="mirror for whatever is missing (e.g. http://us1.worlds.net/3DCDup)")
     ap.add_argument("--cache", default=os.path.join(here, "..", "build", "mirror-cache"))
     a = ap.parse_args()
     Handler.avatar_dir = os.path.abspath(a.avatars) if os.path.isdir(a.avatars) else None

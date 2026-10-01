@@ -26,12 +26,12 @@ editor/worldsplayer_source_editor-main/out/
 # Git worktrees that the Claude Code harness creates for background agents
 /.claude/worktrees/
 
-# build de los lectores de formats/ (tools/setup-linux.sh, setup-macos.sh)
+# Build output of the formats/ readers (tools/setup-linux.sh, setup-macos.sh)
 /formats/out/
 
-# Restos locales del motor nuevo, quitado el 2026-09-26 (LWJGL, node y el
-# arnes RWX, su build y sus registros): se siguen ignorando para que un
-# checkout que aun los tenga no los suba por error.
+# Local leftovers of the new engine, removed on 2026-09-26 (LWJGL, node and
+# the RWX harness, its build and its logs): still ignored so that a checkout
+# that still has them doesn't commit them by mistake.
 /tools/lwjgl/
 /tools/node/
 /tools/node-macos/
@@ -59,14 +59,14 @@ GammaDocs.zip
 # assets used as verified test corpus, see docs/rwg-bod-format-reference.md)
 # stays versioned; only this bookkeeping is excluded.
 assets/WorldsPlayer/cachedir/*.LOG
-# cache.index NO se ignora: sin el, el cliente original no encuentra los
-# avatares cacheados (ver CLAUDE.md, "Abierto ahora mismo" 0)
+# cache.index is NOT ignored: without it the original client can't find the
+# cached avatars (see CLAUDE.md, open item 0)
 assets/WorldsPlayer/cachedir/*.lst
 
 __pycache__/
 *.pyc
 
-# macOS (Finder + Xcode + ARM/x86 universal noise) — nada de esto se versiona
+# macOS (Finder + Xcode + ARM/x86 universal noise) — none of this is versioned
 .DS_Store
 **/.DS_Store
 .AppleDouble
@@ -78,8 +78,8 @@ Icon?
 *.dmg
 *.pkg
 
-# build del cliente original con puente portable (build_gamma.sh)
+# Build of the original client with the portable bridge (build_gamma.sh)
 editor/.build-gamma/
 
-# build/dist + app nativa de tools/build-dist.sh (y sus clases)
+# build/dist + the native app from tools/build-dist.sh (and its classes)
 /build/
