@@ -80,8 +80,9 @@ Java 17+ on macOS / Linux / Windows (AWT window, javax.sound...)
   the evidence each translation is checked against.
 - `formats/` — readers for the game's own formats (`.bod`, `.seq`, `.rwg`,
   `.cmp`/`.mov`), verified against the whole surviving corpus.
-- `launcher/`, `server/`, `injector/`, `ui/` — the launcher, J Solar
-  Server, J Worlds Injector and their shared look.
+- `launcher/`, `server/`, `injector/`, `ui/` — the launcher,
+  [J Solar Server](server/README.md), [J Worlds Injector](injector/README.md)
+  and their shared look.
 - `docs/` — a reference per file format, the network protocol as the
   client needs it ([`net-local-server.md`](docs/net-local-server.md)),
   everything tested in the game ([`game-tests.md`](docs/game-tests.md)),
@@ -113,7 +114,8 @@ A patch is a folder with a `patch.properties` (`name`, `description`,
 the bridge builds it (`editor/.build-gamma/source/` after `build_gamma.sh`,
 or `lib/worldsplayer-src.zip` in a package). Put it in the `patches`
 folder of the launcher's data folder and it shows up in the Patches
-window. Examples: [`injector/patches/`](injector/patches).
+window. Details and examples: [`injector/README.md`](injector/README.md),
+[`injector/patches/`](injector/patches).
 
 ## Thanks
 
