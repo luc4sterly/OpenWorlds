@@ -45,10 +45,11 @@ java -cp ".:/tmp/netprobe:../../editor/worldsplayer_source_editor-main/out" NetP
 
 ## Next step (not done)
 
-Speak the protocol for real against that server (or against a local `whirl` —
-it requires the `nightly-2024-06-03` toolchain, not installed; only stable is there)
-using the real `WorldServer`/`WSConnecting`. That requires instantiating
-`WorldServer` (coupled to console/galaxy), not a bare socket.
+Speak the protocol for real against that server (or against a local server —
+at the time whirl, which needed the `nightly-2024-06-03` toolchain; today
+J Solar Server, `docs/net-local-server.md`) using the real
+`WorldServer`/`WSConnecting`. That requires instantiating `WorldServer`
+(coupled to console/galaxy), not a bare socket.
 
 ## Real handshake (2026-09-10, `NET/worlds/network/HandshakeProbe.java`)
 
