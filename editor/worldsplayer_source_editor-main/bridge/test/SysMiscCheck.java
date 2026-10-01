@@ -31,11 +31,11 @@ public final class SysMiscCheck {
       PrintStream err = System.err;
       ByteArrayOutputStream buf = new ByteArrayOutputStream();
       System.setErr(new PrintStream(buf, true));
-      boolean ok = NativeSysProcess.createProcSpecial(".\\no\\existe", "updates.lst");
+      boolean ok = NativeSysProcess.createProcSpecial(".\\nonexistent", "updates.lst");
       System.setErr(err);
       String log = buf.toString();
       check("fails -> false", !ok);
-      String want = "Internal error - can't execute \".\\no\\existe updates.lst " + NativeSysProcess.pid() + "\"\n";
+      String want = "Internal error - can't execute \".\\nonexistent updates.lst " + NativeSysProcess.pid() + "\"\n";
       check("literal message: " + log, log.startsWith(want) && log.length() > want.length() + 1);
 
       // makeArray = NewObjectArray: a Persister[] saved and restored

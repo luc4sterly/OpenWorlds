@@ -84,15 +84,15 @@ public final class NativeTextures {
 
    /** Inventory of what was decoded, for the texture audit. */
    public static synchronized void dumpInventory() {
-      System.err.println("[RW] texturas en el diccionario: " + dict.size());
+      System.err.println("[RW] textures in the dictionary: " + dict.size());
       int stretched = 0;
       for (Map.Entry<String, String> e : source.entrySet()) {
          if (!"128x128".equals(e.getValue())) {
             stretched++;
-            System.err.println("[RW]   " + e.getKey() + " origen " + e.getValue() + " -> reescalada a 128x128");
+            System.err.println("[RW]   " + e.getKey() + " source " + e.getValue() + " -> stretched to 128x128");
          }
       }
-      System.err.println("[RW] texturas con tamaño distinto de 128x128: " + stretched + " de " + source.size());
+      System.err.println("[RW] textures with a size other than 128x128: " + stretched + " of " + source.size());
    }
 
    public static Texture texture(int h) {

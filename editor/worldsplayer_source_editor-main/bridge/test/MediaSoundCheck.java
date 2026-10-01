@@ -64,7 +64,7 @@ public class MediaSoundCheck {
 
       File dir = new File(System.getProperty("java.io.tmpdir"), "media-check-" + System.nanoTime());
       dir.mkdirs();
-      File w = wav(dir, "tono.wav", 2400); // 2400 / 8000 = 0.30 s
+      File w = wav(dir, "tone.wav", 2400); // 2400 / 8000 = 0.30 s
       String wp = w.getPath();
 
       // --- synchronous PlaySound ---
@@ -76,24 +76,24 @@ public class MediaSoundCheck {
       check(!NativeMediaSound.playSoundActive(), "after the synchronous one nothing is left playing");
 
       t0 = System.nanoTime();
-      check(!NativeMediaSound.playSound(new File(dir, "noexiste.wav").getPath(), false), "missing file -> false (SND_NODEFAULT)");
+      check(!NativeMediaSound.playSound(new File(dir, "missing.wav").getPath(), false), "missing file -> false (SND_NODEFAULT)");
       check((System.nanoTime() - t0) / 1.0E9 < 0.2, "missing file returns instantly");
 
       // --- loop + SND_PURGE ---
       check(NativeMediaSound.playSound(wp, true), "looping PlaySound returns true");
       Thread.sleep(700L); // more than two laps of 0.30 s
       check(NativeMediaSound.playSoundActive(), "the loop continues after 0.70 s");
-      NativeMediaSound.purgeSound(new File(dir, "otro.wav").getPath());
+      NativeMediaSound.purgeSound(new File(dir, "other.wav").getPath());
       check(NativeMediaSound.playSoundActive(), "SND_PURGE of another name does not stop it");
       NativeMediaSound.purgeSound(wp.toUpperCase());
       check(!NativeMediaSound.playSoundActive(), "SND_PURGE of the same name (other case) stops it");
 
       // --- a new PlaySound cuts off another thread's synchronous one ---
-      File largo = wav(dir, "largo.wav", 16000); // 2.0 s
+      File longWav = wav(dir, "long.wav", 16000); // 2.0 s
       final double[] syncEl = new double[1];
       Thread th = new Thread(() -> {
          long s = System.nanoTime();
-         NativeMediaSound.playSound(largo.getPath(), false);
+         NativeMediaSound.playSound(longWav.getPath(), false);
          syncEl[0] = (System.nanoTime() - s) / 1.0E9;
       });
       th.start();
@@ -118,7 +118,7 @@ public class MediaSoundCheck {
       Thread.sleep(600L);
       check(NativeMediaSound.mciIsFinished(b), "after 0.30 s the mode is STOP -> closes and true");
       check(!NativeMediaSound.mciIsActive(), "after closing, inactive");
-      check(!NativeMediaSound.mciStart(a, new File(dir, "noexiste.wav").getPath()), "MCI with a missing file -> false");
+      check(!NativeMediaSound.mciStart(a, new File(dir, "missing.wav").getPath()), "MCI with a missing file -> false");
       check(!NativeMediaSound.mciIsActive(), "a failed MCI leaves no owner");
 
       // --- MCI sequencer (.MID in uppercase: FUN_004508c0 is case-insensitive) ---
@@ -126,7 +126,7 @@ public class MediaSoundCheck {
       Track tr = seq.createTrack();
       tr.add(new MidiEvent(new ShortMessage(ShortMessage.NOTE_ON, 0, 60, 90), 0L));
       tr.add(new MidiEvent(new ShortMessage(ShortMessage.NOTE_OFF, 0, 60, 0), 480L)); // 1 quarter note at 120 bpm = 0.5 s
-      File mid = new File(dir, "nota.MID");
+      File mid = new File(dir, "note.MID");
       MidiSystem.write(seq, 0, mid);
       check(NativeMediaSound.mciStart(a, mid.getPath()), "MCI sequencer opens a .MID");
       check(!NativeMediaSound.mciIsFinished(a), "MIDI playing at the start");

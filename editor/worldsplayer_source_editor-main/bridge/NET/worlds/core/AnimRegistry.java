@@ -77,7 +77,7 @@ public final class AnimRegistry {
       public final int line;
 
       ParseError(String msg, int line) {
-         super(msg + " (linea " + line + ")");
+         super(msg + " (line " + line + ")");
          this.line = line;
       }
    }
@@ -625,7 +625,7 @@ public final class AnimRegistry {
       }
 
       ParseError unexpected(int tok) {
-         return new ParseError("token inesperado 0x" + Integer.toHexString(tok) + " '" + this.text + "'", this.line);
+         return new ParseError("unexpected token 0x" + Integer.toHexString(tok) + " '" + this.text + "'", this.line);
       }
 
       /** The CRT's atoi (FUN_00454250): decimal digits. */

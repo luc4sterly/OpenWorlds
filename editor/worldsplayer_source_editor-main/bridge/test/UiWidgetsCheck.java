@@ -30,7 +30,7 @@ public class UiWidgetsCheck {
       check(arrow != 0 && arrow == (Integer) call("NativeUiCursor", "loadSystemCursor", S, "IDC_ARROW"), "IDC_ARROW: fixed handle other than 0");
       check((Integer) call("NativeUiCursor", "loadSystemCursor", S, "idc_arrow") == 0, "strcmp is case-sensitive -> 0");
       check((Integer) call("NativeUiCursor", "loadSystemCursor", S, "IDC_HAND") == 0, "IDC_HAND is not in the table of 12 -> 0");
-      check((Integer) call("NativeUiCursor", "loadCursor", S, (Object) null) == 0, "loadCursor(null) -> 0 (eax=0 en 0x40bd71)");
+      check((Integer) call("NativeUiCursor", "loadCursor", S, (Object) null) == 0, "loadCursor(null) -> 0 (eax=0 at 0x40bd71)");
       File cur = new File("assets/WorldsPlayer/DRAG.CUR");
       if (cur.exists()) {
          Object[] r = (Object[]) call("NativeUiCursor", "decodeCur", new Class<?>[]{byte[].class}, java.nio.file.Files.readAllBytes(cur.toPath()));
@@ -53,7 +53,7 @@ public class UiWidgetsCheck {
       check((Integer) call("NativeUiMenu", "checkPressed", new Class<?>[0]) == 150, "WM_COMMAND 150 -> checkPressed 150");
       check((Integer) call("NativeUiMenu", "checkPressed", new Class<?>[0]) == 0, "checkPressed sets DAT_0049ff2c to 0");
 
-      List<String> pats = (List<String>) call("NativeUiFileDialog", "patterns", S, "Worlds (*.world)|*.world|Todos|*.*");
+      List<String> pats = (List<String>) call("NativeUiFileDialog", "patterns", S, "Worlds (*.world)|*.world|All|*.*");
       check(pats.size() == 2 && pats.get(0).equals("*.world"), "filters: patterns at the odd positions");
       Class<?>[] SL = {String.class, List.class};
       check((Boolean) call("NativeUiFileDialog", "matches", SL, "Home.WORLD", pats.subList(0, 1)), "*.world accepts Home.WORLD");

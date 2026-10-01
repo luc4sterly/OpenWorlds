@@ -5,7 +5,7 @@ diff a/NET/worlds/console/IEWebControlImp.java b/NET/worlds/console/IEWebControl
     private int m_hwnd;
     private boolean detached;
  
-+   // 0x0043ce30: sin control IE (CoCreateInstance falla) -> nativeDestroy y false.
++   // 0x0043ce30: no IE control (CoCreateInstance fails) -> nativeDestroy and false.
     private boolean nativeInit(int var1, boolean var2) {
        NET.worlds.core.NativeMock.log("IEWebControlImp", "nativeInit", new Object[]{var1, var2});
 -      return true;
@@ -106,20 +106,20 @@ diff a/NET/worlds/console/WebBrowser.java b/NET/worlds/console/WebBrowser.java
        }
     }
  
-+   // 0x0040fee0: solo con nativeBrowserPointer != 0 (inalcanzable).
++   // 0x0040fee0: only with nativeBrowserPointer != 0 (unreachable).
     private static void browse(String var0, String var1, int var2, int var3, int var4, int var5, int var6) throws IOException {
        NET.worlds.core.NativeMock.log("WebBrowser", "browse", new Object[]{var0, var1, var2, var3, var4, var5, var6});
 +      throw NET.worlds.core.NativeMediaWeb.browserUnreachable("browse");
     }
  
-+   // 0x0040fd60: CoCreateInstance(CLSID_InternetExplorer) falla -> IOException("nWebBrowser").
++   // 0x0040fd60: CoCreateInstance(CLSID_InternetExplorer) fails -> IOException("nWebBrowser").
     private static int openBrowser() throws IOException {
        NET.worlds.core.NativeMock.log("WebBrowser", "openBrowser", new Object[0]);
 -      return 0;
 +      return NET.worlds.core.NativeMediaWeb.openBrowser();
     }
  
-+   // 0x0040fec0: solo con nativeBrowserPointer != 0 (inalcanzable).
++   // 0x0040fec0: only with nativeBrowserPointer != 0 (unreachable).
     private static void closeBrowser(int var0) {
        NET.worlds.core.NativeMock.log("WebBrowser", "closeBrowser", new Object[]{var0});
 +      throw NET.worlds.core.NativeMediaWeb.browserUnreachable("closeBrowser");
@@ -133,7 +133,7 @@ diff a/NET/worlds/network/DDEMLClass.java b/NET/worlds/network/DDEMLClass.java
        this.create(var1, var2);
     }
  
-+   // 0x00404320 -> FUN_00404140: sin DDEML no hay conversacion -> false.
++   // 0x00404320 -> FUN_00404140: without DDEML there is no conversation -> false.
     private boolean create(String var1, String var2) {
        NET.worlds.core.NativeMock.log("DDEMLClass", "create", new Object[]{var1, var2});
 -      return true;
@@ -144,14 +144,14 @@ diff a/NET/worlds/network/DDEMLClass.java b/NET/worlds/network/DDEMLClass.java
        NET.worlds.core.NativeMock.log("DDEMLClass", "destroy", new Object[0]);
     }
  
-+   // 0x00404490: sin conversacion (+0x10 == 0) -> false.
++   // 0x00404490: no conversation (+0x10 == 0) -> false.
     public boolean Request(String var1) {
        NET.worlds.core.NativeMock.log("DDEMLClass", "Request", new Object[]{var1});
 -      return true;
 +      return false;
     }
  
-+   // 0x00404530: sin conversacion (+0x10 == 0) -> false.
++   // 0x00404530: no conversation (+0x10 == 0) -> false.
     public boolean Poke(String var1, String var2) {
        NET.worlds.core.NativeMock.log("DDEMLClass", "Poke", new Object[]{var1, var2});
 -      return true;
@@ -166,8 +166,8 @@ diff a/NET/worlds/scape/ASFSoundPlayer.java b/NET/worlds/scape/ASFSoundPlayer.ja
        ASFThread.stopASF();
     }
  
-+   // 0x0041f670: disableASF -> true; si no, CreateProcess(bin\playfile.exe),
-+   // que aqui no existe -> false (ASFThread marca running = 3).
++   // 0x0041f670: disableASF -> true; otherwise CreateProcess(bin\playfile.exe),
++   // which does not exist here -> false (ASFThread sets running = 3).
     static boolean nativePlay(String var0) {
        NET.worlds.core.NativeMock.log("ASFSoundPlayer", "nativePlay", new Object[]{var0});
 -      return true;
@@ -264,8 +264,8 @@ diff a/NET/worlds/scape/DirectShow.java b/NET/worlds/scape/DirectShow.java
        NET.worlds.core.NativeMock.log("DirectShow", "nativeInit", new Object[0]);
     }
  
-+   // 0x0043f210: renderer de audio (hwnd 0) o DX8 -> DX7; sin DirectShow
-+   // se queda en estado 0 (NativeMediaVideo).
++   // 0x0043f210: audio renderer (hwnd 0) or DX8 -> DX7; without DirectShow
++   // it stays in state 0 (NativeMediaVideo).
     protected void nInit(int var1) {
        NET.worlds.core.NativeMock.log("DirectShow", "nInit", new Object[]{var1});
 +      this.mediaRendererInstancePtr = NET.worlds.core.NativeMediaVideo.nInit(var1);
@@ -307,7 +307,7 @@ diff a/NET/worlds/scape/DirectShow.java b/NET/worlds/scape/DirectShow.java
 +      NET.worlds.core.NativeMediaVideo.nRenderTo(this.mediaRendererInstancePtr, var1, var2);
     }
  
-+   // 0x0043f3f0: estado del renderer (0 sin DirectShow)
++   // 0x0043f3f0: state of the renderer (0 without DirectShow)
     public int nTick() {
        NET.worlds.core.NativeMock.log("DirectShow", "nTick", new Object[0]);
 -      return 0;
@@ -321,32 +321,32 @@ diff a/NET/worlds/scape/MCISoundPlayer.java b/NET/worlds/scape/MCISoundPlayer.ja
        var0.nativeVolume(var1, var2);
     }
  
-+   // 0x0041f780: cuerpo vacio en gamma.dll (el volumen MCI no se aplica).
++   // 0x0041f780: empty body in gamma.dll (the MCI volume is not applied).
     private void nativeVolume(float var1, float var2) {
        NET.worlds.core.NativeMock.log("MCISoundPlayer", "nativeVolume", new Object[]{var1, var2});
     }
  
-+   // 0x0041f890: MCI_OPEN "sequencer" (.mid) o "waveaudio" + MCI_PLAY.
++   // 0x0041f890: MCI_OPEN "sequencer" (.mid) or "waveaudio" + MCI_PLAY.
     private boolean nativeStart(String var1) {
        NET.worlds.core.NativeMock.log("MCISoundPlayer", "nativeStart", new Object[]{var1});
 -      return true;
 +      return NET.worlds.core.NativeMediaSound.mciStart(this, var1);
     }
  
-+   // 0x0041fe40: MCI_STATUS_MODE; STOP/OPEN -> cierra y true.
++   // 0x0041fe40: MCI_STATUS_MODE; STOP/OPEN -> closes and true.
     private boolean nativeIsFinished() {
        NET.worlds.core.NativeMock.log("MCISoundPlayer", "nativeIsFinished", new Object[0]);
 -      return true;
 +      return NET.worlds.core.NativeMediaSound.mciIsFinished(this);
     }
  
-+   // 0x0041fd20: MCI_CLOSE si este objeto es el dueno.
++   // 0x0041fd20: MCI_CLOSE if this object is the owner.
     private void nativeStop() {
        NET.worlds.core.NativeMock.log("MCISoundPlayer", "nativeStop", new Object[0]);
 +      NET.worlds.core.NativeMediaSound.mciStop(this);
     }
  
-+   // 0x0041fe30: hay dueno del dispositivo MCI.
++   // 0x0041fe30: the MCI device has an owner.
     public static boolean isActive() {
        NET.worlds.core.NativeMock.log("MCISoundPlayer", "isActive", new Object[0]);
 -      return true;
@@ -394,8 +394,8 @@ diff a/NET/worlds/scape/SendURLAction.java b/NET/worlds/scape/SendURLAction.java
        }
     }
  
-+   // 0x00413a10: ShellExecuteA("open", url) -> navegador del sistema solo con
-+   // -Dopenworlds.openUrls=1 y si la peticion vino del usuario (NativeMediaUrl).
++   // 0x00413a10: ShellExecuteA("open", url) -> the system browser, only with
++   // -Dopenworlds.openUrls=1 and if the request came from the user (NativeMediaUrl).
     private static boolean launchViaRegistry(String var0) {
        NET.worlds.core.NativeMock.log("SendURLAction", "launchViaRegistry", new Object[]{var0});
 -      return true;
@@ -447,13 +447,13 @@ diff a/NET/worlds/scape/WavSoundPlayer.java b/NET/worlds/scape/WavSoundPlayer.ja
     }
  
 +   // 0x00420190: PlaySoundA(playingSoundFile, NULL, (var1 ? SND_ASYNC|SND_LOOP : 0)
-+   // | SND_FILENAME|SND_NODEFAULT) salvo disableWav (NativeMediaSound).
++   // | SND_FILENAME|SND_NODEFAULT) unless disableWav (NativeMediaSound).
     private void nativePlay(boolean var1) {
        NET.worlds.core.NativeMock.log("WavSoundPlayer", "nativePlay", new Object[]{var1});
 +      NET.worlds.core.NativeMediaSound.wavNativePlay(this.playingSoundFile, var1);
     }
  
-+   // 0x00420120: waveOutSetVolume(0, ROUND(65535*der)<<16 + ROUND(65535*izq)).
++   // 0x00420120: waveOutSetVolume(0, ROUND(65535*right)<<16 + ROUND(65535*left)).
     private void nativeVolume(float var1, float var2) {
        NET.worlds.core.NativeMock.log("WavSoundPlayer", "nativeVolume", new Object[]{var1, var2});
 +      NET.worlds.core.NativeMediaSound.wavNativeVolume(var1, var2);
@@ -473,22 +473,22 @@ diff a/NET/worlds/scape/sendURL.java b/NET/worlds/scape/sendURL.java
        this.destination = new String("http://www.worlds.net");
     }
  
-+   // 0x00421220: DdeInitialize falla (no hay DDEML) -> 0.
++   // 0x00421220: DdeInitialize fails (no DDEML) -> 0.
     public static int init(String var0) {
        NET.worlds.core.NativeMock.log("sendURL", "init", new Object[]{var0});
 -      return 0;
 +      return NET.worlds.core.NativeMediaWeb.sendUrlInit(var0);
     }
  
-+   // 0x004210a0: DDE WWW_Activate + WWW_OpenURL al navegador -> navegador del
-+   // sistema solo con -Dopenworlds.openUrls=1 y origen de usuario.
++   // 0x004210a0: DDE WWW_Activate + WWW_OpenURL to the browser -> the system
++   // browser, only with -Dopenworlds.openUrls=1 and a user origin.
     public static int get(String var0) {
        NET.worlds.core.NativeMock.log("sendURL", "get", new Object[]{var0});
 -      return 0;
 +      return NET.worlds.core.NativeMediaUrl.ddeOpenUrl("sendURL.get", var0);
     }
  
-+   // 0x00421300: solo WWW_OpenURL, mismo candado.
++   // 0x00421300: only WWW_OpenURL, same lock.
     public static int silent_get(String var0) {
        NET.worlds.core.NativeMock.log("sendURL", "silent_get", new Object[]{var0});
 -      return 0;

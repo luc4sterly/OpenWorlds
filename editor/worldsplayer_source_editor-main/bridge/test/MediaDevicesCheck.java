@@ -70,10 +70,10 @@ public class MediaDevicesCheck {
 
       // --- DirectShow, video (VideoSurface/VideoTexture) ---
       out = capture(() -> h[0] = NativeMediaVideo.nInit(0x1234));
-      String esperado = "Could not create filter graph.\n"
+      String expected = "Could not create filter graph.\n"
          + "Could not create DirectX 8 media renderer; falling back to DX7.\n"
          + "Couldn't create DirectDrawFactory\n";
-      check(esperado.equals(out), "nInit(hwnd): DX8 fails, falls back to DX7, a single DirectDrawFactory (received: " + out.replace("\n", "|") + ")");
+      check(expected.equals(out), "nInit(hwnd): DX8 fails, falls back to DX7, a single DirectDrawFactory (received: " + out.replace("\n", "|") + ")");
       check("DX7".equals(NativeMediaVideo.kindOf(h[0])), "fallback DX7 renderer");
       out = capture(() -> NativeMediaVideo.nOpen(h[0], "http://x/eminem.asf"));
       check(out.contains("Could not create a CLSID_MultiMediaStream object\nCheck you have run regsvr32 amstream.dll\n\n"), "nOpen DX7: message of 0x004781b4");
@@ -84,7 +84,7 @@ public class MediaDevicesCheck {
 
       // --- the real Java class ---
       DirectShow ds = new DirectShow();
-      ds.nOpen("u:\\sonido.asf");
+      ds.nOpen("u:\\sound.asf");
       ds.nPlay(1);
       check(ds.nTick() == 0, "DirectShow Java: nTick 0 -> WMPSoundPlayer IS_STOPPED");
       ds.finalize();

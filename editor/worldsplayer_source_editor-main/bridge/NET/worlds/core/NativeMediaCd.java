@@ -102,7 +102,7 @@ public final class NativeMediaCd {
          throw new IOException("getDriveTrackList2");
       }
 
-      throw new IllegalStateException("inalcanzable: no hay dispositivo cdaudio");
+      throw new IllegalStateException("unreachable: there is no cdaudio device");
    }
 
    /** 0x00415a80: frames (1/75 s) to MCI_FORMAT_MSF, 0x1194 = 4500 = 60*75. */
@@ -123,7 +123,7 @@ public final class NativeMediaCd {
       int msfFrom = toMsf(from);
       int msfTo = toMsf(to);
       if (!command(id, 0x806)) {
-         NativeMediaSound.log(String.format("CD no disponible: MCI_PLAY %06x..%06x (MSF)", msfFrom, msfTo));
+         NativeMediaSound.log(String.format("CD not available: MCI_PLAY %06x..%06x (MSF)", msfFrom, msfTo));
          throw new IOException("playAudio");
       }
    }
@@ -156,7 +156,7 @@ public final class NativeMediaCd {
          throw new IOException("isPlaying");
       }
 
-      throw new IllegalStateException("inalcanzable: no hay dispositivo cdaudio");
+      throw new IllegalStateException("unreachable: there is no cdaudio device");
    }
 
    // 0x00415dc0: MCI_STATUS_POSITION in MSF
@@ -165,7 +165,7 @@ public final class NativeMediaCd {
          throw new IOException("getPosition");
       }
 
-      throw new IllegalStateException("inalcanzable: no hay dispositivo cdaudio");
+      throw new IllegalStateException("unreachable: there is no cdaudio device");
    }
 
    // 0x00415e90
@@ -176,7 +176,7 @@ public final class NativeMediaCd {
    // 0x00415ea0: FindWindow("Volume Control") and, failing that, ShellExecuteEx("sndvol32.exe");
    // here there is neither a window nor an executable -> false (hInstApp <= 32).
    public static boolean launchVolumeControlApp() {
-      NativeMediaSound.log("sndvol32.exe no disponible");
+      NativeMediaSound.log("sndvol32.exe not available");
       return false;
    }
 }

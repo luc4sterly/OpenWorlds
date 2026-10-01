@@ -862,7 +862,7 @@ diff a/NET/worlds/scape/Material.java b/NET/worlds/scape/Material.java
        nativeInit();
 +   }
 +
-+   /** Lo que gamma.dll lee por JNI (campo ids). */
++   /** What gamma.dll reads through JNI (field ids). */
 +   int[] rwIds() {
 +      return this.ids;
     }
@@ -1922,7 +1922,7 @@ diff a/NET/worlds/scape/Transform.java b/NET/worlds/scape/Transform.java
        nativeInit();
 +   }
 +
-+   /** Matriz RW de este Transform (NativeRw); crea una si aun no existe. */
++   /** RW matrix of this Transform (NativeRw); creates one if there is none yet. */
 +   float[] rwMatrix() {
 +      if (this.transformID == 0) {
 +         this.transformID = NET.worlds.core.NativeRw.createMatrix();
@@ -1930,7 +1930,7 @@ diff a/NET/worlds/scape/Transform.java b/NET/worlds/scape/Transform.java
 +      return NET.worlds.core.NativeRw.matrix(this.transformID);
 +   }
 +
-+   /** getYaw/getPitch/getSpin: copia, deshace la escala (modo 2) y ortonormaliza (RwOrthoNormalizeMatrix). */
++   /** getYaw/getPitch/getSpin: copies, undoes the scale (mode 2) and orthonormalizes (RwOrthoNormalizeMatrix). */
 +   private float[] unscaledOrthonormal() {
 +      float[] c = this.rwMatrix().clone();
 +      NET.worlds.core.NativeRw.scale(c, 1.0F / this.xScale, 1.0F / this.yScale, 1.0F / this.zScale, NET.worlds.core.NativeRw.PRECONCAT);
@@ -1938,7 +1938,7 @@ diff a/NET/worlds/scape/Transform.java b/NET/worlds/scape/Transform.java
 +   }
 +
 +
-+   /** FUN_004252f0: copia xScale/yScale/zScale de otro Transform (JNI SetFloatField). */
++   /** FUN_004252f0: copies xScale/yScale/zScale from another Transform (JNI SetFloatField). */
 +   void rwCopyScales(Transform var1) {
 +      this.xScale = var1.xScale;
 +      this.yScale = var1.yScale;

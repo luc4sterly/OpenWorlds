@@ -104,7 +104,7 @@ public final class RwgBinaryCheck {
       eq("cube.rwg -> 0", NativeShapes.readBinary(h, false), 0);
 
       // --- nonexistent file: the object exists, requests nothing and reads nothing
-      h = NativeShapes.openBinary(new File(dir, "nada.rwg").getAbsolutePath());
+      h = NativeShapes.openBinary(new File(dir, "missing.rwg").getAbsolutePath());
       check("load object even if there is no file", h != 0);
       eq("nonexistent -> 0", NativeShapes.readBinary(h, false), 0);
 

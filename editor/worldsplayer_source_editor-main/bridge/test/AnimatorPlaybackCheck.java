@@ -87,7 +87,7 @@ public class AnimatorPlaybackCheck {
       eq(requests, 1, "the first duration requests axelwave.seq synchronously (FUN_0042fc90)");
       check(AnimSeqCache.loaded("axelwave"), "axelwave loaded by notifySeqLoaded");
       near(NativeAnimator.getAnimationTime(rep, axel, "WAVE"), 4.733f, 0, "the name is lowercased");
-      eq(NativeAnimator.getAnimationTime(rep, axel, "volar"), 0.0f, "nonexistent explicit animation = 0.0 (DAT_00475524)");
+      eq(NativeAnimator.getAnimationTime(rep, axel, "juggle"), 0.0f, "nonexistent explicit animation = 0.0 (DAT_00475524)");
       // axelyes: 142 keys too; common_happy: 389 keys -> 12.9666672 -> {12, 966}.
       near(NativeAnimator.getAnimationTime(rep, axel, "happy"), 12.966f, 0, "getAnimationTime(happy)");
 

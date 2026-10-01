@@ -126,22 +126,22 @@ public final class GdkUp {
 
    private static void runLine(List<String> argv, File dir, PrintStream log) throws IOException {
       if (argv.isEmpty()) {
-         throw new CannotStart("linea vacia");
+         throw new CannotStart("empty line");
       }
       String prog = argv.get(0);
       if (base(prog).toLowerCase(java.util.Locale.ROOT).startsWith("xdelta")) {
-         throw new IOException("los parches xdelta no estan soportados");
+         throw new IOException("xdelta patches are not supported");
       }
       File exe = child(dir, prog.replace('\\', '/'));
       if (!exe.isFile()) {
-         throw new CannotStart("no existe " + exe);
+         throw new CannotStart("not found: " + exe);
       }
       byte[] head = new byte[4096];
       FileInputStream in = new FileInputStream(exe);
       try {
          int n = in.read(head);
          if (n < 2 || head[0] != 'M' || head[1] != 'Z') {
-            throw new CannotStart(exe.getName() + " no es un ejecutable de Windows");
+            throw new CannotStart(exe.getName() + " is not a Windows executable");
          }
       } finally {
          in.close();

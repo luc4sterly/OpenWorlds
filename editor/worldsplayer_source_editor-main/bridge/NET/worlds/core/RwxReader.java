@@ -450,11 +450,11 @@ public final class RwxReader {
          mask = t[i + 1];
       }
       if (mask != null) {
-         System.err.println("[RW] Texture " + name + " mask " + mask + ": máscara sin traducir (⚠️), textura sin máscara");
+         System.err.println("[RW] Texture " + name + " mask " + mask + ": mask not translated (⚠️), texture without a mask");
       }
       int tex = NativeTextures.rwGetNamed(name);
       if (tex == 0) {
-         System.err.println("[RW] RwReadShape: Texture " + name + " no se encuentra: la forma no se lee");
+         System.err.println("[RW] RwReadShape: Texture " + name + " not found: the shape is not read");
          return false;
       }
       m.texture = name;

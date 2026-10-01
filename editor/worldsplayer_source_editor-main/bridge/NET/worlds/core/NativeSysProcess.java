@@ -56,7 +56,7 @@ public final class NativeSysProcess {
          try {
             java.nio.file.Files.write(new File(System.getProperty("user.dir"), GdkUp.PENDING).toPath(),
                (rest + System.lineSeparator()).getBytes("ISO-8859-1"));
-            System.err.println("[gdkup] pendiente: " + rest);
+            System.err.println("[gdkup] pending: " + rest);
             return true;
          } catch (IOException e) {
             System.err.println("Internal error - can't execute \"" + line + "\"");

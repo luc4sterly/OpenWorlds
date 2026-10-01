@@ -14,7 +14,7 @@ public final class SysInfoCheck {
    private static int failures = 0;
 
    public static void main(String[] args) throws Exception {
-      // 0x00442062: (bytes libres mod 2^32) >> 10
+      // 0x00442062: (free bytes mod 2^32) >> 10
       eq("0 bytes", NativeSysInfo.diskFreeKB(0L), 0);
       eq("1023 bytes", NativeSysInfo.diskFreeKB(1023L), 0);
       eq("1024 bytes", NativeSysInfo.diskFreeKB(1024L), 1);
@@ -24,7 +24,7 @@ public final class SysInfoCheck {
       // 10 GiB = 8 sect/cluster * 512 B/sect * 2621440 clusters = 10737418240
       // mod 2^32 = 2147483648 -> >> 10 = 2097152
       eq("10 GiB", NativeSysInfo.diskFreeKB(8L * 512L * 2621440L), 2097152);
-      eq("nonexistent root -> 0 (GetDiskFreeSpaceA fails)", NativeSysInfo.diskFreeKB("q:\\no\\existe\\"), 0);
+      eq("nonexistent root -> 0 (GetDiskFreeSpaceA fails)", NativeSysInfo.diskFreeKB("q:\\nonexistent\\"), 0);
       int root = NativeSysInfo.diskFreeKB("u:\\");
       int expect = NativeSysInfo.diskFreeKB(new File("/").getUsableSpace());
       check("u:\\ = root volume (" + root + " ~ " + expect + ")", Math.abs(root - expect) < 102400);

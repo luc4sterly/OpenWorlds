@@ -158,7 +158,7 @@ public final class NativeCamera {
       if (comp == null) {
          if (!warnedNoWindow) {
             warnedNoWindow = true;
-            System.err.println("[RW] la camara " + c.width + "x" + c.height + " no tiene ventana donde volcar la imagen");
+            System.err.println("[RW] the camera " + c.width + "x" + c.height + " has no window to blit the image into");
          }
          return;
       }
@@ -179,7 +179,7 @@ public final class NativeCamera {
             }
          }
          if (bs == null) {
-            System.err.println("[RW] sin BufferStrategy en " + c.width + "x" + c.height + ": se pinta con getGraphics()");
+            System.err.println("[RW] no BufferStrategy on " + c.width + "x" + c.height + ": painting with getGraphics()");
          }
          if (bs != null) {
             BufferedImage img = c.screenImage();
@@ -221,7 +221,7 @@ public final class NativeCamera {
       for (Component p = comp; p != null; p = p.getParent()) {
          owner = owner + " < " + p.getClass().getName() + "[" + p.getWidth() + "x" + p.getHeight() + " vis=" + p.isVisible() + " show=" + p.isShowing() + "]";
       }
-      System.err.println("[RW] camara " + key + " -> " + comp.getClass().getName()
+      System.err.println("[RW] camera " + key + " -> " + comp.getClass().getName()
          + " canvas=" + (comp instanceof java.awt.Canvas) + owner);
    }
 
@@ -251,15 +251,15 @@ public final class NativeCamera {
       }
       fpsCount++;
       if (now - fpsMark >= 1000000000L) {
-         System.err.println("[RW] cobertura: " + framePaint / fpsCount + " px escritos por frame de "
+         System.err.println("[RW] coverage: " + framePaint / fpsCount + " px written per frame of "
             + c.width * c.height + " (" + 100 * framePaint / fpsCount / (c.width * c.height) + " %), "
-            + (framePaint == 0 ? 0 : 100 * frameTexPaint / framePaint) + " % con textura");
+            + (framePaint == 0 ? 0 : 100 * frameTexPaint / framePaint) + " % textured");
          framePaint = 0L;
          frameTexPaint = 0L;
          System.err.println("[RW] fps " + (System.nanoTime() - DUMP_T0) / 1000000000L + "s: "
-            + (fpsCount * 1000000000L / (now - fpsMark)) + " (camara " + c.width + "x" + c.height
-            + " en " + (int) c.ltm[12] + "," + (int) c.ltm[13] + "," + (int) c.ltm[14]
-            + " mirando " + Math.round(c.ltm[8] * 100) / 100.0F + "," + Math.round(c.ltm[9] * 100) / 100.0F
+            + (fpsCount * 1000000000L / (now - fpsMark)) + " (camera " + c.width + "x" + c.height
+            + " at " + (int) c.ltm[12] + "," + (int) c.ltm[13] + "," + (int) c.ltm[14]
+            + " facing " + Math.round(c.ltm[8] * 100) / 100.0F + "," + Math.round(c.ltm[9] * 100) / 100.0F
             + "," + Math.round(c.ltm[10] * 100) / 100.0F + ")");
          fpsMark = now;
          fpsCount = 0;
@@ -923,23 +923,23 @@ public final class NativeCamera {
          long sec = (System.nanoTime() - DUMP_T0) / 1000000000L;
          synchronized (probeShown) {
             if (probeShown.add(sec + "/" + scene)) {
-               System.err.println("[RW] probe " + sec + "s escena " + scene + " (" + probeX + "," + probeY + "): " + probeHit);
+               System.err.println("[RW] probe " + sec + "s scene " + scene + " (" + probeX + "," + probeY + "): " + probeHit);
             }
          }
       }
       if (System.getProperty("openworlds.centrePixel") != null && p.centre != null
             && c.width == mainWidth && (System.nanoTime() - DUMP_T0) / 1000000000L >= 25
             && centreShown++ % 300 == 0) {
-         System.err.println("[RW] centro de la vista: " + p.centre);
+         System.err.println("[RW] centre of the view: " + p.centre);
       }
       if (System.getProperty("openworlds.countPolys") != null && c.width == mainWidth) {
          long sec = (System.nanoTime() - DUMP_T0) / 1000000000L;
-         String key = sec + "s escena " + scene + " z=" + zFlag;
+         String key = sec + "s scene " + scene + " z=" + zFlag;
          synchronized (counted) {
             if (sec >= Long.parseLong(System.getProperty("openworlds.countPolys")) && counted.add(key)) {
-               System.err.println("[RW] pasada " + key + ": " + p.clumps + " clumps, " + p.polys + " poligonos, " + p.drawn + " dibujados, "
-                  + p.texPixels + " px con textura, " + p.flatPixels + " px planos, "
-                  + degenerateVertexNormals + " normales de vertice degeneradas (caida a la primera cara)");
+               System.err.println("[RW] pass " + key + ": " + p.clumps + " clumps, " + p.polys + " polygons, " + p.drawn + " drawn, "
+                  + p.texPixels + " px textured, " + p.flatPixels + " px flat, "
+                  + degenerateVertexNormals + " degenerate vertex normals (fell back to the first face)");
             }
          }
       }
@@ -960,7 +960,7 @@ public final class NativeCamera {
          }
       }
       Object owner = NativeScene.getSceneData(scene);
-      StringBuilder b = new StringBuilder("[RW] escena " + scene + " (" + describeData(owner) + "):\n");
+      StringBuilder b = new StringBuilder("[RW] scene " + scene + " (" + describeData(owner) + "):\n");
       java.util.List<NativeScene.Clump> roots = NativeScene.sceneRoots(scene);
       for (int i = 0; i < roots.size(); i++) {
          dumpTree(b, roots.get(i), null, 1);
@@ -978,9 +978,9 @@ public final class NativeCamera {
       for (int i = 0; i < depth; i++) {
          b.append("  ");
       }
-      b.append(describeData(k.data)).append(" estado=").append(k.state)
+      b.append(describeData(k.data)).append(" state=").append(k.state)
          .append(" vert=").append(k.verts.size()).append(" pol=").append(k.polys.size())
-         .append(String.format(" en (%.0f,%.0f,%.0f)", ltm[12], ltm[13], ltm[14]));
+         .append(String.format(" at (%.0f,%.0f,%.0f)", ltm[12], ltm[13], ltm[14]));
       if (System.getProperty("openworlds.dumpSceneMatrices") != null) {
          b.append(" modeling=").append(java.util.Arrays.toString(k.modeling)).append(" joint=").append(java.util.Arrays.toString(k.joint));
       }
@@ -1588,7 +1588,7 @@ public final class NativeCamera {
          try {
             n = Integer.parseInt(v.trim());
          } catch (NumberFormatException e) {
-            System.err.println("[RW] openworlds.rasterThreads no es un numero: " + v);
+            System.err.println("[RW] openworlds.rasterThreads is not a number: " + v);
          }
       }
       return Math.max(1, Math.min(64, n));
@@ -2814,7 +2814,7 @@ public final class NativeCamera {
             }
             if (x == c.renderOffX + c.vpW / 2 && y == c.renderOffY + c.vpH / 2 && mat != null) {
                p.centre = "color " + mat.color[0] + "," + mat.color[1] + "," + mat.color[2]
-                  + " tex=" + (tex != null ? mat.textureName : "NINGUNA(" + mat.textureName + ")")
+                  + " tex=" + (tex != null ? mat.textureName : "NONE(" + mat.textureName + ")")
                   + " amb=" + mat.ambient + " dif=" + mat.diffuse + " z=" + zz
                   + " clump=" + k.verts.size() + "v/" + k.polys.size() + "p";
             }
@@ -2823,7 +2823,7 @@ public final class NativeCamera {
             wrote++;
             if (probeX >= 0 && x == probeX && y == probeY && c.width == mainWidth) {
                probeHit = describe(mat, tex, k) + " px=#" + Integer.toHexString(pix)
-                  + " mundo=(" + (int) (cur[6] * zz) + "," + (int) (cur[7] * zz) + "," + (int) (cur[8] * zz) + ")";
+                  + " world=(" + (int) (cur[6] * zz) + "," + (int) (cur[7] * zz) + "," + (int) (cur[8] * zz) + ")";
             }
          }
       }
@@ -2845,13 +2845,13 @@ public final class NativeCamera {
    private static String describe(NativeScene.Material mat, NativeTextures.Texture tex, NativeScene.Clump k) {
       StringBuilder b = new StringBuilder();
       if (mat == null) {
-         b.append("sin material");
+         b.append("no material");
       } else {
          b.append("color 565=").append(device565(mat.color[0], mat.color[1], mat.color[2]) >> 11 & 31)
             .append(",").append(device565(mat.color[0], mat.color[1], mat.color[2]) >> 5 & 63)
             .append(",").append(device565(mat.color[0], mat.color[1], mat.color[2]) & 31)
-            .append(tex != null ? " CON textura" : mat.texture != 0 ? " textura=" + mat.texture + " SIN cargar"
-               : mat.textureName != null ? " textura " + mat.textureName + " SIN resolver" : " SIN textura")
+            .append(tex != null ? " WITH texture" : mat.texture != 0 ? " texture=" + mat.texture + " NOT loaded"
+               : mat.textureName != null ? " texture " + mat.textureName + " NOT resolved" : " NO texture")
             .append(" modes=").append(mat.textureModes).append("/").append(mat.materialModes)
             .append(" op=").append(mat.opacity);
       }
@@ -2911,7 +2911,7 @@ public final class NativeCamera {
       });
       Object sd = NativeScene.getSceneData(scene);
       String room = sd instanceof NET.worlds.scape.Room ? ((NET.worlds.scape.Room) sd).getName() : String.valueOf(scene);
-      System.err.println("[RW] matStats " + sec + "s sala " + room + " (escena " + scene + "): " + l.size() + " materiales visibles");
+      System.err.println("[RW] matStats " + sec + "s room " + room + " (scene " + scene + "): " + l.size() + " visible materials");
       for (int i = 0; i < Math.min(15, l.size()); i++) {
          System.err.println("[RW]   " + l.get(i).getValue()[0] + " px  " + l.get(i).getKey());
       }

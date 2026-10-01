@@ -152,7 +152,7 @@ public final class AwtCompat {
          return new java.awt.Point(x, y);
       }
       if (!parent.isShowing()) {
-         System.err.println("[AWT] menu sin mostrar: su padre " + parent.getClass().getName() + " no esta en pantalla");
+         System.err.println("[AWT] menu not shown: its parent " + parent.getClass().getName() + " is not on screen");
          return null;
       }
       java.awt.Point p = parent.getLocationOnScreen();

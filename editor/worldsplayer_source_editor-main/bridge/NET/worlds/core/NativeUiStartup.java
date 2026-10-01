@@ -49,7 +49,7 @@ import java.nio.file.Files;
  * ⚠️ Scope: Win32's semaphore is session-wide; here it is per
  * installation directory (the working directory), because the bridge
  * deliberately runs several independent copies at once (two clients
- * against whirl, several agents). With MULTIRUN=1 in [Gamma] the client does
+ * against one local server, several agents). With MULTIRUN=1 in [Gamma] the client does
  * not call this, as in the original.
  */
 public final class NativeUiStartup {
@@ -82,9 +82,9 @@ public final class NativeUiStartup {
          Object dev = Files.getAttribute(f.toPath(), "unix:dev");
          volumeSerial = (int) ((Number) dev).longValue();
       } catch (UnsupportedOperationException e) {
-         System.err.println("[STARTUP] sin atributo unix:dev: serie de volumen 0");
+         System.err.println("[STARTUP] no unix:dev attribute: volume serial 0");
       } catch (IllegalArgumentException e) {
-         System.err.println("[STARTUP] sin vista unix: serie de volumen 0");
+         System.err.println("[STARTUP] no unix view: volume serial 0");
       } catch (IOException e) {
          NativeAssert.fail("nStartup", 0x9c);
       }
@@ -181,7 +181,7 @@ public final class NativeUiStartup {
          s.close();
       } catch (Exception e) {
          // SendMessage to an HWND that no longer exists simply returns 0
-         System.err.println("[STARTUP] WM_COPYDATA a la primera instancia fallo: " + e);
+         System.err.println("[STARTUP] WM_COPYDATA to the first instance failed: " + e);
       }
       notFirst = 1;
       return false;

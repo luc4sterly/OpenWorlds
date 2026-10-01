@@ -351,7 +351,7 @@ public final class NativeSysRegistry {
             }
          }
       } catch (IOException | RuntimeException e) {
-         System.err.println("openworlds: registro " + f + " ilegible desde la línea que falla: " + e);
+         System.err.println("openworlds: registry " + f + " unreadable from the failing line on: " + e);
       }
    }
 
@@ -443,7 +443,7 @@ public final class NativeSysRegistry {
       } catch (IOException e) {
          if (!warned) {
             warned = true;
-            System.err.println("openworlds: no se puede escribir el registro en " + f + ": " + e);
+            System.err.println("openworlds: cannot write the registry to " + f + ": " + e);
          }
       }
    }

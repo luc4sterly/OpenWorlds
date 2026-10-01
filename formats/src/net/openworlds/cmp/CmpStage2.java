@@ -115,7 +115,7 @@ public class CmpStage2 {
     // in FUN_00457d88 EXCEPT bit1's own test (0x457e1a: "add edx,edx; jb
     // 0x457e80" - no accompanying "je" at all). Use shiftBit1NoRefill() for
     // that one site; see its comment for why the distinction is real, not
-    // cosmetic (2026-09-10, LINEA A session, found via rustwood.cmp - a
+    // cosmetic (2026-09-10, LINE A session, found via rustwood.cmp - a
     // rare case genuinely hits this since it needs the register's lowest
     // set bit to land exactly on a bit1 test).
     boolean shiftBit() {
@@ -180,7 +180,7 @@ public class CmpStage2 {
     // against test4b.cmp (flat quadrants: every history word has all four
     // bytes equal, so byte1==byte3) and nearly invisible against
     // rustwood.cmp (26/4096), but wrong on varied content: found via a live
-    // mem-after-store trace of sball.cmp pass 0 (2026-09-10, LINEA A
+    // mem-after-store trace of sball.cmp pass 0 (2026-09-10, LINE A
     // session) - real iter-8 SINGLE reads v1=[07,07,07,1f] and really emits
     // 0x1f (memcap.txt "ev pass=0 off=16 site=SW0 regal=31 mem=31"),
     // while byte1(v1) is 0x07. DUAL is unaffected: it stores ah with NO
@@ -207,7 +207,7 @@ public class CmpStage2 {
         // cleared between passes - a lookback with idx >= outPos(this pass)
         // legitimately reads a PREVIOUS pass's leftover byte at that same
         // array slot, not "unwritten" memory. Confirmed with real evidence
-        // (2026-09-10, LINEA A session): test4b.cmp pass 8 iter 0 computes
+        // (2026-09-10, LINE A session): test4b.cmp pass 8 iter 0 computes
         // `ah` via lookback(off=0) - i.e. idx==outPos exactly, BEFORE this
         // iteration's own write lands (real al/ah are only stored together,
         // as one word, at the very end of the iteration) - and the real
@@ -367,7 +367,7 @@ public class CmpStage2 {
                         // that - wrong, and it never showed up as a bug against
                         // test4b.cmp because that file's literal byte pairs
                         // always had al==ah, making the two formulas
-                        // indistinguishable). Real evidence (2026-09-10, LINEA A
+                        // indistinguishable). Real evidence (2026-09-10, LINE A
                         // session): live-traced EAX/EDX/ECX/EBX immediately
                         // before/after the `call [edx*4+0x483844]` against
                         // rustwood.cmp (real varied content, al!=ah). The

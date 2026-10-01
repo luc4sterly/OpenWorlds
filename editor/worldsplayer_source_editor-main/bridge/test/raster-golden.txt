@@ -1,4 +1,4 @@
-# CRC32 del raster 5-6-5 por vista (RasterGoldenCheck); regenerar con -Dgolden.write=1
+# CRC32 of the 5-6-5 raster per view (RasterGoldenCheck); regenerate with -Dgolden.write=1
 132x130-v0 8eb0a2b8
 132x130-v1 e3950ae6
 132x130-v2 95596f83

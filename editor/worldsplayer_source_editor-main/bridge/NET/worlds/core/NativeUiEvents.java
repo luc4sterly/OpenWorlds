@@ -273,7 +273,7 @@ public final class NativeUiEvents {
          ((TextField) c).addActionListener(ADAPTER);
       }
       if (LOG) {
-         System.err.println("[UI-EVENTS] modelo 1.0 restituido en " + c.getClass().getName());
+         System.err.println("[UI-EVENTS] 1.0 event model restored on " + c.getClass().getName());
       }
       return true;
    }
@@ -330,8 +330,8 @@ public final class NativeUiEvents {
     * it).
     */
    private static void typeChatScript() {
-      typeScript("openworlds.typeChat", "linea de chat", false);
-      typeScript("openworlds.typePassword", "campo de contrasena", true);
+      typeScript("openworlds.typeChat", "chat line", false);
+      typeScript("openworlds.typePassword", "password field", true);
    }
 
    /**
@@ -375,7 +375,7 @@ public final class NativeUiEvents {
             } catch (InterruptedException e) {
                return;
             } catch (Exception e) {
-               System.err.println("[TYPECHAT] fallo: " + e);
+               System.err.println("[TYPECHAT] failed: " + e);
             }
          }
       };
@@ -393,7 +393,7 @@ public final class NativeUiEvents {
       Window w = javax.swing.SwingUtilities.getWindowAncestor(field);
       java.awt.Checkbox box = w == null ? null : findCheckbox(w);
       if (box == null) {
-         System.err.println("[TYPECHAT] no hay casilla en la ventana");
+         System.err.println("[TYPECHAT] no checkbox in the window");
          return;
       }
       requestForeground(box);
@@ -406,7 +406,7 @@ public final class NativeUiEvents {
       q.postEvent(new MouseEvent(box, MouseEvent.MOUSE_RELEASED, now, 0, cx, cy, s.x + cx, s.y + cy, 1, false, MouseEvent.BUTTON1));
       q.postEvent(new MouseEvent(box, MouseEvent.MOUSE_CLICKED, now, 0, cx, cy, s.x + cx, s.y + cy, 1, false, MouseEvent.BUTTON1));
       Thread.sleep(400);
-      System.err.println("[TYPECHAT] clic en la casilla \"" + box.getLabel() + "\": marcada=" + box.getState());
+      System.err.println("[TYPECHAT] click on the checkbox \"" + box.getLabel() + "\": checked=" + box.getState());
    }
 
    /** Click on the ForwardButton ("Sign In") of the field's window. */
@@ -414,7 +414,7 @@ public final class NativeUiEvents {
       Window w = javax.swing.SwingUtilities.getWindowAncestor(field);
       Component b = w == null ? null : findClass(w, "NET.worlds.console.ForwardButton");
       if (b == null) {
-         System.err.println("[TYPECHAT] no hay ForwardButton");
+         System.err.println("[TYPECHAT] no ForwardButton");
          return;
       }
       EventQueue q = Toolkit.getDefaultToolkit().getSystemEventQueue();
@@ -425,7 +425,7 @@ public final class NativeUiEvents {
       q.postEvent(new MouseEvent(b, MouseEvent.MOUSE_PRESSED, now, InputEvent.BUTTON1_DOWN_MASK, cx, cy, s.x + cx, s.y + cy, 1, false, MouseEvent.BUTTON1));
       q.postEvent(new MouseEvent(b, MouseEvent.MOUSE_RELEASED, now, 0, cx, cy, s.x + cx, s.y + cy, 1, false, MouseEvent.BUTTON1));
       q.postEvent(new MouseEvent(b, MouseEvent.MOUSE_CLICKED, now, 0, cx, cy, s.x + cx, s.y + cy, 1, false, MouseEvent.BUTTON1));
-      System.err.println("[TYPECHAT] clic en \"" + ((java.awt.Button) b).getLabel() + "\"");
+      System.err.println("[TYPECHAT] click on \"" + ((java.awt.Button) b).getLabel() + "\"");
    }
 
    private static Component findClass(Component c, String name) {
@@ -536,10 +536,10 @@ public final class NativeUiEvents {
       }
       if (owner != line) {
          KeyboardFocusManager k = KeyboardFocusManager.getCurrentKeyboardFocusManager();
-         System.err.println("[TYPECHAT] sin foco: ventana activa " + (k.getActiveWindow() == null ? "ninguna (la JVM no es la aplicacion activa)"
-            : k.getActiveWindow().getClass().getName()) + ", dueno del foco " + (owner == null ? "ninguno" : owner.getClass().getName()));
+         System.err.println("[TYPECHAT] no focus: active window " + (k.getActiveWindow() == null ? "none (the JVM is not the active application)"
+            : k.getActiveWindow().getClass().getName()) + ", focus owner " + (owner == null ? "none" : owner.getClass().getName()));
       }
-      System.err.println("[TYPECHAT] foco en el campo: " + (owner == line) + "; tecleo " + (showText ? "\"" + text + "\"" : text.length() + " caracteres") + " + Intro");
+      System.err.println("[TYPECHAT] focus on the field: " + (owner == line) + "; typing " + (showText ? "\"" + text + "\"" : text.length() + " characters") + " + Enter");
       Component target = owner != null ? owner : line;
       for (int i = 0; i <= text.length(); i++) {
          if (i == text.length() && !enter) {
@@ -548,7 +548,7 @@ public final class NativeUiEvents {
          if (i == text.length()) {
             Thread.sleep(200);
             String typed = ((java.awt.TextComponent) line).getText();
-            System.err.println("[TYPECHAT] antes de Intro el campo tiene " + (showText ? "\"" + typed + "\"" : typed.length() + " caracteres"));
+            System.err.println("[TYPECHAT] before Enter the field holds " + (showText ? "\"" + typed + "\"" : typed.length() + " characters"));
          }
          char ch = i < text.length() ? text.charAt(i) : '\n';
          int code = ch == '\n' ? KeyEvent.VK_ENTER : KeyEvent.getExtendedKeyCodeForChar(ch);
@@ -560,6 +560,6 @@ public final class NativeUiEvents {
          Thread.sleep(40);
       }
       Thread.sleep(300);
-      System.err.println("[TYPECHAT] tras Intro el campo tiene " + ((java.awt.TextComponent) line).getText().length() + " caracteres");
+      System.err.println("[TYPECHAT] after Enter the field holds " + ((java.awt.TextComponent) line).getText().length() + " characters");
    }
 }

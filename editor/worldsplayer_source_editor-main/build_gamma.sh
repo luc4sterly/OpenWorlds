@@ -1,9 +1,9 @@
 #!/bin/bash
-# Build reproducible del cliente ORIGINAL con el puente portable:
-# copia source/ (pristino, Vineflower) + apply_mock.sh + bridge/ a
-# editor/.build-gamma (ignorado por git, misma profundidad para que
-# apply_mock.sh encuentre tools/ y docs/), aplica mock y puente, y compila
-# a editor/.build-gamma/out. No modifica source/.
+# Reproducible build of the ORIGINAL client with the portable bridge:
+# copies source/ (pristine, Vineflower) + apply_mock.sh + bridge/ to
+# editor/.build-gamma (ignored by git, at the same depth so that
+# apply_mock.sh finds tools/ and docs/), applies the mock and the bridge, and
+# compiles to editor/.build-gamma/out. It does not modify source/.
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
@@ -14,10 +14,10 @@ rm -rf "$B"
 mkdir -p "$B"
 cp -R "$HERE/source" "$HERE/bridge" "$HERE/apply_mock.sh" "$B/"
 (cd "$B" && bash apply_mock.sh)
-# Cache: la instalacion 2004 guarda rutas de Windows (C:\DOCUME~1\...\cachedir\5u.mov)
-# y CACHE_DIR usa '\'; en macOS/Linux eso descarta cache.index y se pierden
-# las texturas de avatar cacheadas. Se usa el separador del sistema y se
-# reubica cada localName en el cachedir real por su nombre de fichero.
+# Cache: the 2004 install stores Windows paths (C:\DOCUME~1\...\cachedir\5u.mov)
+# and CACHE_DIR uses '\'; on macOS/Linux that throws cache.index away and the
+# cached avatar textures are lost. The system separator is used and each
+# localName is moved into the real cachedir by its file name.
 python3 - "$B/source/NET/worlds/network/Cache.java" <<'PY'
 import sys
 p = sys.argv[1]
@@ -30,9 +30,9 @@ assert b in s
 s = s.replace(b, "var17.localName = CACHE_DIR + var17.localName.substring(var17.localName.lastIndexOf('\\\\') + 1);\n         " + b, 1)
 open(p, "w").write(s)
 PY
-# CacheEntry.load(): una entrada ya descargada se da por buena sin re-consultar
-# al servidor (el original caducaba a los 8 h y refrescaba; hoy no hay origen
-# y un refresco fallido dejaba la textura cacheada inservible).
+# CacheEntry.load(): an entry already downloaded is taken as good without asking
+# the server again (the original expired it after 8 h and refreshed it; today
+# there is no origin and a failed refresh left the cached texture unusable).
 python3 - "$B/source/NET/worlds/network/CacheEntry.java" <<'PY'
 import sys
 p = sys.argv[1]
@@ -42,10 +42,10 @@ assert a in s
 s = s.replace(a, a + "            if (this.state == 4 || this.state == 7) {\n               this.notifyObservers();\n               return;\n            }\n\n", 1)
 open(p, "w").write(s)
 PY
-# Ruido de consola: la traza [NATIVE-MOCK] es del arnes (registra hasta las
-# nativas ya implementadas) y pasa a ser opt-in con -Dopenworlds.nativeLog=1
-# (JAVA_OPTS); y una textura que no se puede cargar se avisa una sola vez,
-# no una por cada Shape que la usa. Solo cambia lo que se imprime.
+# Console noise: the [NATIVE-MOCK] trace belongs to the harness (it logs even
+# the natives already implemented) and becomes opt-in with -Dopenworlds.nativeLog=1
+# (JAVA_OPTS); and a texture that cannot be loaded is reported only once,
+# not once per Shape that uses it. Only what is printed changes.
 python3 - "$B/source/NET/worlds/core/NativeMock.java" "$B/source/NET/worlds/scape/Material.java" <<'PY'
 import sys
 p, m = sys.argv[1], sys.argv[2]
@@ -63,16 +63,16 @@ assert c in t
 t = t.replace(c, "   private static final java.util.Set<String> loadErrorsSeen = java.util.Collections.synchronizedSet(new java.util.HashSet<String>());\n\n" + c + "      if (!loadErrorsSeen.add(String.valueOf(var1))) {\n         return;\n      }\n\n", 1)
 open(m, "w").write(t)
 PY
-# Std.initSyncTime: el primer Std.getSynchronizedTime() (lo llama
-# BlackBox.postrender en CADA frame, via Room.postrender) abria un Socket
-# SIN timeout a time.worlds.net:37 (RFC 868) dentro del hilo de render.
-# worlds.net ya no existe: segun el DNS el connect cuelga hasta el timeout de
-# TCP del sistema (75 s en macOS, ~130 s en Linux) con la ventana en negro.
-# Ahora la base sale del reloj del sistema (hoy va por NTP) pasado a
-# segundos RFC 868 (desde 1900) y con la MISMA resta que el original:
-# `var10 -= -1141367296L` es 100*365*86400 desbordado en int, asi que el
-# origen real es 1999-12-08 UTC, no el 2000 (se conserva tal cual). Si el
-# servidor responde, corrige la base desde un hilo aparte (timeouts de 2 s).
+# Std.initSyncTime: the first Std.getSynchronizedTime() (called by
+# BlackBox.postrender on EVERY frame, through Room.postrender) opened a Socket
+# WITHOUT a timeout to time.worlds.net:37 (RFC 868) inside the render thread.
+# worlds.net no longer exists: depending on the DNS the connect hangs until the
+# system's TCP timeout (75 s on macOS, ~130 s on Linux) with the window black.
+# Now the base comes from the system clock (kept by NTP nowadays) converted to
+# RFC 868 seconds (since 1900) and with the SAME subtraction as the original:
+# `var10 -= -1141367296L` is 100*365*86400 overflowed in an int, so the
+# real origin is 1999-12-08 UTC, not 2000 (kept as is). If the server
+# answers, it corrects the base from a separate thread (2 s timeouts).
 python3 - "$B/source/NET/worlds/core/Std.java" <<'PY'
 import sys
 p = sys.argv[1]
@@ -118,23 +118,23 @@ body = """            long var14 = System.currentTimeMillis() / 1000L + 22089888
 s = s[:start] + body + s[end:]
 open(p, "w").write(s)
 PY
-# Rutas del cliente de 2004 ("u:/...", minusculas, '\') en cada apertura de
-# fichero y Toolkit.getImage: ver bridge/NET/worlds/core/HostPath.java. Sin
-# esto no se pintaban los botones de la ventana ni se leia redir.txt.
+# Paths of the 2004 client ("u:/...", lowercase, '\') in every file open
+# and Toolkit.getImage: see bridge/NET/worlds/core/HostPath.java. Without
+# this the window's buttons were not painted and redir.txt was not read.
 python3 "$HERE/bridge/host_paths.py" "$HERE/source" "$B/source"
-# Fuentes con las metricas del JRE de 2004 (Dialog/SansSerif = Arial...): ver
-# bridge/NET/worlds/core/NativeUiFonts.java ("Jse arrow keys" en la barra).
+# Fonts with the metrics of the 2004 JRE (Dialog/SansSerif = Arial...): see
+# bridge/NET/worlds/core/NativeUiFonts.java ("Jse arrow keys" in the bar).
 python3 "$HERE/bridge/ui_fonts.py" "$HERE/source" "$B/source"
 find "$B/source" -name '*.java' > "$B/sources.txt"
-# lectores verificados de formats/ que usa el puente: texturas ScapePic
-# (.cmp/.mov), formas .rwg y cuerpos .bod (el .rwx lo interpreta
-# bridge/RwxReader, traducido de RWL21)
+# verified readers of formats/ that the bridge uses: ScapePic textures
+# (.cmp/.mov), .rwg shapes and .bod bodies (the .rwx is interpreted by
+# bridge/RwxReader, translated from RWL21)
 for d in cmp rwg bod; do
   find "$REPO/formats/src/net/openworlds/$d" -name '*.java' >> "$B/sources.txt"
 done
 mkdir -p "$B/out"
-# El codigo de salida de javac cuenta: antes se perdia en la tuberia y una
-# compilacion con errores seguia como buena con las clases que salieran.
+# javac's exit code counts: it used to get lost in the pipe, and a build
+# with errors went on as good with whatever classes came out.
 if "$JDK/javac" --release 8 -nowarn -encoding UTF-8 -d "$B/out" @"$B/sources.txt" > "$B/javac.log" 2>&1; then
   JAVAC_OK=1
 else
@@ -142,9 +142,9 @@ else
 fi
 grep -v '^Note:' "$B/javac.log" || true
 n=$(find "$B/out" -name '*.class' | wc -l | tr -d ' ')
-echo "clases compiladas: $n"
+echo "compiled classes: $n"
 if [ "$JAVAC_OK" -ne 1 ]; then
-  echo "build_gamma: javac fallo (ver $B/javac.log)" >&2
+  echo "build_gamma: javac failed (see $B/javac.log)" >&2
   exit 1
 fi
 [ "$n" -gt 0 ]

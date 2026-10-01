@@ -13,7 +13,7 @@ diff a/NET/worlds/network/WorldServer.java b/NET/worlds/network/WorldServer.java
 +      // under this._state) stores it in _connectThread: against a server on
 +      // the same machine the connection is made first, _connectThread is
 +      // still null and the server stays CONNECTING for good. Taking the lock
-+      // waits for state_Initializing to finish (docs/net-local-whirl.md).
++      // waits for state_Initializing to finish (docs/net-local-server.md).
 +      synchronized (this._state) {
 +      }
        Vector var4 = this._connectThread.getBackupHosts();

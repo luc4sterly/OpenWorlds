@@ -104,7 +104,7 @@ public final class NativeUiMenu {
       if (m == null || c == null) {
          // TrackPopupMenu fails with an invalid menu or window: the original
          // writes it to the log and asserts "nRightMenu" line 0x4e
-         System.err.println("Error from TrackPopupMenu: menu " + menu + " ventana " + hwnd);
+         System.err.println("Error from TrackPopupMenu: menu " + menu + " window " + hwnd);
          NativeAssert.fail("nRightMenu", 0x4e);
          return;
       }

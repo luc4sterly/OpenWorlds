@@ -70,10 +70,10 @@ public final class RwgParser {
    /** RwReadStream (0x10039890) over memory: n == 0 is error 1; if n bytes do not remain, 0x58. */
    private int take(int n, String what) {
       if (n == 0) {
-         throw new RwgFormatException(1, what + ": lectura de 0 bytes");
+         throw new RwgFormatException(1, what + ": read of 0 bytes");
       }
       if (n < 0 || this.data.length - this.pos < n) {
-         throw new RwgFormatException(0x58, what + ": faltan bytes (quieren " + (n & 0xFFFFFFFFL) + ")");
+         throw new RwgFormatException(0x58, what + ": missing bytes (wants " + (n & 0xFFFFFFFFL) + ")");
       }
       int at = this.pos;
       this.pos += n;
@@ -107,7 +107,7 @@ public final class RwgParser {
       long to = (this.pos + n) & 0xFFFFFFFFL;
       if (to > this.data.length) {
          this.pos = this.data.length;
-         throw new RwgFormatException(0x58, what + ": salto fuera del stream");
+         throw new RwgFormatException(0x58, what + ": seek outside the stream");
       }
       this.pos = (int) to;
    }
@@ -121,7 +121,7 @@ public final class RwgParser {
    private void find(int tag, String ctx) {
       while (true) {
          if (this.data.length - this.pos < 4) {
-            throw new RwgFormatException(0x5a, ctx + ": no hay chunk " + tagName(tag));
+            throw new RwgFormatException(0x5a, ctx + ": no chunk " + tagName(tag));
          }
          int t = be(this.pos);
          this.pos += 4;
@@ -129,13 +129,13 @@ public final class RwgParser {
             return;
          }
          if (this.data.length - this.pos < 4) {
-            throw new RwgFormatException(0x5a, ctx + ": no hay chunk " + tagName(tag));
+            throw new RwgFormatException(0x5a, ctx + ": no chunk " + tagName(tag));
          }
          int len = be(this.pos);
          this.pos += 4;
          long to = (this.pos + len) & 0xFFFFFFFFL;
          if (len != 0 && to > this.data.length) {
-            throw new RwgFormatException(0x5a, ctx + ": saltando " + tagName(t) + " sale del stream buscando " + tagName(tag));
+            throw new RwgFormatException(0x5a, ctx + ": skipping " + tagName(t) + " leaves the stream looking for " + tagName(tag));
          }
          this.pos = (int) to;
       }
@@ -143,7 +143,7 @@ public final class RwgParser {
 
    /** Entry of RwReadStreamChunk (0x10039e64): the length of the chunk whose tag was already read. */
    private int chunkLength(String ctx) {
-      return readInt(ctx + ": longitud");
+      return readInt(ctx + ": length");
    }
 
    /**
@@ -212,22 +212,22 @@ public final class RwgParser {
       // FUN_00419af0: tag "ZZZ[", length L, and if L - 8 > 0 the words
       // 0x13765342 and 1 (8-byte RwReadStreamInt); otherwise, 0 and the load fails.
       if (this.data.length < 4 || be(0) != ZZZ) {
-         throw new RwgFormatException(0, "no es un .rwg: falta la cabecera ZZZ[ (FUN_00419af0)");
+         throw new RwgFormatException(0, "not a .rwg: the ZZZ[ header is missing (FUN_00419af0)");
       }
       this.pos = 4;
-      int headerLen = chunkLength("cabecera");
+      int headerLen = chunkLength("header");
       if (headerLen - 8 <= 0) {
-         throw new RwgFormatException(0, "cabecera de " + headerLen + " bytes: FUN_00419af0 exige más de 8");
+         throw new RwgFormatException(0, "header of " + headerLen + " bytes: FUN_00419af0 requires more than 8");
       }
-      int[] magic = readInts(2, "cabecera");
+      int[] magic = readInts(2, "header");
       if (magic[0] != HEADER_MAGIC || magic[1] != 1) {
-         throw new RwgFormatException(0, String.format("cabecera 0x%08X/0x%08X, FUN_00419af0 exige 0x%08X/1",
+         throw new RwgFormatException(0, String.format("header 0x%08X/0x%08X, FUN_00419af0 requires 0x%08X/1",
             magic[0], magic[1], HEADER_MAGIC));
       }
       // FUN_00419a20 reads the L - 8 bytes; FUN_0041c970 walks them as
       // NUL-terminated strings up to an empty one (and only then considers
       // the load good, this+0xc = 1).
-      int namesAt = take(headerLen - 8, "lista de texturas de la cabecera");
+      int namesAt = take(headerLen - 8, "texture list of the header");
       int end = namesAt + headerLen - 8;
       List<String> names = new ArrayList<>();
       int p = namesAt;
@@ -254,14 +254,14 @@ public final class RwgParser {
       Header hd = readHeader();
       if (!hd.complete) {
          // ⚠️ the original would keep reading past its buffer; that is not imitated
-         throw new RwgFormatException(0, "la lista de texturas de la cabecera no acaba en un nombre vacío");
+         throw new RwgFormatException(0, "the header's texture list does not end in an empty name");
       }
       List<String> names = hd.names;
 
       // FUN_00419a60: RwReadStreamChunkType and, only if it is CLUM, RwReadStreamChunk(CLUM)
-      int type = readInt("tipo de chunk");
+      int type = readInt("chunk type");
       if (type != CLUM) {
-         throw new RwgFormatException(0, "tras la cabecera viene " + tagName(type) + ", no CLUM (FUN_00419a60)");
+         throw new RwgFormatException(0, "after the header comes " + tagName(type) + ", not CLUM (FUN_00419a60)");
       }
       return clum(names);
    }
@@ -319,9 +319,9 @@ public final class RwgParser {
       int[] h = strt(12, "TELT");
       List<RwgTexture> out = new ArrayList<>();
       for (int i = 0; Integer.compareUnsigned(i, h[0]) < 0; i++) {
-         int[] rec = readInts(5, "TELT registro");
+         int[] rec = readInts(5, "TELT record");
          if (Integer.compareUnsigned(h[1], 0x14) < 0) {
-            seek(0x14 - h[1], "TELT registro");
+            seek(0x14 - h[1], "TELT record");
          }
          find(STNG, "TELT");
          out.add(new RwgTexture(rec, stng()));
@@ -349,9 +349,9 @@ public final class RwgParser {
       int[] h = strt(12, "MALT");
       List<RwgMaterial> out = new ArrayList<>();
       for (int i = 0; Integer.compareUnsigned(i, h[0]) < 0; i++) {
-         int[] rec = readInts(10, "MALT registro");
+         int[] rec = readInts(10, "MALT record");
          if (Integer.compareUnsigned(h[1], 0x28) > 0) {
-            seek(h[1] - 0x28, "MALT registro");
+            seek(h[1] - 0x28, "MALT record");
          }
          out.add(new RwgMaterial(rec));
       }
@@ -377,13 +377,13 @@ public final class RwgParser {
          for (int idx : poly.vertexIndices) {
             if (idx < 0 || idx >= verts.size()) {
                // RW would index its vertex table out of range
-               throw new RwgFormatException(0, "PLST: índice " + (idx + 1) + " fuera de 1.." + verts.size());
+               throw new RwgFormatException(0, "PLST: index " + (idx + 1) + " outside 1.." + verts.size());
             }
          }
       }
       RwgAtom a = new RwgAtom(h, m1, m2, bbox, verts, polys);
       for (int i = 0; h[11] != 0 && Integer.compareUnsigned(i, h[11]) < 0; i++) {
-         find(ATOM, "ATOM hijo");
+         find(ATOM, "ATOM child");
          a.children.add(atom());
       }
       return a;
@@ -413,7 +413,7 @@ public final class RwgParser {
       int extra = base < h[1] ? h[1] - base : 0;
       List<RwgVertex> out = new ArrayList<>();
       for (int i = 0; Integer.compareUnsigned(i, h[0]) < 0; i++) {
-         int[] xyz = readInts(3, "VLST posición");
+         int[] xyz = readInts(3, "VLST position");
          float[] n = new float[3];
          float[] uv = new float[2];
          float[] e = new float[3];
@@ -424,11 +424,11 @@ public final class RwgParser {
             uv = floats(readInts(2, "VLST uv"));
          }
          if ((f & 4) != 0) {
-            e = floats(readInts(3, "VLST bandera 4"));
+            e = floats(readInts(3, "VLST flag 4"));
          }
          out.add(new RwgVertex(Float.intBitsToFloat(xyz[0]), Float.intBitsToFloat(xyz[1]), Float.intBitsToFloat(xyz[2]),
             (f & 1) != 0, n[0], n[1], n[2], (f & 2) != 0, uv[0], uv[1], (f & 4) != 0, e[0], e[1], e[2]));
-         seek(extra, "VLST registro");
+         seek(extra, "VLST record");
       }
       return out;
    }
@@ -448,11 +448,11 @@ public final class RwgParser {
       int extra = base < h[1] ? h[1] - base : 0;
       List<RwgPolygon> out = new ArrayList<>();
       for (int i = 0; Integer.compareUnsigned(i, h[0]) < 0; i++) {
-         int[] mn = readInts(2, "PLST registro");
-         int[] idx = readInts(mn[1] & 0x3FFFFFFF, "PLST índices");
+         int[] mn = readInts(2, "PLST record");
+         int[] idx = readInts(mn[1] & 0x3FFFFFFF, "PLST indices");
          int[] kept = compactIndices(idx);
          if (kept.length < 3) {
-            throw new RwgFormatException(0, "PLST: polígono " + (i + 1) + " con menos de 3 vértices distintos (FUN_10001220)");
+            throw new RwgFormatException(0, "PLST: polygon " + (i + 1) + " with fewer than 3 distinct vertices (FUN_10001220)");
          }
          for (int k = 0; k < kept.length; k++) {
             kept[k] -= 1;
@@ -464,13 +464,13 @@ public final class RwgParser {
             normal = floats(readInts(3, "PLST normal"));
          }
          if ((f & 4) != 0) {
-            ext = floats(readInts(3, "PLST bandera 4"));
+            ext = floats(readInts(3, "PLST flag 4"));
          }
          if ((f & 0x10) != 0) {
             tag = (short) readInt("PLST tag");
          }
          out.add(new RwgPolygon(mn[0], kept, normal, ext, tag));
-         seek(extra, "PLST registro");
+         seek(extra, "PLST record");
       }
       return out;
    }

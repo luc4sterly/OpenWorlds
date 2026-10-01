@@ -10,7 +10,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * A *Check run by tools/run-checks.sh (COMUN.md contract: a main that exits
+ * A *Check run by tools/run-checks.sh (its contract: a main that exits
  * with code != 0 if it fails). Unlike {@link CmpMovCorpusCount} (which
  * needs the caller to have already extracted tex/*.cmp and tex/*.mov with
  * `unzip`), this check is self-contained: it extracts content.zip itself with

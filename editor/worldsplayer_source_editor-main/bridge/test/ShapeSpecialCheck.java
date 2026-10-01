@@ -16,7 +16,7 @@ public final class ShapeSpecialCheck {
    public static void main(String[] args) {
       Object room = new Object() {
          public String toString() {
-            return "sala";
+            return "room";
          }
       };
       int scene = NativeScene.createScene();
@@ -55,7 +55,7 @@ public final class ShapeSpecialCheck {
       // a above b? no; a above c (x 1, z 5) -> Q=b, with swap -> P=(1,4,5) untouched, Q=(3,0,5).
       // The child's LTM is the parent's times its own: (10,0,0) of translation.
       eq("objects", made.toString(),
-         "[sala door (13,0,5) (11,4,5), sala null (10,0,0) (12,3,0), sala null (10,0,0) (12,3,0)]");
+         "[room door (13,0,5) (11,4,5), room null (10,0,0) (12,3,0), room null (10,0,0) (12,3,0)]");
 
       // a clump outside a scene (RwGetSceneData 0): nothing
       made.clear();

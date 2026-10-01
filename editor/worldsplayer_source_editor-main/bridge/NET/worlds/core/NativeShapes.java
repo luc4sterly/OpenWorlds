@@ -399,7 +399,7 @@ public final class NativeShapes {
       }
       if (t.rasterIndex != 0) {
          System.err.println("[RW] RwReadStreamChunk(TELT): raster " + t.rasterIndex
-            + " de RALT sin traducir (⚠️ sin muestra real)");
+            + " from RALT not translated (⚠️ no real sample)");
          return 0;
       }
       if (t.name != null && shapeFileExists(t.name)) {

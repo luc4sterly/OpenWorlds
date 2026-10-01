@@ -127,13 +127,13 @@ public final class NativeMediaUrl {
    private static boolean report(String via, String url, Decision d) {
       switch (d) {
          case OPEN:
-            NativeMediaSound.log("URL (" + via + "): abriendo en el navegador del sistema: " + url);
+            NativeMediaSound.log("URL (" + via + "): opening in the system browser: " + url);
             return true;
          case LOG_DISABLED:
-            NativeMediaSound.log("URL (" + via + ") registrada, no abierta (-Dopenworlds.openUrls=1 para abrirla): " + url);
+            NativeMediaSound.log("URL (" + via + ") logged, not opened (-Dopenworlds.openUrls=1 to open it): " + url);
             return false;
          default:
-            NativeMediaSound.log("URL (" + via + ") registrada, no abierta: no viene de una accion del usuario: " + url);
+            NativeMediaSound.log("URL (" + via + ") logged, not opened: not from a user action: " + url);
             return false;
       }
    }
@@ -161,7 +161,7 @@ public final class NativeMediaUrl {
          dt.open(f);
          return 42;
       } catch (Exception e) {
-         NativeMediaSound.log("no se pudo abrir " + target + ": " + e);
+         NativeMediaSound.log("could not open " + target + ": " + e);
          return 31;
       }
    }

@@ -50,27 +50,27 @@ public final class NativeMediaWeb {
 
    // 0x0043ce30: without an IE control -> nativeDestroy (0x0043d1b0) and false.
    public static boolean ieNativeInit(int hwnd, boolean adBanner) {
-      NativeMediaSound.log("control IE no disponible (CoCreateInstance falla): hwnd " + hwnd + (adBanner ? ", banner" : ""));
+      NativeMediaSound.log("IE control not available (CoCreateInstance fails): hwnd " + hwnd + (adBanner ? ", banner" : ""));
       return false;
    }
 
    /** The natives that require a created control. */
    public static IllegalStateException ieUnreachable(String name) {
-      return new IllegalStateException("IEWebControlImp." + name + ": inalcanzable, nativeInit devuelve false siempre");
+      return new IllegalStateException("IEWebControlImp." + name + ": unreachable, nativeInit always returns false");
    }
 
    // ---------------- WebBrowser ----------------
 
    // 0x0040fd60
    public static int openBrowser() {
-      NativeMediaSound.log("Internet Explorer no disponible: WebBrowser.openBrowser -> IOException(nWebBrowser)");
+      NativeMediaSound.log("Internet Explorer not available: WebBrowser.openBrowser -> IOException(nWebBrowser)");
       throw sneaky(new IOException("nWebBrowser"));
    }
 
    // 0x0040fee0 / 0x0040fec0: the Java code only calls them with
    // nativeBrowserPointer != 0, and openBrowser never returns that.
    public static IllegalStateException browserUnreachable(String name) {
-      return new IllegalStateException("WebBrowser." + name + ": inalcanzable, openBrowser lanza siempre");
+      return new IllegalStateException("WebBrowser." + name + ": unreachable, openBrowser always throws");
    }
 
    // ---------------- IWebBrowserApp ----------------
@@ -79,7 +79,7 @@ public final class NativeMediaWeb {
    // ThrowNew(IOException, "nIWebBrowserApp"). With no COM object behind it
    // (created by IUnknown, from the system agent) the call fails.
    public static void webBrowserAppCall(String name) {
-      NativeMediaSound.log("IWebBrowserApp." + name + " sin Internet Explorer -> IOException(nIWebBrowserApp)");
+      NativeMediaSound.log("IWebBrowserApp." + name + " without Internet Explorer -> IOException(nIWebBrowserApp)");
       throw sneaky(new IOException("nIWebBrowserApp"));
    }
 
@@ -90,7 +90,7 @@ public final class NativeMediaWeb {
    // connected flag; Request/Poke return false (iVar = -1) without a
    // connection; destroy only frees.
    public static boolean ddeCreate(String service, String topic) {
-      NativeMediaSound.log("DDE no disponible: " + service + "/" + topic);
+      NativeMediaSound.log("DDE not available: " + service + "/" + topic);
       return false;
    }
 

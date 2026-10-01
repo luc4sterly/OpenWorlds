@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Fuentes del cliente de 2004 con las metricas de entonces (ver
+"""Fonts of the 2004 client with the metrics of the time (see
 bridge/NET/worlds/core/NativeUiFonts.java).
 
-Uso: ui_fonts.py <arbol-pristino> <arbol-de-build>
+Usage: ui_fonts.py <pristine-tree> <build-tree>
 
-- Cada `new Font(nombre, estilo, tamano)` (3 argumentos) de los .java del
-  arbol pristino pasa a `NET.worlds.core.NativeUiFonts.font(...)`.
-- GammaFrame recibe la fuente por defecto de AWT del JRE 1.4 (Dialog 12, que
-  su font.properties resolvia a Arial): la heredan las etiquetas sin fuente
-  propia, como la barra de estado.
-Falla si no encuentra nada que cambiar, para que un cambio de source/ no lo
-desactive en silencio.
+- Every `new Font(name, style, size)` (3 arguments) of the .java files of the
+  pristine tree becomes `NET.worlds.core.NativeUiFonts.font(...)`.
+- GammaFrame gets the default AWT font of the 1.4 JRE (Dialog 12, which
+  its font.properties resolved to Arial): the labels without a font of their
+  own, such as the status bar, inherit it.
+It fails if it finds nothing to change, so that a change in source/ cannot
+turn it off silently.
 """
 import os
 import re
@@ -21,7 +21,7 @@ WRAP = "NET.worlds.core.NativeUiFonts.font("
 
 
 def args_end(src, open_paren):
-    """(indice del ')' que cierra, numero de argumentos de primer nivel)."""
+    """(index of the closing ')', number of top-level arguments)."""
     depth = 0
     i = open_paren + 1
     n = 1
@@ -50,7 +50,7 @@ def args_end(src, open_paren):
         elif not c.isspace():
             empty = False
         i += 1
-    raise ValueError("parentesis sin cerrar")
+    raise ValueError("unclosed parenthesis")
 
 
 def rewrite(src):
@@ -93,14 +93,14 @@ def main():
         src = f.read()
     old = "   public GammaFrame() {\n      super(getDefaultTitle());\n   }\n"
     if old not in src:
-        sys.exit("ui_fonts: el constructor de GammaFrame ha cambiado")
+        sys.exit("ui_fonts: the GammaFrame constructor has changed")
     src = src.replace(old, "   public GammaFrame() {\n      super(getDefaultTitle());\n"
                       "      this.setFont(NET.worlds.core.NativeUiFonts.windowFont());\n   }\n", 1)
     with open(frame, "w", encoding="utf-8") as f:
         f.write(src)
-    print("ui_fonts: %d fuentes en %d clases + fuente por defecto de GammaFrame" % (total, files))
+    print("ui_fonts: %d fonts in %d classes + the default font of GammaFrame" % (total, files))
     if total == 0:
-        sys.exit("ui_fonts: ninguna llamada encontrada (cambio en source/?)")
+        sys.exit("ui_fonts: no call found (a change in source/?)")
 
 
 if __name__ == "__main__":

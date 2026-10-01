@@ -2,7 +2,7 @@ package net.openworlds.bod;
 
 /**
  * Sampling of a .seq track at an instant, translated from gamma.dll (see
- * docs/seq-animation-reference.md, section 5 "Reproducción", i.e. playback):
+ * docs/seq-animation-reference.md, section 5 "Playback in gamma.dll"):
  *
  * <pre>
  * FUN_00435ab0  index = largest i with time[i] &lt;= t (0 if t &lt; time[0])

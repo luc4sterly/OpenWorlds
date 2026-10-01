@@ -61,8 +61,8 @@ public class UiEventsCheck {
       check(e.id == 401 && e.key == 1 && e.modifiers == 2, "Ctrl+A -> KEY_PRESS 1 mods 2");
       check(convertKey(new KeyEvent(src, KeyEvent.KEY_PRESSED, 0L, 0, KeyEvent.VK_SHIFT, KeyEvent.CHAR_UNDEFINED)) == null, "Shift alone -> null");
       check(convertKey(new KeyEvent(src, KeyEvent.KEY_TYPED, 0L, 0, KeyEvent.VK_UNDEFINED, 'a')) == null, "KEY_TYPED -> null");
-      e = convertAction(new ActionEvent(src, ActionEvent.ACTION_PERFORMED, "hola", 0L, 0));
-      check(e.id == 1001 && "hola".equals(e.arg) && e.when == 0L, "ACTION_PERFORMED -> ACTION_EVENT arg=command");
+      e = convertAction(new ActionEvent(src, ActionEvent.ACTION_PERFORMED, "hello", 0L, 0));
+      check(e.id == 1001 && "hello".equals(e.arg) && e.when == 0L, "ACTION_PERFORMED -> ACTION_EVENT arg=command");
 
       if (GraphicsEnvironment.isHeadless()) {
          System.out.println("no display: the part with a real TextField is skipped");
@@ -114,7 +114,7 @@ public class UiEventsCheck {
       System.out.println("  focus: " + focused + ", adapter set: " + (tf.getKeyListeners().length > 0));
       EventQueue q = Toolkit.getDefaultToolkit().getSystemEventQueue();
       if (focused) {
-         String text = "hola";
+         String text = "hello";
          for (char ch : (text + "\u001b\n").toCharArray()) {
             int code = ch == '\n' ? KeyEvent.VK_ENTER : ch == 27 ? KeyEvent.VK_ESCAPE : KeyEvent.getExtendedKeyCodeForChar(ch);
             long w = System.currentTimeMillis();
@@ -128,8 +128,8 @@ public class UiEventsCheck {
          // events that do not depend on the focus are queued: the ActionEvent that the
          // peer publishes when Enter is pressed, and the Esc key via processEvent.
          System.out.println("  (the JVM is not the active application: Enter as the peer's ActionEvent, Esc via processEvent)");
-         tf.setText("hola");
-         q.postEvent(new ActionEvent(tf, ActionEvent.ACTION_PERFORMED, "hola", System.currentTimeMillis(), 0));
+         tf.setText("hello");
+         q.postEvent(new ActionEvent(tf, ActionEvent.ACTION_PERFORMED, "hello", System.currentTimeMillis(), 0));
          final KeyEvent esc = new KeyEvent(tf, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ESCAPE, (char) 27);
          EventQueue.invokeAndWait(new Runnable() {
             public void run() {
@@ -150,7 +150,7 @@ public class UiEventsCheck {
       Thread.sleep(1000);
       System.out.println("  1.0 events seen: " + seen + ", text: [" + tf.getText() + "]");
       check(seen.contains("esc"), "Esc reaches handleEvent as KEY_PRESS 27");
-      check(seen.contains("action:hola"), "Enter reaches the parent as ACTION_EVENT with the text");
+      check(seen.contains("action:hello"), "Enter reaches the parent as ACTION_EVENT with the text");
       f.dispose();
    }
 }

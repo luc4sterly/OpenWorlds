@@ -52,7 +52,7 @@ public final class CmpStage1 {
    }
 
    // The 3 real fixed alphabet-permutation tables, extracted byte-exact from
-   // gamma.dll (see docs/cmp-texture-format-reference.md "Sesión Stage 1").
+   // gamma.dll (see docs/cmp-texture-format-reference.md "Stage 1 session").
    private static final int[] PERM0 = hex(
       "555657595a5b5d5e5f656667696a6b6d6e6f757677797a7b7d7e7f959697999a9b9d9e9fa5a6a7a9aaabadaeafb5b6b7b9babbbdbebfd5d6d7d9dadbdddedfe5e6e7e9eaebedeeeff5f6f7f9fafbfdfeff");
    private static final int[] PERM1 = hex(

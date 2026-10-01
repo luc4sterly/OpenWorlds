@@ -53,11 +53,11 @@ public class MediaWebCheck {
       // Before touching AWT: without Desktop there is no browser to open even if the logic failed.
       System.setProperty("java.awt.headless", "true");
 
-      if (args.length > 0 && args[0].equals("hijo")) {
+      if (args.length > 0 && args[0].equals("child")) {
          // -Dopenworlds.openUrls=1 but no user origin: it only logs.
-         boolean r = launch("http://example.invalid/hijo");
+         boolean r = launch("http://example.invalid/child");
          int g = NET.worlds.scape.sendURL.get("http://example.invalid/bump");
-         System.out.println("HIJO " + NativeMediaUrl.OPEN_URLS + " " + r + " " + g);
+         System.out.println("CHILD " + NativeMediaUrl.OPEN_URLS + " " + r + " " + g);
          System.exit(0);
       }
 
@@ -88,27 +88,27 @@ public class MediaWebCheck {
 
       // --- with the flag and no user, in another process ---
       String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
-      Process p = new ProcessBuilder(java, "-Xmx128m", "-Djava.awt.headless=true", "-Dopenworlds.openUrls=1", "-cp", System.getProperty("java.class.path"), "MediaWebCheck", "hijo")
+      Process p = new ProcessBuilder(java, "-Xmx128m", "-Djava.awt.headless=true", "-Dopenworlds.openUrls=1", "-cp", System.getProperty("java.class.path"), "MediaWebCheck", "child")
          .redirectErrorStream(true)
          .start();
       BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
       String line;
-      String hijo = null;
+      String child = null;
       boolean notUserLogged = false;
       while ((line = in.readLine()) != null) {
          System.out.println("   | " + line);
-         if (line.startsWith("HIJO ")) {
-            hijo = line;
+         if (line.startsWith("CHILD ")) {
+            child = line;
          }
 
-         if (line.contains("no viene de una accion del usuario")) {
+         if (line.contains("not from a user action")) {
             notUserLogged = true;
          }
       }
 
       p.waitFor();
-      check("HIJO true false 0".equals(hijo), "with openUrls=1 and no user origin: does not open (" + hijo + ")");
-      check(notUserLogged, "and logs it as 'no viene de una accion del usuario' (not from a user action)");
+      check("CHILD true false 0".equals(child), "with openUrls=1 and no user origin: does not open (" + child + ")");
+      check(notUserLogged, "and logs it as 'not from a user action'");
 
       // --- embedded IE ---
       check(!NativeMediaWeb.ieNativeInit(0x1234, true), "IEWebControlImp.nativeInit -> false");

@@ -39,7 +39,7 @@ public final class JavaCompatCheck {
             } catch (IOException e) {
                ioe[0] = true;
             }
-         }, "lector");
+         }, "reader");
          reader.start();
          Thread.sleep(200);
          JavaCompat.stopThread(reader);

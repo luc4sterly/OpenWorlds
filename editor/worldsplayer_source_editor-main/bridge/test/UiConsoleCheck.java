@@ -38,7 +38,7 @@ public class UiConsoleCheck {
       // incomplete group: "  )" = (0*64+0)*64+9)*64+0 -> 00 02 40; key 0; len 2 and n-2=1 < 2 -> ""
       check("".equals(NativeUiConsole.decrypt("  )", 0)), "decrypt of an incomplete group with an impossible length -> \"\"");
       // round trip with different salts and serials, including non-ASCII (modified UTF-8)
-      String[] pw = {"x", "fwtest1", "contraseña", "Ab3$%^&*()_+{}|:<>?", "0123456789012345678901234567890123456789"};
+      String[] pw = {"x", "fwtest1", "naïve-café", "Ab3$%^&*()_+{}|:<>?", "0123456789012345678901234567890123456789"};
       int[] serials = {0, 0x12345678, 0xDEADBEEF, 16777220};
       boolean all = true;
       for (String p : pw) {

@@ -30,7 +30,7 @@ public final class RwxTextureCheck {
       }
 
       // texture that does not exist: RwReadShape -> NULL
-      eq("Texture nada -> clump 0", read(dir, "no.rwx", "Texture nada"), 0);
+      eq("Texture missing -> clump 0", read(dir, "no.rwx", "Texture missing"), 0);
       // "null" in the first 4 characters, case-insensitive A-Z: no texture
       int nul = read(dir, "nul.rwx", "Texture NULLx");
       check("Texture NULLx -> clump", nul != 0);
@@ -38,14 +38,14 @@ public final class RwxTextureCheck {
          eq("NULLx leaves the material without a texture", firstMaterial(nul).texture, 0);
       }
       // no name (error 5) and unknown word (error 4): FALSE
-      eq("Texture without a name -> 0", read(dir, "vacio.rwx", "Texture"), 0);
-      eq("Texture wall otra -> 0", read(dir, "kw.rwx", "Texture wall otra"), 0);
+      eq("Texture without a name -> 0", read(dir, "empty.rwx", "Texture"), 0);
+      eq("Texture wall other -> 0", read(dir, "kw.rwx", "Texture wall other"), 0);
       eq("Texture wall mask (no name) -> 0", read(dir, "mask.rwx", "Texture wall mask"), 0);
 
       // gamma.dll scan: lowercase, exact first token, exact "null", ".bmp" without a dot
       File scan = new File(dir, "scan.rwx");
       Files.write(scan.toPath(), ("ModelBegin\r\n  TEXTURE Wall.CMP\r\ntextureext rock\r\nTexture NULL\r\n"
-         + "Texture NULLX\r\n#texture comentada\r\nTextureModes Lit\r\ntexture\r\n\ttexture\tTab.bmp extra\nModelEnd\r\n")
+         + "Texture NULLX\r\n#texture commented\r\nTextureModes Lit\r\ntexture\r\n\ttexture\tTab.bmp extra\nModelEnd\r\n")
          .getBytes("ISO-8859-1"));
       eq("scanTextures", NativeShapes.scanTextures(scan.getAbsolutePath()).toString(),
          "[wall.cmp, rock.bmp, nullx.bmp, tab.bmp]");

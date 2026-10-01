@@ -237,7 +237,7 @@ public final class NativeMediaSound {
                }
             }
          } catch (Exception e) {
-            log("sin salida de audio para " + this.file + ": " + e);
+            log("no audio output for " + this.file + ": " + e);
          } finally {
             if (line != null) {
                line.close();
@@ -265,14 +265,14 @@ public final class NativeMediaSound {
          }
 
          if (!file.isFile() || !p.probe()) {
-            log("PlaySound: no se puede abrir " + name);
+            log("PlaySound: cannot open " + name);
             return false;
          }
 
          current = p;
       }
 
-      log("PlaySound " + (asyncLoop ? "en bucle" : "sincrono") + ": " + file + " (" + fmtSeconds(p.seconds()) + ")" + (MUTE ? " [mute]" : ""));
+      log("PlaySound " + (asyncLoop ? "looping" : "synchronous") + ": " + file + " (" + fmtSeconds(p.seconds()) + ")" + (MUTE ? " [mute]" : ""));
       if (asyncLoop) {
          Thread t = new Thread(p::run, "PlaySound " + file.getName());
          t.setDaemon(true);
@@ -319,7 +319,7 @@ public final class NativeMediaSound {
    }
 
    static String fmtSeconds(double s) {
-      return s < 0.0 ? "duracion desconocida" : String.format(java.util.Locale.ROOT, "%.2f s", s);
+      return s < 0.0 ? "unknown duration" : String.format(java.util.Locale.ROOT, "%.2f s", s);
    }
 
    /** FUN_004508c0: comparison with the table DAT_00482818 (A-Z -> a-z only). */
@@ -576,7 +576,7 @@ public final class NativeMediaSound {
          return true;
       }
 
-      log("ASF no disponible: CreateProcess(bin\\playfile.exe " + name + ") falla -> false");
+      log("ASF not available: CreateProcess(bin\\playfile.exe " + name + ") fails -> false");
       return false;
    }
 }

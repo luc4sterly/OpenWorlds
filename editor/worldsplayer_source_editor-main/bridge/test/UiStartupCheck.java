@@ -7,7 +7,7 @@ import java.io.File;
  * single instance with two real JVMs in a temporary directory of their own,
  * and the volume serial forced by a property.
  *
- * Internal use: "UiStartupCheck segunda URL AUTOPLAY" is the second instance.
+ * Internal use: "UiStartupCheck second URL AUTOPLAY" is the second instance.
  */
 public class UiStartupCheck {
    static int fails = 0;
@@ -28,12 +28,12 @@ public class UiStartupCheck {
          cp.append(cp.length() == 0 ? "" : File.pathSeparator).append(new File(e).getAbsolutePath());
       }
       Process p = new ProcessBuilder(java, "-Djava.awt.headless=true", "-Duser.dir=" + dir.getPath(), "-cp", cp.toString(),
-         "UiStartupCheck", "segunda", url, String.valueOf(autoplay)).inheritIO().start();
+         "UiStartupCheck", "second", url, String.valueOf(autoplay)).inheritIO().start();
       return p.waitFor();
    }
 
    public static void main(String[] a) throws Exception {
-      if (a.length == 3 && a[0].equals("segunda")) {
+      if (a.length == 3 && a[0].equals("second")) {
          long t0 = System.currentTimeMillis();
          boolean r = NativeUiStartup.synchronizeStartup(a[1], Boolean.parseBoolean(a[2]));
          System.out.println("  second instance: synchronizeStartup = " + r + " in " + (System.currentTimeMillis() - t0) + " ms");

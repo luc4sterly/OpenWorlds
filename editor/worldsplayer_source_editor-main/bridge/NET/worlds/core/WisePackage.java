@@ -78,12 +78,12 @@ final class WisePackage {
       byte[] d = Files.readAllBytes(pkg.toPath());
       int o = indexOf(d, new byte[]{'P', 'K', 3, 4}, 0);
       if (!is(d)) {
-         throw new IOException(pkg + ": no es un paquete Wise");
+         throw new IOException(pkg + ": not a Wise package");
       }
       String script = new String(inflate(d, o + 30 + u16(d, o + 26) + u16(d, o + 28), (int) u32(d, o + 18), (int) u32(d, o + 22)), "ISO-8859-1");
       Matcher m = WORLDDIR.matcher(script);
       if (!m.find()) {
-         throw new IOException(pkg + ": el guion no define WORLDDIR");
+         throw new IOException(pkg + ": the script does not define WORLDDIR");
       }
       String world = m.group(1);
       List<String> dests = new ArrayList<String>();
@@ -106,14 +106,14 @@ final class WisePackage {
             continue;
          }
          if (j >= dests.size() || !baseName(dests.get(j)).equalsIgnoreCase(baseName(e.name))) {
-            throw new IOException(pkg + ": la entrada " + e.name + " no tiene destino en el guion ("
-               + (j < dests.size() ? dests.get(j) : "sin mas destinos") + ")");
+            throw new IOException(pkg + ": the entry " + e.name + " has no destination in the script ("
+               + (j < dests.size() ? dests.get(j) : "no more destinations") + ")");
          }
          File to = new File(worldDir, dests.get(j).replace('\\', '/'));
          j++;
          File parent = to.getParentFile();
          if (!parent.isDirectory() && !parent.mkdirs()) {
-            throw new IOException("no se puede crear " + parent);
+            throw new IOException("cannot create " + parent);
          }
          byte[] data = e.method == 0 ? slice(d, e.dataOffset(d), e.csize) : inflate(d, e.dataOffset(d), e.csize, e.usize);
          OutputStream out = new FileOutputStream(to);
@@ -125,7 +125,7 @@ final class WisePackage {
          to.setLastModified(e.time);
          n++;
       }
-      log.println("[gdkup] " + pkg.getName() + ": " + n + " ficheros en " + worldDir);
+      log.println("[gdkup] " + pkg.getName() + ": " + n + " files in " + worldDir);
       Matcher im = INI_WORLD.matcher(script);
       if (im.find()) {
          register(ini, im.group(1), script.contains("MaxInstalledWorlds=%WORLDNUM%"), log);
@@ -183,7 +183,7 @@ final class WisePackage {
 
       int dataOffset(byte[] d) throws IOException {
          if (local < 0 || local + 30 > d.length || u32(d, local) != 0x04034b50L) {
-            throw new IOException("cabecera local rota: " + name);
+            throw new IOException("broken local header: " + name);
          }
          return local + 30 + u16(d, local + 26) + u16(d, local + 28);
       }
@@ -199,14 +199,14 @@ final class WisePackage {
          }
       }
       if (eocd < 0) {
-         throw new IOException("sin directorio central");
+         throw new IOException("no central directory");
       }
       int count = u16(d, eocd + 10);
       int p = (int) u32(d, eocd + 16);
       List<Entry> out = new ArrayList<Entry>();
       for (int k = 0; k < count; k++) {
          if (p + 46 > d.length || u32(d, p) != 0x02014b50L) {
-            throw new IOException("directorio central roto en " + p);
+            throw new IOException("broken central directory at " + p);
          }
          Entry e = new Entry();
          e.method = u16(d, p + 10);
@@ -219,7 +219,7 @@ final class WisePackage {
          e.local = (int) u32(d, p + 42);
          e.name = new String(d, p + 46, nl, "ISO-8859-1");
          if (e.method != 0 && e.method != 8) {
-            throw new IOException(e.name + ": metodo de compresion " + e.method);
+            throw new IOException(e.name + ": compression method " + e.method);
          }
          out.add(e);
          p += 46 + nl + xl + cl;
@@ -248,12 +248,12 @@ final class WisePackage {
             out.write(buf, 0, k);
          }
       } catch (DataFormatException e) {
-         throw new IOException("deflate roto: " + e.getMessage());
+         throw new IOException("broken deflate: " + e.getMessage());
       } finally {
          inf.end();
       }
       if (usize >= 0 && out.size() != usize) {
-         throw new IOException("tamano descomprimido " + out.size() + " en vez de " + usize);
+         throw new IOException("inflated size " + out.size() + " instead of " + usize);
       }
       return out.toByteArray();
    }

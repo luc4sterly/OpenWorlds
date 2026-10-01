@@ -32,7 +32,7 @@ public final class RwgExtractMain {
          return;
       }
 
-      System.out.println("texturas de la cabecera: " + model.headerTextures + " -> pide " + model.textureRequests());
+      System.out.println("header textures: " + model.headerTextures + " -> requests " + model.textureRequests());
       for (String w : model.warnings) {
          System.out.println("warning: " + w);
       }
@@ -40,12 +40,12 @@ public final class RwgExtractMain {
       for (int i = 0; i < model.textures.size(); i++) {
          RwgTexture t = model.textures.get(i);
          System.out.println("TELT[" + (i + 1) + "] raster=" + t.rasterIndex + " mipmap=" + t.mipmapRasterIndex
-            + " nombre=" + (t.name == null ? "null" : "\"" + t.name + "\""));
+            + " name=" + (t.name == null ? "null" : "\"" + t.name + "\""));
       }
       for (int i = 0; i < model.materials.size(); i++) {
          RwgMaterial m = model.materials.get(i);
-         System.out.printf("MALT[%d] textura=%d geom=%d luz=%d modos=0x%02x/0x%02x color=(%.4f, %.4f, %.4f) opacidad=%.4f"
-               + " superficie=(%.4f, %.4f, %.4f)%n", i + 1, m.textureIndex, m.geometrySampling(), m.lightSampling(),
+         System.out.printf("MALT[%d] texture=%d geom=%d light=%d modes=0x%02x/0x%02x color=(%.4f, %.4f, %.4f) opacity=%.4f"
+               + " surface=(%.4f, %.4f, %.4f)%n", i + 1, m.textureIndex, m.geometrySampling(), m.lightSampling(),
             m.textureModes(), m.materialModes(), m.r, m.g, m.b, m.opacity, m.ambient, m.diffuse, m.specular);
       }
 
@@ -59,8 +59,8 @@ public final class RwgExtractMain {
          System.out.print(" " + v);
       }
       System.out.println();
-      System.out.println("tag=" + a.tag() + " hints=" + a.hints() + " ejes=" + a.axisAlignment() + " estado=" + a.state()
-         + " hijos=" + a.childCount() + " muestreo de luz=" + a.lightSampleRate());
+      System.out.println("tag=" + a.tag() + " hints=" + a.hints() + " axes=" + a.axisAlignment() + " state=" + a.state()
+         + " children=" + a.childCount() + " light sampling=" + a.lightSampleRate());
       System.out.println("matrix1 identity? " + isIdentity(a.matrix1));
       System.out.println("matrix2 identity? " + isIdentity(a.matrix2));
 
@@ -73,7 +73,7 @@ public final class RwgExtractMain {
       for (int i = 0; i < a.vertices.size(); i++) {
          RwgVertex v = a.vertices.get(i);
          System.out.printf(
-            "  [%2d] pos=(%.4f, %.4f, %.4f)  normal=(%.4f, %.4f, %.4f)  uv?=(%.4f, %.4f)  bandera4=(%.4f, %.4f, %.4f)%n",
+            "  [%2d] pos=(%.4f, %.4f, %.4f)  normal=(%.4f, %.4f, %.4f)  uv?=(%.4f, %.4f)  flag4=(%.4f, %.4f, %.4f)%n",
             i, v.x, v.y, v.z, v.normalX, v.normalY, v.normalZ, v.u, v.v, v.unknown8, v.unknown9, v.unknown10);
       }
 

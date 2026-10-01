@@ -99,7 +99,7 @@ public final class SysComCheck {
       eqs("Netscape.mainCallback", thrown(() -> {
          new Netscape().mainCallback();
          return null;
-      }), "(sin excepción)");
+      }), "(no exception)");
 
       store.delete();
       if (failures > 0) {
@@ -132,7 +132,7 @@ public final class SysComCheck {
    private static String thrown(Call c) {
       try {
          c.run();
-         return "(sin excepción)";
+         return "(no exception)";
       } catch (Throwable e) {
          return e.toString();
       }

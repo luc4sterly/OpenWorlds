@@ -218,7 +218,7 @@ public final class Launcher {
 
    /**
     * CI smoke test: the original client must reach the point where the
-    * bridge blits camera frames ("[RW] camara ..." diagnostics and fps lines)
+    * bridge blits camera frames ("[RW] camera ..." diagnostics and fps lines)
     * within the given time; then it is stopped. With patches chosen, the
     * J Worlds Injector must have built them first; with a world server, the
     * client must have connected to it.
@@ -233,7 +233,7 @@ public final class Launcher {
       final boolean[] connected = {false};
       s.log.listen(line -> {
          System.out.println(line);
-         if (line.startsWith("[RW] camara ")) {
+         if (line.startsWith("[RW] camera ")) {
             drew[0] = true;
          }
          if (line.startsWith("[RW] fps ")) {

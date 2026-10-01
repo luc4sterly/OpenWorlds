@@ -108,7 +108,7 @@ final class NsisPackage {
       byte[] d = Files.readAllBytes(pkg.toPath());
       int fh = firstHeader(d);
       if (fh < 0) {
-         throw new IOException(pkg + ": no es un instalador NSIS");
+         throw new IOException(pkg + ": not an NSIS installer");
       }
       int headerLen = (int) WisePackage.u32(d, fh + 20);
       int blk = fh + 28;
@@ -118,7 +118,7 @@ final class NsisPackage {
          try {
             header = WisePackage.inflate(d, blk + 4, (int) (len & 0x7fffffffL), headerLen);
          } catch (IOException e) {
-            throw new IOException(pkg + ": cabecera NSIS no es zlib sin solidez (" + e.getMessage() + ")");
+            throw new IOException(pkg + ": the NSIS header is not non-solid zlib (" + e.getMessage() + ")");
          }
       } else {
          header = new byte[(int) len];
@@ -126,7 +126,7 @@ final class NsisPackage {
       }
       NsisPackage p = new NsisPackage(d, header, blk + 4 + (int) (len & 0x7fffffffL), log);
       if (!p.unicode()) {
-         throw new IOException(pkg + ": instalador NSIS ANSI, no soportado");
+         throw new IOException(pkg + ": ANSI NSIS installer, not supported");
       }
       File exe = pkg.getAbsoluteFile();
       p.vars[20] = "\"" + winPath(exe) + "\"";
@@ -156,7 +156,7 @@ final class NsisPackage {
    private void run() throws IOException {
       int onInit = i32(108);
       if (onInit >= 0 && segment(onInit) == ERR) {
-         throw new IOException("el instalador se detuvo en .onInit");
+         throw new IOException("the installer stopped in .onInit");
       }
       int secOff = i32(4 + 8);
       int secCount = i32(4 + 12);
@@ -166,9 +166,9 @@ final class NsisPackage {
          int secFlags = i32(base + 8);
          int code = i32(base + 12);
          if ((secFlags & 1) != 0 && code >= 0) {
-            log.println("[gdkup] seccion \"" + str(i32(base)) + "\"");
+            log.println("[gdkup] section \"" + str(i32(base)) + "\"");
             if (segment(code) == ERR) {
-               throw new IOException("el instalador se detuvo en la seccion \"" + str(i32(base)) + "\"");
+               throw new IOException("the installer stopped in section \"" + str(i32(base)) + "\"");
             }
          }
       }
@@ -176,7 +176,7 @@ final class NsisPackage {
       if (onSuccess >= 0) {
          segment(onSuccess);
       }
-      log.println("[gdkup] " + files + " ficheros en " + hostFile(vars[INSTDIR]));
+      log.println("[gdkup] " + files + " files in " + hostFile(vars[INSTDIR]));
    }
 
    /** ExecuteCodeSegment. */
@@ -186,7 +186,7 @@ final class NsisPackage {
             return 0;
          }
          if (++steps > 1000000) {
-            throw new IOException("el guion NSIS no termina");
+            throw new IOException("the NSIS script does not end");
          }
          int rv = exec(pos);
          if (rv == ERR) {
@@ -236,7 +236,7 @@ final class NsisPackage {
             String path = str(p0);
             File dir = hostFile(path);
             if (!dir.isDirectory() && !dir.mkdirs()) {
-               throw new IOException("no se puede crear " + dir);
+               throw new IOException("cannot create " + dir);
             }
             if (p1 != 0) {
                vars[OUTDIR] = path;
@@ -257,7 +257,7 @@ final class NsisPackage {
             delete(str(p0));
             return 0;
          case 22:
-            log.println("[gdkup] mensaje del instalador: " + str(p1));
+            log.println("[gdkup] installer message: " + str(p1));
             return 0;
          case 25: {
             String s = str(p1);
@@ -305,7 +305,7 @@ final class NsisPackage {
             return pushPop(p0, p1, p2);
          case 48: {
             if (p0 == 0 || p1 == 0 || p4 == 0) {
-               throw new IOException("WriteINIStr sin seccion, clave o valor: no soportado");
+               throw new IOException("WriteINIStr without a section, key or value: not supported");
             }
             File ini = hostFile(str(p3));
             WinIni.put(ini, str(p0), str(p1), str(p2));
@@ -331,7 +331,7 @@ final class NsisPackage {
             vars[p1] = fileRead(vars[p0], atoi(str(p2)), p3 != 0);
             return 0;
          default:
-            throw new IOException("opcode NSIS " + op(k) + " (entrada " + k + ") no soportado");
+            throw new IOException("NSIS opcode " + op(k) + " (entry " + k + ") not supported");
       }
    }
 
@@ -345,7 +345,7 @@ final class NsisPackage {
    private int pushPop(int p0, int p1, int p2) throws IOException {
       if (p2 != 0) {
          if (p2 >= stack.size()) {
-            throw new IOException("Exch: la pila tiene menos de " + (p2 + 1) + " elementos");
+            throw new IOException("Exch: the stack has fewer than " + (p2 + 1) + " elements");
          }
          String top = stack.get(0);
          stack.set(0, stack.get(p2));
@@ -387,7 +387,7 @@ final class NsisPackage {
       }
       for (File m : matches) {
          if (m.isFile()) {
-            log.println("[gdkup] Delete: " + m + (m.delete() ? "" : " (no se pudo)"));
+            log.println("[gdkup] Delete: " + m + (m.delete() ? "" : " (failed)"));
          }
       }
    }
@@ -494,7 +494,7 @@ final class NsisPackage {
       long time = ftLow == -1 && ftHigh == -1 ? -1 : fileTime(ftLow, ftHigh);
       int overwrite = flagsParm & 7;
       if (to.exists() && (overwrite == 1 || overwrite == 3 && time >= 0 && to.lastModified() >= time)) {
-         log.println("[gdkup] se deja " + to);
+         log.println("[gdkup] keeping " + to);
          return;
       }
       int at = dataBase + offset;
@@ -508,7 +508,7 @@ final class NsisPackage {
       }
       File parent = to.getParentFile();
       if (!parent.isDirectory() && !parent.mkdirs()) {
-         throw new IOException("no se puede crear " + parent);
+         throw new IOException("cannot create " + parent);
       }
       OutputStream out = new FileOutputStream(to);
       try {

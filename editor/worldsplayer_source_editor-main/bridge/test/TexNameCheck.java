@@ -76,7 +76,7 @@ public final class TexNameCheck {
          int bo = NativeTextures.rwGetNamed("both");
          eq("both: .ras before .bmp", bo == 0 ? -1 : NativeTextures.texture(bo).pixels[0] & 0xFFFF, 25 << 11 | 50 << 5 | 25);
          eq("repeated rwGetNamed: the same one", NativeTextures.rwGetNamed("BOTH.env"), bo);
-         check("nonexistent", NativeTextures.rwGetNamed("nada") == 0);
+         check("nonexistent", NativeTextures.rwGetNamed("missing") == 0);
          // gamma.dll finds the RW one (data 0): destroys it and returns 0
          eq("FUN_004183e0 on an RW one", NativeTextures.lookupOrRead("wall", null, 0), 0);
          check("Wall destroyed", NativeTextures.texture(w) == null);

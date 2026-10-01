@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Envuelve con NET.worlds.core.HostPath.of(...) el primer argumento de las
-aperturas de fichero del Java decompilado (ver HostPath.java).
+"""Wraps in NET.worlds.core.HostPath.of(...) the first argument of the
+file opens of the decompiled Java (see HostPath.java).
 
-Uso: host_paths.py <arbol-pristino> <arbol-de-build>
+Usage: host_paths.py <pristine-tree> <build-tree>
 
-Solo toca los .java que existen en el arbol pristino (source/ del editor),
-reescritos en su copia del arbol de build: el codigo del puente ya abre sus
-ficheros con NativeMock.localFile. Es idempotente (no vuelve a envolver un
-argumento que ya empieza por HostPath.of) y falla si no encuentra ninguna
-llamada, para que un cambio de source/ no lo desactive en silencio.
+It only touches the .java files that exist in the pristine tree (the
+editor's source/), rewritten in their copy in the build tree: the bridge's
+code already opens its files with NativeMock.localFile. It is idempotent (it
+does not wrap again an argument that already starts with HostPath.of) and it
+fails if it finds no call, so that a change in source/ cannot turn it off silently.
 """
 import os
 import re
@@ -23,7 +23,7 @@ CALLS = re.compile(
 
 
 def first_arg_span(src, open_paren):
-    """(inicio, fin) del primer argumento de la llamada cuyo '(' esta en open_paren."""
+    """(start, end) of the first argument of the call whose '(' is at open_paren."""
     depth = 0
     i = open_paren + 1
     start = i
@@ -47,7 +47,7 @@ def first_arg_span(src, open_paren):
         elif c == "," and depth == 0:
             return start, i
         i += 1
-    raise ValueError("parentesis sin cerrar")
+    raise ValueError("unclosed parenthesis")
 
 
 def rewrite(src):
@@ -90,9 +90,9 @@ def main():
                     f.write(new)
                 total += n
                 files += 1
-    print("host_paths: %d aperturas de fichero envueltas en %d clases" % (total, files))
+    print("host_paths: %d file opens wrapped in %d classes" % (total, files))
     if total == 0:
-        sys.exit("host_paths: ninguna llamada encontrada (cambio en source/?)")
+        sys.exit("host_paths: no call found (a change in source/?)")
 
 
 if __name__ == "__main__":

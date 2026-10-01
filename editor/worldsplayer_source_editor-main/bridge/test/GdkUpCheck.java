@@ -73,16 +73,16 @@ public class GdkUpCheck {
       check((Integer) call("NsisPackage", "atoi", S, "-12abc") == -12, "atoi -12abc = -12");
       check((Integer) call("NsisPackage", "atoi", S, "40\r\n") == 40, "atoi 40\\r\\n = 40");
       File ini = new File(tmp, "w.ini");
-      write(ini, "[Gamma]\r\nUpgradeServer = http://x/3DCDup/ \r\n\r\n[gamma]\r\nUpgradeServer=segunda\r\n[Other]\r\nk=v\r\n");
+      write(ini, "[Gamma]\r\nUpgradeServer = http://x/3DCDup/ \r\n\r\n[gamma]\r\nUpgradeServer=second\r\n[Other]\r\nk=v\r\n");
       Class<?>[] G = {File.class, String.class, String.class, String.class};
       check("http://x/3DCDup/".equals(call("WinIni", "get", G, ini, "GAMMA", "upgradeserver", "def")),
          "WinIni.get: case-insensitive, spaces stripped, the first section with the name");
-      check("def".equals(call("WinIni", "get", G, ini, "Gamma", "nada", "def")), "WinIni.get: missing key -> def");
+      check("def".equals(call("WinIni", "get", G, ini, "Gamma", "missing", "def")), "WinIni.get: missing key -> def");
       call("WinIni", "put", G, ini, "Other", "k", "w");
-      call("WinIni", "put", G, ini, "Gamma", "Nueva", "1");
-      call("WinIni", "put", G, ini, "Seccion", "a", "b");
-      check(read(ini).equals("[Gamma]\r\nUpgradeServer = http://x/3DCDup/ \r\nNueva=1\r\n\r\n[gamma]\r\nUpgradeServer=segunda\r\n"
-            + "[Other]\r\nk=w\r\n[Seccion]\r\na=b\r\n"),
+      call("WinIni", "put", G, ini, "Gamma", "New", "1");
+      call("WinIni", "put", G, ini, "Section", "a", "b");
+      check(read(ini).equals("[Gamma]\r\nUpgradeServer = http://x/3DCDup/ \r\nNew=1\r\n\r\n[gamma]\r\nUpgradeServer=second\r\n"
+            + "[Other]\r\nk=w\r\n[Section]\r\na=b\r\n"),
          "WinIni.put: changes the value on its line, new key after the last line of its section, new section at the end, CRLF");
       File lf = new File(tmp, "lf.ini");
       call("WinIni", "put", G, lf, "S", "k", "v");
@@ -151,11 +151,11 @@ public class GdkUpCheck {
 
       // --- lines that cannot start, and bad scripts ---
       File h4 = fresh(tmp, "h4");
-      write(new File(h4, "updates.lst"), "Nada\\Nada1.exe" + CRLF + "run.exe world:restart" + CRLF);
+      write(new File(h4, "updates.lst"), "Missing\\Missing1.exe" + CRLF + "run.exe world:restart" + CRLF);
       r = gdkup(h4, "updates.lst", "1");
-      check((Integer) r[0] == 2 && ((String) r[1]).contains("Internal error - can't execute Nada\\Nada1.exe"),
+      check((Integer) r[0] == 2 && ((String) r[1]).contains("Internal error - can't execute Missing\\Missing1.exe"),
          "package that does not exist: Internal error - can't execute and end (2), no restart");
-      write(new File(h4, "Nada/Nada1.exe"), "no soy un exe");
+      write(new File(h4, "Missing/Missing1.exe"), "not an exe");
       r = gdkup(h4, "updates.lst", "1");
       check((Integer) r[0] == 2, "file without MZ: does not start either (2)");
       write(new File(h4, "updates.lst"), "xdelta patch GroundZero\\x.xdz GroundZero\\a GroundZero\\b" + CRLF + "run.exe world:restart" + CRLF);
@@ -163,9 +163,9 @@ public class GdkUpCheck {
       r = gdkup(h4, "updates.lst", "1");
       check((Integer) r[0] == GdkUp.RESTART && !new File(h4, "GroundZero/x.xdz").exists(),
          "xdelta (not supported): counted as finished, the patch is deleted and it goes on");
-      write(new File(h4, "vacio.lst"), "");
-      check((Integer) gdkup(h4, "vacio.lst", "1")[0] == 1, "empty script: Script file is not valid (1)");
-      check((Integer) gdkup(h4, "noexiste.lst", "1")[0] == 1, "script that does not exist (1)");
+      write(new File(h4, "empty.lst"), "");
+      check((Integer) gdkup(h4, "empty.lst", "1")[0] == 1, "empty script: Script file is not valid (1)");
+      check((Integer) gdkup(h4, "missing.lst", "1")[0] == 1, "script that does not exist (1)");
 
       System.out.println(fails == 0 ? "GdkUpCheck: all OK" : "GdkUpCheck: " + fails + " failures");
       System.exit(fails == 0 ? 0 : 1);

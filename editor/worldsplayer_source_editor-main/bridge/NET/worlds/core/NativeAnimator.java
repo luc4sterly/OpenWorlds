@@ -64,7 +64,7 @@ public final class NativeAnimator {
    public static int getnameindex(String name) {
       int i = AnimRegistry.get().nameIndex(name);
       if (AnimAnimator.LOG) {
-         System.out.println("[anim] getnameindex(" + name + ") = " + i + " de " + AnimRegistry.get().size());
+         System.out.println("[anim] getnameindex(" + name + ") = " + i + " of " + AnimRegistry.get().size());
       }
       return i;
    }
@@ -244,7 +244,7 @@ public final class NativeAnimator {
       float[] p = {(float) x, (float) y, (float) z};
       float[] q = AnimMotion.axisAngle(0f, 0f, 1f, (float) ((double) yaw * PI * INV_180));
       if (AnimAnimator.LOG && r.state.lastChange.same(AnimTime.ZERO)) {
-         System.out.println("[anim] primer moveto rep " + h + " tipo " + type + " en (" + x + "," + y + "," + z + ") yaw " + yaw + " t " + time);
+         System.out.println("[anim] first moveto rep " + h + " type " + type + " at (" + x + "," + y + "," + z + ") yaw " + yaw + " t " + time);
       }
       r.animator.moved(r.state, type, p, q, AnimTime.ofMillis(time));
    }
@@ -384,7 +384,7 @@ public final class NativeAnimator {
       if (AnimAnimator.LOG) {
          float[] l = new float[16];
          NativeScene.getClumpLTM(clump, l);
-         System.out.println("[anim] prepFigure clump " + clump + " COG " + cog + " en (" + l[12] + "," + l[13] + "," + l[14] + ")");
+         System.out.println("[anim] prepFigure clump " + clump + " COG " + cog + " at (" + l[12] + "," + l[13] + "," + l[14] + ")");
       }
       float[] m1 = NativeRw.identity();
       float[] m2 = NativeRw.identity();

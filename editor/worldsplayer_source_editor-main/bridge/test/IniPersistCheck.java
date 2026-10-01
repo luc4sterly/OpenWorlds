@@ -39,10 +39,10 @@ public class IniPersistCheck {
       s.setIniString("password0", "xyz");
       s.setIniString("USER0", "FWTestB");
       g.setIniInt("netdebug", 4);
-      open(f, "Nueva").setIniString("k", "v");
+      open(f, "New").setIniString("k", "v");
 
       String out = new String(Files.readAllBytes(f.toPath()), "ISO-8859-1");
-      String want = "[Gamma]\r\nLogFile=Gamma.Log\r\nnetdebug=4\r\n\r\n[127.0.0.1:6650]\r\nUser0=FWTestB\r\npassword0=xyz\r\n[Nueva]\r\nk=v\r\n";
+      String want = "[Gamma]\r\nLogFile=Gamma.Log\r\nnetdebug=4\r\n\r\n[127.0.0.1:6650]\r\nUser0=FWTestB\r\npassword0=xyz\r\n[New]\r\nk=v\r\n";
       check(want.equals(out), "file after writing = " + want.replace("\r\n", "|") + " (got " + out.replace("\r\n", "|") + ")");
 
       // read from scratch (another process): what was written is still there

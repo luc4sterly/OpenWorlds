@@ -682,7 +682,7 @@ public final class NativeScene {
          m.texture = texture;
          if (System.getProperty("openworlds.traceTextures") != null) {
             System.err.println("[RW] setMaterialTexture mat=" + h + " tex=" + texture
-               + (texture != 0 && NativeTextures.texture(texture) == null ? " (handle sin textura!)" : ""));
+               + (texture != 0 && NativeTextures.texture(texture) == null ? " (handle without a texture!)" : ""));
          }
       }
    }
@@ -863,7 +863,7 @@ public final class NativeScene {
          Clump k = clump(clump);
          System.err.println("[RW] addSubPolys " + (k == null ? "-" : String.valueOf(k.data)) + " " + hRes + "x" + vRes
             + " flags=0x" + Integer.toHexString(flags) + " x " + x1 + "+" + dxTotal + " z " + z1 + "+" + dzTotal
-            + " u " + u1 + "+" + du + " v " + v1 + "+" + dv + " -> " + count + " celdas");
+            + " u " + u1 + "+" + du + " v " + v1 + "+" + dv + " -> " + count + " cells");
       }
       int[] polys = new int[count];
       if (count == 0) {

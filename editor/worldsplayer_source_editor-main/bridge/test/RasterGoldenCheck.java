@@ -104,7 +104,7 @@ public final class RasterGoldenCheck {
          }
       }
       if (Boolean.getBoolean("golden.write") || "1".equals(System.getProperty("golden.write"))) {
-         StringBuilder sb = new StringBuilder("# CRC32 del raster 5-6-5 por vista (RasterGoldenCheck); regenerar con -Dgolden.write=1\n");
+         StringBuilder sb = new StringBuilder("# CRC32 of the 5-6-5 raster per view (RasterGoldenCheck); regenerate with -Dgolden.write=1\n");
          for (Map.Entry<String, Long> en : got.entrySet()) {
             sb.append(en.getKey()).append(' ').append(Long.toHexString(en.getValue())).append('\n');
          }

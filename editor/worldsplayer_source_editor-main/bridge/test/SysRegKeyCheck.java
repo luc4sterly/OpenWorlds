@@ -41,7 +41,7 @@ public final class SysRegKeyCheck {
       eqs("overwritten", NativeSysRegistry.getString(h, "InstallDir"), "C:\\Worlds2");
       check("default value", NativeSysRegistry.setString(h, "", "def", false));
       eqs("@", NativeSysRegistry.getString(h, ""), "def");
-      eqs("nonexistent value", NativeSysRegistry.getString(h, "nada"), null);
+      eqs("nonexistent value", NativeSysRegistry.getString(h, "missing"), null);
 
       // REG_EXPAND_SZ (setStringValue var3 = true): returned unexpanded
       check("expand", NativeSysRegistry.setString(h, "Path", "%WINDIR%\\x", true));
@@ -54,7 +54,7 @@ public final class SysRegKeyCheck {
       eq("negative getInt", NativeSysRegistry.getInt(h, "Neg"), -2);
       eqs("getString of a DWORD -> null (type 4)", NativeSysRegistry.getString(h, "Count"), null);
       eq("getInt of a string -> 0", NativeSysRegistry.getInt(h, "InstallDir"), 0);
-      eq("nonexistent getInt -> 0", NativeSysRegistry.getInt(h, "nada"), 0);
+      eq("nonexistent getInt -> 0", NativeSysRegistry.getInt(h, "missing"), 0);
 
       // 0x400 buffer: strlen + 1 <= 1024
       check("1023 ASCII", NativeSysRegistry.setString(h, "Big", rep('a', 1023), false));
@@ -71,18 +71,18 @@ public final class SysRegKeyCheck {
       int r = NativeSysRegistry.openKey(HKLM, "software\\WORLDS, INC.\\3dcd", 0);
       check("new handle", r != h);
       eqs("read via KEY_READ", NativeSysRegistry.getString(r, "InstallDir"), "C:\\Worlds2");
-      check("writing via KEY_READ fails", !NativeSysRegistry.setString(r, "InstallDir", "otro", false));
+      check("writing via KEY_READ fails", !NativeSysRegistry.setString(r, "InstallDir", "other", false));
       check("setInt via KEY_READ fails", !NativeSysRegistry.setInt(r, "Count", 1));
       eqs("no change", NativeSysRegistry.getString(h, "InstallDir"), "C:\\Worlds2");
-      eqs("create under KEY_READ", thrown(() -> NativeSysRegistry.createKey(r, "Nueva")), "Key not found: 5");
+      eqs("create under KEY_READ", thrown(() -> NativeSysRegistry.createKey(r, "New")), "Key not found: 5");
       int r2 = NativeSysRegistry.createKey(r, "");
       check("createKey of the same key under KEY_READ works", r2 != 0);
       // mode 1 (0x2001f) does write
       int w = NativeSysRegistry.openKey(HKLM, path, 1);
-      check("writing via mode 1", NativeSysRegistry.setString(w, "Mode1", "si", false));
+      check("writing via mode 1", NativeSysRegistry.setString(w, "Mode1", "yes", false));
       // "" = the key itself
       int same = NativeSysRegistry.openKey(w, "", 0);
-      eqs("empty subkey", NativeSysRegistry.getString(same, "Mode1"), "si");
+      eqs("empty subkey", NativeSysRegistry.getString(same, "Mode1"), "yes");
       eqs("empty component", thrown(() -> NativeSysRegistry.openKey(HKLM, "SOFTWARE\\\\Worlds, Inc.", 0)), "Key not found: 2");
 
       // closed handle: ERROR_INVALID_HANDLE (6)

@@ -64,7 +64,7 @@ public class AnimatorRegistryCheck {
       eq(NativeAnimator.getnameindex("aura"), 4, "getnameindex(aura)");
       eq(NativeAnimator.getnameindex("AURA"), 4, "getnameindex case-insensitive (FUN_004508c0)");
       eq(NativeAnimator.getnameindex("achoo"), 0, "getnameindex(achoo)");
-      eq(NativeAnimator.getnameindex("nadie"), -1, "getnameindex unknown");
+      eq(NativeAnimator.getnameindex("nobody"), -1, "getnameindex unknown");
       eq(NativeAnimator.getnameindex(""), -1, "getnameindex empty");
       eq(NativeAnimator.getindexgeom(1), "./avatars\\aggie.rwx", "getindexgeom(Aggie)");
       eq(NativeAnimator.getindexgeom(9999), "", "getindexgeom out of range");

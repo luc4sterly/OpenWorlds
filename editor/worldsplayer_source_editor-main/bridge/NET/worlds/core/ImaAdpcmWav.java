@@ -106,7 +106,7 @@ public final class ImaAdpcmWav {
       ByteBuffer fmt = chunk(d, "fmt ");
       ByteBuffer data = chunk(d, "data");
       if (fmt == null || data == null || (fmt.getShort(0) & 0xFFFF) != 0x11) {
-         throw new IOException("no es un WAV IMA ADPCM: " + f);
+         throw new IOException("not an IMA ADPCM WAV: " + f);
       }
 
       int ch = fmt.getShort(2) & 0xFFFF;
@@ -114,7 +114,7 @@ public final class ImaAdpcmWav {
       int blockAlign = fmt.getShort(12) & 0xFFFF;
       int bits = fmt.getShort(14) & 0xFFFF;
       if (bits != 4 || ch < 1 || ch > 2 || blockAlign < 4 * ch) {
-         throw new IOException("IMA ADPCM no soportado (" + ch + " canales, " + bits + " bits): " + f);
+         throw new IOException("IMA ADPCM not supported (" + ch + " channels, " + bits + " bits): " + f);
       }
 
       int spb = (blockAlign - 4 * ch) * 8 / (4 * ch) + 1;

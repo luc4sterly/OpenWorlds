@@ -172,8 +172,8 @@ public final class SeqParser {
       int first = r.u8();
       SeqData out = (first == 0x7f) ? parseBigEndian(r) : parseV1(r, first);
       if (r.p != data.length) {
-         throw new IllegalArgumentException(".seq con " + (data.length - r.p)
-            + " bytes sin consumir (formato deducido incompleto)");
+         throw new IllegalArgumentException(".seq with " + (data.length - r.p)
+            + " unconsumed bytes (inferred format incomplete)");
       }
       return out;
    }
@@ -182,12 +182,12 @@ public final class SeqParser {
    private static SeqData parseV1(Reader r, int version) {
       int nj = r.u8();
       if (nj == 0) {
-         throw new IllegalArgumentException(".seq sin joints");
+         throw new IllegalArgumentException(".seq without joints");
       }
       SeqData out = new SeqData(version, r.string());
       int k = r.u16();
       if (k < 1) {
-         throw new IllegalArgumentException(".seq sin keyframes");
+         throw new IllegalArgumentException(".seq without keyframes");
       }
       int[] dict = new int[k];
       int sum = 0;
@@ -226,11 +226,11 @@ public final class SeqParser {
       int version = 0x7f000000 | (r.u8() << 16) | (r.u8() << 8) | r.u8();
       int duration = (short) r.u16be();
       if (duration < 1) {
-         throw new IllegalArgumentException(".seq 0x7f con duracion " + duration);
+         throw new IllegalArgumentException(".seq 0x7f with duration " + duration);
       }
       int nj = r.u32be();
       if (nj <= 0) {
-         throw new IllegalArgumentException(".seq 0x7f sin joints: " + nj);
+         throw new IllegalArgumentException(".seq 0x7f without joints: " + nj);
       }
       SeqData out = new SeqData(version, r.stringBe());
       out.duration = duration;
@@ -251,7 +251,7 @@ public final class SeqParser {
       int sizeFlag = r.u32be();
       int n = r.u32be();
       if (sizeFlag != 4 && sizeFlag != 0xc && sizeFlag != 0x10) {
-         throw new IllegalArgumentException(".seq 0x7f con sizeFlag " + sizeFlag);
+         throw new IllegalArgumentException(".seq 0x7f with sizeFlag " + sizeFlag);
       }
       int[] times = new int[Math.max(n, 0)];
       float[][] vals = new float[times.length][];
@@ -270,7 +270,7 @@ public final class SeqParser {
 
    private static void putJoint(SeqData out, String name, Track t) {
       if (out.joints.put(name, t) != null) {
-         throw new IllegalArgumentException(".seq con joint duplicado: " + name);
+         throw new IllegalArgumentException(".seq with a duplicate joint: " + name);
       }
    }
 

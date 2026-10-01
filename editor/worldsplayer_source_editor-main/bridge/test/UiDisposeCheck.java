@@ -58,7 +58,7 @@ public class UiDisposeCheck {
 
       public void setVisible(boolean b) {
          if (!b) {
-            throw new IllegalStateException("prueba");
+            throw new IllegalStateException("test");
          }
          super.setVisible(b);
       }
@@ -103,7 +103,7 @@ public class UiDisposeCheck {
     * running. Null if the focus never arrives.
     */
    static Dialog focusedTextDialog(Frame f, boolean settle) throws Exception {
-      final Dialog d = new Dialog(f, "UiDisposeCheck texto", false);
+      final Dialog d = new Dialog(f, "UiDisposeCheck text", false);
       final TextField tf = new TextField("home:Chaos/chaos.world", 40);
       d.add(tf);
       d.pack();
@@ -176,7 +176,7 @@ public class UiDisposeCheck {
       Faulty bad = new Faulty(f);
       bad.pack();
       ended = closeUnderLock(bad, f, true, 10000L, out);
-      check(ended && out[1] instanceof IllegalStateException && "prueba".equals(((Throwable) out[1]).getMessage()),
+      check(ended && out[1] instanceof IllegalStateException && "test".equals(((Throwable) out[1]).getMessage()),
          "an exception from the close reaches the caller");
       bad.dispose();
 

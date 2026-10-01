@@ -183,7 +183,7 @@ public final class NativeSysCom {
       int[] r = objects.get(p);
       if (r == null) {
          // the original would call through the vtable of freed or foreign memory
-         throw new IllegalStateException("gamma.dll: puntero COM " + Integer.toHexString(p) + " sin objeto");
+         throw new IllegalStateException("gamma.dll: COM pointer " + Integer.toHexString(p) + " without an object");
       }
       return r;
    }

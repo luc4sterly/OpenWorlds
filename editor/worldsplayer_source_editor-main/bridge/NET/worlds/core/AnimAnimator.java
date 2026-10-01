@@ -163,8 +163,8 @@ public final class AnimAnimator {
       if (impIdx >= 0 && impIdx != this.imp) {
          if (LOG && (impIdx > 2 || this.imp > 2)) {
             AnimRegistry.AvatarType at = AnimRegistry.get().type(type);
-            System.out.println("[anim] " + (at == null ? "tipo " + type : at.attr("name")) + " en ("
-               + this.motion.pos[0] + "," + this.motion.pos[1] + "," + this.motion.pos[2] + "): implicito "
+            System.out.println("[anim] " + (at == null ? "type " + type : at.attr("name")) + " at ("
+               + this.motion.pos[0] + "," + this.motion.pos[1] + "," + this.motion.pos[2] + "): implicit "
                + this.imp + " -> " + impIdx + " (" + IMP_NAMES[impIdx < 1 || impIdx > 9 ? 1 : impIdx] + ")");
          }
          this.imp = impIdx;
@@ -187,7 +187,7 @@ public final class AnimAnimator {
          AnimGraph.Node cur = this.root.take();
          AnimTime d = p.duration();
          if (LOG) {
-            System.out.println("[anim] explicito " + expIdx + " del tipo " + type + ": " + d);
+            System.out.println("[anim] explicit " + expIdx + " of type " + type + ": " + d);
          }
          this.root.set(new AnimGraph.Overlay(cur, p, d));
          return (float) d.seconds();

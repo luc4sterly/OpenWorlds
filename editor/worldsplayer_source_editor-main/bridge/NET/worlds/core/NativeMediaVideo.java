@@ -89,21 +89,21 @@ public final class NativeMediaVideo {
       // 0x0043fff0: only from 1 or 2
       void play(int n) {
          if (this.state == STOPPED || this.state == PAUSED) {
-            throw new IllegalStateException("inalcanzable sin filter graph");
+            throw new IllegalStateException("unreachable without a filter graph");
          }
       }
 
       // 0x00440070: only from 3 or 1
       void pause() {
          if (this.state == PLAYING || this.state == STOPPED) {
-            throw new IllegalStateException("inalcanzable sin filter graph");
+            throw new IllegalStateException("unreachable without a filter graph");
          }
       }
 
       // 0x004400f0: only from 3 or 2
       void stop() {
          if (this.state == PLAYING || this.state == PAUSED) {
-            throw new IllegalStateException("inalcanzable sin filter graph");
+            throw new IllegalStateException("unreachable without a filter graph");
          }
       }
       // tick 0x004401a0: without an event (+0x10 == 0) it returns the state.
@@ -127,19 +127,19 @@ public final class NativeMediaVideo {
 
       // init always fails and nInit replaces it with DX7: the rest is never called.
       void open(String name) {
-         throw new IllegalStateException("DX8 sin filter graph: nInit cae a DX7");
+         throw new IllegalStateException("DX8 without a filter graph: nInit falls back to DX7");
       }
 
       void play(int n) {
-         throw new IllegalStateException("DX8 sin filter graph: nInit cae a DX7");
+         throw new IllegalStateException("DX8 without a filter graph: nInit falls back to DX7");
       }
 
       void pause() {
-         throw new IllegalStateException("DX8 sin filter graph: nInit cae a DX7");
+         throw new IllegalStateException("DX8 without a filter graph: nInit falls back to DX7");
       }
 
       void stop() {
-         throw new IllegalStateException("DX8 sin filter graph: nInit cae a DX7");
+         throw new IllegalStateException("DX8 without a filter graph: nInit falls back to DX7");
       }
    }
 
@@ -183,26 +183,26 @@ public final class NativeMediaVideo {
       // 0x00440ba0 / 0x00440c00 / 0x00440c50: require opened (+0x38)
       void play(int n) {
          if (this.ddInit && this.opened) {
-            throw new IllegalStateException("inalcanzable sin DirectDraw");
+            throw new IllegalStateException("unreachable without DirectDraw");
          }
       }
 
       void pause() {
          if (this.ddInit && this.opened) {
-            throw new IllegalStateException("inalcanzable sin DirectDraw");
+            throw new IllegalStateException("unreachable without DirectDraw");
          }
       }
 
       void stop() {
          if (this.ddInit && this.opened) {
-            throw new IllegalStateException("inalcanzable sin DirectDraw");
+            throw new IllegalStateException("unreachable without DirectDraw");
          }
       }
 
       // 0x00440430: requires ddInit and opened
       void renderTo(int hwnd, int hdc) {
          if (this.ddInit && this.opened) {
-            throw new IllegalStateException("inalcanzable sin DirectDraw");
+            throw new IllegalStateException("unreachable without DirectDraw");
          }
       }
 
@@ -256,7 +256,7 @@ public final class NativeMediaVideo {
    public static void nOpen(int h, String name) {
       Renderer r = get(h);
       if (r != null) {
-         NativeMediaSound.log("DirectShow " + r.kind() + " no disponible: " + name);
+         NativeMediaSound.log("DirectShow " + r.kind() + " not available: " + name);
          r.open(name);
          r.stop();
       }

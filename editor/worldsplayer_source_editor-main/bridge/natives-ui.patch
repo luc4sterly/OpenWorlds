@@ -7,14 +7,14 @@ diff a/NET/worlds/console/Console.java b/NET/worlds/console/Console.java
     public static final String encrypt(String var0) {
 -      NET.worlds.core.NativeMock.log("Console", "encrypt", new Object[]{var0});
 -      return var0;
-+      NET.worlds.core.NativeMock.log("Console", "encrypt", new Object[]{var0 == null ? null : "(" + var0.length() + " car.)"});
++      NET.worlds.core.NativeMock.log("Console", "encrypt", new Object[]{var0 == null ? null : "(" + var0.length() + " chars)"});
 +      return NET.worlds.core.NativeUiConsole.encrypt(var0);
     }
  
     public static final String decrypt(String var0) {
 -      NET.worlds.core.NativeMock.log("Console", "decrypt", new Object[]{var0});
 -      return var0;
-+      NET.worlds.core.NativeMock.log("Console", "decrypt", new Object[]{var0 == null ? null : "(" + var0.length() + " car.)"});
++      NET.worlds.core.NativeMock.log("Console", "decrypt", new Object[]{var0 == null ? null : "(" + var0.length() + " chars)"});
 +      return NET.worlds.core.NativeUiConsole.decrypt(var0);
     }
  
@@ -24,9 +24,9 @@ diff a/NET/worlds/console/Console.java b/NET/worlds/console/Console.java
     public static final int getVolumeInfo() {
        NET.worlds.core.NativeMock.log("Console", "getVolumeInfo", new Object[0]);
 -      return 0;
-+      // gamma.dll no exporta Java_NET_worlds_console_Console_getVolumeInfo
-+      // (docs/gamma-dll-exports.txt: solo Startup_getVolumeInfo): la JVM
-+      // original lanzaba esto al llamarlo. Ninguna de las 722 clases lo llama.
++      // gamma.dll does not export Java_NET_worlds_console_Console_getVolumeInfo
++      // (docs/gamma-dll-exports.txt: only Startup_getVolumeInfo): the original
++      // JVM threw this when it was called. None of the 722 classes calls it.
 +      throw new UnsatisfiedLinkError("NET.worlds.console.Console.getVolumeInfo()I");
     }
  
@@ -35,9 +35,9 @@ diff a/NET/worlds/console/Console.java b/NET/worlds/console/Console.java
     }
  
     static {
-+      // adaptacion de plataforma del puente (no es de gamma.dll): devuelve
-+      // a los TextField/TextArea los eventos 1.0 que el JDK moderno deja de
-+      // generarles; ver NET.worlds.core.NativeUiEvents
++      // platform adaptation of the bridge (not from gamma.dll): it gives back
++      // to TextField/TextArea the 1.0 events that the modern JDK no longer
++      // generates for them; see NET.worlds.core.NativeUiEvents
 +      NET.worlds.core.NativeUiEvents.install();
        WhisperManager.whisperManager().setParent(frame);
     }
@@ -175,7 +175,7 @@ diff a/NET/worlds/console/ScapePicImage.java b/NET/worlds/console/ScapePicImage.
  
     public void flush() {
        NET.worlds.core.NativeMock.log("ScapePicImage", "flush", new Object[0]);
-+      // 0x00410830: DeleteObject(hDIB) y hDIB = 0
++      // 0x00410830: DeleteObject(hDIB) and hDIB = 0
 +      if (this.hDIB != 0) {
 +         NET.worlds.core.NativeUiImage.delete(this.hDIB);
 +         this.hDIB = 0;
@@ -197,7 +197,7 @@ diff a/NET/worlds/console/ScapePicImage.java b/NET/worlds/console/ScapePicImage.
  
     public static void nativeInit() {
        NET.worlds.core.NativeMock.log("ScapePicImage", "nativeInit", new Object[0]);
-+      // 0x004102f0: solo cachea la clase y los fieldID (asercion si faltan)
++      // 0x004102f0: only caches the class and the fieldIDs (assertion if missing)
     }
  }
 diff a/NET/worlds/console/Startup.java b/NET/worlds/console/Startup.java
@@ -229,7 +229,7 @@ diff a/NET/worlds/scape/ImageConverter.java b/NET/worlds/scape/ImageConverter.ja
  
     public static void nativeInit() {
        NET.worlds.core.NativeMock.log("ImageConverter", "nativeInit", new Object[0]);
-+      // 0x00421ce0: solo cachea la clase y los fieldID (asercion si faltan)
++      // 0x00421ce0: only caches the class and the fieldIDs (assertion if missing)
     }
  
     public synchronized int convert() {
@@ -258,7 +258,7 @@ diff a/NET/worlds/scape/ImageConverter.java b/NET/worlds/scape/ImageConverter.ja
  
     private void cleanup() {
        NET.worlds.core.NativeMock.log("ImageConverter", "cleanup", new Object[0]);
-+      // 0x00423b40: DeleteObject(hDIB) si no es 0; el campo no se pone a 0
++      // 0x00423b40: DeleteObject(hDIB) if it is not 0; the field is not set to 0
 +      if (this.hDIB != 0) {
 +         NET.worlds.core.NativeUiImage.delete(this.hDIB);
 +      }
@@ -272,7 +272,7 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
  
     public static void setCursor(int var0) {
        NET.worlds.core.NativeMock.log("Window", "setCursor", new Object[]{var0});
-+      // 0x0040e710: guarda el cursor (DAT_004891c8) y lo aplica a la ventana
++      // 0x0040e710: stores the cursor (DAT_004891c8) and applies it to the window
 +      NET.worlds.core.NativeUiCursor.setCursor(var0);
     }
  
@@ -281,8 +281,8 @@ diff a/NET/worlds/console/Window.java b/NET/worlds/console/Window.java
        if (var1) {
           NET.worlds.core.NativeInput.attach(NET.worlds.core.NativeWindows.component(this.hWndGamma));
        }
-+      // 0x0040db60: SendMessageA(hWnd, 0x8067, DAT_004891c8) pone el cursor
-+      // actual; FUN_0040f250 llama a FUN_00409ce0 (instancia unica lista)
++      // 0x0040db60: SendMessageA(hWnd, 0x8067, DAT_004891c8) sets the current
++      // cursor; FUN_0040f250 calls FUN_00409ce0 (single instance ready)
 +      NET.worlds.core.NativeUiCursor.installed();
 +      NET.worlds.core.NativeUiStartup.instanceReady();
        return 0;
@@ -296,8 +296,8 @@ diff a/NET/worlds/console/FriendsListPart.java b/NET/worlds/console/FriendsListP
           }
  
 -         this.droneMenu.show(this.console.getRender(), var2.x, var2.y);
-+         // AwtCompat.showPopup: en Java >= 6 este show lanza "origin not in
-+         // parent's hierarchy" (el menu cuelga de la lista de amigos)
++         // AwtCompat.showPopup: on Java >= 6 this show throws "origin not in
++         // parent's hierarchy" (the menu hangs off the friends list)
 +         NET.worlds.core.AwtCompat.showPopup(this.droneMenu, this.console.getRender(), var2.x, var2.y);
        }
     }

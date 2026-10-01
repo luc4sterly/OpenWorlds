@@ -115,9 +115,9 @@ public final class NativeWindows {
             tree(pw, f, 0);
             pw.close();
             System.err.println("[WIN] " + txt + " " + f.getWidth() + "x" + f.getHeight() + " \"" + f.getTitle() + "\""
-               + (blank ? " (sin PNG: AWT pesado, lo pinta el peer nativo)" : ""));
+               + (blank ? " (no PNG: heavyweight AWT, painted by the native peer)" : ""));
          } catch (Throwable ex) {
-            System.err.println("[WIN] error al volcar la ventana: " + ex);
+            System.err.println("[WIN] error dumping the window: " + ex);
          }
       }
    }
@@ -379,10 +379,10 @@ public final class NativeWindows {
       sb.append(c.getClass().getName()).append(" [").append(b.x).append(",").append(b.y)
         .append(" ").append(b.width).append("x").append(b.height).append("]");
       if (!c.isVisible()) {
-         sb.append(" OCULTO");
+         sb.append(" HIDDEN");
       }
       if (b.width == 0 || b.height == 0) {
-         sb.append(" TAMANO-CERO");
+         sb.append(" ZERO-SIZE");
       }
       String text = null;
       if (c instanceof java.awt.Label) {

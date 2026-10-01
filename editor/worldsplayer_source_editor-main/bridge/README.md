@@ -88,7 +88,7 @@ not the pixel's. The world's `Rect`s have their texture set by the
 client (`Material.nativeSetTexture`), not by the shape's script, so
 their `.rwx` texture name is null even though they are textured —
 measured: in GroundZero **all** the visible materials come out as
-`CON textura` (literal `matStats` output, meaning "with texture").
+`WITH texture` (literal `matStats` output).
 
 ## Verified status (2026-09-26)
 
