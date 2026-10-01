@@ -27,8 +27,12 @@ import java.util.StringTokenizer;
  * bridge's translation) installs it into the game copy.
  */
 final class WorldInstall {
-   /** The client's build (Std.getVersion of the 2004 client) for the ":minimum" of upgrades.lst. */
-   private static final int CLIENT_BUILD = 1920;
+   /**
+    * The client's build for the ":minimum" of upgrades.lst: Std.getVersion,
+    * which the bridge answers as gamma.dll does for the 2004 client ("Rev
+    * 1900"); NetUpdate.getNextVers skips the installers for newer builds.
+    */
+   private static final int CLIENT_BUILD = 1900;
 
    interface Progress {
       void step(String text, int percent);
