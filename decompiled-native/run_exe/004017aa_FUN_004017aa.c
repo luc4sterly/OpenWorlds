@@ -1,5 +1,5 @@
 // 004017aa FUN_004017aa [Global]
-// programa: run.exe
+// program: run.exe
 
 undefined4 __cdecl FUN_004017aa(uint *param_1,int param_2)
 

@@ -1,5 +1,5 @@
 // 10004b30 FUN_10004b30 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 bool FUN_10004b30(int *param_1)
 

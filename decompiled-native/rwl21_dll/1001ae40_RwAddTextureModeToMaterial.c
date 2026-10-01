@@ -1,5 +1,5 @@
 // 1001ae40 RwAddTextureModeToMaterial [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwAddTextureModeToMaterial(int param_1,uint param_2)
 

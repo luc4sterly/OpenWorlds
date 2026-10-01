@@ -1,5 +1,5 @@
 // 100319c0 RwDeviceControl [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwDeviceControl(undefined4 param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4)
 

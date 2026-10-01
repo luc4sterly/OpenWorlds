@@ -1,5 +1,5 @@
 // 00459b9e FUN_00459b9e [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined8 __fastcall FUN_00459b9e(undefined4 param_1,undefined4 param_2)
 

@@ -1,5 +1,5 @@
 // 10045bb0 entry [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int entry(undefined4 param_1,int param_2,undefined4 param_3)
 

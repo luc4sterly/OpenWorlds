@@ -1,5 +1,5 @@
 // 004559e2 RwGetClumpViewportRect [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetClumpViewportRect(void)
 

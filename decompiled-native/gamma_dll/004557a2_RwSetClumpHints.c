@@ -1,5 +1,5 @@
 // 004557a2 RwSetClumpHints [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetClumpHints(void)
 

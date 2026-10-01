@@ -1,5 +1,5 @@
 // 1000bbb0 RwSetCameraViewOffset [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetCameraViewOffset(int param_1,undefined4 param_2,undefined4 param_3)
 

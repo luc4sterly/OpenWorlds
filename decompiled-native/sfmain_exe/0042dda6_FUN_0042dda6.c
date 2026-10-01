@@ -1,5 +1,5 @@
 // 0042dda6 FUN_0042dda6 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 unkbyte10 FUN_0042dda6(void)
 

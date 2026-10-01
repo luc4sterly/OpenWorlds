@@ -1,5 +1,5 @@
 // 00433fb6 WaitForSingleObject [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 DWORD WaitForSingleObject(HANDLE hHandle,DWORD dwMilliseconds)
 

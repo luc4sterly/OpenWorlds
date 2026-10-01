@@ -1,5 +1,5 @@
 // 004026c8 thunk_FUN_004026f4 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 undefined8 __fastcall thunk_FUN_004026f4(undefined4 param_1,undefined4 param_2)
 

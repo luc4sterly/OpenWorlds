@@ -1,5 +1,5 @@
 // 10062ad0 __tolower_lk [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __tolower_lk

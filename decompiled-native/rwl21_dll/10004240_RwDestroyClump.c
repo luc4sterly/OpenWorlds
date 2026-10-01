@@ -1,5 +1,5 @@
 // 10004240 RwDestroyClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwDestroyClump(undefined4 *param_1)
 

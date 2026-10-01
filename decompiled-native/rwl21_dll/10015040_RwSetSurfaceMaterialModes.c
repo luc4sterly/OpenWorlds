@@ -1,5 +1,5 @@
 // 10015040 RwSetSurfaceMaterialModes [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwSetSurfaceMaterialModes(uint param_1)
 

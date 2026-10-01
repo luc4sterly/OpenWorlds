@@ -1,5 +1,5 @@
 // 1000b730 FUN_1000b730 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 uint FUN_1000b730(byte *param_1)
 

@@ -1,5 +1,5 @@
 // 00451792 DdeInitializeA [USER32.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 UINT DdeInitializeA(LPDWORD pidInst,PFNCALLBACK pfnCallback,DWORD afCmd,DWORD ulRes)
 

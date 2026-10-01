@@ -1,5 +1,5 @@
 // 0040be77 FUN_0040be77 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void FUN_0040be77(float *param_1,int *param_2,int *param_3)
 

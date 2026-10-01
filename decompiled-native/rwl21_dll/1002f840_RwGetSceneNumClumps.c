@@ -1,5 +1,5 @@
 // 1002f840 RwGetSceneNumClumps [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetSceneNumClumps(int param_1)
 

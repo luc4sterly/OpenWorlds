@@ -1,5 +1,5 @@
 // 0042ca56 FUN_0042ca56 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 uint __fastcall FUN_0042ca56(undefined4 param_1,uint param_2)
 

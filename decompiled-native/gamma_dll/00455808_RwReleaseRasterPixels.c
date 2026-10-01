@@ -1,5 +1,5 @@
 // 00455808 RwReleaseRasterPixels [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwReleaseRasterPixels(void)
 

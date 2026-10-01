@@ -1,5 +1,5 @@
 // 00407415 FUN_00407415 [Global]
-// programa: run.exe
+// program: run.exe
 
 BOOL __cdecl
 FUN_00407415(DWORD param_1,LPCSTR param_2,int param_3,LPWORD param_4,UINT param_5,LCID param_6,

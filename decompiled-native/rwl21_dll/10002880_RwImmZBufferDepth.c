@@ -1,5 +1,5 @@
 // 10002880 RwImmZBufferDepth [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwImmZBufferDepth(int param_1)
 

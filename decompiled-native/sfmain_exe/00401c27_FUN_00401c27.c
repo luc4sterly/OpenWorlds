@@ -1,5 +1,5 @@
 // 00401c27 FUN_00401c27 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 /* WARNING: Type propagation algorithm not settling */
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */

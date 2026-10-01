@@ -1,5 +1,5 @@
 // 004023f0 _Java_NET_worlds_core_RegKey_getReservedKey@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_core_RegKey_getReservedKey_12(int *param_1,undefined4 param_2,undefined4 param_3)

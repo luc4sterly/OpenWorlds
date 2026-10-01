@@ -1,5 +1,5 @@
 // 00425da0 Java_NET_worlds_scape_Transform_scale__FFF [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* class _jobject * __stdcall Java_NET_worlds_scape_Transform_scale__FFF(struct JNIEnv_ *,class
    _jobject *,float,float,float) */

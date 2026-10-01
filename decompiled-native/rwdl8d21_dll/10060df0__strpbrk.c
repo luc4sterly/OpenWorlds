@@ -1,5 +1,5 @@
 // 10060df0 _strpbrk [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     _strpbrk

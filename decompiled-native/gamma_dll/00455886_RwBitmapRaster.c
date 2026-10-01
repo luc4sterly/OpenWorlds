@@ -1,5 +1,5 @@
 // 00455886 RwBitmapRaster [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwBitmapRaster(void)
 

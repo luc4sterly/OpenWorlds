@@ -1,5 +1,5 @@
 // 0040755e FUN_0040755e [Global]
-// programa: run.exe
+// program: run.exe
 
 uint __thiscall FUN_0040755e(void *this,uint param_1)
 

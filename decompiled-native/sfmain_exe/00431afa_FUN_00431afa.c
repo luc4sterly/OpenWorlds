@@ -1,5 +1,5 @@
 // 00431afa FUN_00431afa [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void FUN_00431afa(void)
 

@@ -1,5 +1,5 @@
 // 0041b670 FUN_0041b670 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Type propagation algorithm not settling */
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */

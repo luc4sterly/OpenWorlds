@@ -1,5 +1,5 @@
 // 1000f070 FUN_1000f070 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool FUN_1000f070(void)
 

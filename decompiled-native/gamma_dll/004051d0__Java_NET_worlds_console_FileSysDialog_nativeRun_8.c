@@ -1,5 +1,5 @@
 // 004051d0 _Java_NET_worlds_console_FileSysDialog_nativeRun@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 _Java_NET_worlds_console_FileSysDialog_nativeRun_8(int *param_1,undefined4 param_2)
 

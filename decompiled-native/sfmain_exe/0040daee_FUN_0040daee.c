@@ -1,5 +1,5 @@
 // 0040daee FUN_0040daee [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 __fastcall FUN_0040daee(undefined4 param_1,undefined4 *param_2)
 

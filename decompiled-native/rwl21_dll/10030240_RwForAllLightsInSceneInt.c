@@ -1,5 +1,5 @@
 // 10030240 RwForAllLightsInSceneInt [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwForAllLightsInSceneInt(int param_1,undefined *param_2,undefined4 param_3)
 

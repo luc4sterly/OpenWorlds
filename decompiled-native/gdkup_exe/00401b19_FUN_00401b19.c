@@ -1,5 +1,5 @@
 // 00401b19 FUN_00401b19 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 uint __fastcall FUN_00401b19(undefined4 param_1,undefined4 param_2)
 

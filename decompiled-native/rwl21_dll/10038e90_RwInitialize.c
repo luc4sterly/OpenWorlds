@@ -1,5 +1,5 @@
 // 10038e90 RwInitialize [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwInitialize(int *param_1)
 

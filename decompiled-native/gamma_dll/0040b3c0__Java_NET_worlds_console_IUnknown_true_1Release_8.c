@@ -1,5 +1,5 @@
 // 0040b3c0 _Java_NET_worlds_console_IUnknown_true_1Release@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_IUnknown_true_1Release_8(int *param_1,undefined4 param_2)
 

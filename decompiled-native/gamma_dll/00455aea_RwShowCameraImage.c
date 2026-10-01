@@ -1,5 +1,5 @@
 // 00455aea RwShowCameraImage [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwShowCameraImage(void)
 

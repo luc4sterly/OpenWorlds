@@ -1,5 +1,5 @@
 // 10048480 __cintrindisp2 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __cintrindisp2

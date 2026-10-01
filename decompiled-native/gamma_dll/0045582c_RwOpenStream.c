@@ -1,5 +1,5 @@
 // 0045582c RwOpenStream [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwOpenStream(void)
 

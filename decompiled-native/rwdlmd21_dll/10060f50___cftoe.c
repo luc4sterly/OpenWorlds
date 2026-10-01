@@ -1,5 +1,5 @@
 // 10060f50 __cftoe [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __cftoe

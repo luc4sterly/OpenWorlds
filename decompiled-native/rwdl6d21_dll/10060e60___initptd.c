@@ -1,5 +1,5 @@
 // 10060e60 __initptd [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __initptd

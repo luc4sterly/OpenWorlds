@@ -1,5 +1,5 @@
 // 10002be0 RwAddHintToClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwAddHintToClump(int param_1,uint param_2)
 

@@ -1,5 +1,5 @@
 // 00432d10 FUN_00432d10 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Heritage AFTER dead removal. Example location: s0xffffff7c : 0x00432da8 */
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */

@@ -1,5 +1,5 @@
 // 00455982 RwDestroyMaterial [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwDestroyMaterial(void)
 

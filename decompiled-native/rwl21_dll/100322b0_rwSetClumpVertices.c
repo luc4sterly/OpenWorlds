@@ -1,5 +1,5 @@
 // 100322b0 rwSetClumpVertices [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* rwSetClumpVertices */
 

@@ -1,5 +1,5 @@
 // 004062f0 FUN_004062f0 [Global]
-// programa: run.exe
+// program: run.exe
 
 /* WARNING: Unable to track spacebase fully for stack */
 

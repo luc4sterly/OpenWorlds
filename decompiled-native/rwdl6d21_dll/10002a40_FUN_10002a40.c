@@ -1,5 +1,5 @@
 // 10002a40 FUN_10002a40 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 void FUN_10002a40(int param_1,int *param_2,HDC param_3)
 

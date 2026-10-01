@@ -1,5 +1,5 @@
 // 10062610 __NMSG_WRITE [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __NMSG_WRITE

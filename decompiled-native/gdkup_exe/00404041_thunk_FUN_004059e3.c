@@ -1,5 +1,5 @@
 // 00404041 thunk_FUN_004059e3 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 longlong __fastcall thunk_FUN_004059e3(undefined4 param_1,uint param_2)
 

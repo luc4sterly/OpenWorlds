@@ -1,5 +1,5 @@
 // 1000b3e0 FUN_1000b3e0 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* WARNING: Removing unreachable block (ram,0x1000b3f1) */
 /* WARNING: Removing unreachable block (ram,0x1000b481) */

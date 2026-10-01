@@ -1,5 +1,5 @@
 // 0040b176 FUN_0040b176 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void FUN_0040b176(void)
 

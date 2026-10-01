@@ -1,5 +1,5 @@
 // 00407290 DeleteFileA [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 BOOL DeleteFileA(LPCSTR lpFileName)
 

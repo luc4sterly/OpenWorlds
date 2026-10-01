@@ -1,5 +1,5 @@
 // 10026310 FUN_10026310 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 void FUN_10026310(byte *param_1,undefined1 *param_2)
 

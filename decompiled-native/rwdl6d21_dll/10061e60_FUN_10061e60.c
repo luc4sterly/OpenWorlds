@@ -1,5 +1,5 @@
 // 10061e60 FUN_10061e60 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 void FUN_10061e60(void)
 

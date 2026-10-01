@@ -1,5 +1,5 @@
 // 1000ec20 RwCreateDepthCueColorStruct [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwCreateDepthCueColorStruct(uint *param_1)
 

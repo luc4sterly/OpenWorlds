@@ -1,5 +1,5 @@
 // 100118c0 RwProtoInstance [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwProtoInstance(byte *param_1)
 

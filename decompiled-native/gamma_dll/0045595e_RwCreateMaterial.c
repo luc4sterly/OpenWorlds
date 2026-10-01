@@ -1,5 +1,5 @@
 // 0045595e RwCreateMaterial [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwCreateMaterial(void)
 

@@ -1,5 +1,5 @@
 // 00407b9d FUN_00407b9d [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall
 FUN_00407b9d(short *param_1,short *param_2,int param_3,void *param_4,undefined4 param_5,

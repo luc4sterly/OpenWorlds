@@ -1,5 +1,5 @@
 // 10019cc0 RwGetMaterialDiffuseRGB [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwGetMaterialDiffuseRGB(int param_1,undefined4 *param_2)
 

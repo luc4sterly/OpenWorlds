@@ -1,5 +1,5 @@
 // 00455772 RwGetMaterialAmbient [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetMaterialAmbient(void)
 

@@ -1,5 +1,5 @@
 // 10041380 RwWriteStreamChunkHeader [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwWriteStreamChunkHeader(int *param_1,uint param_2,uint param_3)
 

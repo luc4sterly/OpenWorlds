@@ -1,5 +1,5 @@
 // 10062870 __abstract_cw [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __abstract_cw

@@ -1,5 +1,5 @@
 // 0045590a RwAddClumpToScene [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwAddClumpToScene(void)
 

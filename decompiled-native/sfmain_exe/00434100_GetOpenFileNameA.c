@@ -1,5 +1,5 @@
 // 00434100 GetOpenFileNameA [COMDLG32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL GetOpenFileNameA(LPOPENFILENAMEA param_1)
 

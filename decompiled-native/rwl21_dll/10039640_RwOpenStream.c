@@ -1,5 +1,5 @@
 // 10039640 RwOpenStream [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwOpenStream(int param_1,int param_2,int *param_3)
 

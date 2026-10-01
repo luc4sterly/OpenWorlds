@@ -1,5 +1,5 @@
 // 004518b0 FUN_004518b0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 ushort * FUN_004518b0(ushort *param_1,ushort *param_2,int param_3)
 

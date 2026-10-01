@@ -1,5 +1,5 @@
 // 004584f0 FUN_004584f0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void __cdecl FUN_004584f0(char *param_1,char *param_2,uint param_3)
 

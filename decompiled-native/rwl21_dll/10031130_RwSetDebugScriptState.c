@@ -1,5 +1,5 @@
 // 10031130 RwSetDebugScriptState [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwSetDebugScriptState(undefined4 param_1)
 

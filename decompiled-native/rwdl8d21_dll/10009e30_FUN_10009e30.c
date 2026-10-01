@@ -1,5 +1,5 @@
 // 10009e30 FUN_10009e30 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 undefined4
 FUN_10009e30(undefined4 *param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4)

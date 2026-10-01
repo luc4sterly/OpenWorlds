@@ -1,5 +1,5 @@
 // 1000db10 RwSetLightState [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwSetLightState(int *param_1,int param_2)
 

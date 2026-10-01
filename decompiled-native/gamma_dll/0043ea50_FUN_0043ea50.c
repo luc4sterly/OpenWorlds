@@ -1,5 +1,5 @@
 // 0043ea50 FUN_0043ea50 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 FUN_0043ea50(int param_1,int *param_2,undefined4 *param_3,RECT *param_4,LPRECT param_5,

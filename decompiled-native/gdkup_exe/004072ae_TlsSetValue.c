@@ -1,5 +1,5 @@
 // 004072ae TlsSetValue [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 BOOL TlsSetValue(DWORD dwTlsIndex,LPVOID lpTlsValue)
 

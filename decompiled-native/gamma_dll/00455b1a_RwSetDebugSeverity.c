@@ -1,5 +1,5 @@
 // 00455b1a RwSetDebugSeverity [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetDebugSeverity(void)
 

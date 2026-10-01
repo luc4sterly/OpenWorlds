@@ -1,5 +1,5 @@
 // 004517b0 DdeClientTransaction [USER32.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 HDDEDATA DdeClientTransaction
                    (LPBYTE pData,DWORD cbData,HCONV hConv,HSZ hszItem,UINT wFmt,UINT wType,

@@ -1,5 +1,5 @@
 // 004558b0 RwForAllPolygonsInClump [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwForAllPolygonsInClump(void)
 

@@ -1,5 +1,5 @@
 // 10008e50 RwGetFirstChildClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetFirstChildClump(int param_1)
 

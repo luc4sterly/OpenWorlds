@@ -1,5 +1,5 @@
 // 00405a27 FUN_00405a27 [Global]
-// programa: run.exe
+// program: run.exe
 
 void FUN_00405a27(void)
 

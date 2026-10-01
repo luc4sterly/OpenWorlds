@@ -1,5 +1,5 @@
 // 00401120 FUN_00401120 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 LPSTR __cdecl FUN_00401120(LPCSTR param_1,LPCSTR param_2,LPSTR param_3,DWORD param_4)
 

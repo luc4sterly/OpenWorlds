@@ -1,5 +1,5 @@
 // 0040b609 FUN_0040b609 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined8 __fastcall FUN_0040b609(undefined4 param_1,float *param_2)
 

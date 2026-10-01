@@ -1,5 +1,5 @@
 // 1000aef0 RwGetCameraRenderOffset [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetCameraRenderOffset(int param_1,undefined4 *param_2,undefined4 *param_3)
 

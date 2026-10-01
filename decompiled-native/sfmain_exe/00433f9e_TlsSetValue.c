@@ -1,5 +1,5 @@
 // 00433f9e TlsSetValue [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL TlsSetValue(DWORD dwTlsIndex,LPVOID lpTlsValue)
 

@@ -1,5 +1,5 @@
 // 10002920 RwGetClumpImmPolygon [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetClumpImmPolygon(int param_1,int param_2)
 

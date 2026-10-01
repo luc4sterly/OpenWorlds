@@ -1,5 +1,5 @@
 // 0040733e CloseHandle [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 BOOL CloseHandle(HANDLE hObject)
 

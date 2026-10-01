@@ -1,5 +1,5 @@
 // 100044a0 RwGetClumpTag [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetClumpTag(int param_1)
 

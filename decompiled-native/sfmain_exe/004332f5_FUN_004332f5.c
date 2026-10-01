@@ -1,5 +1,5 @@
 // 004332f5 FUN_004332f5 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void FUN_004332f5(undefined8 param_1,int param_2,uint *param_3)
 

@@ -1,5 +1,5 @@
 // 1001aeb0 RwRemoveTextureModeFromMaterial [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Removing unreachable block (ram,0x1001aee3) */
 

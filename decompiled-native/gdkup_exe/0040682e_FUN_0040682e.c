@@ -1,5 +1,5 @@
 // 0040682e FUN_0040682e [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 undefined4 __fastcall FUN_0040682e(undefined4 param_1,int param_2)
 

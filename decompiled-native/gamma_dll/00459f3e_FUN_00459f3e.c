@@ -1,5 +1,5 @@
 // 00459f3e FUN_00459f3e [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint FUN_00459f3e(void)
 

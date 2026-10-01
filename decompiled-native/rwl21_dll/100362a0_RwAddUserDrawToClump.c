@@ -1,5 +1,5 @@
 // 100362a0 RwAddUserDrawToClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwAddUserDrawToClump(int param_1,int param_2)
 

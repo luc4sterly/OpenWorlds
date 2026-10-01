@@ -1,5 +1,5 @@
 // 1000f8e0 RwClumpEnd [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwClumpEnd(undefined4 *param_1)
 

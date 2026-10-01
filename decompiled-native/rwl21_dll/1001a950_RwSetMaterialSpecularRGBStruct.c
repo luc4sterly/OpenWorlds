@@ -1,5 +1,5 @@
 // 1001a950 RwSetMaterialSpecularRGBStruct [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetMaterialSpecularRGBStruct(int param_1,uint *param_2)
 

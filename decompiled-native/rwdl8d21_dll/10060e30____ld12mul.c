@@ -1,5 +1,5 @@
 // 10060e30 ___ld12mul [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     ___ld12mul

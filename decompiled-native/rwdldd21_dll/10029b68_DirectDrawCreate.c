@@ -1,5 +1,5 @@
 // 10029b68 DirectDrawCreate [DDRAW.DLL]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 void DirectDrawCreate(void)
 

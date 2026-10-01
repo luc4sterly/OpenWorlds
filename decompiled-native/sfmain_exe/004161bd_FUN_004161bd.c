@@ -1,5 +1,5 @@
 // 004161bd FUN_004161bd [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 INT_PTR __fastcall FUN_004161bd(undefined4 param_1,undefined4 param_2)
 

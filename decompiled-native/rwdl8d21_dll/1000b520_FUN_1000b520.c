@@ -1,5 +1,5 @@
 // 1000b520 FUN_1000b520 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 int FUN_1000b520(int param_1,int param_2)
 

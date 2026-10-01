@@ -1,5 +1,5 @@
 // 00455b02 RwOpenDisplayDevice [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwOpenDisplayDevice(void)
 

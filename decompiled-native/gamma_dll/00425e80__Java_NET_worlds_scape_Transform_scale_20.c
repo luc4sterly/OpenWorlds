@@ -1,5 +1,5 @@
 // 00425e80 _Java_NET_worlds_scape_Transform_scale@20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_scape_Transform_scale_20

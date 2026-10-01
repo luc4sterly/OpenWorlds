@@ -1,5 +1,5 @@
 // 100671b0 __dosmaperr [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __dosmaperr

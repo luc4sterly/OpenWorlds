@@ -1,5 +1,5 @@
 // 1004f690 FUN_1004f690 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void __cdecl FUN_1004f690(char *param_1)
 

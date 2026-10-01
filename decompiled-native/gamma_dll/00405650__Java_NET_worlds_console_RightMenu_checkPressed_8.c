@@ -1,5 +1,5 @@
 // 00405650 _Java_NET_worlds_console_RightMenu_checkPressed@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 _Java_NET_worlds_console_RightMenu_checkPressed_8(void)
 

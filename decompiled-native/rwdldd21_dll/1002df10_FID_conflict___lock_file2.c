@@ -1,5 +1,5 @@
 // 1002df10 FID_conflict:__lock_file2 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Multiple Matches With Different Base Names
     __lock_file2

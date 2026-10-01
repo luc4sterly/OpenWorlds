@@ -1,5 +1,5 @@
 // 004338c3 FUN_004338c3 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 DWORD __fastcall FUN_004338c3(undefined4 param_1)
 

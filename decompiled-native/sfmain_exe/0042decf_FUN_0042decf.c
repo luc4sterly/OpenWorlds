@@ -1,5 +1,5 @@
 // 0042decf FUN_0042decf [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 unkbyte10 FUN_0042decf(void)
 

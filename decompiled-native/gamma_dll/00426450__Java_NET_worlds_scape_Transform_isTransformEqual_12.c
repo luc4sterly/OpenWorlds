@@ -1,5 +1,5 @@
 // 00426450 _Java_NET_worlds_scape_Transform_isTransformEqual@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int _Java_NET_worlds_scape_Transform_isTransformEqual_12
               (int *param_1,undefined4 param_2,undefined4 param_3)

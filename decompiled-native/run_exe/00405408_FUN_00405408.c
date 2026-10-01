@@ -1,5 +1,5 @@
 // 00405408 FUN_00405408 [Global]
-// programa: run.exe
+// program: run.exe
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 

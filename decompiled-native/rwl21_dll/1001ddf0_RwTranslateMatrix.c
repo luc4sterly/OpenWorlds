@@ -1,5 +1,5 @@
 // 1001ddf0 RwTranslateMatrix [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwTranslateMatrix(float *param_1,float param_2,float param_3,float param_4,int param_5)
 

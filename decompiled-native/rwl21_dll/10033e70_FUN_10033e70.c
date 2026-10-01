@@ -1,5 +1,5 @@
 // 10033e70 FUN_10033e70 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void __thiscall FUN_10033e70(void *this,undefined1 *param_1,int param_2)
 

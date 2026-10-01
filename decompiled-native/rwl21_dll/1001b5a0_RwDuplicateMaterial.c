@@ -1,5 +1,5 @@
 // 1001b5a0 RwDuplicateMaterial [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint * RwDuplicateMaterial(uint *param_1)
 

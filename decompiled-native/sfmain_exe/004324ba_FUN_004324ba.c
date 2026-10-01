@@ -1,5 +1,5 @@
 // 004324ba FUN_004324ba [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 float10 __fastcall FUN_004324ba(undefined4 param_1,undefined4 param_2)
 

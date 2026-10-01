@@ -1,5 +1,5 @@
 // 0040dc7e FUN_0040dc7e [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 __fastcall
 FUN_0040dc7e(undefined4 param_1,undefined4 param_2,HWND param_3,uint param_4,void *param_5)

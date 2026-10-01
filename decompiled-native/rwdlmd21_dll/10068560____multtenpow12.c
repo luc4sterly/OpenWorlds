@@ -1,5 +1,5 @@
 // 10068560 ___multtenpow12 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     ___multtenpow12

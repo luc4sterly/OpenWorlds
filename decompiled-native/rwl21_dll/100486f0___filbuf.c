@@ -1,5 +1,5 @@
 // 100486f0 __filbuf [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __filbuf

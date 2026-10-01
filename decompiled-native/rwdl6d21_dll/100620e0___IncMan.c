@@ -1,5 +1,5 @@
 // 100620e0 __IncMan [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __IncMan

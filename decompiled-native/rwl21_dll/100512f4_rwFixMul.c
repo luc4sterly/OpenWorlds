@@ -1,5 +1,5 @@
 // 100512f4 rwFixMul [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* rwFixMul */
 

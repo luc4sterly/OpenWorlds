@@ -1,5 +1,5 @@
 // 004160b3 FUN_004160b3 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 FUN_004160b3(HWND param_1,uint param_2,uint param_3,ushort param_4)
 

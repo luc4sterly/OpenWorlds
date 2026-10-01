@@ -1,5 +1,5 @@
 // 00407344 GetModuleHandleA [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 HMODULE GetModuleHandleA(LPCSTR lpModuleName)
 

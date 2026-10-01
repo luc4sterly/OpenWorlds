@@ -1,5 +1,5 @@
 // 10067300 __get_lc_time [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __get_lc_time

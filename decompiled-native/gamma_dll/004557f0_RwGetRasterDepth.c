@@ -1,5 +1,5 @@
 // 004557f0 RwGetRasterDepth [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetRasterDepth(void)
 

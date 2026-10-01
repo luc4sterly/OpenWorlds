@@ -1,5 +1,5 @@
 // 0040f900 FUN_0040f900 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int __thiscall FUN_0040f900(void *this,undefined4 param_1)
 

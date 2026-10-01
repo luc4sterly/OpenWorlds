@@ -1,5 +1,5 @@
 // 1000a980 RwGetCameraBackdrop [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetCameraBackdrop(int param_1)
 

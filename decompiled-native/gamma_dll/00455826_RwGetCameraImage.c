@@ -1,5 +1,5 @@
 // 00455826 RwGetCameraImage [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetCameraImage(void)
 

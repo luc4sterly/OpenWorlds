@@ -1,5 +1,5 @@
 // 004014da FUN_004014da [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 undefined4 __thiscall
 FUN_004014da(void *this,undefined4 param_1,uint param_2,undefined4 param_3,undefined4 param_4,

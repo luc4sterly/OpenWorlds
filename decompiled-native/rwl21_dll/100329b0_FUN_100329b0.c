@@ -1,5 +1,5 @@
 // 100329b0 FUN_100329b0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint FUN_100329b0(uint param_1)
 

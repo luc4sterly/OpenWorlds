@@ -1,5 +1,5 @@
 // 00440fa0 FUN_00440fa0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Removing unreachable block (ram,0x0044107b) */
 

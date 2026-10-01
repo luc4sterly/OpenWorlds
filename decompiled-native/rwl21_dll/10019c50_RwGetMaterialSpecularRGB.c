@@ -1,5 +1,5 @@
 // 10019c50 RwGetMaterialSpecularRGB [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwGetMaterialSpecularRGB(int param_1,undefined4 *param_2)
 

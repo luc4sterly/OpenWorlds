@@ -1,5 +1,5 @@
 // 1002e900 ___crtMessageBoxA [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     ___crtMessageBoxA

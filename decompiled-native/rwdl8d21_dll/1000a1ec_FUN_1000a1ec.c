@@ -1,5 +1,5 @@
 // 1000a1ec FUN_1000a1ec [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 void FUN_1000a1ec(undefined4 param_1,undefined4 param_2,int param_3,int *param_4)
 

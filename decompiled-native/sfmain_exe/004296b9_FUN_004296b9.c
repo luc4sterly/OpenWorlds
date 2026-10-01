@@ -1,5 +1,5 @@
 // 004296b9 FUN_004296b9 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __cdecl FUN_004296b9(LPCSTR param_1)
 

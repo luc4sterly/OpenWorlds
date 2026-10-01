@@ -1,5 +1,5 @@
 // 0042f70d thunk_FUN_0042cb9a [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 longlong __fastcall thunk_FUN_0042cb9a(undefined4 param_1,uint param_2)
 

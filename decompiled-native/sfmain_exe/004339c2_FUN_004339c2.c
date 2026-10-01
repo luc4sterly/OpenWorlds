@@ -1,5 +1,5 @@
 // 004339c2 FUN_004339c2 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 FUN_004339c2(undefined4 param_1,undefined4 param_2,double *param_3)
 

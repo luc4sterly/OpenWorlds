@@ -1,5 +1,5 @@
 // 100183c0 RwFindNamedTexture [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwFindNamedTexture(char *param_1)
 

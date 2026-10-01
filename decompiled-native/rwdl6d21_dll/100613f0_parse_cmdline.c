@@ -1,5 +1,5 @@
 // 100613f0 parse_cmdline [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     _parse_cmdline

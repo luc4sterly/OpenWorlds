@@ -1,5 +1,5 @@
 // 1004c2b0 __sopen [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __sopen

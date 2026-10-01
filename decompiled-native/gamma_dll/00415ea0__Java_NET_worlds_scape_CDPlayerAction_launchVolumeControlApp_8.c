@@ -1,5 +1,5 @@
 // 00415ea0 _Java_NET_worlds_scape_CDPlayerAction_launchVolumeControlApp@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined1 _Java_NET_worlds_scape_CDPlayerAction_launchVolumeControlApp_8(void)
 

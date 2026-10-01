@@ -1,5 +1,5 @@
 // 0044c630 FUN_0044c630 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Restarted to delay deadcode elimination for space: stack */
 

@@ -1,5 +1,5 @@
 // 00455ad8 RwSetMatrixElements [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetMatrixElements(void)
 

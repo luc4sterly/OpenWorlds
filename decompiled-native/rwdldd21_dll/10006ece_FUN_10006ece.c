@@ -1,5 +1,5 @@
 // 10006ece FUN_10006ece [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 void __thiscall FUN_10006ece(void *this)
 

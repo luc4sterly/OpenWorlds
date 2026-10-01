@@ -1,5 +1,5 @@
 // 10062c30 __IncMan [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __IncMan

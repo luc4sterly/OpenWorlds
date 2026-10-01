@@ -1,5 +1,5 @@
 // 004165c0 _Java_NET_worlds_scape_DroneAnimator_animate@20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 float10 _Java_NET_worlds_scape_DroneAnimator_animate_20
                   (int *param_1,undefined4 param_2,uint param_3,undefined4 param_4,uint param_5)

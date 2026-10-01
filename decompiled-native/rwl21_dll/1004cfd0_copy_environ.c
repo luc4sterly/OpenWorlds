@@ -1,5 +1,5 @@
 // 1004cfd0 copy_environ [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     _copy_environ

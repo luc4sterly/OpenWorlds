@@ -1,5 +1,5 @@
 // 100039e0 RwForAllPolygonsInClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwForAllPolygonsInClump(int param_1,undefined *param_2)
 

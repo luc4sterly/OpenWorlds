@@ -1,5 +1,5 @@
 // 00455802 RwGetRasterPixels [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetRasterPixels(void)
 

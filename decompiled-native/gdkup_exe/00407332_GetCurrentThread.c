@@ -1,5 +1,5 @@
 // 00407332 GetCurrentThread [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 HANDLE GetCurrentThread(void)
 

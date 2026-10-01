@@ -1,5 +1,5 @@
 // 10031100 RwSetDebugTraceState [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwSetDebugTraceState(undefined4 param_1)
 

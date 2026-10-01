@@ -1,5 +1,5 @@
 // 0043fa70 _Java_NET_worlds_scape_TextureSurface_nativeInit@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_TextureSurface_nativeInit_16
                (undefined4 param_1,undefined4 param_2,int param_3,int param_4)

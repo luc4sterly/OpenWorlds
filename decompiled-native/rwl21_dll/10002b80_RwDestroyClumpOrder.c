@@ -1,5 +1,5 @@
 // 10002b80 RwDestroyClumpOrder [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwDestroyClumpOrder(undefined4 *param_1)
 

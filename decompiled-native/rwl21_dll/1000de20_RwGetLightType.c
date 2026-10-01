@@ -1,5 +1,5 @@
 // 1000de20 RwGetLightType [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetLightType(int param_1)
 

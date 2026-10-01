@@ -1,5 +1,5 @@
 // 004048aa FUN_004048aa [Global]
-// programa: run.exe
+// program: run.exe
 
 void __cdecl FUN_004048aa(int param_1)
 

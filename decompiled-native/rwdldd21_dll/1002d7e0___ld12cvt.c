@@ -1,5 +1,5 @@
 // 1002d7e0 __ld12cvt [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __ld12cvt

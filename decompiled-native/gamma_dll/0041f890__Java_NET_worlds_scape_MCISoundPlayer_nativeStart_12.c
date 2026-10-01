@@ -1,5 +1,5 @@
 // 0041f890 _Java_NET_worlds_scape_MCISoundPlayer_nativeStart@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_scape_MCISoundPlayer_nativeStart_12

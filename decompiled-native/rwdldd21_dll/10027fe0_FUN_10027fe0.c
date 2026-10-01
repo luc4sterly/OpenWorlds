@@ -1,5 +1,5 @@
 // 10027fe0 FUN_10027fe0 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 uint FUN_10027fe0(byte *param_1)
 

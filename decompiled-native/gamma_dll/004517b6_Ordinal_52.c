@@ -1,5 +1,5 @@
 // 004517b6 Ordinal_52 [WS2_32.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void Ordinal_52(void)
 

@@ -1,5 +1,5 @@
 // 1001d520 RwDuplicateMatrix [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 longlong RwDuplicateMatrix(undefined4 *param_1)
 

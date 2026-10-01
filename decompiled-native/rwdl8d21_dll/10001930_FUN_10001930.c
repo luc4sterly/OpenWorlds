@@ -1,5 +1,5 @@
 // 10001930 FUN_10001930 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 void FUN_10001930(int param_1,int *param_2,HDC param_3)
 

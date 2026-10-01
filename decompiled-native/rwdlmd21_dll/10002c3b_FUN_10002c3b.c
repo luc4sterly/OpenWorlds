@@ -1,5 +1,5 @@
 // 10002c3b FUN_10002c3b [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 undefined4 FUN_10002c3b(void)
 

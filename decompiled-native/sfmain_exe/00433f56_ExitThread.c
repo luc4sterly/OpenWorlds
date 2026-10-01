@@ -1,5 +1,5 @@
 // 00433f56 ExitThread [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void ExitThread(DWORD dwExitCode)
 

@@ -1,5 +1,5 @@
 // 1000b740 RwShowCameraImage [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Variable defined which should be unmapped: param_1 */
 

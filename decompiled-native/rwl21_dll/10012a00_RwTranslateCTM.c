@@ -1,5 +1,5 @@
 // 10012a00 RwTranslateCTM [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwTranslateCTM(float param_1,float param_2,float param_3)
 

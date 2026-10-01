@@ -1,5 +1,5 @@
 // 0043f0d0 _Java_NET_worlds_console_RenderCanvasOverlay_nativeResizeChild@20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_RenderCanvasOverlay_nativeResizeChild_20
                (undefined4 param_1,undefined4 param_2,HWND param_3,int param_4,int param_5)

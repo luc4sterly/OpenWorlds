@@ -1,5 +1,5 @@
 // 10046e80 get_short_arg [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     _get_short_arg

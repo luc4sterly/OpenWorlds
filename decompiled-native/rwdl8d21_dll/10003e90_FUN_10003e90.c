@@ -1,5 +1,5 @@
 // 10003e90 FUN_10003e90 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 void FUN_10003e90(int param_1,uint *param_2)
 

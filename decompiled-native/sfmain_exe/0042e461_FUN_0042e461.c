@@ -1,5 +1,5 @@
 // 0042e461 FUN_0042e461 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined8 __fastcall
 FUN_0042e461(undefined4 param_1,undefined4 param_2,LPCSTR param_3,uint param_4,undefined4 param_5,

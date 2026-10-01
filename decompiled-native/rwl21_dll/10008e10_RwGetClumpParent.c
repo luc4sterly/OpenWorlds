@@ -1,5 +1,5 @@
 // 10008e10 RwGetClumpParent [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetClumpParent(int param_1)
 

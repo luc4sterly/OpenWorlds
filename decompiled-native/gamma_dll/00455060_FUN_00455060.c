@@ -1,5 +1,5 @@
 // 00455060 FUN_00455060 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int * __cdecl FUN_00455060(LPCSTR param_1,char *param_2,int *param_3)
 

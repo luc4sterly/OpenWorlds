@@ -1,5 +1,5 @@
 // 00406e81 FUN_00406e81 [Global]
-// programa: run.exe
+// program: run.exe
 
 void FUN_00406e81(void)
 

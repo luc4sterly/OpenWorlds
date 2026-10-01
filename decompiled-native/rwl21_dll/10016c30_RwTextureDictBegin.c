@@ -1,5 +1,5 @@
 // 10016c30 RwTextureDictBegin [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwTextureDictBegin(void)
 

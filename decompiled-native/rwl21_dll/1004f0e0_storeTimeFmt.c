@@ -1,5 +1,5 @@
 // 1004f0e0 storeTimeFmt [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     _storeTimeFmt

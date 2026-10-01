@@ -1,5 +1,5 @@
 // 0040e230 _Java_NET_worlds_console_Window_nativeFindChildWindow@28 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 HWND _Java_NET_worlds_console_Window_nativeFindChildWindow_28
                (undefined4 param_1,undefined4 param_2,HWND param_3,int param_4,int param_5,

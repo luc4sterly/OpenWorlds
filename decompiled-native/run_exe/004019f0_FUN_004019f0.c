@@ -1,5 +1,5 @@
 // 004019f0 FUN_004019f0 [Global]
-// programa: run.exe
+// program: run.exe
 
 uint * __cdecl FUN_004019f0(uint *param_1,uint *param_2)
 

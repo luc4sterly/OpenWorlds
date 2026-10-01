@@ -1,5 +1,5 @@
 // 10001d40 RwSetPolygonSpecular [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwSetPolygonSpecular(int *param_1,uint param_2)
 

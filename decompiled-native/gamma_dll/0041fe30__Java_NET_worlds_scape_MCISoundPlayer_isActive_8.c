@@ -1,5 +1,5 @@
 // 0041fe30 _Java_NET_worlds_scape_MCISoundPlayer_isActive@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 bool _Java_NET_worlds_scape_MCISoundPlayer_isActive_8(void)
 

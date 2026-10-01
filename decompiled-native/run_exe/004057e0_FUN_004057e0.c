@@ -1,5 +1,5 @@
 // 004057e0 FUN_004057e0 [Global]
-// programa: run.exe
+// program: run.exe
 
 undefined4 __cdecl FUN_004057e0(byte param_1,uint param_2,byte param_3)
 

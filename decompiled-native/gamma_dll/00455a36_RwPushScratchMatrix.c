@@ -1,5 +1,5 @@
 // 00455a36 RwPushScratchMatrix [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwPushScratchMatrix(void)
 

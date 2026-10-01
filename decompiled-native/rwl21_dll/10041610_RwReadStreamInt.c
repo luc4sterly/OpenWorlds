@@ -1,5 +1,5 @@
 // 10041610 RwReadStreamInt [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwReadStreamInt(int *param_1,uint *param_2,uint param_3)
 

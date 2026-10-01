@@ -1,5 +1,5 @@
 // 0040369d FUN_0040369d [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 DWORD __fastcall FUN_0040369d(undefined4 param_1)
 

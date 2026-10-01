@@ -1,5 +1,5 @@
 // 1006ab60 FUN_1006ab60 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void FUN_1006ab60(undefined4 *param_1,uint param_2,int param_3,undefined4 param_4)
 

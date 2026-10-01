@@ -1,5 +1,5 @@
 // 100178d0 RwGetTextureMipmapRaster [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetTextureMipmapRaster(int param_1)
 

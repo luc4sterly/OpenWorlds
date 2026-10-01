@@ -1,5 +1,5 @@
 // 0041ac20 _Java_NET_worlds_scape_Point3Temp_times@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_scape_Point3Temp_times_12(int *param_1,undefined4 param_2,undefined4 param_3)

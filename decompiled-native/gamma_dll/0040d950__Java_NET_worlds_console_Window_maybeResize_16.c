@@ -1,5 +1,5 @@
 // 0040d950 _Java_NET_worlds_console_Window_maybeResize@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_Window_maybeResize_16
                (int *param_1,undefined4 param_2,int param_3,int param_4)

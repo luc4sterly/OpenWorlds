@@ -1,5 +1,5 @@
 // 100192c0 RwSetTextureGammaCorrection [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Removing unreachable block (ram,0x100192f7) */
 /* WARNING: Removing unreachable block (ram,0x100192e6) */

@@ -1,5 +1,5 @@
 // 00453f20 FUN_00453f20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint __cdecl
 FUN_00453f20(uint param_1,int param_2,undefined *param_3,undefined4 param_4,int *param_5,

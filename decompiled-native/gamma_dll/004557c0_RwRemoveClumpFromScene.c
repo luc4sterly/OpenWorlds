@@ -1,5 +1,5 @@
 // 004557c0 RwRemoveClumpFromScene [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwRemoveClumpFromScene(void)
 

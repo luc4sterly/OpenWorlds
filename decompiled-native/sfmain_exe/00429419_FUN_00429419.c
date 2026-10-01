@@ -1,5 +1,5 @@
 // 00429419 FUN_00429419 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __cdecl FUN_00429419(HDC param_1,int param_2,int param_3,LPCSTR param_4)
 

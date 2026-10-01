@@ -1,5 +1,5 @@
 // 100148e0 RwSetSurfaceLightSampling [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwSetSurfaceLightSampling(int param_1)
 

@@ -1,5 +1,5 @@
 // 00458cb0 FUN_00458cb0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void FUN_00458cb0(void)
 

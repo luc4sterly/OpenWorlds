@@ -1,5 +1,5 @@
 // 10039e4d FUN_10039e4d [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool FUN_10039e4d(uint **param_1,uint param_2,uint param_3,uint param_4,uint param_5,uint param_6,
                  uint param_7,uint **param_8,uint **param_9,uint **param_10,uint **param_11,

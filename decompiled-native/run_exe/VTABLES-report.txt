@@ -1,8 +1,8 @@
-candidatos=1
-ya_funcion=1
-omitidas_dentro_de_otra_funcion=0
-creadas=0
-fallidas=0
-exportadas=0
-decompile_fallidas=0
---- direcciones fallidas al crear funcion ---
+candidates=1
+already_function=1
+skipped_inside_another_function=0
+created=0
+failed=0
+exported=0
+decompile_failed=0
+--- addresses where creating a function failed ---

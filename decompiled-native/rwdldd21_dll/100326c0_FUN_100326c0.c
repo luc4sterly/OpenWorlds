@@ -1,5 +1,5 @@
 // 100326c0 FUN_100326c0 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 void __cdecl FUN_100326c0(char *param_1)
 

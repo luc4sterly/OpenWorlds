@@ -1,5 +1,5 @@
 // 0040b2b0 _Java_NET_worlds_console_IUnknown_getPtr@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int _Java_NET_worlds_console_IUnknown_getPtr_8(int *param_1,undefined4 param_2)
 

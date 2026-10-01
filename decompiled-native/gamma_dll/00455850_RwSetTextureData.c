@@ -1,5 +1,5 @@
 // 00455850 RwSetTextureData [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetTextureData(void)
 

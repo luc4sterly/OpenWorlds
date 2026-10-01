@@ -1,5 +1,5 @@
 // 1001a7a0 RwSetMaterialDiffuse [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetMaterialDiffuse(int param_1,uint param_2)
 

@@ -1,5 +1,5 @@
 // 004557ae RwRemoveChildFromClump [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwRemoveChildFromClump(void)
 

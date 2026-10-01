@@ -1,5 +1,5 @@
 // 10045470 FUN_10045470 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Unable to track spacebase fully for stack */
 

@@ -1,5 +1,5 @@
 // 004483f0 FUN_004483f0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void FUN_004483f0(undefined4 *param_1,undefined4 *param_2)
 

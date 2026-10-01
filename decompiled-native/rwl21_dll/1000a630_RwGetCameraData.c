@@ -1,5 +1,5 @@
 // 1000a630 RwGetCameraData [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetCameraData(int param_1)
 

@@ -1,5 +1,5 @@
 // 100058e0 RwDuplicateClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint RwDuplicateClump(undefined4 *param_1)
 

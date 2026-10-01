@@ -1,5 +1,5 @@
 // 0040a850 _Java_NET_worlds_console_ActiveX_getClass@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 LPUNKNOWN _Java_NET_worlds_console_ActiveX_getClass_16
                     (int *param_1,undefined4 param_2,ulong *param_3,undefined4 param_4)

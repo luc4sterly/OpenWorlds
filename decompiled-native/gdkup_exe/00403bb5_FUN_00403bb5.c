@@ -1,5 +1,5 @@
 // 00403bb5 FUN_00403bb5 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 /* WARNING: Removing unreachable block (ram,0x00403c41) */
 

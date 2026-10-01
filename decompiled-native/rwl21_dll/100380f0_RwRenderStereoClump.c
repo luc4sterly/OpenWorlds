@@ -1,5 +1,5 @@
 // 100380f0 RwRenderStereoClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 float * RwRenderStereoClump(float *param_1)
 

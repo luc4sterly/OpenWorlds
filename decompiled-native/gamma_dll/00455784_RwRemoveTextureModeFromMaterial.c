@@ -1,5 +1,5 @@
 // 00455784 RwRemoveTextureModeFromMaterial [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwRemoveTextureModeFromMaterial(void)
 

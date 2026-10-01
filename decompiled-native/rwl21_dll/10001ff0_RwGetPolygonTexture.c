@@ -1,5 +1,5 @@
 // 10001ff0 RwGetPolygonTexture [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetPolygonTexture(int *param_1)
 

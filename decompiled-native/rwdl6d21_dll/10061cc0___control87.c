@@ -1,5 +1,5 @@
 // 10061cc0 __control87 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __control87

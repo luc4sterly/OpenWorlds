@@ -1,5 +1,5 @@
 // 004327df FUN_004327df [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 char * __fastcall FUN_004327df(int param_1,char *param_2)
 

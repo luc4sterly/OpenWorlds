@@ -1,5 +1,5 @@
 // 00407296 ReadFile [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 BOOL ReadFile(HANDLE hFile,LPVOID lpBuffer,DWORD nNumberOfBytesToRead,LPDWORD lpNumberOfBytesRead,
              LPOVERLAPPED lpOverlapped)

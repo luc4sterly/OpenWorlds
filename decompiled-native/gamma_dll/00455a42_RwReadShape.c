@@ -1,5 +1,5 @@
 // 00455a42 RwReadShape [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwReadShape(void)
 

@@ -1,5 +1,5 @@
 // 00402c10 FUN_00402c10 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint FUN_00402c10(void)
 

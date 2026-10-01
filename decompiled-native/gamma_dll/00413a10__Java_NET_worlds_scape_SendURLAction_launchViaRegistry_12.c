@@ -1,5 +1,5 @@
 // 00413a10 _Java_NET_worlds_scape_SendURLAction_launchViaRegistry@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 bool _Java_NET_worlds_scape_SendURLAction_launchViaRegistry_12
                (int *param_1,undefined4 param_2,undefined4 param_3)

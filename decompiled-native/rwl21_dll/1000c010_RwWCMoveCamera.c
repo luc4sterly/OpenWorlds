@@ -1,5 +1,5 @@
 // 1000c010 RwWCMoveCamera [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwWCMoveCamera(int param_1,float param_2,float param_3,float param_4)
 

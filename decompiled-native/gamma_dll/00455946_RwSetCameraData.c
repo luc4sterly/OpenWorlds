@@ -1,5 +1,5 @@
 // 00455946 RwSetCameraData [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetCameraData(void)
 

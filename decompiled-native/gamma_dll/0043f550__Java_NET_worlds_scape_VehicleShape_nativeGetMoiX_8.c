@@ -1,5 +1,5 @@
 // 0043f550 _Java_NET_worlds_scape_VehicleShape_nativeGetMoiX@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 

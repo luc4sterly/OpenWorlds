@@ -1,5 +1,5 @@
 // 100206d0 FUN_100206d0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int FUN_100206d0(FILE *param_1,char *param_2,int param_3)
 

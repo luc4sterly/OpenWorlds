@@ -1,5 +1,5 @@
 // 0043ef30 _Java_NET_worlds_console_RenderCanvasOverlay_nativeMakeChild@28 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 

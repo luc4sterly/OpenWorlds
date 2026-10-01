@@ -1,5 +1,5 @@
 // 10045e90 __cftoe [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __cftoe

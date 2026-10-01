@@ -1,5 +1,5 @@
 // 0043410c Ordinal_9 [WSOCK32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void Ordinal_9(void)
 

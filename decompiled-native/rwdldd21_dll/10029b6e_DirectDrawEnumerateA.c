@@ -1,5 +1,5 @@
 // 10029b6e DirectDrawEnumerateA [DDRAW.DLL]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 void DirectDrawEnumerateA(void)
 

@@ -1,5 +1,5 @@
 // 10002360 RwAddTextureModeToPolygon [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwAddTextureModeToPolygon(int *param_1,uint param_2)
 

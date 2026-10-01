@@ -1,5 +1,5 @@
 // 100060b0 FUN_100060b0 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* WARNING: Unable to track spacebase fully for stack */
 /* WARNING: Removing unreachable block (ram,0x10006230) */

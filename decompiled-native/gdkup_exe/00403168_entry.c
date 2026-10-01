@@ -1,5 +1,5 @@
 // 00403168 entry [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 void entry(void)
 

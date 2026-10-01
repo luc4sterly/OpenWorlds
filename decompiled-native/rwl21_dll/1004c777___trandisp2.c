@@ -1,5 +1,5 @@
 // 1004c777 __trandisp2 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __trandisp2

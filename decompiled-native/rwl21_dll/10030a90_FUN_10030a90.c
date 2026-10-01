@@ -1,5 +1,5 @@
 // 10030a90 FUN_10030a90 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 FUN_10030a90(void)
 

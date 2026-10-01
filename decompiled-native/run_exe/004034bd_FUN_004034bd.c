@@ -1,5 +1,5 @@
 // 004034bd FUN_004034bd [Global]
-// programa: run.exe
+// program: run.exe
 
 void FUN_004034bd(int param_1)
 

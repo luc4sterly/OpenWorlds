@@ -1,5 +1,5 @@
 // 1004c070 __free_osfhnd [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __free_osfhnd

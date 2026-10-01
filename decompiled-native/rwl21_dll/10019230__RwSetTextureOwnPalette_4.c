@@ -1,5 +1,5 @@
 // 10019230 _RwSetTextureOwnPalette@4 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Removing unreachable block (ram,0x10019289) */
 /* WARNING: Removing unreachable block (ram,0x1001928e) */

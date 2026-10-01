@@ -1,5 +1,5 @@
 // 00424660 _Java_NET_worlds_scape_StringTexture_nativeInit@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_StringTexture_nativeInit_8(int *param_1)
 

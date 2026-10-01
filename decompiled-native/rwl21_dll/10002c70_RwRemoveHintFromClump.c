@@ -1,5 +1,5 @@
 // 10002c70 RwRemoveHintFromClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwRemoveHintFromClump(int param_1,uint param_2)
 

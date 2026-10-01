@@ -1,5 +1,5 @@
 // 10036500 RwSetUserDrawSize [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetUserDrawSize(int param_1,undefined4 param_2,undefined4 param_3)
 

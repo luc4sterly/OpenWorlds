@@ -1,5 +1,5 @@
 // 1002c540 RwGetClumpOwner [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetClumpOwner(int param_1)
 

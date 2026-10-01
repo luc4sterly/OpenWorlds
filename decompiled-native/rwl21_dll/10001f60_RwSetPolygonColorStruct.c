@@ -1,5 +1,5 @@
 // 10001f60 RwSetPolygonColorStruct [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwSetPolygonColorStruct(int *param_1,uint *param_2)
 

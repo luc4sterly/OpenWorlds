@@ -1,5 +1,5 @@
 // 1000ee40 RwMaterialEnd [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwMaterialEnd(void)
 

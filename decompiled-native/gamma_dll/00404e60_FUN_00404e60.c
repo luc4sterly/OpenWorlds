@@ -1,5 +1,5 @@
 // 00404e60 FUN_00404e60 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int __fastcall FUN_00404e60(int param_1)
 

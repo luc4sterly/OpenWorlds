@@ -1,5 +1,5 @@
 // 00455a06 RwGetPolygonNumSides [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetPolygonNumSides(void)
 

@@ -1,5 +1,5 @@
 // 00401940 FUN_00401940 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 undefined4 FUN_00401940(int param_1)
 

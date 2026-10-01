@@ -1,5 +1,5 @@
 // 00455b14 RwOpenDebugStream [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwOpenDebugStream(void)
 

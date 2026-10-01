@@ -1,5 +1,5 @@
 // 10020800 FUN_10020800 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int __cdecl FUN_10020800(FILE *param_1,char *param_2)
 

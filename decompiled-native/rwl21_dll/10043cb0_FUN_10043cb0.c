@@ -1,5 +1,5 @@
 // 10043cb0 FUN_10043cb0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 FUN_10043cb0(LPCSTR param_1,int param_2)
 

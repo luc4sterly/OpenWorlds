@@ -1,5 +1,5 @@
 // 10020490 RwDuplicateSpline [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwDuplicateSpline(int *param_1)
 

@@ -1,5 +1,5 @@
 // 100676a0 _strcspn [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     _strcspn

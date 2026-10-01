@@ -1,5 +1,5 @@
 // 0041757d FUN_0041757d [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 MMRESULT __fastcall FUN_0041757d(undefined4 param_1,LPWAVEHDR param_2)
 

@@ -1,5 +1,5 @@
 // 10065460 ___crtGetStringTypeW [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     ___crtGetStringTypeW

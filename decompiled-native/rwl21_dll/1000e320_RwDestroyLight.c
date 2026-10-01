@@ -1,5 +1,5 @@
 // 1000e320 RwDestroyLight [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwDestroyLight(int *param_1)
 

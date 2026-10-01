@@ -1,5 +1,5 @@
 // 10021da0 FUN_10021da0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint FUN_10021da0(FILE *param_1,undefined4 *param_2,uint param_3)
 

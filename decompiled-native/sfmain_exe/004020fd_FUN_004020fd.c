@@ -1,5 +1,5 @@
 // 004020fd FUN_004020fd [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_004020fd(undefined4 param_1,int param_2)
 

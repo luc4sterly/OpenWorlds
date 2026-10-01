@@ -1,5 +1,5 @@
 // 100617c0 __cinit [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __cinit

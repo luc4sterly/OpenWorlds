@@ -1,5 +1,5 @@
 // 00401452 FUN_00401452 [Global]
-// programa: run.exe
+// program: run.exe
 
 undefined4 __cdecl FUN_00401452(PCNZWCH param_1,int param_2)
 

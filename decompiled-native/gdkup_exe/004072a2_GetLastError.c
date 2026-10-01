@@ -1,5 +1,5 @@
 // 004072a2 GetLastError [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 DWORD GetLastError(void)
 

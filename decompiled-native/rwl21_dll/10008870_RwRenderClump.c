@@ -1,5 +1,5 @@
 // 10008870 RwRenderClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 float * RwRenderClump(float *param_1)
 

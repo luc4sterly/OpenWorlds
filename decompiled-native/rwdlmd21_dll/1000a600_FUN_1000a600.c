@@ -1,5 +1,5 @@
 // 1000a600 FUN_1000a600 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 undefined4
 FUN_1000a600(undefined4 *param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4)

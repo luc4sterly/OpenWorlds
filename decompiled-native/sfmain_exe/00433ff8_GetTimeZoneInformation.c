@@ -1,5 +1,5 @@
 // 00433ff8 GetTimeZoneInformation [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 DWORD GetTimeZoneInformation(LPTIME_ZONE_INFORMATION lpTimeZoneInformation)
 

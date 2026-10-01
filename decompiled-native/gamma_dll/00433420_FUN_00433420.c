@@ -1,5 +1,5 @@
 // 00433420 FUN_00433420 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Heritage AFTER dead removal. Example location: s0xffffffb8 : 0x00433468 */
 /* WARNING: Restarted to delay deadcode elimination for space: stack */

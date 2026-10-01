@@ -1,5 +1,5 @@
 // 00455a48 RwReadStream [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwReadStream(void)
 

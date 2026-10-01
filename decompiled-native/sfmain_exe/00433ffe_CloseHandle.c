@@ -1,5 +1,5 @@
 // 00433ffe CloseHandle [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL CloseHandle(HANDLE hObject)
 

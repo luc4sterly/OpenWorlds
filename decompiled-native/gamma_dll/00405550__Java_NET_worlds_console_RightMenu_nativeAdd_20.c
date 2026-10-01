@@ -1,5 +1,5 @@
 // 00405550 _Java_NET_worlds_console_RightMenu_nativeAdd@20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_RightMenu_nativeAdd_20
                (int *param_1,undefined4 param_2,undefined4 param_3,UINT_PTR param_4,HMENU param_5)

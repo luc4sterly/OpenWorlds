@@ -1,5 +1,5 @@
 // 100027a0 RwImmVertexPixelSpace [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwImmVertexPixelSpace(int param_1)
 

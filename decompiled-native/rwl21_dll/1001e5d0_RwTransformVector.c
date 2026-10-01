@@ -1,5 +1,5 @@
 // 1001e5d0 RwTransformVector [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwTransformVector(float *param_1,float *param_2)
 

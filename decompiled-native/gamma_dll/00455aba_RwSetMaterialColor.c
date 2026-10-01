@@ -1,5 +1,5 @@
 // 00455aba RwSetMaterialColor [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetMaterialColor(void)
 

@@ -1,5 +1,5 @@
 // 00413780 _Java_NET_worlds_scape_WObject_getClumpMinXYExtent@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 float10 _Java_NET_worlds_scape_WObject_getClumpMinXYExtent_8(int *param_1,undefined4 param_2)
 

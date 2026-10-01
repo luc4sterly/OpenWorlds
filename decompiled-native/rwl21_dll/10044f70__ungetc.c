@@ -1,5 +1,5 @@
 // 10044f70 _ungetc [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     _ungetc

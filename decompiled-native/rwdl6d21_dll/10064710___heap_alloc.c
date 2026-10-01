@@ -1,5 +1,5 @@
 // 10064710 __heap_alloc [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __heap_alloc

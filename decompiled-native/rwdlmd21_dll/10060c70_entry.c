@@ -1,5 +1,5 @@
 // 10060c70 entry [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 int entry(undefined4 param_1,int param_2,undefined4 param_3)
 

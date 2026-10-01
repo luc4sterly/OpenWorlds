@@ -1,5 +1,5 @@
 // 00432f3e thunk_FUN_00433814 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 thunk_FUN_00433814(void)
 

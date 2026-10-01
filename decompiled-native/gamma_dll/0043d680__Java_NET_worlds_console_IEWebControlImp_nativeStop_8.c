@@ -1,5 +1,5 @@
 // 0043d680 _Java_NET_worlds_console_IEWebControlImp_nativeStop@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_IEWebControlImp_nativeStop_8(int *param_1,undefined4 param_2)
 

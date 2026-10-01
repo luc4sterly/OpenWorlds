@@ -1,5 +1,5 @@
 // 10019e40 RwGetMaterialGeometrySampling [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetMaterialGeometrySampling(uint *param_1)
 

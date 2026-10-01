@@ -1,5 +1,5 @@
 // 0040a743 FUN_0040a743 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 int __fastcall FUN_0040a743(undefined4 param_1,int param_2)
 

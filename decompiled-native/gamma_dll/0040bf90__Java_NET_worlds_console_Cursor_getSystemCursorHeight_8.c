@@ -1,5 +1,5 @@
 // 0040bf90 _Java_NET_worlds_console_Cursor_getSystemCursorHeight@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_Cursor_getSystemCursorHeight_8(void)
 

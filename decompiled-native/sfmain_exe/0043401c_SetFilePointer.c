@@ -1,5 +1,5 @@
 // 0043401c SetFilePointer [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 DWORD SetFilePointer(HANDLE hFile,LONG lDistanceToMove,PLONG lpDistanceToMoveHigh,DWORD dwMoveMethod
                     )

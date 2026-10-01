@@ -1,5 +1,5 @@
 // 00424870 FUN_00424870 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 HBITMAP __cdecl
 FUN_00424870(int *param_1,COLORREF param_2,COLORREF param_3,HDC param_4,int param_5,LPCSTR param_6,

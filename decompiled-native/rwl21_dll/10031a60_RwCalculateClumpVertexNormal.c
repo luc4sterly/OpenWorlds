@@ -1,5 +1,5 @@
 // 10031a60 RwCalculateClumpVertexNormal [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwCalculateClumpVertexNormal(int param_1,int param_2)
 

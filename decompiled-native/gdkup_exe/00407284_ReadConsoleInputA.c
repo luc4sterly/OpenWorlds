@@ -1,5 +1,5 @@
 // 00407284 ReadConsoleInputA [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 BOOL ReadConsoleInputA(HANDLE hConsoleInput,PINPUT_RECORD lpBuffer,DWORD nLength,
                       LPDWORD lpNumberOfEventsRead)

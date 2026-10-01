@@ -1,5 +1,5 @@
 // 10017010 RwSphericalTexturizeClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSphericalTexturizeClump(int param_1)
 

@@ -1,5 +1,5 @@
 // 00407ffe FUN_00407ffe [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 int __fastcall FUN_00407ffe(undefined4 param_1,int param_2)
 

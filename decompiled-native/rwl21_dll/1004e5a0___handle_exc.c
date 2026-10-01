@@ -1,5 +1,5 @@
 // 1004e5a0 __handle_exc [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __handle_exc

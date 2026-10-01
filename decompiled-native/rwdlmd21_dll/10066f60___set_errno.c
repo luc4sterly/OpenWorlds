@@ -1,5 +1,5 @@
 // 10066f60 __set_errno [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __set_errno

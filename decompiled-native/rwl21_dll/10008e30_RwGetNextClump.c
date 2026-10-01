@@ -1,5 +1,5 @@
 // 10008e30 RwGetNextClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetNextClump(int param_1)
 

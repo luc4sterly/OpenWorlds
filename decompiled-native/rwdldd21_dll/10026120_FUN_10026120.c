@@ -1,5 +1,5 @@
 // 10026120 FUN_10026120 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* WARNING: Removing unreachable block (ram,0x10026131) */
 /* WARNING: Removing unreachable block (ram,0x100261c1) */

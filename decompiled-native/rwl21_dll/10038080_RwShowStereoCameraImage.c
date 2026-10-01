@@ -1,5 +1,5 @@
 // 10038080 RwShowStereoCameraImage [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwShowStereoCameraImage(int param_1,undefined *param_2)
 

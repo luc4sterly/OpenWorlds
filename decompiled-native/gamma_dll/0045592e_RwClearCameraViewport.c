@@ -1,5 +1,5 @@
 // 0045592e RwClearCameraViewport [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwClearCameraViewport(void)
 

@@ -1,5 +1,5 @@
 // 10005930 RwGetClumpOrigin [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * __thiscall RwGetClumpOrigin(void *this,int param_1,undefined4 *param_2)
 

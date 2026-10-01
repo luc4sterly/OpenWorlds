@@ -1,5 +1,5 @@
 // 00434082 Ordinal_116 [WSOCK32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void Ordinal_116(void)
 

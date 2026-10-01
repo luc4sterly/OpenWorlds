@@ -1,5 +1,5 @@
 // 10042b00 RwCrossProduct [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwCrossProduct(float *param_1,float *param_2,float *param_3)
 

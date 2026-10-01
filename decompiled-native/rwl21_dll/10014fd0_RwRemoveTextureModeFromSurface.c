@@ -1,5 +1,5 @@
 // 10014fd0 RwRemoveTextureModeFromSurface [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwRemoveTextureModeFromSurface(uint param_1)
 

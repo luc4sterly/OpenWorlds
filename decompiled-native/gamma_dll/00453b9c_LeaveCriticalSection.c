@@ -1,5 +1,5 @@
 // 00453b9c LeaveCriticalSection [KERNEL32.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void LeaveCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 

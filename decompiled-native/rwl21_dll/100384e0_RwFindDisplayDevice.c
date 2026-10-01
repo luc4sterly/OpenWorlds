@@ -1,5 +1,5 @@
 // 100384e0 RwFindDisplayDevice [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwFindDisplayDevice(char *param_1,undefined4 *param_2,char *param_3,undefined4 param_4,
                        int param_5,int param_6)

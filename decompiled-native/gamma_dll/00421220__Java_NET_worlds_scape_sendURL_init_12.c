@@ -1,5 +1,5 @@
 // 00421220 _Java_NET_worlds_scape_sendURL_init@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_scape_sendURL_init_12(int *param_1,undefined4 param_2,undefined4 param_3)

@@ -1,5 +1,5 @@
 // 00404a08 FUN_00404a08 [Global]
-// programa: run.exe
+// program: run.exe
 
 /* WARNING: Type propagation algorithm not settling */
 

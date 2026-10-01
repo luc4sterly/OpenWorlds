@@ -1,5 +1,5 @@
 // 00406230 _strstr [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     _strstr

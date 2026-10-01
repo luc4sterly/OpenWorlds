@@ -1,5 +1,5 @@
 // 1005dd70 _malloc [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     _malloc

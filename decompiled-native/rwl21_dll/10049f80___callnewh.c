@@ -1,5 +1,5 @@
 // 10049f80 __callnewh [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __callnewh

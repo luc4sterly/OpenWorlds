@@ -1,5 +1,5 @@
 // 1005eea0 $I10_OUTPUT [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     _$I10_OUTPUT

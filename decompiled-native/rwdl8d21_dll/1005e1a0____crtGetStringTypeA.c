@@ -1,5 +1,5 @@
 // 1005e1a0 ___crtGetStringTypeA [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     ___crtGetStringTypeA

@@ -1,5 +1,5 @@
 // 1002c940 RwRenderScene [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint * RwRenderScene(uint *param_1)
 

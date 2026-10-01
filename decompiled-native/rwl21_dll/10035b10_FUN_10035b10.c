@@ -1,5 +1,5 @@
 // 10035b10 FUN_10035b10 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * FUN_10035b10(undefined4 *param_1,int *param_2)
 

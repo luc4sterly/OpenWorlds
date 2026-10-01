@@ -1,5 +1,5 @@
 // 10031030 RwOpenDebugStream [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwOpenDebugStream(void)
 

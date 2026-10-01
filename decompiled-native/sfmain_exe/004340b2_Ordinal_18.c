@@ -1,5 +1,5 @@
 // 004340b2 Ordinal_18 [WSOCK32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void Ordinal_18(void)
 

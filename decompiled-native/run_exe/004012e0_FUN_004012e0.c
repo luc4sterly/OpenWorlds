@@ -1,5 +1,5 @@
 // 004012e0 FUN_004012e0 [Global]
-// programa: run.exe
+// program: run.exe
 
 void __cdecl FUN_004012e0(LPCSTR param_1,char *param_2,uint param_3)
 

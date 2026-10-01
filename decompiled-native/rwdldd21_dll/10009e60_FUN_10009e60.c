@@ -1,5 +1,5 @@
 // 10009e60 FUN_10009e60 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* WARNING: Removing unreachable block (ram,0x10009f74) */
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */

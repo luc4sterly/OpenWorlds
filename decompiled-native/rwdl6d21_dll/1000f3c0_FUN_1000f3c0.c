@@ -1,5 +1,5 @@
 // 1000f3c0 FUN_1000f3c0 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 void FUN_1000f3c0(int *param_1)
 

@@ -1,5 +1,5 @@
 // 10026fd0 RwBitmapRaster [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwBitmapRaster(undefined4 param_1,uint param_2)
 

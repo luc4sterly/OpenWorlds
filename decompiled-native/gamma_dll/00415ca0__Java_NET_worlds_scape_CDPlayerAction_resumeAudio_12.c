@@ -1,5 +1,5 @@
 // 00415ca0 _Java_NET_worlds_scape_CDPlayerAction_resumeAudio@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_CDPlayerAction_resumeAudio_12
                (int *param_1,undefined4 param_2,MCIDEVICEID param_3)

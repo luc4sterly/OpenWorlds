@@ -1,5 +1,5 @@
 // 00406a2a FUN_00406a2a [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 undefined8 __fastcall FUN_00406a2a(undefined4 param_1,undefined4 param_2)
 

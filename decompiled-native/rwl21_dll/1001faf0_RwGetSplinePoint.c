@@ -1,5 +1,5 @@
 // 1001faf0 RwGetSplinePoint [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwGetSplinePoint(int *param_1,int param_2,undefined4 *param_3)
 

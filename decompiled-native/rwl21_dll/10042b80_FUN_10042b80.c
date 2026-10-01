@@ -1,5 +1,5 @@
 // 10042b80 FUN_10042b80 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4
 FUN_10042b80(byte *param_1,int param_2,undefined4 param_3,undefined4 *param_4,uint param_5)

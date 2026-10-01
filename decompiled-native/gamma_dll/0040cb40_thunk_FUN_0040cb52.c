@@ -1,5 +1,5 @@
 // 0040cb40 thunk_FUN_0040cb52 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING (jumptable): Unable to track spacebase fully for stack */
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */

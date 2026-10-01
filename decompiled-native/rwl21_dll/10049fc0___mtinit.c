@@ -1,5 +1,5 @@
 // 10049fc0 __mtinit [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __mtinit

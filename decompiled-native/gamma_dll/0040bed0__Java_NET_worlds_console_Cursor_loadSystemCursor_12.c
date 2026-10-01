@@ -1,5 +1,5 @@
 // 0040bed0 _Java_NET_worlds_console_Cursor_loadSystemCursor@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 HCURSOR _Java_NET_worlds_console_Cursor_loadSystemCursor_12
                   (int *param_1,undefined4 param_2,int param_3)

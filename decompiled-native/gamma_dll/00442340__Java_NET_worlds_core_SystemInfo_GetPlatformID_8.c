@@ -1,5 +1,5 @@
 // 00442340 _Java_NET_worlds_core_SystemInfo_GetPlatformID@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_core_SystemInfo_GetPlatformID_8(int *param_1)
 

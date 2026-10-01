@@ -1,5 +1,5 @@
 // 1005d5a0 _free [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     _free

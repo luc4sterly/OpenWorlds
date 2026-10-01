@@ -1,5 +1,5 @@
 // 1002a960 __cexit [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __cexit

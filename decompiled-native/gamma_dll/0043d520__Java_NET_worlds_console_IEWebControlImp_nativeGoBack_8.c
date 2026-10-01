@@ -1,5 +1,5 @@
 // 0043d520 _Java_NET_worlds_console_IEWebControlImp_nativeGoBack@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_IEWebControlImp_nativeGoBack_8(int *param_1,undefined4 param_2)
 

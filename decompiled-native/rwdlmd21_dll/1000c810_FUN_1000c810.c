@@ -1,5 +1,5 @@
 // 1000c810 FUN_1000c810 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 undefined4 FUN_1000c810(void)
 

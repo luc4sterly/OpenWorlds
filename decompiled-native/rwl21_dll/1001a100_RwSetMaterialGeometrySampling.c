@@ -1,5 +1,5 @@
 // 1001a100 RwSetMaterialGeometrySampling [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Removing unreachable block (ram,0x1001a127) */
 

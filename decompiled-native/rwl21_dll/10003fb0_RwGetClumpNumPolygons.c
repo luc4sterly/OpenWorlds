@@ -1,5 +1,5 @@
 // 10003fb0 RwGetClumpNumPolygons [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetClumpNumPolygons(int param_1)
 

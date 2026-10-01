@@ -1,5 +1,5 @@
 // 10038af0 RwClose [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwClose(void)
 

@@ -1,5 +1,5 @@
 // 100015e0 RwGetPolygonTag [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetPolygonTag(int param_1)
 

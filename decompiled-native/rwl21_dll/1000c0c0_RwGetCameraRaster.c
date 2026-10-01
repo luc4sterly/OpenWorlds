@@ -1,5 +1,5 @@
 // 1000c0c0 RwGetCameraRaster [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetCameraRaster(int param_1)
 

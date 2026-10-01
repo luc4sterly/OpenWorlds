@@ -1,5 +1,5 @@
 // 1000997a FUN_1000997a [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 int FUN_1000997a(void)
 

@@ -1,5 +1,5 @@
 // 10044a6c FUN_10044a6c [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void FUN_10044a6c(void)
 

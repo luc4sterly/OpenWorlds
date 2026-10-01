@@ -1,5 +1,5 @@
 // 00402f70 _Java_NET_worlds_core_Std_getenv@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 _Java_NET_worlds_core_Std_getenv_12(int *param_1,undefined4 param_2,undefined4 param_3)
 

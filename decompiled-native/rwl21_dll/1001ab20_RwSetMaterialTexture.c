@@ -1,5 +1,5 @@
 // 1001ab20 RwSetMaterialTexture [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint * RwSetMaterialTexture(uint *param_1,uint param_2)
 

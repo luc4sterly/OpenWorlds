@@ -1,5 +1,5 @@
 // 1001db10 RwMultiplyMatrix [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 ulonglong __fastcall
 RwMultiplyMatrix(undefined4 param_1,undefined4 param_2,float *param_3,int param_4,float *param_5)

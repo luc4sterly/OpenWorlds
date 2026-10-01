@@ -1,5 +1,5 @@
 // 10004620 FUN_10004620 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 char FUN_10004620(HDC param_1)
 

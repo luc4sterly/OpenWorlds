@@ -1,5 +1,5 @@
 // 1004bd40 __mbtowc_lk [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __mbtowc_lk

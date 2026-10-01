@@ -1,5 +1,5 @@
 // 0045a260 FUN_0045a260 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void FUN_0045a260(void)
 

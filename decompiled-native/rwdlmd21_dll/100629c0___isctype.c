@@ -1,5 +1,5 @@
 // 100629c0 __isctype [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __isctype

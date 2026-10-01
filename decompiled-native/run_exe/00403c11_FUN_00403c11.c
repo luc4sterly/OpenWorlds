@@ -1,5 +1,5 @@
 // 00403c11 FUN_00403c11 [Global]
-// programa: run.exe
+// program: run.exe
 
 uint __cdecl FUN_00403c11(int param_1)
 

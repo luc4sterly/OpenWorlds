@@ -1,5 +1,5 @@
 // 004142b0 _Java_NET_worlds_scape_Camera_cameraNativeInit@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_Camera_cameraNativeInit_8(int *param_1)
 

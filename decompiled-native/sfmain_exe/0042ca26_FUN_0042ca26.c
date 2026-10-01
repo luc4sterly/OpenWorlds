@@ -1,5 +1,5 @@
 // 0042ca26 FUN_0042ca26 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __cdecl FUN_0042ca26(int param_1,byte *param_2)
 

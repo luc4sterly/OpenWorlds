@@ -1,5 +1,5 @@
 // 00433fb0 ReleaseMutex [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL ReleaseMutex(HANDLE hMutex)
 

@@ -1,5 +1,5 @@
 // 00403f98 FUN_00403f98 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 DWORD FUN_00403f98(void)
 

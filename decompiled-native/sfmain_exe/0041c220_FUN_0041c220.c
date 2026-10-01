@@ -1,5 +1,5 @@
 // 0041c220 FUN_0041c220 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 /* WARNING: Removing unreachable block (ram,0x0041c9a3) */
 /* WARNING: Removing unreachable block (ram,0x0041c9c4) */

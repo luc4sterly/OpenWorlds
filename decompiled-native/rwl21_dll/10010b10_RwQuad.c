@@ -1,5 +1,5 @@
 // 10010b10 RwQuad [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwQuad(int param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4)
 

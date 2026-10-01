@@ -1,5 +1,5 @@
 // 10062230 __IsZeroMan [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __IsZeroMan

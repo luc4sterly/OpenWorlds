@@ -1,5 +1,5 @@
 // 00407302 SetFilePointer [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 DWORD SetFilePointer(HANDLE hFile,LONG lDistanceToMove,PLONG lpDistanceToMoveHigh,DWORD dwMoveMethod
                     )

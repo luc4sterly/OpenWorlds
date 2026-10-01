@@ -1,5 +1,5 @@
 // 100024e0 RwGetPolygonMaterialModes [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwGetPolygonMaterialModes(int *param_1)
 

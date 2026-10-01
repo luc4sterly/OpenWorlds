@@ -1,5 +1,5 @@
 // 0042afb0 FUN_0042afb0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void FUN_0042afb0(byte *param_1)
 

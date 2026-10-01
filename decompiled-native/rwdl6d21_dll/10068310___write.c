@@ -1,5 +1,5 @@
 // 10068310 __write [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __write

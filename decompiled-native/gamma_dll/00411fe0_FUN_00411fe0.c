@@ -1,5 +1,5 @@
 // 00411fe0 FUN_00411fe0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint __thiscall FUN_00411fe0(void *this,uint param_1,byte param_2)
 

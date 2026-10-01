@@ -1,5 +1,5 @@
 // 10060480 __cftoe2 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __cftoe2

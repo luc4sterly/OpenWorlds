@@ -1,5 +1,5 @@
 // 10049710 __heap_term [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __heap_term

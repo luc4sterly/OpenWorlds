@@ -1,5 +1,5 @@
 // 004558ce RwFindTaggedPolygon [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwFindTaggedPolygon(void)
 

@@ -1,5 +1,5 @@
 // 0040731a WaitForSingleObject [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 DWORD WaitForSingleObject(HANDLE hHandle,DWORD dwMilliseconds)
 

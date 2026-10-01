@@ -1,5 +1,5 @@
 // 00422150 FUN_00422150 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 HBITMAP __cdecl
 FUN_00422150(HDC param_1,LONG param_2,int param_3,undefined4 *param_4,void **param_5,int param_6,

@@ -1,5 +1,5 @@
 // 0041a8d0 Java_NET_worlds_scape_Restorer_makeArray [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* class _jobject * __stdcall Java_NET_worlds_scape_Restorer_makeArray(struct JNIEnv_ *,class
    _jclass *,class _jclass *,long) */

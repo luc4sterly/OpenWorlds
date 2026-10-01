@@ -1,5 +1,5 @@
 // 10005170 FUN_10005170 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 bool FUN_10005170(int *param_1)
 

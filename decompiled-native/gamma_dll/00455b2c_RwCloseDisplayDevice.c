@@ -1,5 +1,5 @@
 // 00455b2c RwCloseDisplayDevice [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwCloseDisplayDevice(void)
 

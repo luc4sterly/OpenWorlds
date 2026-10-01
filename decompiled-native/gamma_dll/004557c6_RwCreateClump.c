@@ -1,5 +1,5 @@
 // 004557c6 RwCreateClump [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwCreateClump(void)
 

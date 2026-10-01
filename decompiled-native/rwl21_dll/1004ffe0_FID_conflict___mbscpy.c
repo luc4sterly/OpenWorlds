@@ -1,5 +1,5 @@
 // 1004ffe0 FID_conflict:__mbscpy [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Multiple Matches With Different Base Names
     __mbscpy

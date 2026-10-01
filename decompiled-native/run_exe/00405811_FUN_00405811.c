@@ -1,5 +1,5 @@
 // 00405811 FUN_00405811 [Global]
-// programa: run.exe
+// program: run.exe
 
 undefined4 __cdecl FUN_00405811(int param_1)
 

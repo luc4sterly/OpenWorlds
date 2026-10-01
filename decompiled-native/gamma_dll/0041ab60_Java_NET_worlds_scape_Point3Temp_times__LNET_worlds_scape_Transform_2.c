@@ -1,5 +1,5 @@
 // 0041ab60 Java_NET_worlds_scape_Point3Temp_times__LNET_worlds_scape_Transform_2 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* class _jobject * __stdcall
    Java_NET_worlds_scape_Point3Temp_times__LNET_worlds_scape_Transform_2(struct JNIEnv_ *,class

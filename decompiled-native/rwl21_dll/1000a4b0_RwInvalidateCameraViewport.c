@@ -1,5 +1,5 @@
 // 1000a4b0 RwInvalidateCameraViewport [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwInvalidateCameraViewport(int param_1)
 

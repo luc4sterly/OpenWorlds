@@ -1,5 +1,5 @@
 // 00449b40 FUN_00449b40 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 FUN_00449b40(void)
 

@@ -1,5 +1,5 @@
 // 0040df90 _Java_NET_worlds_console_Window_getFrameWindow@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 _Java_NET_worlds_console_Window_getFrameWindow_8(void)
 

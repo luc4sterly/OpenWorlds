@@ -1,5 +1,5 @@
 // 00455ac6 RwSetMaterialSurface [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetMaterialSurface(void)
 

@@ -1,5 +1,5 @@
 // 100646c0 __nh_malloc [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __nh_malloc

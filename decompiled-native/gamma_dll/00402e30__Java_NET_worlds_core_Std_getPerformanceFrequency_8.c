@@ -1,5 +1,5 @@
 // 00402e30 _Java_NET_worlds_core_Std_getPerformanceFrequency@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 LARGE_INTEGER _Java_NET_worlds_core_Std_getPerformanceFrequency_8(void)
 

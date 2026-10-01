@@ -1,5 +1,5 @@
 // 0041c970 FUN_0041c970 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int * __thiscall FUN_0041c970(void *this,int *param_1,LPCSTR param_2,undefined4 param_3)
 

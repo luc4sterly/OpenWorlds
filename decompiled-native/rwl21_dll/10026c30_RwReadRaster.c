@@ -1,5 +1,5 @@
 // 10026c30 RwReadRaster [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwReadRaster(char *param_1,uint param_2)
 

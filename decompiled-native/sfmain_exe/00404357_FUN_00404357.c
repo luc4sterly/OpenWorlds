@@ -1,5 +1,5 @@
 // 00404357 FUN_00404357 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 /* WARNING: Removing unreachable block (ram,0x00404386) */
 

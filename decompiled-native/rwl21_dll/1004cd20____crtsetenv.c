@@ -1,5 +1,5 @@
 // 1004cd20 ___crtsetenv [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     ___crtsetenv

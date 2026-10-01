@@ -1,5 +1,5 @@
 // 00401000 _Java_NET_worlds_core_IniFile_nativeInit@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_core_IniFile_nativeInit_8(int *param_1)
 

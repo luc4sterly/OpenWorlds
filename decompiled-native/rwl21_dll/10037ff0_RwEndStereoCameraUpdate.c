@@ -1,5 +1,5 @@
 // 10037ff0 RwEndStereoCameraUpdate [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwEndStereoCameraUpdate(int param_1)
 

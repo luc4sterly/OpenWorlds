@@ -1,5 +1,5 @@
 // 0043daa0 _Java_NET_worlds_console_IEWebControlImp_nativeGetHWND@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint _Java_NET_worlds_console_IEWebControlImp_nativeGetHWND_8(int *param_1,undefined4 param_2)
 

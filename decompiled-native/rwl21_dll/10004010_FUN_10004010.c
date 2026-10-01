@@ -1,5 +1,5 @@
 // 10004010 FUN_10004010 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void FUN_10004010(undefined4 *param_1)
 

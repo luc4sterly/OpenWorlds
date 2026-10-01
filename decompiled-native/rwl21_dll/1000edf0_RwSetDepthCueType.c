@@ -1,5 +1,5 @@
 // 1000edf0 RwSetDepthCueType [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwSetDepthCueType(int param_1)
 

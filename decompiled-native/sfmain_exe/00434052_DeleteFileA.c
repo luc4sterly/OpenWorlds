@@ -1,5 +1,5 @@
 // 00434052 DeleteFileA [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL DeleteFileA(LPCSTR lpFileName)
 

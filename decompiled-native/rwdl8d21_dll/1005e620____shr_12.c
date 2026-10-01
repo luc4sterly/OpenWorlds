@@ -1,5 +1,5 @@
 // 1005e620 ___shr_12 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     ___shr_12

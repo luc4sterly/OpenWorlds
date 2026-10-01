@@ -1,5 +1,5 @@
 // 10067230 FUN_10067230 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 int * FUN_10067230(void)
 

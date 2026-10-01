@@ -1,5 +1,5 @@
 // 004517aa DdeDisconnect [USER32.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 BOOL DdeDisconnect(HCONV hConv)
 

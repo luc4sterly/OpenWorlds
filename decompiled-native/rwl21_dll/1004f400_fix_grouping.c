@@ -1,5 +1,5 @@
 // 1004f400 fix_grouping [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     _fix_grouping

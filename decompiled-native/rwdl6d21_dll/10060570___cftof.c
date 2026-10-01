@@ -1,5 +1,5 @@
 // 10060570 __cftof [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __cftof

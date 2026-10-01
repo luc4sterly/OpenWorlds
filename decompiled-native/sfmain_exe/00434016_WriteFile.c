@@ -1,5 +1,5 @@
 // 00434016 WriteFile [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL WriteFile(HANDLE hFile,LPCVOID lpBuffer,DWORD nNumberOfBytesToWrite,
               LPDWORD lpNumberOfBytesWritten,LPOVERLAPPED lpOverlapped)

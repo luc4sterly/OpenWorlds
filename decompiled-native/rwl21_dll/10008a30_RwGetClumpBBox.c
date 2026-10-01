@@ -1,5 +1,5 @@
 // 10008a30 RwGetClumpBBox [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 float * RwGetClumpBBox(float *param_1,float *param_2,float *param_3)
 

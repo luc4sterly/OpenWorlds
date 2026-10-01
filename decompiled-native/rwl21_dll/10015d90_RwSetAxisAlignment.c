@@ -1,5 +1,5 @@
 // 10015d90 RwSetAxisAlignment [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwSetAxisAlignment(int param_1)
 

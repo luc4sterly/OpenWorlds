@@ -1,5 +1,5 @@
 // 100040a0 FUN_100040a0 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 undefined4 FUN_100040a0(void)
 

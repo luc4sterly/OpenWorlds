@@ -1,5 +1,5 @@
 // 00402847 FUN_00402847 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 int FUN_00402847(void)
 

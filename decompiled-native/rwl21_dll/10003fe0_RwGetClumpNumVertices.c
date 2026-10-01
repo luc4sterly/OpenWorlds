@@ -1,5 +1,5 @@
 // 10003fe0 RwGetClumpNumVertices [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetClumpNumVertices(int param_1)
 

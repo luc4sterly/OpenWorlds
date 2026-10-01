@@ -1,5 +1,5 @@
 // 00455a12 RwGetSceneData [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetSceneData(void)
 

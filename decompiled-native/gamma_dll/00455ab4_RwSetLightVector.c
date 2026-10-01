@@ -1,5 +1,5 @@
 // 00455ab4 RwSetLightVector [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetLightVector(void)
 

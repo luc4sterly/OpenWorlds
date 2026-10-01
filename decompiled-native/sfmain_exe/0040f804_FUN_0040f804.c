@@ -1,5 +1,5 @@
 // 0040f804 FUN_0040f804 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_0040f804(undefined4 param_1)
 

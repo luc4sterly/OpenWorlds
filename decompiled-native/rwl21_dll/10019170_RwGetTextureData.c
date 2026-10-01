@@ -1,5 +1,5 @@
 // 10019170 RwGetTextureData [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetTextureData(int param_1)
 

@@ -1,5 +1,5 @@
 // 10066930 __raise_exc [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __raise_exc

@@ -1,5 +1,5 @@
 // 10010e60 FUN_10010e60 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 

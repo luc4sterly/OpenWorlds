@@ -1,5 +1,5 @@
 // 00457480 FUN_00457480 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Unable to track spacebase fully for stack */
 

@@ -1,5 +1,5 @@
 // 1000a1e0 FUN_1000a1e0 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 void FUN_1000a1e0(int param_1,int *param_2)
 

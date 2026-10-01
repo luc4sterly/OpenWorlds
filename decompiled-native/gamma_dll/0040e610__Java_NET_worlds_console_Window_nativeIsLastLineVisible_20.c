@@ -1,5 +1,5 @@
 // 0040e610 _Java_NET_worlds_console_Window_nativeIsLastLineVisible@20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 bool _Java_NET_worlds_console_Window_nativeIsLastLineVisible_20
                (undefined4 param_1,undefined4 param_2,HWND param_3,undefined4 param_4,int param_5)

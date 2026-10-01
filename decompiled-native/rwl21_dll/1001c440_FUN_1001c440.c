@@ -1,5 +1,5 @@
 // 1001c440 FUN_1001c440 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 ulonglong __fastcall
 FUN_1001c440(undefined4 param_1,undefined4 param_2,float *param_3,int param_4,float *param_5)

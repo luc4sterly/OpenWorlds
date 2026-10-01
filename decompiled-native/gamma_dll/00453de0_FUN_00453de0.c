@@ -1,5 +1,5 @@
 // 00453de0 FUN_00453de0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 BOOL __cdecl FUN_00453de0(uint param_1)
 

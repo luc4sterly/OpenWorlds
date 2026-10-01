@@ -1,5 +1,5 @@
 // 100047d0 RwGetClumpLTM [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 longlong __thiscall RwGetClumpLTM(void *this,undefined4 *param_1,undefined4 *param_2)
 

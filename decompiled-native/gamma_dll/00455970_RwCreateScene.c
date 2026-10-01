@@ -1,5 +1,5 @@
 // 00455970 RwCreateScene [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwCreateScene(void)
 

@@ -1,5 +1,5 @@
 // 00407314 ExitThread [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 void ExitThread(DWORD dwExitCode)
 

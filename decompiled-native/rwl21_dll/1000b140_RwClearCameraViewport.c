@@ -1,5 +1,5 @@
 // 1000b140 RwClearCameraViewport [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwClearCameraViewport(int param_1)
 

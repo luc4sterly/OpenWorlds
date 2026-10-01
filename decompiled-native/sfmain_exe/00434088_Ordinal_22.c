@@ -1,5 +1,5 @@
 // 00434088 Ordinal_22 [WSOCK32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void Ordinal_22(void)
 

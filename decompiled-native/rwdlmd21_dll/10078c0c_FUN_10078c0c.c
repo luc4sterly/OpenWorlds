@@ -1,5 +1,5 @@
 // 10078c0c FUN_10078c0c [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void FUN_10078c0c(void)
 

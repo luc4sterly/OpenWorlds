@@ -1,5 +1,5 @@
 // 004340fa Ordinal_8 [WSOCK32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void Ordinal_8(void)
 

@@ -1,5 +1,5 @@
 // 00442320 _Java_NET_worlds_core_SystemInfo_GetNumberOfProcessors@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 DWORD _Java_NET_worlds_core_SystemInfo_GetNumberOfProcessors_8(void)
 

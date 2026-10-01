@@ -1,5 +1,5 @@
 // 10062620 __fltout2 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __fltout2

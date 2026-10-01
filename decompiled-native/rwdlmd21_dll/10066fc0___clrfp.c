@@ -1,5 +1,5 @@
 // 10066fc0 __clrfp [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __clrfp

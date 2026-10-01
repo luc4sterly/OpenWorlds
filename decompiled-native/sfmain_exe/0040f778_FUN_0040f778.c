@@ -1,5 +1,5 @@
 // 0040f778 FUN_0040f778 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void FUN_0040f778(void)
 

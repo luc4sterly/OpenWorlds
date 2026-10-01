@@ -1,5 +1,5 @@
 // 1000ef40 RwModelBegin [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwModelBegin(void)
 

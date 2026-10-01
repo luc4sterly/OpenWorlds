@@ -1,5 +1,5 @@
 // 004222b0 FUN_004222b0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int __fastcall
 FUN_004222b0(undefined4 param_1,undefined4 param_2,HGDIOBJ param_3,int param_4,int param_5,

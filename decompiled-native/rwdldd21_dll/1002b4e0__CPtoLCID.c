@@ -1,5 +1,5 @@
 // 1002b4e0 _CPtoLCID [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     _CPtoLCID

@@ -1,5 +1,5 @@
 // 10049610 FID_conflict:__lockexit [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Multiple Matches With Different Base Names
     __lockexit

@@ -1,5 +1,5 @@
 // 10006d70 FUN_10006d70 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 int FUN_10006d70(byte param_1)
 

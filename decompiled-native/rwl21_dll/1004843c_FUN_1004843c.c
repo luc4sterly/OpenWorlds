@@ -1,5 +1,5 @@
 // 1004843c FUN_1004843c [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 

@@ -1,5 +1,5 @@
 // 00455a0c RwGetPolygonVertices [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetPolygonVertices(void)
 

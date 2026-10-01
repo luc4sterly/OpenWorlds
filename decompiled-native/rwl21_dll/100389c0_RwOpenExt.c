@@ -1,5 +1,5 @@
 // 100389c0 RwOpenExt [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwOpenExt(char *param_1,undefined4 param_2,int param_3,undefined4 *param_4)
 

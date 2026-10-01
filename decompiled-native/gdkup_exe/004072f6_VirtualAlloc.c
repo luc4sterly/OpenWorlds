@@ -1,5 +1,5 @@
 // 004072f6 VirtualAlloc [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 LPVOID VirtualAlloc(LPVOID lpAddress,SIZE_T dwSize,DWORD flAllocationType,DWORD flProtect)
 

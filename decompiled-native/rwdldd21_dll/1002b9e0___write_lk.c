@@ -1,5 +1,5 @@
 // 1002b9e0 __write_lk [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __write_lk

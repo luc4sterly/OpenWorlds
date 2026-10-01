@@ -1,5 +1,5 @@
 // 10032140 __freebuf [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __freebuf

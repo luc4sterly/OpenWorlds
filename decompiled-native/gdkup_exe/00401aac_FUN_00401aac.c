@@ -1,5 +1,5 @@
 // 00401aac FUN_00401aac [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 

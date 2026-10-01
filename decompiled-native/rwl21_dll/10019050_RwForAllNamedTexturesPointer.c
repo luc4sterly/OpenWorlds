@@ -1,5 +1,5 @@
 // 10019050 RwForAllNamedTexturesPointer [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwForAllNamedTexturesPointer(undefined *param_1,undefined4 param_2)
 

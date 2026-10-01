@@ -1,5 +1,5 @@
 // 100193d0 RwGetTextureMipmapState [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetTextureMipmapState(void)
 

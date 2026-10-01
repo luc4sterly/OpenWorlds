@@ -1,5 +1,5 @@
 // 0043403a GetCommandLineA [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 LPSTR GetCommandLineA(void)
 

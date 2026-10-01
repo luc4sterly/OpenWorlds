@@ -1,5 +1,5 @@
 // 0041fa28 FUN_0041fa28 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 __fastcall FUN_0041fa28(undefined4 param_1,LPSTR param_2)
 

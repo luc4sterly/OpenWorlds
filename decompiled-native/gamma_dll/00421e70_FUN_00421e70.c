@@ -1,5 +1,5 @@
 // 00421e70 FUN_00421e70 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void __cdecl FUN_00421e70(int param_1,undefined1 *param_2,int param_3)
 

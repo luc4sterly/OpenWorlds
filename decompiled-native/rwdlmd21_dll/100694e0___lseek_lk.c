@@ -1,5 +1,5 @@
 // 100694e0 __lseek_lk [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __lseek_lk

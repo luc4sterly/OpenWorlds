@@ -1,5 +1,5 @@
 // 00455af0 RwTransformPoint [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwTransformPoint(void)
 

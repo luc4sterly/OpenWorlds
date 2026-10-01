@@ -1,5 +1,5 @@
 // 10039cd0 RwSkipStreamChunk [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwSkipStreamChunk(int *param_1)
 

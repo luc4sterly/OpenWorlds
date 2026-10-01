@@ -1,5 +1,5 @@
 // 1000be70 FUN_1000be70 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 byte FUN_1000be70(byte *param_1,byte *param_2,uint *param_3)
 

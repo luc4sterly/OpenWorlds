@@ -1,5 +1,5 @@
 // 10014a60 RwSetSurfaceTextureExt [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwSetSurfaceTextureExt(char *param_1,char *param_2)
 

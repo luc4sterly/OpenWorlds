@@ -1,5 +1,5 @@
 // 0043402e GetModuleHandleA [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 HMODULE GetModuleHandleA(LPCSTR lpModuleName)
 

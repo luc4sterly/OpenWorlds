@@ -1,5 +1,5 @@
 // 1004a190 __ioinit [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __ioinit

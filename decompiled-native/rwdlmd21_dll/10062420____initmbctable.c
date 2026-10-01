@@ -1,5 +1,5 @@
 // 10062420 ___initmbctable [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     ___initmbctable

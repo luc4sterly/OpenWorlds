@@ -1,5 +1,5 @@
 // 0044da60 FUN_0044da60 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 DWORD __cdecl FUN_0044da60(int param_1,LONG param_2,undefined4 param_3)
 

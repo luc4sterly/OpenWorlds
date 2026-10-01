@@ -1,5 +1,5 @@
 // 0045584a RwSetRasterData [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetRasterData(void)
 

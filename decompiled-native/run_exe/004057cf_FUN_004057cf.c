@@ -1,5 +1,5 @@
 // 004057cf FUN_004057cf [Global]
-// programa: run.exe
+// program: run.exe
 
 void __cdecl FUN_004057cf(byte param_1)
 

@@ -1,5 +1,5 @@
 // 1001a8b0 FUN_1001a8b0 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 undefined4 FUN_1001a8b0(int *param_1,int param_2)
 

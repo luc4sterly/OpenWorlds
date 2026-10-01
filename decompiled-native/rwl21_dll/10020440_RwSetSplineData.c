@@ -1,5 +1,5 @@
 // 10020440 RwSetSplineData [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetSplineData(int param_1,undefined4 param_2)
 

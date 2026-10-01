@@ -1,5 +1,5 @@
 // 0043187e FUN_0043187e [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 

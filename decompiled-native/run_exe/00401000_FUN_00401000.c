@@ -1,5 +1,5 @@
 // 00401000 FUN_00401000 [Global]
-// programa: run.exe
+// program: run.exe
 
 undefined4 FUN_00401000(void)
 

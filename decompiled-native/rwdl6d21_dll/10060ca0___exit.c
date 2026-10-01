@@ -1,5 +1,5 @@
 // 10060ca0 __exit [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __exit

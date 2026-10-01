@@ -1,5 +1,5 @@
 // 100153f0 RwSetSurface [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwSetSurface(uint param_1,uint param_2,uint param_3)
 

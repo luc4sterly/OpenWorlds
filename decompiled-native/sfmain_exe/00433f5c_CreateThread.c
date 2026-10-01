@@ -1,5 +1,5 @@
 // 00433f5c CreateThread [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 HANDLE CreateThread(LPSECURITY_ATTRIBUTES lpThreadAttributes,SIZE_T dwStackSize,
                    LPTHREAD_START_ROUTINE lpStartAddress,LPVOID lpParameter,DWORD dwCreationFlags,

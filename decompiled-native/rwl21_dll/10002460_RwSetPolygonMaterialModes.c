@@ -1,5 +1,5 @@
 // 10002460 RwSetPolygonMaterialModes [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwSetPolygonMaterialModes(int *param_1,uint param_2)
 

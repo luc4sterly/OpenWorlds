@@ -1,5 +1,5 @@
 // 004557b4 RwGetClumpOwner [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetClumpOwner(void)
 

@@ -1,5 +1,5 @@
 // 1005dbf0 ___sbh_alloc_block_from_page [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     ___sbh_alloc_block_from_page

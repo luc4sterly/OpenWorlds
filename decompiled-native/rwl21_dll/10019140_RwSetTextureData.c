@@ -1,5 +1,5 @@
 // 10019140 RwSetTextureData [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetTextureData(int param_1,undefined4 param_2)
 

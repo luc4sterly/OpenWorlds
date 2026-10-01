@@ -1,5 +1,5 @@
 // 0043e3a0 FUN_0043e3a0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 FUN_0043e3a0(int param_1,LPCWSTR param_2)
 

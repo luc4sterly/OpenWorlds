@@ -1,5 +1,5 @@
 // 00406bbd FUN_00406bbd [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_00406bbd(undefined4 param_1,short *param_2)
 

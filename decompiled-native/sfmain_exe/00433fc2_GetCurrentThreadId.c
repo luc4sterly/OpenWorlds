@@ -1,5 +1,5 @@
 // 00433fc2 GetCurrentThreadId [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 DWORD GetCurrentThreadId(void)
 

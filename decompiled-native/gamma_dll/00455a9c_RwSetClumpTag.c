@@ -1,5 +1,5 @@
 // 00455a9c RwSetClumpTag [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetClumpTag(void)
 

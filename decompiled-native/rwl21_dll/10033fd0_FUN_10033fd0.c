@@ -1,5 +1,5 @@
 // 10033fd0 FUN_10033fd0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void FUN_10033fd0(undefined4 param_1,undefined4 param_2,int param_3)
 

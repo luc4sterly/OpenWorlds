@@ -1,5 +1,5 @@
 // 004565b8 RwSetShapePath [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetShapePath(void)
 

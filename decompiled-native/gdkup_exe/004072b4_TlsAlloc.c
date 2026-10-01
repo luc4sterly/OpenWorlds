@@ -1,5 +1,5 @@
 // 004072b4 TlsAlloc [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 DWORD TlsAlloc(void)
 

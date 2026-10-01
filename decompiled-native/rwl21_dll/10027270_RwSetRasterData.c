@@ -1,5 +1,5 @@
 // 10027270 RwSetRasterData [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetRasterData(int param_1,undefined4 param_2)
 

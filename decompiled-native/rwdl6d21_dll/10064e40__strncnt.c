@@ -1,5 +1,5 @@
 // 10064e40 _strncnt [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     _strncnt

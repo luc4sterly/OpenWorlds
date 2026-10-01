@@ -1,5 +1,5 @@
 // 00404046 FUN_00404046 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 /* WARNING: Unable to track spacebase fully for stack */
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */

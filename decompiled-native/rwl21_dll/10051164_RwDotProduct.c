@@ -1,5 +1,5 @@
 // 10051164 RwDotProduct [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined8 __fastcall RwDotProduct(undefined4 param_1,undefined4 param_2)
 

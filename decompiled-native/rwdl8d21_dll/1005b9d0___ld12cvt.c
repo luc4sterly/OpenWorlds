@@ -1,5 +1,5 @@
 // 1005b9d0 __ld12cvt [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __ld12cvt

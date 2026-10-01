@@ -1,5 +1,5 @@
 // 10001c30 RwSetPolygonSpecularRGBStruct [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwSetPolygonSpecularRGBStruct(int *param_1,uint *param_2)
 

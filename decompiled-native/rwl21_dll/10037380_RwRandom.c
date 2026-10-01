@@ -1,5 +1,5 @@
 // 10037380 RwRandom [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint RwRandom(void)
 

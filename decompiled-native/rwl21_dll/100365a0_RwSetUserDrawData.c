@@ -1,5 +1,5 @@
 // 100365a0 RwSetUserDrawData [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetUserDrawData(int param_1,undefined4 param_2)
 

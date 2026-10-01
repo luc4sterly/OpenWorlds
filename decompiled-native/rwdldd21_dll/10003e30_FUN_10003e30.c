@@ -1,5 +1,5 @@
 // 10003e30 FUN_10003e30 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 undefined4 FUN_10003e30(int param_1,int param_2)
 

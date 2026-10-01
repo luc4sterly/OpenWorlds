@@ -1,5 +1,5 @@
 // 10018b90 FUN_10018b90 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 void FUN_10018b90(uint *param_1)
 

@@ -1,5 +1,5 @@
 // 0042f8c9 FUN_0042f8c9 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 byte * __fastcall FUN_0042f8c9(undefined4 param_1,byte *param_2)
 

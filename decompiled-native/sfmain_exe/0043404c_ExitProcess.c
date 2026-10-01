@@ -1,5 +1,5 @@
 // 0043404c ExitProcess [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void ExitProcess(UINT uExitCode)
 

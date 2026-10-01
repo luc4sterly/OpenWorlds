@@ -1,5 +1,5 @@
 // 100666f0 FUN_100666f0 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 ulong * FUN_100666f0(void)
 

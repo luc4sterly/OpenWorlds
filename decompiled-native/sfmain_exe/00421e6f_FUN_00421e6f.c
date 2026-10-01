@@ -1,5 +1,5 @@
 // 00421e6f FUN_00421e6f [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 LRESULT FUN_00421e6f(HWND param_1,UINT param_2,WPARAM param_3,uint param_4)
 

@@ -1,5 +1,5 @@
 // 10015370 RwSetSurfaceOpacity [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwSetSurfaceOpacity(uint param_1)
 

@@ -1,5 +1,5 @@
 // 00455a6c RwRenderScene [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwRenderScene(void)
 

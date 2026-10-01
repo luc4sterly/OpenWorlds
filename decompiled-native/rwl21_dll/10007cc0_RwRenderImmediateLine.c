@@ -1,5 +1,5 @@
 // 10007cc0 RwRenderImmediateLine [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwRenderImmediateLine(int *param_1)
 

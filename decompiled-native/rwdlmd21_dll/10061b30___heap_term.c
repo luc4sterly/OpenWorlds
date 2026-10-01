@@ -1,5 +1,5 @@
 // 10061b30 __heap_term [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __heap_term

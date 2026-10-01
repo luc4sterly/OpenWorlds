@@ -1,5 +1,5 @@
 // 1002dc50 FID_conflict:_memcpy [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Multiple Matches With Different Base Names
     _memcpy

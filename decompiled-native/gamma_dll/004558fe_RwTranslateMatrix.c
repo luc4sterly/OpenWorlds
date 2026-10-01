@@ -1,5 +1,5 @@
 // 004558fe RwTranslateMatrix [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwTranslateMatrix(void)
 

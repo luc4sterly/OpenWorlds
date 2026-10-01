@@ -1,5 +1,5 @@
 // 1003d6b0 RwGetChunkSize [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetChunkSize(int param_1,int *param_2,uint param_3)
 

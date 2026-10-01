@@ -1,5 +1,5 @@
 // 0040b3ac FUN_0040b3ac [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_0040b3ac(undefined4 param_1,uint *param_2)
 

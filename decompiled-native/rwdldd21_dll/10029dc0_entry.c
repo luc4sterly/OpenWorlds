@@ -1,5 +1,5 @@
 // 10029dc0 entry [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 int entry(undefined4 param_1,int param_2,undefined4 param_3)
 

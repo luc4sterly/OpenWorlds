@@ -1,5 +1,5 @@
 // 10036530 RwGetUserDrawCallback [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetUserDrawCallback(undefined4 *param_1)
 

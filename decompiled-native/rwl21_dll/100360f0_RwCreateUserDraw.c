@@ -1,5 +1,5 @@
 // 100360f0 RwCreateUserDraw [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 *
 RwCreateUserDraw(int param_1,uint param_2,undefined4 param_3,undefined4 param_4,undefined4 param_5,

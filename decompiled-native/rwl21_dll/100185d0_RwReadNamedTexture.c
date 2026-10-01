@@ -1,5 +1,5 @@
 // 100185d0 RwReadNamedTexture [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwReadNamedTexture(char *param_1)
 

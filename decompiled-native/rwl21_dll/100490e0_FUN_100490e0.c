@@ -1,5 +1,5 @@
 // 100490e0 FUN_100490e0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * FUN_100490e0(void)
 

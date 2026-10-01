@@ -1,5 +1,5 @@
 // 00420370 _Java_NET_worlds_scape_Surface_addVertex@28 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_Surface_addVertex_28
                (int *param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4,

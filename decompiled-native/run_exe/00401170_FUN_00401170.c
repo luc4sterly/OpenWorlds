@@ -1,5 +1,5 @@
 // 00401170 FUN_00401170 [Global]
-// programa: run.exe
+// program: run.exe
 
 bool __cdecl FUN_00401170(LPCSTR param_1)
 

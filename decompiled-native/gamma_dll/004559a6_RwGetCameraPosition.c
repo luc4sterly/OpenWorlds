@@ -1,5 +1,5 @@
 // 004559a6 RwGetCameraPosition [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetCameraPosition(void)
 

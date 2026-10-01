@@ -1,5 +1,5 @@
 // 1001d7c0 RwPopScratchMatrix [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwPopScratchMatrix(void)
 

@@ -1,5 +1,5 @@
 // 10007f50 RwRenderImmediateClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwRenderImmediateClump(void)
 

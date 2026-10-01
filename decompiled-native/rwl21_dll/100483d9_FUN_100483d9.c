@@ -1,5 +1,5 @@
 // 100483d9 FUN_100483d9 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 float10 FUN_100483d9(void)
 

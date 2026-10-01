@@ -1,5 +1,5 @@
 // 004558f2 RwTransformClumpJoint [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwTransformClumpJoint(void)
 

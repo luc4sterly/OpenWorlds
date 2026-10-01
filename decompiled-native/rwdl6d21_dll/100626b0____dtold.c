@@ -1,5 +1,5 @@
 // 100626b0 ___dtold [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     ___dtold

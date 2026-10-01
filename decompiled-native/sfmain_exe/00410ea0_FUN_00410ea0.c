@@ -1,5 +1,5 @@
 // 00410ea0 FUN_00410ea0 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 UINT_PTR __fastcall FUN_00410ea0(undefined4 param_1,LPCSTR param_2)
 

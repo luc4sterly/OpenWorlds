@@ -1,5 +1,5 @@
 // 00451950 FUN_00451950 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 ushort * FUN_00451950(byte param_1,ushort *param_2,ushort *param_3)
 

@@ -1,5 +1,5 @@
 // 10038190 RwRenderStereoScene [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint * RwRenderStereoScene(uint *param_1)
 

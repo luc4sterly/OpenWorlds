@@ -1,5 +1,5 @@
 // 10063170 __fltout2 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __fltout2

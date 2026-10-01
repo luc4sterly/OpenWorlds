@@ -1,5 +1,5 @@
 // 0040ff2b FUN_0040ff2b [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 int __fastcall FUN_0040ff2b(undefined4 param_1,undefined1 *param_2)
 

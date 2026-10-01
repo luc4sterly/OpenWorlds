@@ -1,5 +1,5 @@
 // 1001db80 RwOrthoNormalizeMatrix [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 float * __fastcall
 RwOrthoNormalizeMatrix(undefined4 param_1,undefined4 param_2,float *param_3,float *param_4)

@@ -1,5 +1,5 @@
 // 100273c0 RwGetRasterHeight [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetRasterHeight(int param_1)
 

@@ -1,5 +1,5 @@
 // 1005d380 __lock [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __lock

@@ -1,5 +1,5 @@
 // 00407278 SetConsoleMode [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 BOOL SetConsoleMode(HANDLE hConsoleHandle,DWORD dwMode)
 

@@ -1,5 +1,5 @@
 // 10009550 RwFindTaggedClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwFindTaggedClump(int param_1,int param_2)
 

@@ -1,5 +1,5 @@
 // 00407308 GetCurrentProcessId [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 DWORD GetCurrentProcessId(void)
 

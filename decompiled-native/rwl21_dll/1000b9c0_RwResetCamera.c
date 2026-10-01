@@ -1,5 +1,5 @@
 // 1000b9c0 RwResetCamera [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwResetCamera(int param_1)
 

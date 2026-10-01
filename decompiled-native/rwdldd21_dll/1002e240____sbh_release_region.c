@@ -1,5 +1,5 @@
 // 1002e240 ___sbh_release_region [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     ___sbh_release_region

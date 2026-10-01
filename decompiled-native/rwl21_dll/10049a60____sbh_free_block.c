@@ -1,5 +1,5 @@
 // 10049a60 ___sbh_free_block [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     ___sbh_free_block

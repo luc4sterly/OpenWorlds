@@ -1,5 +1,5 @@
 // 10028b3b FUN_10028b3b [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 undefined4 FUN_10028b3b(void)
 

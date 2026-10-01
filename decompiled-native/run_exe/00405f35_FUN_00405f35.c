@@ -1,5 +1,5 @@
 // 00405f35 FUN_00405f35 [Global]
-// programa: run.exe
+// program: run.exe
 
 void __thiscall FUN_00405f35(void *this,byte *param_1,int *param_2,void *param_3)
 

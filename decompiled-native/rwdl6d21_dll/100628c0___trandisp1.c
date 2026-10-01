@@ -1,5 +1,5 @@
 // 100628c0 __trandisp1 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __trandisp1

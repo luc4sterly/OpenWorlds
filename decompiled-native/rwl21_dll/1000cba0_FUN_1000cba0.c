@@ -1,5 +1,5 @@
 // 1000cba0 FUN_1000cba0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int __cdecl FUN_1000cba0(int param_1)
 

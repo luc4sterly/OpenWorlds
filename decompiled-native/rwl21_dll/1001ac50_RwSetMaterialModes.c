@@ -1,5 +1,5 @@
 // 1001ac50 RwSetMaterialModes [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetMaterialModes(int param_1,uint param_2)
 

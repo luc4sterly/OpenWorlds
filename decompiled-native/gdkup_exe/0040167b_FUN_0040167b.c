@@ -1,5 +1,5 @@
 // 0040167b FUN_0040167b [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 undefined4 FUN_0040167b(int param_1)
 

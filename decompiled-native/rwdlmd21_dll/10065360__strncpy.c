@@ -1,5 +1,5 @@
 // 10065360 _strncpy [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     _strncpy

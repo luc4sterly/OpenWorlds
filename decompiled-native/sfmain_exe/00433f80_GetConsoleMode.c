@@ -1,5 +1,5 @@
 // 00433f80 GetConsoleMode [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL GetConsoleMode(HANDLE hConsoleHandle,LPDWORD lpMode)
 

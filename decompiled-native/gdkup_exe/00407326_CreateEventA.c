@@ -1,5 +1,5 @@
 // 00407326 CreateEventA [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 HANDLE CreateEventA(LPSECURITY_ATTRIBUTES lpEventAttributes,BOOL bManualReset,BOOL bInitialState,
                    LPCSTR lpName)

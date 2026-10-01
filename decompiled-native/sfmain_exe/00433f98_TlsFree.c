@@ -1,5 +1,5 @@
 // 00433f98 TlsFree [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL TlsFree(DWORD dwTlsIndex)
 

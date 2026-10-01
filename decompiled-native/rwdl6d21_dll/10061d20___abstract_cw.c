@@ -1,5 +1,5 @@
 // 10061d20 __abstract_cw [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __abstract_cw

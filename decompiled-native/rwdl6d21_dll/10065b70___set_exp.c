@@ -1,5 +1,5 @@
 // 10065b70 __set_exp [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __set_exp

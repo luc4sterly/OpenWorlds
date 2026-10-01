@@ -1,5 +1,5 @@
 // 00434034 GetVersion [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 DWORD GetVersion(void)
 

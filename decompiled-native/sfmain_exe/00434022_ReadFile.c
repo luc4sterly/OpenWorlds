@@ -1,5 +1,5 @@
 // 00434022 ReadFile [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL ReadFile(HANDLE hFile,LPVOID lpBuffer,DWORD nNumberOfBytesToRead,LPDWORD lpNumberOfBytesRead,
              LPOVERLAPPED lpOverlapped)

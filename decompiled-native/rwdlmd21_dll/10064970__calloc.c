@@ -1,5 +1,5 @@
 // 10064970 _calloc [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     _calloc

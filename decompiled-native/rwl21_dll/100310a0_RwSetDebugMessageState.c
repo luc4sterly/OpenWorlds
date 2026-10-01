@@ -1,5 +1,5 @@
 // 100310a0 RwSetDebugMessageState [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwSetDebugMessageState(undefined4 param_1)
 

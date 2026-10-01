@@ -1,5 +1,5 @@
 // 10046dd0 write_multi_char [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     _write_multi_char

@@ -1,5 +1,5 @@
 // 1002a340 __setdefaultprecision [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __setdefaultprecision

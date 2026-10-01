@@ -1,5 +1,5 @@
 // 100630e0 __fptostr [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __fptostr

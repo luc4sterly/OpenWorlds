@@ -1,5 +1,5 @@
 // 1001c300 FUN_1001c300 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined8 FUN_1001c300(float *param_1,float *param_2,float *param_3)
 

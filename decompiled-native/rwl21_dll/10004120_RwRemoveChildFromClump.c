@@ -1,5 +1,5 @@
 // 10004120 RwRemoveChildFromClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwRemoveChildFromClump(int param_1)
 

@@ -1,5 +1,5 @@
 // 00406e47 FUN_00406e47 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 char * __fastcall FUN_00406e47(undefined4 param_1,char *param_2)
 

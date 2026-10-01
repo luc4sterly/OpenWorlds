@@ -1,5 +1,5 @@
 // 00433ff2 GetLastError [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 DWORD GetLastError(void)
 

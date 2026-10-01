@@ -1,5 +1,5 @@
 // 1002c710 RwRemoveClumpFromScene [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Removing unreachable block (ram,0x1002c811) */
 

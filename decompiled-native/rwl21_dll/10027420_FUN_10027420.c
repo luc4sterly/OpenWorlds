@@ -1,5 +1,5 @@
 // 10027420 FUN_10027420 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 FUN_10027420(void)
 

@@ -1,5 +1,5 @@
 // 00434040 GetModuleFileNameA [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 DWORD GetModuleFileNameA(HMODULE hModule,LPSTR lpFilename,DWORD nSize)
 

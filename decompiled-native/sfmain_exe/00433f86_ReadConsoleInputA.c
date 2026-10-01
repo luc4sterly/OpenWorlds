@@ -1,5 +1,5 @@
 // 00433f86 ReadConsoleInputA [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL ReadConsoleInputA(HANDLE hConsoleInput,PINPUT_RECORD lpBuffer,DWORD nLength,
                       LPDWORD lpNumberOfEventsRead)

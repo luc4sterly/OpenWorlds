@@ -1,5 +1,5 @@
 // 004294e8 FUN_004294e8 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined8 __fastcall FUN_004294e8(undefined4 param_1,undefined4 param_2)
 

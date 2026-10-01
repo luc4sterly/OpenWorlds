@@ -1,5 +1,5 @@
 // 0043405e Ordinal_20 [WSOCK32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void Ordinal_20(void)
 

@@ -1,5 +1,5 @@
 // 1002d9f0 FID_conflict:__atodbl [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Multiple Matches With Different Base Names
     __atodbl

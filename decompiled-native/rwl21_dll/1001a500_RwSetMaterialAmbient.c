@@ -1,5 +1,5 @@
 // 1001a500 RwSetMaterialAmbient [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetMaterialAmbient(int param_1,uint param_2)
 

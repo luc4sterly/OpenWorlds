@@ -1,5 +1,5 @@
 // 00403a35 FUN_00403a35 [Global]
-// programa: run.exe
+// program: run.exe
 
 undefined4 __cdecl FUN_00403a35(short *param_1)
 

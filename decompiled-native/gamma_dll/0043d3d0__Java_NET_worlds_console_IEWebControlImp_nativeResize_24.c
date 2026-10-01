@@ -1,5 +1,5 @@
 // 0043d3d0 _Java_NET_worlds_console_IEWebControlImp_nativeResize@24 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 

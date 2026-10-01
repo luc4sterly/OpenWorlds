@@ -1,5 +1,5 @@
 // 0042f424 FUN_0042f424 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 DWORD FUN_0042f424(void)
 

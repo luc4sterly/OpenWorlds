@@ -1,5 +1,5 @@
 // 0040d7a0 FUN_0040d7a0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 HPALETTE FUN_0040d7a0(void)
 

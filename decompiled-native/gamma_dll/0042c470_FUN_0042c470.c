@@ -1,5 +1,5 @@
 // 0042c470 FUN_0042c470 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint * FUN_0042c470(int *param_1)
 

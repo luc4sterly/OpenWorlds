@@ -1,5 +1,5 @@
 // 10001620 RwSetPolygonTag [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetPolygonTag(int param_1,undefined2 param_2)
 

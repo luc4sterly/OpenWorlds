@@ -1,5 +1,5 @@
 // 00453ba8 GetSaveFileNameA [COMDLG32.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 BOOL GetSaveFileNameA(LPOPENFILENAMEA param_1)
 

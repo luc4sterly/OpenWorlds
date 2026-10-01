@@ -1,5 +1,5 @@
 // 10031990 ___init_ctype [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     ___init_ctype

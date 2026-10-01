@@ -1,5 +1,5 @@
 // 100361d0 RwDestroyUserDraw [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwDestroyUserDraw(undefined4 *param_1)
 

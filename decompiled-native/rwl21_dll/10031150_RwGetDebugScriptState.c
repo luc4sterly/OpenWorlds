@@ -1,5 +1,5 @@
 // 10031150 RwGetDebugScriptState [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetDebugScriptState(void)
 

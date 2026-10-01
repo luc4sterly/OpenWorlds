@@ -1,5 +1,5 @@
 // 1002f150 RwGetLightOwner [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetLightOwner(int param_1)
 

@@ -1,5 +1,5 @@
 // 00425bc0 _Java_NET_worlds_scape_Transform_makeIdentity@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 _Java_NET_worlds_scape_Transform_makeIdentity_8(int *param_1,undefined4 param_2)
 

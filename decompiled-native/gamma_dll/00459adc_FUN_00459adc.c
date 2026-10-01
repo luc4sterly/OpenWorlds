@@ -1,5 +1,5 @@
 // 00459adc FUN_00459adc [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 FUN_00459adc(void)
 

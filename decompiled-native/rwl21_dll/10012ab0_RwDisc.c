@@ -1,5 +1,5 @@
 // 10012ab0 RwDisc [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 __fastcall RwDisc(undefined4 param_1,int param_2,float param_3,float param_4,int param_5)
 

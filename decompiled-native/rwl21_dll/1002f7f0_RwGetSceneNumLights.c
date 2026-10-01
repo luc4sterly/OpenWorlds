@@ -1,5 +1,5 @@
 // 1002f7f0 RwGetSceneNumLights [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetSceneNumLights(int param_1)
 

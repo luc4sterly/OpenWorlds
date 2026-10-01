@@ -1,5 +1,5 @@
 // 100054d0 FUN_100054d0 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 void FUN_100054d0(void)
 

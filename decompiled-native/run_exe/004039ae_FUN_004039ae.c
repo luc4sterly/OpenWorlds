@@ -1,5 +1,5 @@
 // 004039ae FUN_004039ae [Global]
-// programa: run.exe
+// program: run.exe
 
 uint __cdecl FUN_004039ae(short *param_1,short param_2)
 

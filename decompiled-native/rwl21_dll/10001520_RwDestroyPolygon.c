@@ -1,5 +1,5 @@
 // 10001520 RwDestroyPolygon [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwDestroyPolygon(int *param_1)
 

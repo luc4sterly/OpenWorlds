@@ -1,5 +1,5 @@
 // 0042cbb3 FUN_0042cbb3 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_0042cbb3(undefined4 param_1,char param_2)
 

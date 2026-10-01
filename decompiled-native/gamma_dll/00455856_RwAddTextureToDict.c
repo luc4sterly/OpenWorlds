@@ -1,5 +1,5 @@
 // 00455856 RwAddTextureToDict [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwAddTextureToDict(void)
 

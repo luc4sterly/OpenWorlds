@@ -1,5 +1,5 @@
 // 10036330 RwDuplicateUserDraw [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwDuplicateUserDraw(undefined4 *param_1)
 

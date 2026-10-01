@@ -1,5 +1,5 @@
 // 10029c20 FUN_10029c20 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 void FUN_10029c20(void)
 

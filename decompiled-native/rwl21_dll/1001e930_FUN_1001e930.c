@@ -1,5 +1,5 @@
 // 1001e930 FUN_1001e930 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint FUN_1001e930(int *param_1,int *param_2,int *param_3)
 

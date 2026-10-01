@@ -1,5 +1,5 @@
 // 1000fd60 RwProtoBegin [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwProtoBegin(char *param_1)
 

@@ -1,5 +1,5 @@
 // 10060ab0 ___init_ctype [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     ___init_ctype

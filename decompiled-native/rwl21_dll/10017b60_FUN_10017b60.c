@@ -1,5 +1,5 @@
 // 10017b60 FUN_10017b60 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * FUN_10017b60(char *param_1)
 

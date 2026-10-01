@@ -10,7 +10,7 @@ import java.awt.Window;
 import java.awt.event.ActionEvent;
 
 /**
- * Network harness (tools/net-probe, docs/net-local-whirl.md): starts the REAL
+ * Network harness (tools/net-probe, docs/net-local-server.md): starts the REAL
  * NET.worlds.console.Gamma.main and, in a separate thread, does with the
  * original's AWT UI what a person would do. It touches no client logic: it
  * only types into text fields and "presses" buttons: for a Button it posts

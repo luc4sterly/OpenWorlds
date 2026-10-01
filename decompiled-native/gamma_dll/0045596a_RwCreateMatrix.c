@@ -1,5 +1,5 @@
 // 0045596a RwCreateMatrix [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwCreateMatrix(void)
 

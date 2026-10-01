@@ -1,5 +1,5 @@
 // 10065c20 __decomp [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __decomp

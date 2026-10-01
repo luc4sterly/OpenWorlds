@@ -1,5 +1,5 @@
 // 1004c110 __get_osfhandle [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __get_osfhandle

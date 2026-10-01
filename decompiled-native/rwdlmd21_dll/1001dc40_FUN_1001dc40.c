@@ -1,5 +1,5 @@
 // 1001dc40 FUN_1001dc40 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void FUN_1001dc40(uint *param_1)
 

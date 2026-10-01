@@ -1,5 +1,5 @@
 // 10014790 RwSetSurfaceGeometrySampling [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwSetSurfaceGeometrySampling(undefined4 param_1)
 

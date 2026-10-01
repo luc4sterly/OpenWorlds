@@ -1,5 +1,5 @@
 // 0042e0c8 FUN_0042e0c8 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 FUN_0042e0c8(uint param_1)
 

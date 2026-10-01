@@ -1,5 +1,5 @@
 // 10038230 RwClearStereoCameraViewport [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwClearStereoCameraViewport(int param_1)
 

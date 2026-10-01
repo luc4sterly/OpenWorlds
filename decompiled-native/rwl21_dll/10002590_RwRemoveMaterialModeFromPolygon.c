@@ -1,5 +1,5 @@
 // 10002590 RwRemoveMaterialModeFromPolygon [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwRemoveMaterialModeFromPolygon(int *param_1,uint param_2)
 

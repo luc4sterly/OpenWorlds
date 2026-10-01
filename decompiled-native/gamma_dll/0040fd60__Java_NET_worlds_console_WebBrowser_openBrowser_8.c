@@ -1,5 +1,5 @@
 // 0040fd60 _Java_NET_worlds_console_WebBrowser_openBrowser@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int * _Java_NET_worlds_console_WebBrowser_openBrowser_8(int *param_1,undefined4 param_2)
 

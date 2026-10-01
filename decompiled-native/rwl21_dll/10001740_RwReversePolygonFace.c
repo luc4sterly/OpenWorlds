@@ -1,5 +1,5 @@
 // 10001740 RwReversePolygonFace [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwReversePolygonFace(int param_1)
 

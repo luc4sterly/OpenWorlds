@@ -1,5 +1,5 @@
 // 1002fbc0 ___crtLCMapStringA [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     ___crtLCMapStringA

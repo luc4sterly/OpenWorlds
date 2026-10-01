@@ -1,5 +1,5 @@
 // 10032c70 FUN_10032c70 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void FUN_10032c70(undefined *param_1,int param_2,undefined4 param_3)
 

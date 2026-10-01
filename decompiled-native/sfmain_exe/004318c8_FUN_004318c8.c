@@ -1,5 +1,5 @@
 // 004318c8 FUN_004318c8 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void FUN_004318c8(void)
 

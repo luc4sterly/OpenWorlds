@@ -1,5 +1,5 @@
 // 1000c820 RwSetPaletteEntries [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetPaletteEntries(undefined4 param_1,int param_2,int param_3)
 

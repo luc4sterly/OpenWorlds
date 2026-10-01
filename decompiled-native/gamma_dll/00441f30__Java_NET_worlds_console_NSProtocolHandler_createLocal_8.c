@@ -1,5 +1,5 @@
 // 00441f30 _Java_NET_worlds_console_NSProtocolHandler_createLocal@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint * _Java_NET_worlds_console_NSProtocolHandler_createLocal_8(int *param_1)
 

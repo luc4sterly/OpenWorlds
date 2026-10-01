@@ -1,5 +1,5 @@
 // 1001d370 RwDestroyMatrix [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwDestroyMatrix(undefined4 *param_1)
 

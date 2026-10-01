@@ -1,5 +1,5 @@
 // 0040728a VirtualFree [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 BOOL VirtualFree(LPVOID lpAddress,SIZE_T dwSize,DWORD dwFreeType)
 

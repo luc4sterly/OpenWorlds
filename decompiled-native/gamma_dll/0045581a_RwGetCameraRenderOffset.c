@@ -1,5 +1,5 @@
 // 0045581a RwGetCameraRenderOffset [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetCameraRenderOffset(void)
 

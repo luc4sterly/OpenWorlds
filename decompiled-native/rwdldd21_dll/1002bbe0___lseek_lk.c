@@ -1,5 +1,5 @@
 // 1002bbe0 __lseek_lk [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __lseek_lk

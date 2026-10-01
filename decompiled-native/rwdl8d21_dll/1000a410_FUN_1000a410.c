@@ -1,5 +1,5 @@
 // 1000a410 FUN_1000a410 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 uint FUN_1000a410(uint *param_1)
 

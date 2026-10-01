@@ -1,5 +1,5 @@
 // 10029930 FUN_10029930 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 undefined4 FUN_10029930(void)
 

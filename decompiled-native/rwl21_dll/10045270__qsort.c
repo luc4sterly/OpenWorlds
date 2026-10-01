@@ -1,5 +1,5 @@
 // 10045270 _qsort [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     _qsort

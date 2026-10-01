@@ -1,5 +1,5 @@
 // 1000ac00 FUN_1000ac00 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 uint FUN_1000ac00(uint *param_1)
 

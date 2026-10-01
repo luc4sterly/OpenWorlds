@@ -1,5 +1,5 @@
 // 10032040 __close [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __close

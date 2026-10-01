@@ -1,5 +1,5 @@
 // 100498c0 ___sbh_release_region [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     ___sbh_release_region

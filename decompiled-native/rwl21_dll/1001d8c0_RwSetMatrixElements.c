@@ -1,5 +1,5 @@
 // 1001d8c0 RwSetMatrixElements [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwSetMatrixElements(undefined4 *param_1,undefined4 *param_2)
 

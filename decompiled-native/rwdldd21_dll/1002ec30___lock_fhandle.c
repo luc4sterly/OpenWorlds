@@ -1,5 +1,5 @@
 // 1002ec30 __lock_fhandle [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __lock_fhandle

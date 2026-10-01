@@ -1,5 +1,5 @@
 // 0042dff7 __fdivp_sti_st [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 /* Library Function - Single Match
     __fdivp_sti_st

@@ -1,5 +1,5 @@
 // 00403b44 __mbsnbicoll [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     __mbsnbicoll

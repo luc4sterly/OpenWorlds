@@ -1,5 +1,5 @@
 // 1000ef00 RwMaterialBegin [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwMaterialBegin(void)
 

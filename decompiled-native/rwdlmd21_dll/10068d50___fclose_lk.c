@@ -1,5 +1,5 @@
 // 10068d50 __fclose_lk [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __fclose_lk

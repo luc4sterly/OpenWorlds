@@ -1,5 +1,5 @@
 // 10006d00 FUN_10006d00 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 uint FUN_10006d00(byte param_1,int param_2)
 

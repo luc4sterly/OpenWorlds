@@ -1,5 +1,5 @@
 // 10060db0 _strncmp [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     _strncmp

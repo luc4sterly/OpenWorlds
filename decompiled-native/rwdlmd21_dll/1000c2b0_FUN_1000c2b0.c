@@ -1,5 +1,5 @@
 // 1000c2b0 FUN_1000c2b0 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 int FUN_1000c2b0(int param_1,int param_2,byte *param_3)
 

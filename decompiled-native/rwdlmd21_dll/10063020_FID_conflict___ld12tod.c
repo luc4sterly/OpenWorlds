@@ -1,5 +1,5 @@
 // 10063020 FID_conflict:__ld12tod [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Multiple Matches With Different Base Names
     __ld12tod

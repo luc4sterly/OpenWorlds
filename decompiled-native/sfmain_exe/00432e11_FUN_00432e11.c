@@ -1,5 +1,5 @@
 // 00432e11 FUN_00432e11 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined8 __fastcall FUN_00432e11(undefined4 param_1,undefined4 param_2)
 

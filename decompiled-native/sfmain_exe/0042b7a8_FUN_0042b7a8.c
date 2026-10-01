@@ -1,5 +1,5 @@
 // 0042b7a8 FUN_0042b7a8 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 /* WARNING: Removing unreachable block (ram,0x0042b7c8) */
 

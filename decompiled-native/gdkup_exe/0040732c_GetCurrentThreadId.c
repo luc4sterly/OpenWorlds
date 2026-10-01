@@ -1,5 +1,5 @@
 // 0040732c GetCurrentThreadId [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 DWORD GetCurrentThreadId(void)
 

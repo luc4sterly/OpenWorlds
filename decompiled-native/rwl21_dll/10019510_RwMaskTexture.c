@@ -1,5 +1,5 @@
 // 10019510 RwMaskTexture [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint RwMaskTexture(uint param_1,int *param_2)
 

@@ -1,5 +1,5 @@
 // 10002a50 RwGetClumpImmediateCallBack [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetClumpImmediateCallBack(int param_1)
 

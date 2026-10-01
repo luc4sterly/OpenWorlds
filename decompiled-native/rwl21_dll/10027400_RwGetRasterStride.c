@@ -1,5 +1,5 @@
 // 10027400 RwGetRasterStride [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetRasterStride(int param_1)
 

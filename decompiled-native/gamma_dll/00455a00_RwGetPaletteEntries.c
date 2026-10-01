@@ -1,5 +1,5 @@
 // 00455a00 RwGetPaletteEntries [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetPaletteEntries(void)
 

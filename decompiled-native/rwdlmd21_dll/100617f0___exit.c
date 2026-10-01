@@ -1,5 +1,5 @@
 // 100617f0 __exit [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __exit

@@ -1,5 +1,5 @@
 // 100463d0 __output [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __output

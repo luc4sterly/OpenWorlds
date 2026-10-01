@@ -1,5 +1,5 @@
 // 00404d34 FUN_00404d34 [Global]
-// programa: run.exe
+// program: run.exe
 
 undefined4 __cdecl FUN_00404d34(int param_1,int *param_2,byte *param_3,uint param_4)
 

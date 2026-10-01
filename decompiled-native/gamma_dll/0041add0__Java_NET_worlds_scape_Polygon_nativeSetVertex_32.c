@@ -1,5 +1,5 @@
 // 0041add0 _Java_NET_worlds_scape_Polygon_nativeSetVertex@32 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_Polygon_nativeSetVertex_32
                (int *param_1,undefined4 param_2,int param_3,undefined4 param_4,undefined4 param_5,

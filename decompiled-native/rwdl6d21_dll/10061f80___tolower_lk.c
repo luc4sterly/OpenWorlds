@@ -1,5 +1,5 @@
 // 10061f80 __tolower_lk [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __tolower_lk

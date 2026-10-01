@@ -1,5 +1,5 @@
 // 1000a9a0 RwSetCameraBackdropOffset [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetCameraBackdropOffset(int param_1,undefined4 param_2,undefined4 param_3)
 

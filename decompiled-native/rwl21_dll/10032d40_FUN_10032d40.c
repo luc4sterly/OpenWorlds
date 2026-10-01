@@ -1,5 +1,5 @@
 // 10032d40 FUN_10032d40 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int FUN_10032d40(uint param_1,int param_2,undefined4 param_3,int param_4,int param_5)
 

@@ -1,5 +1,5 @@
 // 00415190 _Java_NET_worlds_scape_Camera_renderScene@28 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_scape_Camera_renderScene_28

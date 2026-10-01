@@ -1,5 +1,5 @@
 // 0043400a GetLocalTime [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void GetLocalTime(LPSYSTEMTIME lpSystemTime)
 

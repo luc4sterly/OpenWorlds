@@ -1,5 +1,5 @@
 // 0040778a FUN_0040778a [Global]
-// programa: run.exe
+// program: run.exe
 
 size_t __cdecl
 FUN_0040778a(LCID param_1,uint param_2,LPCWSTR param_3,int param_4,LPWSTR param_5,size_t param_6,

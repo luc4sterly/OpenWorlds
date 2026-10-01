@@ -1,5 +1,5 @@
 // 00455a1e RwOrthoNormalizeMatrix [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwOrthoNormalizeMatrix(void)
 

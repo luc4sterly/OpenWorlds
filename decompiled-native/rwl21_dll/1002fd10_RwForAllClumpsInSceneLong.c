@@ -1,5 +1,5 @@
 // 1002fd10 RwForAllClumpsInSceneLong [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwForAllClumpsInSceneLong(int param_1,undefined *param_2,undefined4 param_3)
 

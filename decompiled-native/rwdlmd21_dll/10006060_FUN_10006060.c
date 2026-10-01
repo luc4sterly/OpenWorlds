@@ -1,5 +1,5 @@
 // 10006060 FUN_10006060 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void FUN_10006060(void)
 

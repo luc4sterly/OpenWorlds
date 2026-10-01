@@ -1,5 +1,5 @@
 // 1000bef0 FUN_1000bef0 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 void FUN_1000bef0(uint *param_1,uint param_2,byte *param_3,uint *param_4)
 

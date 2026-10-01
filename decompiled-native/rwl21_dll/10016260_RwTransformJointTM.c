@@ -1,5 +1,5 @@
 // 10016260 RwTransformJointTM [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwTransformJointTM(int param_1)
 

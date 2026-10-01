@@ -1,5 +1,5 @@
 // 1000dc80 RwSetLightConeAngle [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetLightConeAngle(int param_1,float param_2)
 

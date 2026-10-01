@@ -1,5 +1,5 @@
 // 0040f0b0 _Java_NET_worlds_console_Window_playVideoClip@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 MCIDEVICEID
 _Java_NET_worlds_console_Window_playVideoClip_16

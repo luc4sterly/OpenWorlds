@@ -1,5 +1,5 @@
 // 10041410 RwWriteStreamReal [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwWriteStreamReal(int *param_1,uint *param_2,uint param_3)
 

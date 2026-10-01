@@ -1,5 +1,5 @@
 // 00421300 Java_NET_worlds_scape_sendURL_silent_get [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* long __stdcall Java_NET_worlds_scape_sendURL_silent_get(struct JNIEnv_ *,class _jclass *,class
    _jstring *) */

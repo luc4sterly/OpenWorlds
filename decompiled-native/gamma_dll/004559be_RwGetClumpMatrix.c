@@ -1,5 +1,5 @@
 // 004559be RwGetClumpMatrix [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetClumpMatrix(void)
 

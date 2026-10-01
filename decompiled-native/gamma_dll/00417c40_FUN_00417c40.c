@@ -1,5 +1,5 @@
 // 00417c40 FUN_00417c40 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Type propagation algorithm not settling */
 

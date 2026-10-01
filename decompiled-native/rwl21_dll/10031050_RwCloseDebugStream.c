@@ -1,5 +1,5 @@
 // 10031050 RwCloseDebugStream [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwCloseDebugStream(void)
 

@@ -1,5 +1,5 @@
 // 100075e0 FUN_100075e0 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 int FUN_100075e0(byte param_1)
 

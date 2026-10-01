@@ -1,5 +1,5 @@
 // 00453ba2 GetOpenFileNameA [COMDLG32.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 BOOL GetOpenFileNameA(LPOPENFILENAMEA param_1)
 

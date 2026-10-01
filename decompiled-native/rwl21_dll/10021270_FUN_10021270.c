@@ -1,5 +1,5 @@
 // 10021270 FUN_10021270 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * FUN_10021270(char *param_1)
 

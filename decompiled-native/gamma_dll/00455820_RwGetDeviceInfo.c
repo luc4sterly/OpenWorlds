@@ -1,5 +1,5 @@
 // 00455820 RwGetDeviceInfo [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetDeviceInfo(void)
 

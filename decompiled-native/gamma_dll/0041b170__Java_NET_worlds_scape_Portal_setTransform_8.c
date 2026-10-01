@@ -1,5 +1,5 @@
 // 0041b170 _Java_NET_worlds_scape_Portal_setTransform@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_Portal_setTransform_8(int *param_1,undefined4 param_2)
 

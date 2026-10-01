@@ -1,5 +1,5 @@
 // 10008ff0 FUN_10008ff0 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 undefined4 __thiscall FUN_10008ff0(void *this,int param_1)
 

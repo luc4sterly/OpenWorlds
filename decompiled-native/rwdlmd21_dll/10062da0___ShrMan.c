@@ -1,5 +1,5 @@
 // 10062da0 __ShrMan [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __ShrMan

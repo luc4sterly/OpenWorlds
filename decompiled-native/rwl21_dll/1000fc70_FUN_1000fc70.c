@@ -1,5 +1,5 @@
 // 1000fc70 FUN_1000fc70 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint FUN_1000fc70(uint param_1)
 

@@ -1,5 +1,5 @@
 // 004033be FUN_004033be [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 undefined4 FUN_004033be(void)
 

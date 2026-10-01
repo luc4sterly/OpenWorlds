@@ -1,5 +1,5 @@
 // 100367b0 RwGetUserDrawOwner [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetUserDrawOwner(int param_1)
 

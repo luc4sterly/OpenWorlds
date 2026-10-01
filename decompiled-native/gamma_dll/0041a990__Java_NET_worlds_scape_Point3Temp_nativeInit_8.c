@@ -1,5 +1,5 @@
 // 0041a990 _Java_NET_worlds_scape_Point3Temp_nativeInit@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_Point3Temp_nativeInit_8(int *param_1)
 

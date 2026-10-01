@@ -1,5 +1,5 @@
 // 10002ba0 RwSetClumpOrder [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwSetClumpOrder(int param_1,int *param_2)
 

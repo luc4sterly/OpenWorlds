@@ -1,5 +1,5 @@
 // 00442020 _Java_NET_worlds_core_SystemInfo_GetDiskFreeSpace@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint _Java_NET_worlds_core_SystemInfo_GetDiskFreeSpace_12
                (int *param_1,undefined4 param_2,int param_3)

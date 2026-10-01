@@ -1,5 +1,5 @@
 // 10047bc0 __whiteout [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __whiteout

@@ -1,5 +1,5 @@
 // 10012b10 FUN_10012b10 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool FUN_10012b10(FILE *param_1)
 

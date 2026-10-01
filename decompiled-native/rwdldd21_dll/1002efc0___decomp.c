@@ -1,5 +1,5 @@
 // 1002efc0 __decomp [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __decomp

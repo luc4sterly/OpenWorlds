@@ -1,5 +1,5 @@
 // 1002f180 RwAddLightToScene [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwAddLightToScene(int param_1,undefined4 *param_2)
 

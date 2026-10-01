@@ -1,5 +1,5 @@
 // 004011a4 FUN_004011a4 [Global]
-// programa: run.exe
+// program: run.exe
 
 undefined4 __cdecl FUN_004011a4(uint *param_1)
 

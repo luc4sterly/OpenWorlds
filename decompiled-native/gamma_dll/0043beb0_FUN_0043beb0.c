@@ -1,5 +1,5 @@
 // 0043beb0 FUN_0043beb0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Heritage AFTER dead removal. Example location: s0xffffffdc : 0x0043beed */
 /* WARNING: Restarted to delay deadcode elimination for space: stack */

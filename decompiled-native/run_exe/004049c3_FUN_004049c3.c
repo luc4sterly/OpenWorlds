@@ -1,5 +1,5 @@
 // 004049c3 FUN_004049c3 [Global]
-// programa: run.exe
+// program: run.exe
 
 void __cdecl FUN_004049c3(int param_1,int param_2,byte *param_3)
 

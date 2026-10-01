@@ -1,5 +1,5 @@
 // 1004d380 ___add_12 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     ___add_12

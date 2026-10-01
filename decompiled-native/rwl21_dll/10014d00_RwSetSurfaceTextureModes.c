@@ -1,5 +1,5 @@
 // 10014d00 RwSetSurfaceTextureModes [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwSetSurfaceTextureModes(uint param_1)
 

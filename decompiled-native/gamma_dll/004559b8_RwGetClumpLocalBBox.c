@@ -1,5 +1,5 @@
 // 004559b8 RwGetClumpLocalBBox [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetClumpLocalBBox(void)
 

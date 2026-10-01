@@ -1,5 +1,5 @@
 // 10017cf0 RwGetTextureFrame [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetTextureFrame(int param_1)
 

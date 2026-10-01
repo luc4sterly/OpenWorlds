@@ -1,5 +1,5 @@
 // 004026d0 _Java_NET_worlds_core_RegKey_openKey@20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 HKEY _Java_NET_worlds_core_RegKey_openKey_20
                (int *param_1,undefined4 param_2,HKEY param_3,undefined4 param_4,uint param_5)

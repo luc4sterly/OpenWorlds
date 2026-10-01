@@ -1,5 +1,5 @@
 // 004079c3 FUN_004079c3 [Global]
-// programa: run.exe
+// program: run.exe
 
 uint __cdecl FUN_004079c3(WCHAR param_1,ushort param_2)
 

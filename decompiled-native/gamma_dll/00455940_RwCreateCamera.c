@@ -1,5 +1,5 @@
 // 00455940 RwCreateCamera [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwCreateCamera(void)
 

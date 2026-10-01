@@ -1,5 +1,5 @@
 // 10001680 RwGetPolygonOwner [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetPolygonOwner(int param_1)
 

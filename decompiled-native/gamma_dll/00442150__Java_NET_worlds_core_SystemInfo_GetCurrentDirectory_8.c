@@ -1,5 +1,5 @@
 // 00442150 _Java_NET_worlds_core_SystemInfo_GetCurrentDirectory@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 _Java_NET_worlds_core_SystemInfo_GetCurrentDirectory_8(int *param_1)
 

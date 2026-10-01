@@ -1,5 +1,5 @@
 // 0040425e FUN_0040425e [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 void __fastcall FUN_0040425e(byte param_1)
 

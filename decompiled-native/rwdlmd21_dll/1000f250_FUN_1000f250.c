@@ -1,5 +1,5 @@
 // 1000f250 FUN_1000f250 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void FUN_1000f250(int *param_1)
 

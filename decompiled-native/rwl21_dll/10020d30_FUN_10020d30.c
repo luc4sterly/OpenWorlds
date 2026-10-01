@@ -1,5 +1,5 @@
 // 10020d30 FUN_10020d30 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void FUN_10020d30(int *param_1,int param_2)
 

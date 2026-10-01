@@ -1,5 +1,5 @@
 // 00406530 FUN_00406530 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void FUN_00406530(uint *param_1,uint *param_2)
 

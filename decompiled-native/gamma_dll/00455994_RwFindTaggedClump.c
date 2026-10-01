@@ -1,5 +1,5 @@
 // 00455994 RwFindTaggedClump [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwFindTaggedClump(void)
 

@@ -1,5 +1,5 @@
 // 100378c0 RwDestroyStereoCamera [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwDestroyStereoCamera(int param_1)
 

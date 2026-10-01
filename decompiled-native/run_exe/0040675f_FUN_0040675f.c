@@ -1,5 +1,5 @@
 // 0040675f FUN_0040675f [Global]
-// programa: run.exe
+// program: run.exe
 
 int __cdecl
 FUN_0040675f(LCID param_1,DWORD param_2,byte *param_3,int param_4,byte *param_5,int param_6,

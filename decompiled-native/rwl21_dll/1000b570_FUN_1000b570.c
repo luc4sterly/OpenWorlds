@@ -1,5 +1,5 @@
 // 1000b570 FUN_1000b570 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void FUN_1000b570(int param_1,int *param_2,int param_3,int param_4)
 

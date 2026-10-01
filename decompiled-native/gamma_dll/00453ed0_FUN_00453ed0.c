@@ -1,5 +1,5 @@
 // 00453ed0 FUN_00453ed0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 LPVOID FUN_00453ed0(void)
 

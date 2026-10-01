@@ -1,5 +1,5 @@
 // 100483ec FUN_100483ec [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 float10 __fastcall FUN_100483ec(undefined4 param_1)
 

@@ -1,5 +1,5 @@
 // 1002c4c0 RwCreateScene [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwCreateScene(void)
 

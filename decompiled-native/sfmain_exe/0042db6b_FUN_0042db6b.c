@@ -1,5 +1,5 @@
 // 0042db6b FUN_0042db6b [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 float10 FUN_0042db6b(void)
 

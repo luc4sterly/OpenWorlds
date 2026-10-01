@@ -1,5 +1,5 @@
 // 10042aa0 RwAddVector [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwAddVector(float *param_1,float *param_2,float *param_3)
 

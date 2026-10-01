@@ -1,5 +1,5 @@
 // 10004ac0 FUN_10004ac0 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 void FUN_10004ac0(undefined4 param_1)
 

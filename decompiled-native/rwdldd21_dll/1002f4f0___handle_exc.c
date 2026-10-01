@@ -1,5 +1,5 @@
 // 1002f4f0 __handle_exc [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __handle_exc

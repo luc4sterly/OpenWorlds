@@ -1,5 +1,5 @@
 // 004020d3 FUN_004020d3 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void FUN_004020d3(void)
 

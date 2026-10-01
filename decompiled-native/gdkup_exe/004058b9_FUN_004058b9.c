@@ -1,5 +1,5 @@
 // 004058b9 FUN_004058b9 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 DWORD FUN_004058b9(void)
 

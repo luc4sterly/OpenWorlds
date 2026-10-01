@@ -1,5 +1,5 @@
 // 004045cd FUN_004045cd [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void FUN_004045cd(void)
 

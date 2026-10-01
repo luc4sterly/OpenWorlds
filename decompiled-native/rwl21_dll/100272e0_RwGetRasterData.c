@@ -1,5 +1,5 @@
 // 100272e0 RwGetRasterData [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetRasterData(int param_1)
 

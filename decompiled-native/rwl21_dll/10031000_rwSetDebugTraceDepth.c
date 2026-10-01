@@ -1,5 +1,5 @@
 // 10031000 rwSetDebugTraceDepth [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* rwSetDebugTraceDepth */
 

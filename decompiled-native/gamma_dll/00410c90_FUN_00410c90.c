@@ -1,5 +1,5 @@
 // 00410c90 FUN_00410c90 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint __fastcall FUN_00410c90(int *param_1)
 

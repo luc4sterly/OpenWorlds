@@ -1,5 +1,5 @@
 // 1001ba00 RwPopCurrentMaterial [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwPopCurrentMaterial(void)
 

@@ -1,5 +1,5 @@
 // 1002edb0 __flush [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __flush

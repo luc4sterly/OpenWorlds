@@ -1,5 +1,5 @@
 // 00412a30 _Java_NET_worlds_scape_RoomEnvironment_createScene@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_RoomEnvironment_createScene_12
                (int *param_1,undefined4 param_2,undefined4 param_3)

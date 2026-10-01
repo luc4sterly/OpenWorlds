@@ -1,5 +1,5 @@
 // 00433f68 GetCurrentThread [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 HANDLE GetCurrentThread(void)
 

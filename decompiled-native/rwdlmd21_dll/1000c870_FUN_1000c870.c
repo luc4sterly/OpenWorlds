@@ -1,5 +1,5 @@
 // 1000c870 FUN_1000c870 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 undefined4 * FUN_1000c870(int param_1,undefined4 param_2)
 

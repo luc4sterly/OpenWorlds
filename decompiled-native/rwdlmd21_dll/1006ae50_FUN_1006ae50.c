@@ -1,5 +1,5 @@
 // 1006ae50 FUN_1006ae50 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void FUN_1006ae50(void)
 

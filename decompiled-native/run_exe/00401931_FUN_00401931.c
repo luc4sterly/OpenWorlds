@@ -1,5 +1,5 @@
 // 00401931 FUN_00401931 [Global]
-// programa: run.exe
+// program: run.exe
 
 int __cdecl FUN_00401931(uchar *param_1,size_t param_2)
 

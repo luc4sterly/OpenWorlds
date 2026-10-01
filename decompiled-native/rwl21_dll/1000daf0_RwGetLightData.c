@@ -1,5 +1,5 @@
 // 1000daf0 RwGetLightData [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetLightData(int param_1)
 

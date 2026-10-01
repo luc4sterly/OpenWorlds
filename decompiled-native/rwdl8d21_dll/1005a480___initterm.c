@@ -1,5 +1,5 @@
 // 1005a480 __initterm [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __initterm

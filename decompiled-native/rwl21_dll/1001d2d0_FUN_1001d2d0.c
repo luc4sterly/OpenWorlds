@@ -1,5 +1,5 @@
 // 1001d2d0 FUN_1001d2d0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 float * FUN_1001d2d0(float *param_1,float param_2,float param_3,float param_4)
 

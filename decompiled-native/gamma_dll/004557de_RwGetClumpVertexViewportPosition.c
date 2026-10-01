@@ -1,5 +1,5 @@
 // 004557de RwGetClumpVertexViewportPosition [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetClumpVertexViewportPosition(void)
 

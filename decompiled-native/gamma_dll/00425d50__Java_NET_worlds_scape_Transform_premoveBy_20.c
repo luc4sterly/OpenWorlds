@@ -1,5 +1,5 @@
 // 00425d50 _Java_NET_worlds_scape_Transform_premoveBy@20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_scape_Transform_premoveBy_20

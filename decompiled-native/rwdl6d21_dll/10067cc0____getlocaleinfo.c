@@ -1,5 +1,5 @@
 // 10067cc0 ___getlocaleinfo [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     ___getlocaleinfo

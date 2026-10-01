@@ -1,5 +1,5 @@
 // 00407338 SetEvent [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 BOOL SetEvent(HANDLE hEvent)
 

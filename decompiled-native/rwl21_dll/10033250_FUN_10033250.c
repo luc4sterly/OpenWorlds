@@ -1,5 +1,5 @@
 // 10033250 FUN_10033250 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 ushort FUN_10033250(undefined4 *param_1)
 

@@ -1,5 +1,5 @@
 // 100320b0 __close_lk [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __close_lk

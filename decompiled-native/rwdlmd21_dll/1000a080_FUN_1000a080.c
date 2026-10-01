@@ -1,5 +1,5 @@
 // 1000a080 FUN_1000a080 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void FUN_1000a080(void)
 

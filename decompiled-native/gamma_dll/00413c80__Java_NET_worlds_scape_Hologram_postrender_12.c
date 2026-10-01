@@ -1,5 +1,5 @@
 // 00413c80 _Java_NET_worlds_scape_Hologram_postrender@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_Hologram_postrender_12(int *param_1,undefined4 param_2)
 

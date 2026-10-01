@@ -1,5 +1,5 @@
 // 100365f0 RwSetUserDrawType [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetUserDrawType(int param_1,int param_2)
 

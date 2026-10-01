@@ -1,5 +1,5 @@
 // 004072fc WriteFile [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 BOOL WriteFile(HANDLE hFile,LPCVOID lpBuffer,DWORD nNumberOfBytesToWrite,
               LPDWORD lpNumberOfBytesWritten,LPOVERLAPPED lpOverlapped)

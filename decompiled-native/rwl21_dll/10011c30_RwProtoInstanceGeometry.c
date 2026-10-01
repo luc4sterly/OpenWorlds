@@ -1,5 +1,5 @@
 // 10011c30 RwProtoInstanceGeometry [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwProtoInstanceGeometry(byte *param_1)
 

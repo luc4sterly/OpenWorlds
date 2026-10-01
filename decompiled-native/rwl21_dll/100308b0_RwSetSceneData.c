@@ -1,5 +1,5 @@
 // 100308b0 RwSetSceneData [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetSceneData(int param_1,undefined4 param_2)
 

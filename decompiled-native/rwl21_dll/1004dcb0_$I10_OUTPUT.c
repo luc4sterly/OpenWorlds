@@ -1,5 +1,5 @@
 // 1004dcb0 $I10_OUTPUT [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     _$I10_OUTPUT

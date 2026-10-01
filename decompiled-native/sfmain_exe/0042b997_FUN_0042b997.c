@@ -1,5 +1,5 @@
 // 0042b997 FUN_0042b997 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void FUN_0042b997(void)
 

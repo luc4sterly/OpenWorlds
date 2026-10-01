@@ -1,5 +1,5 @@
 // 004016a2 FUN_004016a2 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 int FUN_004016a2(int *param_1)
 

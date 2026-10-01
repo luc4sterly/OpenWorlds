@@ -1,5 +1,5 @@
 // 1001ec70 RwGetSplineNumPoints [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetSplineNumPoints(int *param_1)
 

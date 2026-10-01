@@ -1,5 +1,5 @@
 // 004051b0 __aulldiv [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     __aulldiv

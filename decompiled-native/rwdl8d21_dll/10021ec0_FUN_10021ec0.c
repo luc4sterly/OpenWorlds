@@ -1,5 +1,5 @@
 // 10021ec0 FUN_10021ec0 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 undefined4 FUN_10021ec0(int *param_1,int param_2)
 

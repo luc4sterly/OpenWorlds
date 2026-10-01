@@ -1,5 +1,5 @@
 // 00412d50 _Java_NET_worlds_scape_WObject_extractClump@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int _Java_NET_worlds_scape_WObject_extractClump_8(int *param_1,int param_2)
 

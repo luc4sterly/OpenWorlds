@@ -1,5 +1,5 @@
 // 10001bc0 RwGetPolygonDiffuseRGB [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwGetPolygonDiffuseRGB(int *param_1,undefined4 *param_2)
 

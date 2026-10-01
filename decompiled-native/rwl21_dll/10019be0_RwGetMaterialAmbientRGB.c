@@ -1,5 +1,5 @@
 // 10019be0 RwGetMaterialAmbientRGB [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwGetMaterialAmbientRGB(int param_1,undefined4 *param_2)
 

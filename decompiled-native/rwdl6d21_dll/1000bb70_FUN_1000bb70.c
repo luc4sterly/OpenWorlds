@@ -1,5 +1,5 @@
 // 1000bb70 FUN_1000bb70 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 int * FUN_1000bb70(int *param_1,int *param_2)
 

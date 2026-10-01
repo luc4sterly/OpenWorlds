@@ -1,5 +1,5 @@
 // 00455832 RwCloseStream [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwCloseStream(void)
 

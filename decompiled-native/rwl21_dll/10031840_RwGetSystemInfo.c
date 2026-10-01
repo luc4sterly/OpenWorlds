@@ -1,5 +1,5 @@
 // 10031840 RwGetSystemInfo [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetSystemInfo(undefined4 param_1,char *param_2,size_t param_3)
 

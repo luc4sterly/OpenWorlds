@@ -1,5 +1,5 @@
 // 00455a72 RwSetCameraLookAt [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetCameraLookAt(void)
 

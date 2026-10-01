@@ -1,5 +1,5 @@
 // 00455a96 RwSetCameraViewwindow [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetCameraViewwindow(void)
 

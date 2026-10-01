@@ -1,5 +1,5 @@
 // 100618e0 FID_conflict:__lockexit [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Multiple Matches With Different Base Names
     __lockexit

@@ -1,5 +1,5 @@
 // 004559dc RwGetClumpVertexUV [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetClumpVertexUV(void)
 

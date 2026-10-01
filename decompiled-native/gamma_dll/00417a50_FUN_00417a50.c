@@ -1,5 +1,5 @@
 // 00417a50 FUN_00417a50 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void __cdecl FUN_00417a50(undefined4 param_1)
 

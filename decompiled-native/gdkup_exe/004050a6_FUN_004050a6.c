@@ -1,5 +1,5 @@
 // 004050a6 FUN_004050a6 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 void FUN_004050a6(void)
 

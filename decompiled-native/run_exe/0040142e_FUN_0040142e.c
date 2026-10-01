@@ -1,5 +1,5 @@
 // 0040142e FUN_0040142e [Global]
-// programa: run.exe
+// program: run.exe
 
 void __cdecl FUN_0040142e(undefined *param_1)
 

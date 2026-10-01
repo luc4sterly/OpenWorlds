@@ -1,5 +1,5 @@
 // 10004d80 FUN_10004d80 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 bool FUN_10004d80(undefined4 param_1,undefined4 param_2,int param_3,uint *param_4)
 

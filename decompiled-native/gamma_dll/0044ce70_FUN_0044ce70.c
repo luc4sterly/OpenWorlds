@@ -1,5 +1,5 @@
 // 0044ce70 FUN_0044ce70 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 byte * __cdecl FUN_0044ce70(undefined *param_1,undefined4 param_2,char *param_3,uint *param_4)
 

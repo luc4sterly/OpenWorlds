@@ -1,5 +1,5 @@
 // 1000afc0 RwSetCameraFarClipping [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetCameraFarClipping(int param_1,float param_2)
 

@@ -1,5 +1,5 @@
 // 00403cb6 FUN_00403cb6 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __thiscall FUN_00403cb6(void *this,short *param_1)
 

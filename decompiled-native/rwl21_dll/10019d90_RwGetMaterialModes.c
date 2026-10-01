@@ -1,5 +1,5 @@
 // 10019d90 RwGetMaterialModes [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 byte RwGetMaterialModes(int param_1)
 

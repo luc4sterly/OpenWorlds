@@ -1,5 +1,5 @@
 // 10063f30 FUN_10063f30 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 void FUN_10063f30(void)
 

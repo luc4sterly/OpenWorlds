@@ -1,5 +1,5 @@
 // 0042cadc FUN_0042cadc [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 /* WARNING: Instruction at (ram,0x0042cb62) overlaps instruction at (ram,0x0042cb60)
     */

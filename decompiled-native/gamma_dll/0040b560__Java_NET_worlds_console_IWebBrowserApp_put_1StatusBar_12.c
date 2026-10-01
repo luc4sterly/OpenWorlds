@@ -1,5 +1,5 @@
 // 0040b560 _Java_NET_worlds_console_IWebBrowserApp_put_1StatusBar@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_IWebBrowserApp_put_1StatusBar_12
                (int *param_1,undefined4 param_2,char param_3)

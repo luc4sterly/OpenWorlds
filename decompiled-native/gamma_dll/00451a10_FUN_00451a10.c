@@ -1,5 +1,5 @@
 // 00451a10 FUN_00451a10 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 char * FUN_00451a10(char *param_1,char *param_2,short *param_3)
 

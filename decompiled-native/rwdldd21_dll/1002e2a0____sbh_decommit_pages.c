@@ -1,5 +1,5 @@
 // 1002e2a0 ___sbh_decommit_pages [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     ___sbh_decommit_pages

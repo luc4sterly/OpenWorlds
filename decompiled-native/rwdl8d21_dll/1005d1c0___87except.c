@@ -1,5 +1,5 @@
 // 1005d1c0 __87except [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __87except

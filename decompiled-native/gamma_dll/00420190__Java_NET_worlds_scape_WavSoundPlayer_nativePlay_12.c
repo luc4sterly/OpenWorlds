@@ -1,5 +1,5 @@
 // 00420190 _Java_NET_worlds_scape_WavSoundPlayer_nativePlay@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_WavSoundPlayer_nativePlay_12
                (int *param_1,undefined4 param_2,char param_3)

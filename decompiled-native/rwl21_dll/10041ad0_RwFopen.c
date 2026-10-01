@@ -1,5 +1,5 @@
 // 10041ad0 RwFopen [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwFopen(char *param_1,char *param_2)
 

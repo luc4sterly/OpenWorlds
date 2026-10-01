@@ -1,5 +1,5 @@
 // 0045589e RwSetPolygonMaterial [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetPolygonMaterial(void)
 

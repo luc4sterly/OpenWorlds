@@ -1,5 +1,5 @@
 // 0043d320 Java_NET_worlds_console_IEWebControlImp_nativeSetIsAdBanner [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* void __stdcall Java_NET_worlds_console_IEWebControlImp_nativeSetIsAdBanner(struct JNIEnv_ *,class
    _jobject *,unsigned char) */

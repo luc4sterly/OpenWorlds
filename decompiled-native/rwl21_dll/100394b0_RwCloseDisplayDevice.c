@@ -1,5 +1,5 @@
 // 100394b0 RwCloseDisplayDevice [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwCloseDisplayDevice(int param_1)
 

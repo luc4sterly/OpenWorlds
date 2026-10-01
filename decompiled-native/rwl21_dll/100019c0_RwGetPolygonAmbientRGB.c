@@ -1,5 +1,5 @@
 // 100019c0 RwGetPolygonAmbientRGB [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwGetPolygonAmbientRGB(int *param_1,undefined4 *param_2)
 

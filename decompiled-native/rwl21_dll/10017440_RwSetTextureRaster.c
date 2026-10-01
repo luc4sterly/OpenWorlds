@@ -1,5 +1,5 @@
 // 10017440 RwSetTextureRaster [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetTextureRaster(int param_1,int param_2)
 

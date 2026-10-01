@@ -1,5 +1,5 @@
 // 10029e80 __amsg_exit [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __amsg_exit

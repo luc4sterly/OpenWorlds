@@ -1,5 +1,5 @@
 // 1000ea40 FUN_1000ea40 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 FUN_1000ea40(void)
 

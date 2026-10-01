@@ -1,5 +1,5 @@
 // 0040ad20 FUN_0040ad20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 FUN_0040ad20(void)
 

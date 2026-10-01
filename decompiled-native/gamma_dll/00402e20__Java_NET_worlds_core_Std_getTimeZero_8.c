@@ -1,5 +1,5 @@
 // 00402e20 _Java_NET_worlds_core_Std_getTimeZero@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 _Java_NET_worlds_core_Std_getTimeZero_8(void)
 

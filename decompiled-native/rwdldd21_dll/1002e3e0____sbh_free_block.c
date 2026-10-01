@@ -1,5 +1,5 @@
 // 1002e3e0 ___sbh_free_block [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     ___sbh_free_block

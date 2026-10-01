@@ -1,5 +1,5 @@
 // 100428e0 RwScaleVector [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwScaleVector(float *param_1,float param_2,float *param_3)
 

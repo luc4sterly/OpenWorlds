@@ -1,5 +1,5 @@
 // 100666c0 __set_exp [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __set_exp

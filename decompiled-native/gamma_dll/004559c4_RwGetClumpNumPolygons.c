@@ -1,5 +1,5 @@
 // 004559c4 RwGetClumpNumPolygons [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetClumpNumPolygons(void)
 

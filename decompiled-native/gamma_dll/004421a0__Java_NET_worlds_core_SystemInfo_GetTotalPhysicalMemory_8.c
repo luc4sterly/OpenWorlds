@@ -1,5 +1,5 @@
 // 004421a0 _Java_NET_worlds_core_SystemInfo_GetTotalPhysicalMemory@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint _Java_NET_worlds_core_SystemInfo_GetTotalPhysicalMemory_8(void)
 

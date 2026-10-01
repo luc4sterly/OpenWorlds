@@ -1,5 +1,5 @@
 // 00402510 _Java_NET_worlds_core_RegKey_setStringValue@20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 bool _Java_NET_worlds_core_RegKey_setStringValue_20
                (int *param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4,char param_5)

@@ -1,5 +1,5 @@
 // 10014500 RwSetSurfaceDiffuse [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwSetSurfaceDiffuse(uint param_1)
 

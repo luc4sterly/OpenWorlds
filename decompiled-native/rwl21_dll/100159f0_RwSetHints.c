@@ -1,5 +1,5 @@
 // 100159f0 RwSetHints [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwSetHints(uint param_1)
 

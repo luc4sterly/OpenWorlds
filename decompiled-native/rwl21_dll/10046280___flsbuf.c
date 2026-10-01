@@ -1,5 +1,5 @@
 // 10046280 __flsbuf [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __flsbuf

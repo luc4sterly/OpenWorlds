@@ -1,5 +1,5 @@
 // 0040735c GetEnvironmentStrings [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 LPCH GetEnvironmentStrings(void)
 

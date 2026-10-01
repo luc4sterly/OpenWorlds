@@ -1,5 +1,5 @@
 // 0040ed00 _Java_NET_worlds_console_Window_getWindowState@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_console_Window_getWindowState_12

@@ -1,5 +1,5 @@
 // 100692f4 FUN_100692f4 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 undefined8 __fastcall FUN_100692f4(undefined4 param_1,undefined4 param_2,int param_3,int param_4)
 

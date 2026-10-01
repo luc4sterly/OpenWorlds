@@ -1,5 +1,5 @@
 // 1000a870 RwSetCameraBackColorStruct [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint RwSetCameraBackColorStruct(uint param_1,uint *param_2)
 

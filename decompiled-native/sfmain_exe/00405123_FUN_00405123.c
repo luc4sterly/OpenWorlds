@@ -1,5 +1,5 @@
 // 00405123 FUN_00405123 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_00405123(short *param_1,short param_2,short *param_3,undefined2 *param_4)
 

@@ -1,5 +1,5 @@
 // 00433fbc CreateMutexA [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 HANDLE CreateMutexA(LPSECURITY_ATTRIBUTES lpMutexAttributes,BOOL bInitialOwner,LPCSTR lpName)
 

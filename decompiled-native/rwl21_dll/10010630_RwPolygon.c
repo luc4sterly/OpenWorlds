@@ -1,5 +1,5 @@
 // 10010630 RwPolygon [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwPolygon(int param_1,int *param_2)
 

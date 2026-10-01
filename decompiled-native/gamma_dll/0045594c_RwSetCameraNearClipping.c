@@ -1,5 +1,5 @@
 // 0045594c RwSetCameraNearClipping [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetCameraNearClipping(void)
 

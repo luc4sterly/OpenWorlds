@@ -1,5 +1,5 @@
 // 10015f50 RwTransformCTM [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwTransformCTM(int param_1)
 

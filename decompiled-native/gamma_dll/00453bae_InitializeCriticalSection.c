@@ -1,5 +1,5 @@
 // 00453bae InitializeCriticalSection [KERNEL32.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void InitializeCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 

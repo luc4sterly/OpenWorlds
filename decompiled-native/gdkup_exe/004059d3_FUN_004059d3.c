@@ -1,5 +1,5 @@
 // 004059d3 FUN_004059d3 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 ulonglong __fastcall FUN_004059d3(undefined4 param_1,undefined4 param_2)
 

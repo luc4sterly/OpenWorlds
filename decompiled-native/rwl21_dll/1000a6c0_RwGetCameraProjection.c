@@ -1,5 +1,5 @@
 // 1000a6c0 RwGetCameraProjection [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetCameraProjection(int param_1)
 

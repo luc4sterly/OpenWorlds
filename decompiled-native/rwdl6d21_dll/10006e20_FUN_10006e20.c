@@ -1,5 +1,5 @@
 // 10006e20 FUN_10006e20 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 int FUN_10006e20(byte param_1)
 

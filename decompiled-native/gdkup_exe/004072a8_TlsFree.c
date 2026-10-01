@@ -1,5 +1,5 @@
 // 004072a8 TlsFree [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 BOOL TlsFree(DWORD dwTlsIndex)
 

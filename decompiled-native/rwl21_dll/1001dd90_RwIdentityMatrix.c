@@ -1,5 +1,5 @@
 // 1001dd90 RwIdentityMatrix [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwIdentityMatrix(undefined4 *param_1)
 

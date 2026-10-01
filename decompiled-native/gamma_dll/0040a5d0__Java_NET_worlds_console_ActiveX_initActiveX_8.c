@@ -1,5 +1,5 @@
 // 0040a5d0 _Java_NET_worlds_console_ActiveX_initActiveX@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_ActiveX_initActiveX_8(int *param_1)
 

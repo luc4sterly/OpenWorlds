@@ -1,5 +1,5 @@
 // 1002b090 parse_cmdline [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     _parse_cmdline

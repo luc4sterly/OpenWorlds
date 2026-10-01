@@ -1,5 +1,5 @@
 // 10061810 __cexit [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __cexit

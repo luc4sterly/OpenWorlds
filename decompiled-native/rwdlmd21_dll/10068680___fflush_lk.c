@@ -1,5 +1,5 @@
 // 10068680 __fflush_lk [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __fflush_lk

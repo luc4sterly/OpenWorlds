@@ -1,5 +1,5 @@
 // 10065de0 __raise_exc [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __raise_exc

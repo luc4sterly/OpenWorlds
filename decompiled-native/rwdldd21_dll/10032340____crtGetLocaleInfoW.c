@@ -1,5 +1,5 @@
 // 10032340 ___crtGetLocaleInfoW [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     ___crtGetLocaleInfoW

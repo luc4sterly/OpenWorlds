@@ -1,5 +1,5 @@
 // 00402fc0 _Java_NET_worlds_core_Std_getBuildInfo@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_core_Std_getBuildInfo_8(int *param_1)
 

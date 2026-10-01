@@ -1,5 +1,5 @@
 // 1005d480 FID_conflict:__lock_file [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Multiple Matches With Different Base Names
     __lock_file

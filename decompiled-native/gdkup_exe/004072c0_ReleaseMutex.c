@@ -1,5 +1,5 @@
 // 004072c0 ReleaseMutex [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 BOOL ReleaseMutex(HANDLE hMutex)
 

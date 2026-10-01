@@ -1,5 +1,5 @@
 // 10062030 __unlock_fhandle [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __unlock_fhandle

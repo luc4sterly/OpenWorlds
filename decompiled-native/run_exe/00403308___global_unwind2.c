@@ -1,5 +1,5 @@
 // 00403308 __global_unwind2 [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     __global_unwind2

@@ -1,5 +1,5 @@
 // 00453b96 EnterCriticalSection [KERNEL32.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void EnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 

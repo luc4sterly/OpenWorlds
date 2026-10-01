@@ -1,5 +1,5 @@
 // 100021d0 RwGetPolygonGeometrySampling [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwGetPolygonGeometrySampling(undefined4 *param_1)
 

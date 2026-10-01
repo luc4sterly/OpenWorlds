@@ -1,5 +1,5 @@
 // 10078a84 FUN_10078a84 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 undefined8 __fastcall FUN_10078a84(undefined4 param_1,undefined4 param_2)
 

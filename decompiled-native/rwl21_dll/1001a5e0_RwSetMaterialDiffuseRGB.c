@@ -1,5 +1,5 @@
 // 1001a5e0 RwSetMaterialDiffuseRGB [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetMaterialDiffuseRGB(int param_1,uint param_2,uint param_3,uint param_4)
 

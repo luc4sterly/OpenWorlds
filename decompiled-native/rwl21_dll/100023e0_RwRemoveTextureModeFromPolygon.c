@@ -1,5 +1,5 @@
 // 100023e0 RwRemoveTextureModeFromPolygon [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwRemoveTextureModeFromPolygon(int *param_1,uint param_2)
 

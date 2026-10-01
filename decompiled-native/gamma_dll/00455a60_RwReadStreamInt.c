@@ -1,5 +1,5 @@
 // 00455a60 RwReadStreamInt [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwReadStreamInt(void)
 

@@ -1,5 +1,5 @@
 // 00445a30 FUN_00445a30 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int FUN_00445a30(int *param_1,int *param_2)
 

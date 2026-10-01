@@ -1,5 +1,5 @@
 // 1004d470 ___mtold12 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     ___mtold12

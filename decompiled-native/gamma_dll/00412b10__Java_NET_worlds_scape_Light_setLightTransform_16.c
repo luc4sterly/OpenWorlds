@@ -1,5 +1,5 @@
 // 00412b10 _Java_NET_worlds_scape_Light_setLightTransform@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_Light_setLightTransform_16(void)
 

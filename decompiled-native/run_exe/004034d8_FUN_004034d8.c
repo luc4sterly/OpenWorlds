@@ -1,5 +1,5 @@
 // 004034d8 FUN_004034d8 [Global]
-// programa: run.exe
+// program: run.exe
 
 void FUN_004034d8(void)
 

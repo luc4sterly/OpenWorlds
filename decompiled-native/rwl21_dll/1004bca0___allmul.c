@@ -1,5 +1,5 @@
 // 1004bca0 __allmul [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __allmul

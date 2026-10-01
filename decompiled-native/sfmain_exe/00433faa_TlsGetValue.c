@@ -1,5 +1,5 @@
 // 00433faa TlsGetValue [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 LPVOID TlsGetValue(DWORD dwTlsIndex)
 

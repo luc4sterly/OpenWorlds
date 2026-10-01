@@ -1,5 +1,5 @@
 // 004517a4 DdeConnect [USER32.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 HCONV DdeConnect(DWORD idInst,HSZ hszService,HSZ hszTopic,PCONVCONTEXT pCC)
 

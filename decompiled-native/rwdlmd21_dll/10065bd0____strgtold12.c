@@ -1,5 +1,5 @@
 // 10065bd0 ___strgtold12 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     ___strgtold12

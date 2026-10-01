@@ -1,5 +1,5 @@
 // 10001650 RwSetPolygonData [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetPolygonData(int param_1,undefined4 param_2)
 

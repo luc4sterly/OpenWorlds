@@ -1,5 +1,5 @@
 // 100013f0 FUN_100013f0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * FUN_100013f0(undefined4 *param_1,float *param_2)
 

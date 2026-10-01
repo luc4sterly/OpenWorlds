@@ -1,5 +1,5 @@
 // 00401c1b FUN_00401c1b [Global]
-// programa: run.exe
+// program: run.exe
 
 uint __cdecl FUN_00401c1b(uint param_1,int *param_2)
 

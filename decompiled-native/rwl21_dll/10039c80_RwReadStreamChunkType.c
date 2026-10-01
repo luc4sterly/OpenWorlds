@@ -1,5 +1,5 @@
 // 10039c80 RwReadStreamChunkType [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwReadStreamChunkType(int *param_1,uint *param_2)
 

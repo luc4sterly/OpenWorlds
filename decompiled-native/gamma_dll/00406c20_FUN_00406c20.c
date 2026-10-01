@@ -1,5 +1,5 @@
 // 00406c20 FUN_00406c20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 *
 FUN_00406c20(undefined4 *param_1,int *param_2,void *param_3,byte param_4,undefined4 param_5,

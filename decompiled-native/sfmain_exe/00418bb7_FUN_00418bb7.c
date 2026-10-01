@@ -1,5 +1,5 @@
 // 00418bb7 FUN_00418bb7 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_00418bb7(undefined4 param_1,undefined4 param_2)
 

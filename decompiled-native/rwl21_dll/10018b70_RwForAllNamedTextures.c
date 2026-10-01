@@ -1,5 +1,5 @@
 // 10018b70 RwForAllNamedTextures [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwForAllNamedTextures(undefined *param_1)
 

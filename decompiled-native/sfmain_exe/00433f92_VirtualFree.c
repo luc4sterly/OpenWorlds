@@ -1,5 +1,5 @@
 // 00433f92 VirtualFree [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL VirtualFree(LPVOID lpAddress,SIZE_T dwSize,DWORD dwFreeType)
 

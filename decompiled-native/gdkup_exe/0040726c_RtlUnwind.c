@@ -1,5 +1,5 @@
 // 0040726c RtlUnwind [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 void RtlUnwind(PVOID TargetFrame,PVOID TargetIp,PEXCEPTION_RECORD ExceptionRecord,PVOID ReturnValue)
 

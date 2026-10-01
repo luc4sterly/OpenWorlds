@@ -1,5 +1,5 @@
 // 1002e380 ___sbh_find_block [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     ___sbh_find_block

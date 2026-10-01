@@ -1,5 +1,5 @@
 // 10004a70 FUN_10004a70 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 bool FUN_10004a70(int *param_1,undefined4 *param_2)
 

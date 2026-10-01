@@ -1,5 +1,5 @@
 // 1000ee50 RwTransformEnd [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwTransformEnd(void)
 

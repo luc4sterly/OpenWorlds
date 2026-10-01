@@ -1,5 +1,5 @@
 // 00442470 _Java_NET_worlds_core_SystemInfo_GetProcessorType@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_core_SystemInfo_GetProcessorType_8(int *param_1)
 

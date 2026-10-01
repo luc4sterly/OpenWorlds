@@ -1,5 +1,5 @@
 // 00402e58 FUN_00402e58 [Global]
-// programa: run.exe
+// program: run.exe
 
 LPSTR FUN_00402e58(void)
 

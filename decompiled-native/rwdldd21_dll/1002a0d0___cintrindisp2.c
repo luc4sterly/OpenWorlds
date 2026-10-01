@@ -1,5 +1,5 @@
 // 1002a0d0 __cintrindisp2 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __cintrindisp2

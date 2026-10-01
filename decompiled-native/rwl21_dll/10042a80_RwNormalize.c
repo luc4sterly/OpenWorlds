@@ -1,5 +1,5 @@
 // 10042a80 RwNormalize [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 float * RwNormalize(float *param_1)
 

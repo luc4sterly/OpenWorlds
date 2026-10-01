@@ -1,5 +1,5 @@
 // 10020470 RwGetSplineData [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetSplineData(int param_1)
 

@@ -1,5 +1,5 @@
 // 0045579c RwSetMaterialGeometrySampling [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetMaterialGeometrySampling(void)
 

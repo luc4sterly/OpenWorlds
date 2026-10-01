@@ -1,5 +1,5 @@
 // 00403771 FUN_00403771 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 void __fastcall FUN_00403771(undefined4 param_1,undefined4 param_2)
 

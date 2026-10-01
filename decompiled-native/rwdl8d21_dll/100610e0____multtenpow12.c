@@ -1,5 +1,5 @@
 // 100610e0 ___multtenpow12 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     ___multtenpow12

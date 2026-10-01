@@ -1,5 +1,5 @@
 // 100693f0 __get_osfhandle [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __get_osfhandle

@@ -1,5 +1,5 @@
 // 1001a410 RwSetMaterialAmbientRGBStruct [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetMaterialAmbientRGBStruct(int param_1,uint *param_2)
 

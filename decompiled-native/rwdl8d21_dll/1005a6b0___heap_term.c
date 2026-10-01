@@ -1,5 +1,5 @@
 // 1005a6b0 __heap_term [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __heap_term

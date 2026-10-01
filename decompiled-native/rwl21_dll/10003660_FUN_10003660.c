@@ -1,5 +1,5 @@
 // 10003660 FUN_10003660 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool FUN_10003660(uint param_1,undefined4 *param_2)
 

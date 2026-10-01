@@ -1,5 +1,5 @@
 // 1001b170 FUN_1001b170 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 

@@ -1,5 +1,5 @@
 // 100143a0 RwSetSurfaceAmbient [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwSetSurfaceAmbient(uint param_1)
 

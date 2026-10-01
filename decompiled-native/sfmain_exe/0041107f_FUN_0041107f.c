@@ -1,5 +1,5 @@
 // 0041107f FUN_0041107f [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_0041107f(undefined4 param_1,HDROP param_2)
 

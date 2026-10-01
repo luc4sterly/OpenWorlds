@@ -1,5 +1,5 @@
 // 100306b0 RwDestroyScene [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined1 RwDestroyScene(undefined4 *param_1)
 

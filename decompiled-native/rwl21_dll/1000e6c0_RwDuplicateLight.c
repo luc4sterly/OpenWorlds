@@ -1,5 +1,5 @@
 // 1000e6c0 RwDuplicateLight [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Removing unreachable block (ram,0x1000e8f1) */
 /* WARNING: Removing unreachable block (ram,0x1000e8f3) */

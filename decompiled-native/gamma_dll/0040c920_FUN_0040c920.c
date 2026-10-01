@@ -1,5 +1,5 @@
 // 0040c920 FUN_0040c920 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void FUN_0040c920(void)
 

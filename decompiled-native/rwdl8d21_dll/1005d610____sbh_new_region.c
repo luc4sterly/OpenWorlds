@@ -1,5 +1,5 @@
 // 1005d610 ___sbh_new_region [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     ___sbh_new_region

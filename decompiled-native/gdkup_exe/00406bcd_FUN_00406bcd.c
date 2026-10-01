@@ -1,5 +1,5 @@
 // 00406bcd FUN_00406bcd [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 /* WARNING: Unable to track spacebase fully for stack */
 

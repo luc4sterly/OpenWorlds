@@ -1,5 +1,5 @@
 // 10049920 ___sbh_decommit_pages [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     ___sbh_decommit_pages

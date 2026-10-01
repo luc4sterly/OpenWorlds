@@ -1,5 +1,5 @@
 // 1002beb7 __trandisp2 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __trandisp2

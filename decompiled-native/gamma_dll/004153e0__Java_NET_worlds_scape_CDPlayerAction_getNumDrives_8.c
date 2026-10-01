@@ -1,5 +1,5 @@
 // 004153e0 _Java_NET_worlds_scape_CDPlayerAction_getNumDrives@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int _Java_NET_worlds_scape_CDPlayerAction_getNumDrives_8(void)
 

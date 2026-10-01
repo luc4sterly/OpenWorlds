@@ -1,5 +1,5 @@
 // 1001b510 RwCopyMaterial [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwCopyMaterial(undefined4 *param_1,undefined4 *param_2)
 

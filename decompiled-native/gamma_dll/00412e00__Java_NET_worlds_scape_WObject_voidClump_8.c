@@ -1,5 +1,5 @@
 // 00412e00 _Java_NET_worlds_scape_WObject_voidClump@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_WObject_voidClump_8(int *param_1,int param_2)
 

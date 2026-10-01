@@ -1,5 +1,5 @@
 // 0041c5f0 _Java_NET_worlds_scape_Shape_nativeInit@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_Shape_nativeInit_8(int *param_1)
 

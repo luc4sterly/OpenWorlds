@@ -1,5 +1,5 @@
 // 10060a98 __ftol [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __ftol

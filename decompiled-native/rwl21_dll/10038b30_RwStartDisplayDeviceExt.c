@@ -1,5 +1,5 @@
 // 10038b30 RwStartDisplayDeviceExt [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint RwStartDisplayDeviceExt(int param_1,undefined4 param_2,int param_3,undefined4 *param_4)
 

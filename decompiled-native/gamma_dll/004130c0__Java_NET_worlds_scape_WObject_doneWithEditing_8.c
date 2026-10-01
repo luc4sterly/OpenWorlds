@@ -1,5 +1,5 @@
 // 004130c0 _Java_NET_worlds_scape_WObject_doneWithEditing@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_WObject_doneWithEditing_8(int *param_1,undefined4 param_2)
 

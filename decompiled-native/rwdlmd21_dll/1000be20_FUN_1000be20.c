@@ -1,5 +1,5 @@
 // 1000be20 FUN_1000be20 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 int FUN_1000be20(int param_1,int param_2)
 

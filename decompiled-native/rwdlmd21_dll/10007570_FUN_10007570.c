@@ -1,5 +1,5 @@
 // 10007570 FUN_10007570 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 uint FUN_10007570(byte param_1,int param_2)
 

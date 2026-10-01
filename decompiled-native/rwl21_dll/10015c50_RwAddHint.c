@@ -1,5 +1,5 @@
 // 10015c50 RwAddHint [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwAddHint(uint param_1)
 

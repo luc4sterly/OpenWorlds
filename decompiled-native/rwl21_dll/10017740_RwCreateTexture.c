@@ -1,5 +1,5 @@
 // 10017740 RwCreateTexture [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwCreateTexture(int param_1)
 

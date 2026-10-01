@@ -1,5 +1,5 @@
 // 0040f150 _Java_NET_worlds_console_Window_isVideoPlaying@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_console_Window_isVideoPlaying_12

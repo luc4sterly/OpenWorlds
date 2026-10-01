@@ -1,5 +1,5 @@
 // 10005b10 FUN_10005b10 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void FUN_10005b10(void)
 

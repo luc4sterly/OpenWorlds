@@ -1,5 +1,5 @@
 // 0045583e RwCreateUserRaster [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwCreateUserRaster(void)
 

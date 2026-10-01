@@ -1,5 +1,5 @@
 // 0041e440 _Java_NET_worlds_scape_ShapeLoader_loadBodFile@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int _Java_NET_worlds_scape_ShapeLoader_loadBodFile_16
               (int *param_1,undefined4 param_2,undefined4 param_3,uint param_4)

@@ -1,5 +1,5 @@
 // 10049100 __lseek [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __lseek

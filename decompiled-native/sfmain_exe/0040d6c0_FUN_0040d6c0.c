@@ -1,5 +1,5 @@
 // 0040d6c0 FUN_0040d6c0 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 __fastcall FUN_0040d6c0(undefined4 param_1,int param_2)
 

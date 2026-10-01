@@ -1,5 +1,5 @@
 // 004071c6 FUN_004071c6 [Global]
-// programa: run.exe
+// program: run.exe
 
 int __cdecl
 FUN_004071c6(LCID param_1,uint param_2,char *param_3,int param_4,LPWSTR param_5,int param_6,

@@ -1,5 +1,5 @@
 // 10018a20 RwGetTextureName [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 char * RwGetTextureName(int *param_1,char *param_2,size_t param_3)
 

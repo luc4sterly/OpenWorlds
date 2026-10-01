@@ -1,5 +1,5 @@
 // 10064d40 ___sbh_find_block [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     ___sbh_find_block

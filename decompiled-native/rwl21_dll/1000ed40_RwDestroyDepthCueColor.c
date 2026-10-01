@@ -1,5 +1,5 @@
 // 1000ed40 RwDestroyDepthCueColor [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwDestroyDepthCueColor(int param_1)
 

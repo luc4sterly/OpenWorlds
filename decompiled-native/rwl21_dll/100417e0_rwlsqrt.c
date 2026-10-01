@@ -1,5 +1,5 @@
 // 100417e0 rwlsqrt [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* rwlsqrt */
 

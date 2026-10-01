@@ -1,5 +1,5 @@
 // 0042d500 FUN_0042d500 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 FUN_0042d500(void)
 

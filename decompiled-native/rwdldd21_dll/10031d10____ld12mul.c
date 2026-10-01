@@ -1,5 +1,5 @@
 // 10031d10 ___ld12mul [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     ___ld12mul

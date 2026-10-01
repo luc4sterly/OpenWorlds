@@ -1,5 +1,5 @@
 // 00433fa4 TlsAlloc [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 DWORD TlsAlloc(void)
 

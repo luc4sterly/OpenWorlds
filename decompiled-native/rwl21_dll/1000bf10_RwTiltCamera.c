@@ -1,5 +1,5 @@
 // 1000bf10 RwTiltCamera [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwTiltCamera(int param_1,float param_2)
 

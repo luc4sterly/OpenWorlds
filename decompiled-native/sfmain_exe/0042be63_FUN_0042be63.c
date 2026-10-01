@@ -1,5 +1,5 @@
 // 0042be63 FUN_0042be63 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 uint __fastcall FUN_0042be63(int *param_1,uint param_2)
 

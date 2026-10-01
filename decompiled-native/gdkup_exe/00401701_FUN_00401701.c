@@ -1,5 +1,5 @@
 // 00401701 FUN_00401701 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 undefined4 __thiscall FUN_00401701(void *this,int *param_1,undefined4 param_2,undefined4 *param_3)
 

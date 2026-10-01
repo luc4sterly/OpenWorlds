@@ -1,5 +1,5 @@
 // 00424dc4 FUN_00424dc4 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void FUN_00424dc4(void)
 

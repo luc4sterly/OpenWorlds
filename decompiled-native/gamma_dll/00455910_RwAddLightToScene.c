@@ -1,5 +1,5 @@
 // 00455910 RwAddLightToScene [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwAddLightToScene(void)
 

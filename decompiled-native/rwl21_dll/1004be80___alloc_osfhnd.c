@@ -1,5 +1,5 @@
 // 1004be80 __alloc_osfhnd [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __alloc_osfhnd

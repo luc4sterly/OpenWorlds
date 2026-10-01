@@ -1,5 +1,5 @@
 // 10062d50 __CopyMan [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __CopyMan

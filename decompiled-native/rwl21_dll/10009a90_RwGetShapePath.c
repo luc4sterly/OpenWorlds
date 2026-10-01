@@ -1,5 +1,5 @@
 // 10009a90 RwGetShapePath [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 char * RwGetShapePath(char *param_1)
 

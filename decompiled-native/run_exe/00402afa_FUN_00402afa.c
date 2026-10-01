@@ -1,5 +1,5 @@
 // 00402afa FUN_00402afa [Global]
-// programa: run.exe
+// program: run.exe
 
 byte * FUN_00402afa(void)
 

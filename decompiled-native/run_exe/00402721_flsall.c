@@ -1,5 +1,5 @@
 // 00402721 flsall [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     _flsall

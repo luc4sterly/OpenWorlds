@@ -1,5 +1,5 @@
 // 10005180 FUN_10005180 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * FUN_10005180(undefined4 *param_1)
 

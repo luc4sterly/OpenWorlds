@@ -1,5 +1,5 @@
 // 10047ba0 __un_inc [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __un_inc

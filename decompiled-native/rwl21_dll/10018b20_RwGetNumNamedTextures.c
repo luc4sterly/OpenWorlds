@@ -1,5 +1,5 @@
 // 10018b20 RwGetNumNamedTextures [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetNumNamedTextures(void)
 

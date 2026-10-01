@@ -1,5 +1,5 @@
 // 10041b00 RwFread [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwFread(void *param_1,size_t param_2,size_t param_3,FILE *param_4)
 

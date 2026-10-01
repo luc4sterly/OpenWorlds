@@ -1,5 +1,5 @@
 // 100175c0 RwSetTextureMipmapRaster [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetTextureMipmapRaster(int param_1,int param_2)
 

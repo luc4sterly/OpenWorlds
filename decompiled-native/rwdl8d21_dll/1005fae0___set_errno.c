@@ -1,5 +1,5 @@
 // 1005fae0 __set_errno [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __set_errno

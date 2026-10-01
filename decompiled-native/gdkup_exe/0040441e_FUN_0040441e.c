@@ -1,5 +1,5 @@
 // 0040441e FUN_0040441e [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 uint * FUN_0040441e(void)
 

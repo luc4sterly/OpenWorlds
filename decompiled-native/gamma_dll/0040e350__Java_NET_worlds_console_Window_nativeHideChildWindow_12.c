@@ -1,5 +1,5 @@
 // 0040e350 _Java_NET_worlds_console_Window_nativeHideChildWindow@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_Window_nativeHideChildWindow_12
                (undefined4 param_1,undefined4 param_2,HWND param_3)

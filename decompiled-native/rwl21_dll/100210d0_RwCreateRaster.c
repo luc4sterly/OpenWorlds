@@ -1,5 +1,5 @@
 // 100210d0 RwCreateRaster [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwCreateRaster(undefined4 param_1,undefined4 param_2)
 

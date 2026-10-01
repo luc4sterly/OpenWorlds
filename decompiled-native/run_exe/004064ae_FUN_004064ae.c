@@ -1,5 +1,5 @@
 // 004064ae FUN_004064ae [Global]
-// programa: run.exe
+// program: run.exe
 
 int __cdecl
 FUN_004064ae(LCID param_1,DWORD param_2,PCNZWCH param_3,int param_4,LPCWSTR param_5,int param_6,

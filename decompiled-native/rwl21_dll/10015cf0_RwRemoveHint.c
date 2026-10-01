@@ -1,5 +1,5 @@
 // 10015cf0 RwRemoveHint [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwRemoveHint(uint param_1)
 

@@ -1,5 +1,5 @@
 // 00404530 _Java_NET_worlds_network_DDEMLClass_Poke@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 bool _Java_NET_worlds_network_DDEMLClass_Poke_16(int *param_1,undefined4 param_2,undefined4 param_3)
 

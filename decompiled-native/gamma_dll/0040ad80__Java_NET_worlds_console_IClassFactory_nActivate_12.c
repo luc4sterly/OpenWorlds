@@ -1,5 +1,5 @@
 // 0040ad80 _Java_NET_worlds_console_IClassFactory_nActivate@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_console_IClassFactory_nActivate_12

@@ -1,5 +1,5 @@
 // 10066fe0 __ctrlfp [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __ctrlfp

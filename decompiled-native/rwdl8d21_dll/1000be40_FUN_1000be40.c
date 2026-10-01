@@ -1,5 +1,5 @@
 // 1000be40 FUN_1000be40 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 void FUN_1000be40(uint *param_1,uint param_2,byte *param_3,uint *param_4)
 

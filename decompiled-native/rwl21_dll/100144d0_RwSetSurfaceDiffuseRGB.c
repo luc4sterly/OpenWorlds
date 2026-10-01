@@ -1,5 +1,5 @@
 // 100144d0 RwSetSurfaceDiffuseRGB [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwSetSurfaceDiffuseRGB(uint param_1,uint param_2,uint param_3)
 

@@ -1,5 +1,5 @@
 // 0040478c FUN_0040478c [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 undefined4 FUN_0040478c(void)
 

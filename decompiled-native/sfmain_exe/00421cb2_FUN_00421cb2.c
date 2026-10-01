@@ -1,5 +1,5 @@
 // 00421cb2 FUN_00421cb2 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 __thiscall FUN_00421cb2(void *this,uint *param_1)
 

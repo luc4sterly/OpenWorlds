@@ -1,5 +1,5 @@
 // 100193f0 RwSetTextureDithering [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Removing unreachable block (ram,0x100194af) */
 /* WARNING: Removing unreachable block (ram,0x10019430) */

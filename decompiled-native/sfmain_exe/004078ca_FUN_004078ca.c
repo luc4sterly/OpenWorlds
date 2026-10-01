@@ -1,5 +1,5 @@
 // 004078ca FUN_004078ca [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined8 __fastcall FUN_004078ca(undefined4 param_1,undefined4 param_2)
 

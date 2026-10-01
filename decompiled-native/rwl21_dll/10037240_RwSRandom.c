@@ -1,5 +1,5 @@
 // 10037240 RwSRandom [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwSRandom(undefined4 param_1)
 

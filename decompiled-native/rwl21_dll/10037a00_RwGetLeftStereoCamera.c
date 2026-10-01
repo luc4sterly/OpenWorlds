@@ -1,5 +1,5 @@
 // 10037a00 RwGetLeftStereoCamera [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetLeftStereoCamera(int param_1)
 

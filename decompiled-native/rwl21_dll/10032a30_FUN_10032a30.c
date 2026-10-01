@@ -1,5 +1,5 @@
 // 10032a30 FUN_10032a30 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 FUN_10032a30(int param_1,int param_2)
 

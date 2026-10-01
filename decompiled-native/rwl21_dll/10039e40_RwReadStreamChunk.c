@@ -1,5 +1,5 @@
 // 10039e40 RwReadStreamChunk [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Type propagation algorithm not settling */
 

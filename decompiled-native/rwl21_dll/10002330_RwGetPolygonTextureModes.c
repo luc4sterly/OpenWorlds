@@ -1,5 +1,5 @@
 // 10002330 RwGetPolygonTextureModes [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwGetPolygonTextureModes(int *param_1)
 

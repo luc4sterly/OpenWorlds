@@ -1,5 +1,5 @@
 // 00401409 __amsg_exit [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     __amsg_exit

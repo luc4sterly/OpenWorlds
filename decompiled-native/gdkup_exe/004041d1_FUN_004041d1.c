@@ -1,5 +1,5 @@
 // 004041d1 FUN_004041d1 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 void FUN_004041d1(void)
 

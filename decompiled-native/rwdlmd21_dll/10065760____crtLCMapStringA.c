@@ -1,5 +1,5 @@
 // 10065760 ___crtLCMapStringA [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     ___crtLCMapStringA

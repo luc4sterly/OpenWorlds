@@ -1,5 +1,5 @@
 // 10039d50 RwFindStreamChunk [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwFindStreamChunk(int *param_1,uint param_2)
 

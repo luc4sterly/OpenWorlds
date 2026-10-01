@@ -1,5 +1,5 @@
 // 004559ca RwGetClumpNumVertices [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetClumpNumVertices(void)
 

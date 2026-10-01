@@ -1,5 +1,5 @@
 // 0041f670 Java_NET_worlds_scape_ASFSoundPlayer_nativePlay [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* unsigned char __stdcall Java_NET_worlds_scape_ASFSoundPlayer_nativePlay(struct JNIEnv_ *,class
    _jclass *,class _jstring *) */

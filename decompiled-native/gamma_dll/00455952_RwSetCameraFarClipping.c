@@ -1,5 +1,5 @@
 // 00455952 RwSetCameraFarClipping [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetCameraFarClipping(void)
 

@@ -1,5 +1,5 @@
 // 1000dc20 RwTransformLight [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int __fastcall
 RwTransformLight(undefined4 param_1,undefined4 param_2,int param_3,float *param_4,undefined4 param_5

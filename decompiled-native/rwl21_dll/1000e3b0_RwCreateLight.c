@@ -1,5 +1,5 @@
 // 1000e3b0 RwCreateLight [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwCreateLight(int param_1,float param_2,float param_3,float param_4,float param_5)
 

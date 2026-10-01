@@ -1,5 +1,5 @@
 // 10062250 __ShrMan [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __ShrMan

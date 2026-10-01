@@ -1,5 +1,5 @@
 // 00432aed FUN_00432aed [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 float10 __fastcall FUN_00432aed(uint param_1,undefined4 *param_2)
 

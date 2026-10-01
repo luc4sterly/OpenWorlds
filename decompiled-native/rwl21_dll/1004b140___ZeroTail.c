@@ -1,5 +1,5 @@
 // 1004b140 __ZeroTail [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __ZeroTail

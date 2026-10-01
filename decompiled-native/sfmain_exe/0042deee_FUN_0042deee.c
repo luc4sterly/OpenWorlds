@@ -1,5 +1,5 @@
 // 0042deee FUN_0042deee [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 unkbyte10 FUN_0042deee(void)
 

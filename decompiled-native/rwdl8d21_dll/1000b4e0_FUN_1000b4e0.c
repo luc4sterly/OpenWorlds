@@ -1,5 +1,5 @@
 // 1000b4e0 FUN_1000b4e0 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 undefined4 FUN_1000b4e0(void)
 

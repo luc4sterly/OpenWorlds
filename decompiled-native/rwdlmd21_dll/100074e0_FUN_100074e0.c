@@ -1,5 +1,5 @@
 // 100074e0 FUN_100074e0 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void FUN_100074e0(byte *param_1,undefined1 *param_2)
 

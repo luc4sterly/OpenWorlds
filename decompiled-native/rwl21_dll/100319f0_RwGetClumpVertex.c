@@ -1,5 +1,5 @@
 // 100319f0 RwGetClumpVertex [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwGetClumpVertex(int param_1,int param_2,undefined4 *param_3)
 

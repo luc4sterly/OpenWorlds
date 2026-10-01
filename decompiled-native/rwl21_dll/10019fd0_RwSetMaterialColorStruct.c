@@ -1,5 +1,5 @@
 // 10019fd0 RwSetMaterialColorStruct [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetMaterialColorStruct(int param_1,uint *param_2)
 

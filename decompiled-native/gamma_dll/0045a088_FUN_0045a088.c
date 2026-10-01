@@ -1,5 +1,5 @@
 // 0045a088 FUN_0045a088 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint FUN_0045a088(void)
 

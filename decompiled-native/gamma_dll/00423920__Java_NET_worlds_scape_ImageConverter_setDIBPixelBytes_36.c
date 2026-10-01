@@ -1,5 +1,5 @@
 // 00423920 _Java_NET_worlds_scape_ImageConverter_setDIBPixelBytes@36 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_ImageConverter_setDIBPixelBytes_36
                (int *param_1,undefined4 param_2,int param_3,int param_4,uint param_5,int param_6,

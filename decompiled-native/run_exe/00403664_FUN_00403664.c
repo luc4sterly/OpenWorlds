@@ -1,5 +1,5 @@
 // 00403664 FUN_00403664 [Global]
-// programa: run.exe
+// program: run.exe
 
 void __cdecl FUN_00403664(short *param_1,short *param_2)
 

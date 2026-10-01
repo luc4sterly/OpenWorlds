@@ -1,5 +1,5 @@
 // 1000bc10 FUN_1000bc10 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* WARNING: Removing unreachable block (ram,0x1000bc21) */
 /* WARNING: Removing unreachable block (ram,0x1000bcb1) */

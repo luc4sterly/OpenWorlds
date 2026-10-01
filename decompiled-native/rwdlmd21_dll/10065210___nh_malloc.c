@@ -1,5 +1,5 @@
 // 10065210 __nh_malloc [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __nh_malloc

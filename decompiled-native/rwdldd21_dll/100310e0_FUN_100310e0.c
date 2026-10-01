@@ -1,5 +1,5 @@
 // 100310e0 FUN_100310e0 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 void __cdecl FUN_100310e0(undefined4 *param_1)
 

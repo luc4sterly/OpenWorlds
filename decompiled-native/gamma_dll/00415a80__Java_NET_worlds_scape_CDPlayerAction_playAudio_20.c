@@ -1,5 +1,5 @@
 // 00415a80 _Java_NET_worlds_scape_CDPlayerAction_playAudio@20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_CDPlayerAction_playAudio_20
                (int *param_1,undefined4 param_2,MCIDEVICEID param_3,uint param_4,uint param_5)

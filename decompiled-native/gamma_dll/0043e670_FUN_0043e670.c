@@ -1,5 +1,5 @@
 // 0043e670 FUN_0043e670 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 FUN_0043e670(void)
 

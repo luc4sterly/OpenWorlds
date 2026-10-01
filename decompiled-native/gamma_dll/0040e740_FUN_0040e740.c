@@ -1,5 +1,5 @@
 // 0040e740 FUN_0040e740 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 FARPROC __cdecl FUN_0040e740(short *param_1,byte *param_2,LPCSTR param_3,FARPROC param_4)
 

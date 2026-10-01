@@ -1,5 +1,5 @@
 // 00433a81 FUN_00433a81 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 uint __fastcall FUN_00433a81(undefined4 param_1,int param_2)
 

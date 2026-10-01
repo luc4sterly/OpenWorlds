@@ -1,5 +1,5 @@
 // 0040730e CreateFileA [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 HANDLE CreateFileA(LPCSTR lpFileName,DWORD dwDesiredAccess,DWORD dwShareMode,
                   LPSECURITY_ATTRIBUTES lpSecurityAttributes,DWORD dwCreationDisposition,

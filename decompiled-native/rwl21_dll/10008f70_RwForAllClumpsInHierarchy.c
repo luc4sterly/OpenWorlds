@@ -1,5 +1,5 @@
 // 10008f70 RwForAllClumpsInHierarchy [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwForAllClumpsInHierarchy(int param_1,undefined *param_2)
 

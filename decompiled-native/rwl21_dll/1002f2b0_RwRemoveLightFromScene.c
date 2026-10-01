@@ -1,5 +1,5 @@
 // 1002f2b0 RwRemoveLightFromScene [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwRemoveLightFromScene(undefined4 *param_1)
 

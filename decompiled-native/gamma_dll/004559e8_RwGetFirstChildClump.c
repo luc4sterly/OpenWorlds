@@ -1,5 +1,5 @@
 // 004559e8 RwGetFirstChildClump [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetFirstChildClump(void)
 

@@ -1,5 +1,5 @@
 // 00404c10 FUN_00404c10 [Global]
-// programa: run.exe
+// program: run.exe
 
 int __cdecl FUN_00404c10(int *param_1,uint param_2,uint param_3)
 

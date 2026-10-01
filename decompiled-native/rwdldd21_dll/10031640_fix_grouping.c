@@ -1,5 +1,5 @@
 // 10031640 fix_grouping [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     _fix_grouping

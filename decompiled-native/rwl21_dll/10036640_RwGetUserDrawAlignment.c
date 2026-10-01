@@ -1,5 +1,5 @@
 // 10036640 RwGetUserDrawAlignment [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetUserDrawAlignment(int param_1)
 

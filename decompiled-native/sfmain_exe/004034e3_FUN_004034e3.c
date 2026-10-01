@@ -1,5 +1,5 @@
 // 004034e3 FUN_004034e3 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_004034e3(undefined4 param_1,undefined2 *param_2)
 

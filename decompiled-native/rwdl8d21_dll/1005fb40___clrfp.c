@@ -1,5 +1,5 @@
 // 1005fb40 __clrfp [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __clrfp

@@ -1,5 +1,5 @@
 // 10049d30 ___sbh_alloc_block_from_page [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     ___sbh_alloc_block_from_page

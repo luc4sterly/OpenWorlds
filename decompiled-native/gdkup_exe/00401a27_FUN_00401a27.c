@@ -1,5 +1,5 @@
 // 00401a27 FUN_00401a27 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 undefined4 FUN_00401a27(int *param_1,int param_2,undefined4 param_3,undefined4 *param_4)
 

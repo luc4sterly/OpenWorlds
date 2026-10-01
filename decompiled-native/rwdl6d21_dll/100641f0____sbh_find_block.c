@@ -1,5 +1,5 @@
 // 100641f0 ___sbh_find_block [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     ___sbh_find_block

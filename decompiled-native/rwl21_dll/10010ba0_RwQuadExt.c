@@ -1,5 +1,5 @@
 // 10010ba0 RwQuadExt [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwQuadExt(int param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4,
               undefined2 param_5)

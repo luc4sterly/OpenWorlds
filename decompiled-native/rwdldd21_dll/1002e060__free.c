@@ -1,5 +1,5 @@
 // 1002e060 _free [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     _free

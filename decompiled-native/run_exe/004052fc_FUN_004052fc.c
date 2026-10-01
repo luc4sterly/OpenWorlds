@@ -1,5 +1,5 @@
 // 004052fc FUN_004052fc [Global]
-// programa: run.exe
+// program: run.exe
 
 int FUN_004052fc(void)
 

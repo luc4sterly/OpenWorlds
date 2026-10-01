@@ -1,5 +1,5 @@
 // 10065990 _strncnt [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     _strncnt

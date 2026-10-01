@@ -1,5 +1,5 @@
 // 100682b0 ___ld12mul [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     ___ld12mul

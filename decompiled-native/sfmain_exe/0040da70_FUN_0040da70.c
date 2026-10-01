@@ -1,5 +1,5 @@
 // 0040da70 FUN_0040da70 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_0040da70(undefined4 param_1,undefined4 param_2)
 

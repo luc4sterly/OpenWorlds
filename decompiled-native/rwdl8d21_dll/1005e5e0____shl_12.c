@@ -1,5 +1,5 @@
 // 1005e5e0 ___shl_12 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     ___shl_12

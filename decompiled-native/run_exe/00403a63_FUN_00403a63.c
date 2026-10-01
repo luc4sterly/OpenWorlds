@@ -1,5 +1,5 @@
 // 00403a63 FUN_00403a63 [Global]
-// programa: run.exe
+// program: run.exe
 
 undefined4 FUN_00403a63(void)
 

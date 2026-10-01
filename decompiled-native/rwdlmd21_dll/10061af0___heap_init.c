@@ -1,5 +1,5 @@
 // 10061af0 __heap_init [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __heap_init

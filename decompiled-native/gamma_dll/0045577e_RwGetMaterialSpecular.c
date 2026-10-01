@@ -1,5 +1,5 @@
 // 0045577e RwGetMaterialSpecular [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetMaterialSpecular(void)
 

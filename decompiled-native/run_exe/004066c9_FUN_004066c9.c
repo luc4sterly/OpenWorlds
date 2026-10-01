@@ -1,5 +1,5 @@
 // 004066c9 FUN_004066c9 [Global]
-// programa: run.exe
+// program: run.exe
 
 uint __cdecl FUN_004066c9(ushort *param_1,ushort *param_2,int param_3)
 

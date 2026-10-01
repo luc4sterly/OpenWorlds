@@ -1,5 +1,5 @@
 // 100619d0 __getptd [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __getptd

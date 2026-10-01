@@ -1,5 +1,5 @@
 // 10015290 RwAddMaterialModeToSurface [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwAddMaterialModeToSurface(uint param_1)
 

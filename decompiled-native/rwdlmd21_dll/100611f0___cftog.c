@@ -1,5 +1,5 @@
 // 100611f0 __cftog [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __cftog

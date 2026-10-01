@@ -1,5 +1,5 @@
 // 0043f9b0 FUN_0043f9b0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void FUN_0043f9b0(HWND param_1,UINT param_2,WPARAM param_3,LPARAM param_4)
 

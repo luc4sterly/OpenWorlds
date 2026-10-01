@@ -1,5 +1,5 @@
 // 1000bcd0 RwSetCameraLookAt [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetCameraLookAt(int param_1,float param_2,float param_3,float param_4)
 

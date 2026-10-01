@@ -1,5 +1,5 @@
 // 004080db FUN_004080db [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 

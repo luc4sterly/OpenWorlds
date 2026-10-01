@@ -1,5 +1,5 @@
 // 00432550 FUN_00432550 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 

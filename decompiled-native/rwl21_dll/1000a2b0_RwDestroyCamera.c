@@ -1,5 +1,5 @@
 // 1000a2b0 RwDestroyCamera [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwDestroyCamera(undefined4 *param_1)
 

@@ -1,5 +1,5 @@
 // 0040c85f FUN_0040c85f [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_0040c85f(undefined4 param_1,float *param_2)
 

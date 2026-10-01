@@ -1,5 +1,5 @@
 // 1002d340 FUN_1002d340 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 void FUN_1002d340(void)
 

@@ -1,5 +1,5 @@
 // 1004fe30 __set_exp [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __set_exp

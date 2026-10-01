@@ -1,5 +1,5 @@
 // 100285f0 FUN_100285f0 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 int * FUN_100285f0(int *param_1)
 

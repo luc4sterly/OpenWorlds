@@ -1,5 +1,5 @@
 // 00407320 CreateThread [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 HANDLE CreateThread(LPSECURITY_ATTRIBUTES lpThreadAttributes,SIZE_T dwStackSize,
                    LPTHREAD_START_ROUTINE lpStartAddress,LPVOID lpParameter,DWORD dwCreationFlags,

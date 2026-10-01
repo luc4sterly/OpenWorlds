@@ -1,5 +1,5 @@
 // 1000a290 FUN_1000a290 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 void FUN_1000a290(int param_1,int *param_2)
 

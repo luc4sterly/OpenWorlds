@@ -1,5 +1,5 @@
 // 10002280 RwGetPolygonLightSampling [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwGetPolygonLightSampling(undefined4 *param_1)
 

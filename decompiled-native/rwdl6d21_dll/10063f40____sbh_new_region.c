@@ -1,5 +1,5 @@
 // 10063f40 ___sbh_new_region [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     ___sbh_new_region

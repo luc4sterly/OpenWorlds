@@ -1,5 +1,5 @@
 // 10004010 FUN_10004010 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 char FUN_10004010(HDC param_1)
 

@@ -1,5 +1,5 @@
 // 1005b740 __ZeroTail [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __ZeroTail

@@ -1,5 +1,5 @@
 // 10043e80 FUN_10043e80 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void FUN_10043e80(char *param_1,char *param_2)
 

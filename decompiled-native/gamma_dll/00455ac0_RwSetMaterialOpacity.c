@@ -1,5 +1,5 @@
 // 00455ac0 RwSetMaterialOpacity [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetMaterialOpacity(void)
 

@@ -1,5 +1,5 @@
 // 10019190 _RwGetTextureColorMatching@0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 char _RwGetTextureColorMatching_0(void)
 

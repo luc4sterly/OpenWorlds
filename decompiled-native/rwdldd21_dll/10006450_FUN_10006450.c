@@ -1,5 +1,5 @@
 // 10006450 FUN_10006450 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* WARNING: Type propagation algorithm not settling */
 

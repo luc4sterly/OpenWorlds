@@ -1,5 +1,5 @@
 // 00449e90 FUN_00449e90 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void __thiscall FUN_00449e90(int param_1,undefined4 param_2)
 

@@ -1,5 +1,5 @@
 // 00402e60 _Java_NET_worlds_core_Std_getPerformanceCount@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 LARGE_INTEGER _Java_NET_worlds_core_Std_getPerformanceCount_8(void)
 

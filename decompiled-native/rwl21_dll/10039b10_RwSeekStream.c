@@ -1,5 +1,5 @@
 // 10039b10 RwSeekStream [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwSeekStream(int *param_1,int param_2)
 

@@ -1,5 +1,5 @@
 // 00455b08 RwInitialize [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwInitialize(void)
 

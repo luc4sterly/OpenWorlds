@@ -1,5 +1,5 @@
 // 0040a4d0 FUN_0040a4d0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 HRESULT __cdecl FUN_0040a4d0(int *param_1,undefined4 param_2,LPIID param_3)
 

@@ -1,5 +1,5 @@
 // 10010e60 RwIdentityCTM [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwIdentityCTM(void)
 

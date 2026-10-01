@@ -1,5 +1,5 @@
 // 10003fa0 FUN_10003fa0 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 char FUN_10003fa0(HDC param_1)
 

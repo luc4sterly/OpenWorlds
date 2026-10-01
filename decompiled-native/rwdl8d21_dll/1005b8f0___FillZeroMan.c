@@ -1,5 +1,5 @@
 // 1005b8f0 __FillZeroMan [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __FillZeroMan

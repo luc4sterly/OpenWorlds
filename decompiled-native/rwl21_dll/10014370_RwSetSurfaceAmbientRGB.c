@@ -1,5 +1,5 @@
 // 10014370 RwSetSurfaceAmbientRGB [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwSetSurfaceAmbientRGB(uint param_1,uint param_2,uint param_3)
 

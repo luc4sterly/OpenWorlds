@@ -1,5 +1,5 @@
 // 00416d30 _Java_NET_worlds_scape_Material_nativeInit@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_Material_nativeInit_8(int *param_1)
 

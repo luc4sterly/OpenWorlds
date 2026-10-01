@@ -1,5 +1,5 @@
 // 10045c70 __amsg_exit [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __amsg_exit

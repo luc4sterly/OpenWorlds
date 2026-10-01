@@ -1,5 +1,5 @@
 // 100028d0 RwGetClumpImmVertex [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetClumpImmVertex(int param_1,int param_2)
 

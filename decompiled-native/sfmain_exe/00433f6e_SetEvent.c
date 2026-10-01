@@ -1,5 +1,5 @@
 // 00433f6e SetEvent [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL SetEvent(HANDLE hEvent)
 

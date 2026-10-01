@@ -1,5 +1,5 @@
 // 10067240 FUN_10067240 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 ulong * FUN_10067240(void)
 

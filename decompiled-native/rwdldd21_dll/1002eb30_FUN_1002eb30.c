@@ -1,5 +1,5 @@
 // 1002eb30 FUN_1002eb30 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 ulong * FUN_1002eb30(void)
 

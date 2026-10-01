@@ -1,5 +1,5 @@
 // 10061a40 __freeptd [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __freeptd

@@ -1,5 +1,5 @@
 // 10038d20 RwStopDisplayDevice [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwStopDisplayDevice(int param_1)
 

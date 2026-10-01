@@ -1,5 +1,5 @@
 // 00456470 FUN_00456470 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Removing unreachable block (ram,0x00456592) */
 /* WARNING: Removing unreachable block (ram,0x00456574) */

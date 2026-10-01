@@ -1,5 +1,5 @@
 // 00426e75 FUN_00426e75 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 __fastcall FUN_00426e75(int param_1,LPWAVEHDR param_2)
 

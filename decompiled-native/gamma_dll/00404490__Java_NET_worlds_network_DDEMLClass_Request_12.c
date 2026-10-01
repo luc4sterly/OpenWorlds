@@ -1,5 +1,5 @@
 // 00404490 _Java_NET_worlds_network_DDEMLClass_Request@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 bool _Java_NET_worlds_network_DDEMLClass_Request_12
                (int *param_1,undefined4 param_2,undefined4 param_3)

@@ -1,5 +1,5 @@
 // 004463b0 FUN_004463b0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 HMODULE FUN_004463b0(void)
 

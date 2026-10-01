@@ -1,5 +1,5 @@
 // 00455796 RwSetMaterialModes [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetMaterialModes(void)
 

@@ -1,5 +1,5 @@
 // 004164a0 _Java_NET_worlds_scape_DroneAnimator_CreateRep@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint * _Java_NET_worlds_scape_DroneAnimator_CreateRep_8(void)
 

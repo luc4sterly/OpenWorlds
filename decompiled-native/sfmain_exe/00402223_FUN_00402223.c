@@ -1,5 +1,5 @@
 // 00402223 FUN_00402223 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_00402223(undefined4 param_1,int *param_2)
 

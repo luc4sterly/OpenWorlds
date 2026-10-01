@@ -1,5 +1,5 @@
 // 10014f60 RwAddTextureModeToSurface [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwAddTextureModeToSurface(uint param_1)
 

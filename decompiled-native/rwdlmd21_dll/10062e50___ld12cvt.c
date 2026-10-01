@@ -1,5 +1,5 @@
 // 10062e50 __ld12cvt [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __ld12cvt

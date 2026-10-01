@@ -1,5 +1,5 @@
 // 1000af30 RwSetCameraNearClipping [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetCameraNearClipping(int param_1,float param_2)
 

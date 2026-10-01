@@ -1,5 +1,5 @@
 // 00418c25 FUN_00418c25 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 HWND __fastcall FUN_00418c25(undefined4 param_1,int param_2)
 

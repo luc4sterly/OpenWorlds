@@ -1,5 +1,5 @@
 // 10002660 FUN_10002660 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 undefined4 FUN_10002660(int param_1,int param_2,int param_3)
 

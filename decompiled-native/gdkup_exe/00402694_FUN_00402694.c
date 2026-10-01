@@ -1,5 +1,5 @@
 // 00402694 FUN_00402694 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 undefined4 FUN_00402694(void)
 

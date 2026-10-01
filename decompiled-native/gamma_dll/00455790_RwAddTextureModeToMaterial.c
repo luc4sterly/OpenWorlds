@@ -1,5 +1,5 @@
 // 00455790 RwAddTextureModeToMaterial [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwAddTextureModeToMaterial(void)
 

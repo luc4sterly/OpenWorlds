@@ -1,5 +1,5 @@
 // 0045578a RwSetMaterialLightSampling [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetMaterialLightSampling(void)
 

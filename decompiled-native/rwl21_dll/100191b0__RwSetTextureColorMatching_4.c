@@ -1,5 +1,5 @@
 // 100191b0 _RwSetTextureColorMatching@4 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 _RwSetTextureColorMatching_4(int param_1)
 

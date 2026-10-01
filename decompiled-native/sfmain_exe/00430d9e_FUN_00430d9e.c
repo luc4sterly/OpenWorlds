@@ -1,5 +1,5 @@
 // 00430d9e FUN_00430d9e [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 /* WARNING: Unable to track spacebase fully for stack */
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */

@@ -1,5 +1,5 @@
 // 10061930 __commit [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __commit

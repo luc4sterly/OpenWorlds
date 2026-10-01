@@ -1,5 +1,5 @@
 // 100079d0 RwRenderImmediateTriangle [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void __fastcall RwRenderImmediateTriangle(undefined4 param_1,undefined4 param_2,int *param_3)
 

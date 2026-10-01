@@ -1,5 +1,5 @@
 // 10008f30 FUN_10008f30 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int FUN_10008f30(int param_1,int param_2,int param_3)
 

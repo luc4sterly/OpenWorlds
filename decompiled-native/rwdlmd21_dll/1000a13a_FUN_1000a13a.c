@@ -1,5 +1,5 @@
 // 1000a13a FUN_1000a13a [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 int FUN_1000a13a(void)
 

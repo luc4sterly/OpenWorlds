@@ -1,5 +1,5 @@
 // 1002fe20 ___addl [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     ___addl

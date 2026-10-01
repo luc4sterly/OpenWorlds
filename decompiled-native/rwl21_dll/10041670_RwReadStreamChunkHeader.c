@@ -1,5 +1,5 @@
 // 10041670 RwReadStreamChunkHeader [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint RwReadStreamChunkHeader(int *param_1)
 

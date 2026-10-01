@@ -1,5 +1,5 @@
 // 00453d00 FUN_00453d00 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 ulonglong FUN_00453d00(uint param_1,uint param_2,uint param_3,uint param_4)
 

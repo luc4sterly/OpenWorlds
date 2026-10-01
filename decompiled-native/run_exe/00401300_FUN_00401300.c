@@ -1,5 +1,5 @@
 // 00401300 FUN_00401300 [Global]
-// programa: run.exe
+// program: run.exe
 
 void __cdecl FUN_00401300(LPCSTR param_1,char *param_2)
 

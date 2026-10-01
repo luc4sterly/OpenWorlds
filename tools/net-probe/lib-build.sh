@@ -1,10 +1,10 @@
 # Shared functions (bash 3.2) for run-guest-login.sh and run-gamma-mock.sh.
 # Included with `. lib-build.sh`; expects HERE = the tools/net-probe folder.
 #
-# Builds the mocked client + probes in $WORK, OUTSIDE the repo: apply_mock.sh
-# rewrites source/ IN PLACE and the client writes logs/caches into its CWD,
-# so nothing in the repo (pristine source/, assets/WorldsPlayer) is ever
-# touched.
+# Builds the mocked client (through build_gamma.sh) and the probes into
+# $WORK, and runs the client in a copy of the install there: the client
+# writes logs/caches into its CWD, so nothing in the repo (pristine source/,
+# assets/WorldsPlayer) is ever touched.
 #
 # Environment variables:
 #   FW_NET_WORK  working directory (default: mktemp -d). If it already holds a
@@ -62,21 +62,14 @@ build_mock() {
     echo "build: reusing $WORK/out and $WORK/probeout"
     return 0
   fi
-  rm -rf "$WORK/copy" "$WORK/out" "$WORK/probeout"
-  # apply_mock.sh uses ROOT=../.. -> replicate editor/, tools/, docs/.
-  mkdir -p "$WORK/copy/$EDITOR_REL" "$WORK/copy/tools" "$WORK/copy/docs"
-  cp -R "$REPO/$EDITOR_REL/source" "$WORK/copy/$EDITOR_REL/source"
-  cp "$REPO/$EDITOR_REL/apply_mock.sh" "$WORK/copy/$EDITOR_REL/"
-  cp "$REPO/tools/jni_mock.py" "$WORK/copy/tools/"
-  cp "$REPO/docs/native-methods-callers.md" "$WORK/copy/docs/"
-  echo "build: apply_mock.sh (log: $WORK/apply_mock.log)"
-  bash "$WORK/copy/$EDITOR_REL/apply_mock.sh" >"$WORK/apply_mock.log" 2>&1
-
-  echo "build: javac --release 8 mocked client (log: $WORK/compile_mock.log)"
-  (cd "$WORK/copy/$EDITOR_REL" && find source -name '*.java' >"$WORK/sources.txt")
-  mkdir -p "$WORK/out"
-  (cd "$WORK/copy/$EDITOR_REL" && "$JAVAC" --release 8 -encoding UTF-8 -nowarn \
-     -d "$WORK/out" @"$WORK/sources.txt") >"$WORK/compile_mock.log" 2>&1
+  rm -rf "$WORK/out" "$WORK/probeout"
+  # The client as the bridge builds it: build_gamma.sh copies the pristine
+  # source/, applies the mock and the bridge (apply_mock.sh) and compiles it
+  # with the formats/ readers into the gitignored editor/.build-gamma, never
+  # in source/. The classes are copied so a later rebuild leaves this one alone.
+  echo "build: build_gamma.sh (log: $WORK/build_gamma.log)"
+  bash "$REPO/$EDITOR_REL/build_gamma.sh" >"$WORK/build_gamma.log" 2>&1
+  cp -R "$REPO/editor/.build-gamma/out" "$WORK/out"
   echo "build: $(find "$WORK/out" -name '*.class' | wc -l | tr -d ' ') classes"
 
   echo "build: probes (log: $WORK/compile_probes.log)"

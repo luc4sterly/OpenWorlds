@@ -1,5 +1,5 @@
 // 10044de0 __fwrite_lk [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __fwrite_lk

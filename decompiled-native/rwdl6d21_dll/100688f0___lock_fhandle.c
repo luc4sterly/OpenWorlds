@@ -1,5 +1,5 @@
 // 100688f0 __lock_fhandle [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __lock_fhandle

@@ -1,5 +1,5 @@
 // 1000b590 FUN_1000b590 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 undefined4 FUN_1000b590(void)
 

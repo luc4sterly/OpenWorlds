@@ -1,5 +1,5 @@
 // 0041fc13 FUN_0041fc13 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void FUN_0041fc13(void)
 

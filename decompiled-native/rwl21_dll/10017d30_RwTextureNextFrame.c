@@ -1,5 +1,5 @@
 // 10017d30 RwTextureNextFrame [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwTextureNextFrame(int param_1)
 

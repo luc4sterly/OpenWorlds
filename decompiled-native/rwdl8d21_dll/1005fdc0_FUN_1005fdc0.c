@@ -1,5 +1,5 @@
 // 1005fdc0 FUN_1005fdc0 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 ulong * FUN_1005fdc0(void)
 

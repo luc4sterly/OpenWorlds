@@ -1,5 +1,5 @@
 // 1004c160 __lock_fhandle [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __lock_fhandle

@@ -1,5 +1,5 @@
 // 10005090 RwSetClumpLightSampleRate [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 float10 RwSetClumpLightSampleRate(int param_1,float param_2)
 

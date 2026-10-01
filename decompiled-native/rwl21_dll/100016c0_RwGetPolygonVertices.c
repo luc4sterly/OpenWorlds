@@ -1,5 +1,5 @@
 // 100016c0 RwGetPolygonVertices [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined1 RwGetPolygonVertices(int param_1,int *param_2)
 

@@ -1,5 +1,5 @@
 // 10037750 RwGetStereoCameraMode [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetStereoCameraMode(int param_1)
 

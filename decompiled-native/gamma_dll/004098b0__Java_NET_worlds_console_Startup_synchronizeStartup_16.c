@@ -1,5 +1,5 @@
 // 004098b0 _Java_NET_worlds_console_Startup_synchronizeStartup@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Type propagation algorithm not settling */
 

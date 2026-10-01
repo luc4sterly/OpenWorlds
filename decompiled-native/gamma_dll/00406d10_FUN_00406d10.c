@@ -1,5 +1,5 @@
 // 00406d10 FUN_00406d10 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int FUN_00406d10(void *param_1,ulonglong param_2,undefined1 *param_3)
 

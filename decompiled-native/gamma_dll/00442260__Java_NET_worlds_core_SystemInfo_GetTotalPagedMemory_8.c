@@ -1,5 +1,5 @@
 // 00442260 _Java_NET_worlds_core_SystemInfo_GetTotalPagedMemory@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint _Java_NET_worlds_core_SystemInfo_GetTotalPagedMemory_8(void)
 

@@ -1,5 +1,5 @@
 // 004028a0 _Java_NET_worlds_core_Std_exit@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_core_Std_exit_8(void)
 

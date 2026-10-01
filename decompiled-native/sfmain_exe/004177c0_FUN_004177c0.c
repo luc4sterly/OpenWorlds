@@ -1,5 +1,5 @@
 // 004177c0 FUN_004177c0 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 MMRESULT __fastcall FUN_004177c0(DWORD_PTR param_1,UINT param_2,DWORD_PTR param_3,DWORD param_4)
 

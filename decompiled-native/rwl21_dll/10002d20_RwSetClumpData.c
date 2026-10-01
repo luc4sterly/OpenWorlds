@@ -1,5 +1,5 @@
 // 10002d20 RwSetClumpData [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetClumpData(int param_1,undefined4 param_2)
 

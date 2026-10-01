@@ -1,5 +1,5 @@
 // 004558e6 RwTransformCamera [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwTransformCamera(void)
 

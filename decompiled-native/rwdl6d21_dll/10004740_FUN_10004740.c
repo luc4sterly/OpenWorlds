@@ -1,5 +1,5 @@
 // 10004740 FUN_10004740 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 bool FUN_10004740(undefined4 param_1,undefined4 param_2,int param_3,uint *param_4)
 

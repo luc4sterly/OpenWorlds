@@ -1,5 +1,5 @@
 // 00405d6b FUN_00405d6b [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 char * FUN_00405d6b(void)
 

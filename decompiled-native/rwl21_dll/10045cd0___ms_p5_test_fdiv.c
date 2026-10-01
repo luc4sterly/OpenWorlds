@@ -1,5 +1,5 @@
 // 10045cd0 __ms_p5_test_fdiv [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __ms_p5_test_fdiv

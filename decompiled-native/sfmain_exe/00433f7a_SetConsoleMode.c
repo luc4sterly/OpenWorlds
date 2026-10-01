@@ -1,5 +1,5 @@
 // 00433f7a SetConsoleMode [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL SetConsoleMode(HANDLE hConsoleHandle,DWORD dwMode)
 

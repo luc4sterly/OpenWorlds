@@ -1,5 +1,5 @@
 // 00401a60 _Java_NET_worlds_core_FastDataInput_readUnsignedShort@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined2 _Java_NET_worlds_core_FastDataInput_readUnsignedShort_8(int *param_1,undefined4 param_2)
 

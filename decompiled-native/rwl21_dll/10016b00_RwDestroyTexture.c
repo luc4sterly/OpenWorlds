@@ -1,5 +1,5 @@
 // 10016b00 RwDestroyTexture [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwDestroyTexture(int *param_1)
 

@@ -1,5 +1,5 @@
 // 1004ae70 __controlfp [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __controlfp

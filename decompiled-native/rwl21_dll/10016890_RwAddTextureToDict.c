@@ -1,5 +1,5 @@
 // 10016890 RwAddTextureToDict [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwAddTextureToDict(char *param_1,int *param_2)
 

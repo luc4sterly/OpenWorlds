@@ -1,5 +1,5 @@
 // 00416430 _Java_NET_worlds_scape_DroneAnimator_addtype@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_DroneAnimator_addtype_12(int *param_1,undefined4 param_2,uint param_3)
 

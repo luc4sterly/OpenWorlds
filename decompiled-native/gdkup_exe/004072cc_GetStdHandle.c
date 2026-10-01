@@ -1,5 +1,5 @@
 // 004072cc GetStdHandle [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 HANDLE GetStdHandle(DWORD nStdHandle)
 

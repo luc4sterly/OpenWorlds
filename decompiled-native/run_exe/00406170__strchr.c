@@ -1,5 +1,5 @@
 // 00406170 _strchr [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     _strchr

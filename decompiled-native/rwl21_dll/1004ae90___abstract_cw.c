@@ -1,5 +1,5 @@
 // 1004ae90 __abstract_cw [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __abstract_cw

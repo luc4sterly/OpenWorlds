@@ -1,5 +1,5 @@
 // 00401967 FUN_00401967 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 int FUN_00401967(int *param_1)
 

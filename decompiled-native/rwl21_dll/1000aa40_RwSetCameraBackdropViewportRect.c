@@ -1,5 +1,5 @@
 // 1000aa40 RwSetCameraBackdropViewportRect [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetCameraBackdropViewportRect(int param_1,int param_2,int param_3,int param_4,int param_5)
 

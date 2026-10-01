@@ -1,5 +1,5 @@
 // 0042f800 FUN_0042f800 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 * __cdecl FUN_0042f800(undefined4 *param_1)
 

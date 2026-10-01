@@ -1,5 +1,5 @@
 // 10061ac0 __NMSG_WRITE [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     __NMSG_WRITE

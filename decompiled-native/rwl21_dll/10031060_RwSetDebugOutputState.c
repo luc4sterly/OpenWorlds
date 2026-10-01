@@ -1,5 +1,5 @@
 // 10031060 RwSetDebugOutputState [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwSetDebugOutputState(undefined4 param_1)
 

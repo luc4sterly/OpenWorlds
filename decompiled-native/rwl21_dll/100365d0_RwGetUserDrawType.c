@@ -1,5 +1,5 @@
 // 100365d0 RwGetUserDrawType [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetUserDrawType(int param_1)
 

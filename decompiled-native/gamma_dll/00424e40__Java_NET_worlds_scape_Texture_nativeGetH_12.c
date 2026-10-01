@@ -1,5 +1,5 @@
 // 00424e40 _Java_NET_worlds_scape_Texture_nativeGetH@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_Texture_nativeGetH_12(void)
 

@@ -1,5 +1,5 @@
 // 1000ed80 RwSetDepthCueColor [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwSetDepthCueColor(undefined4 param_1)
 

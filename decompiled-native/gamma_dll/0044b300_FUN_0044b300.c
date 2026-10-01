@@ -1,5 +1,5 @@
 // 0044b300 FUN_0044b300 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int FUN_0044b300(ushort *param_1,ushort *param_2)
 

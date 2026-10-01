@@ -1,5 +1,5 @@
 // 00403260 _Java_NET_worlds_core_Std_byteArraysEqual@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined1
 _Java_NET_worlds_core_Std_byteArraysEqual_16

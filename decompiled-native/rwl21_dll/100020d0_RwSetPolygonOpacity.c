@@ -1,5 +1,5 @@
 // 100020d0 RwSetPolygonOpacity [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwSetPolygonOpacity(undefined4 *param_1,uint param_2)
 

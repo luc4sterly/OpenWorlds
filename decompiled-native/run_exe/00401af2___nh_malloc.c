@@ -1,5 +1,5 @@
 // 00401af2 __nh_malloc [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     __nh_malloc

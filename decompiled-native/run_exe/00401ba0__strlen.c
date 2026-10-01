@@ -1,5 +1,5 @@
 // 00401ba0 _strlen [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     _strlen

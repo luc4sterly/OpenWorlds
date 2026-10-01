@@ -1,5 +1,5 @@
 // 10041b60 FUN_10041b60 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void FUN_10041b60(void)
 

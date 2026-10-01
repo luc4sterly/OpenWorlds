@@ -1,5 +1,5 @@
 // 1005b4a0 __hw_cw [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __hw_cw

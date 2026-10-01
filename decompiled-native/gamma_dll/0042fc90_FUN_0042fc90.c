@@ -1,5 +1,5 @@
 // 0042fc90 FUN_0042fc90 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Removing unreachable block (ram,0x0042fe85) */
 /* WARNING: Heritage AFTER dead removal. Example location: s0xfffffedc : 0x0042fdcc */

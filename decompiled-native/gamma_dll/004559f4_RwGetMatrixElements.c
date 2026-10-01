@@ -1,5 +1,5 @@
 // 004559f4 RwGetMatrixElements [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetMatrixElements(void)
 

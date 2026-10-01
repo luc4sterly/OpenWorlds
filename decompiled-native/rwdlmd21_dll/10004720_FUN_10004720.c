@@ -1,5 +1,5 @@
 // 10004720 FUN_10004720 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 undefined4 FUN_10004720(void)
 

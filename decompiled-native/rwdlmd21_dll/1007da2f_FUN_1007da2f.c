@@ -1,5 +1,5 @@
 // 1007da2f FUN_1007da2f [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void __fastcall FUN_1007da2f(int param_1)
 

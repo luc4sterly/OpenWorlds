@@ -1,5 +1,5 @@
 // 00403ad1 FUN_00403ad1 [Global]
-// programa: run.exe
+// program: run.exe
 
 byte * __cdecl FUN_00403ad1(byte *param_1,uint param_2)
 

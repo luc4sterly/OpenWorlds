@@ -1,5 +1,5 @@
 // 00413f60 FUN_00413f60 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 __fastcall
 FUN_00413f60(undefined4 param_1,undefined4 param_2,HWND param_3,uint param_4,short param_5)

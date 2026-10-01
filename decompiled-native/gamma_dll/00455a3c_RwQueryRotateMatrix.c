@@ -1,5 +1,5 @@
 // 00455a3c RwQueryRotateMatrix [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwQueryRotateMatrix(void)
 

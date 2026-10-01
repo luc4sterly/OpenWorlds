@@ -1,5 +1,5 @@
 // 100079a0 RwSetImmediateZRange [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwSetImmediateZRange(float param_1,undefined4 param_2)
 

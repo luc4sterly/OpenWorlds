@@ -1,5 +1,5 @@
 // 10043fd0 FUN_10043fd0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 char * FUN_10043fd0(void)
 

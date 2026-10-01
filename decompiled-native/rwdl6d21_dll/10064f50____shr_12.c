@@ -1,5 +1,5 @@
 // 10064f50 ___shr_12 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     ___shr_12

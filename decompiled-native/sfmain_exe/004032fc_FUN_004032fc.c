@@ -1,5 +1,5 @@
 // 004032fc FUN_004032fc [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_004032fc(undefined4 param_1)
 

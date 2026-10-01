@@ -1,5 +1,5 @@
 // 00455778 RwGetMaterialDiffuse [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetMaterialDiffuse(void)
 

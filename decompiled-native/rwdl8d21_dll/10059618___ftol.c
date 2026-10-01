@@ -1,5 +1,5 @@
 // 10059618 __ftol [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __ftol

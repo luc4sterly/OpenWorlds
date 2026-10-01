@@ -1,5 +1,5 @@
 // 00401150 _Java_NET_worlds_core_IniFile_getIniInt@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 UINT _Java_NET_worlds_core_IniFile_getIniInt_16
                (int *param_1,undefined4 param_2,undefined4 param_3,INT param_4)

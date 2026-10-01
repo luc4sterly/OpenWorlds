@@ -1,5 +1,5 @@
 // 0040b641 FUN_0040b641 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void FUN_0040b641(int *param_1,uint *param_2,int *param_3)
 

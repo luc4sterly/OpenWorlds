@@ -1,5 +1,5 @@
 // 100598b0 __amsg_exit [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __amsg_exit

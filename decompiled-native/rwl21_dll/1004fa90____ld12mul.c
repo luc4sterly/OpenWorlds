@@ -1,5 +1,5 @@
 // 1004fa90 ___ld12mul [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     ___ld12mul

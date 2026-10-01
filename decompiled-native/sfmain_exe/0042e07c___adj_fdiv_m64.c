@@ -1,5 +1,5 @@
 // 0042e07c __adj_fdiv_m64 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 /* Library Function - Single Match
     __adj_fdiv_m64

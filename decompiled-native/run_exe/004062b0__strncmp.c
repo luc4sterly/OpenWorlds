@@ -1,5 +1,5 @@
 // 004062b0 _strncmp [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     _strncmp

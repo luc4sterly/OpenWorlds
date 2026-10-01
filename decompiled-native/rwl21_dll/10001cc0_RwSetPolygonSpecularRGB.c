@@ -1,5 +1,5 @@
 // 10001cc0 RwSetPolygonSpecularRGB [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int * RwSetPolygonSpecularRGB(int *param_1,uint param_2,uint param_3,uint param_4)
 

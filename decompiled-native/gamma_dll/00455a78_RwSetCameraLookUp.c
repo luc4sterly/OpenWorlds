@@ -1,5 +1,5 @@
 // 00455a78 RwSetCameraLookUp [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetCameraLookUp(void)
 

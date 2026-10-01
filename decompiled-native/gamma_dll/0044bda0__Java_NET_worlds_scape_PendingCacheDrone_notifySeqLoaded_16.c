@@ -1,5 +1,5 @@
 // 0044bda0 _Java_NET_worlds_scape_PendingCacheDrone_notifySeqLoaded@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_PendingCacheDrone_notifySeqLoaded_16
                (int *param_1,undefined4 param_2,undefined4 *param_3,undefined4 param_4)

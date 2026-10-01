@@ -1,5 +1,5 @@
 // 1002c2e0 FUN_1002c2e0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void FUN_1002c2e0(int param_1)
 

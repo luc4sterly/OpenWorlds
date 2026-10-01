@@ -1,5 +1,5 @@
 // 10038350 RwExtract [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwExtract(char *param_1,int param_2,char *param_3,int param_4)
 

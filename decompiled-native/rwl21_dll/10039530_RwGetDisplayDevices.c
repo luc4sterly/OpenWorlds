@@ -1,5 +1,5 @@
 // 10039530 RwGetDisplayDevices [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 char * RwGetDisplayDevices(void)
 

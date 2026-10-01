@@ -1,5 +1,5 @@
 // 00455aae RwSetLightColor [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetLightColor(void)
 

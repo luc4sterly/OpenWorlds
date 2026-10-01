@@ -1,5 +1,5 @@
 // 10004fb0 RwAddPolygonsToClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint RwAddPolygonsToClump(uint param_1,float *param_2)
 

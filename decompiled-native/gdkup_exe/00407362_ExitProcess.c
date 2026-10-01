@@ -1,5 +1,5 @@
 // 00407362 ExitProcess [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 void ExitProcess(UINT uExitCode)
 

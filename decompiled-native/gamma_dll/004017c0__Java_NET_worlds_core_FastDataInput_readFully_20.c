@@ -1,5 +1,5 @@
 // 004017c0 _Java_NET_worlds_core_FastDataInput_readFully@20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_core_FastDataInput_readFully_20
                (int *param_1,undefined4 param_2,undefined4 param_3,int param_4,uint param_5)

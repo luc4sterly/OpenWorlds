@@ -1,5 +1,5 @@
 // 10064c00 ___sbh_release_region [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     ___sbh_release_region

@@ -1,5 +1,5 @@
 // 1000349e FUN_1000349e [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 undefined1 * __thiscall FUN_1000349e(void *this)
 

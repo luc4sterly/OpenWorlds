@@ -1,5 +1,5 @@
 // 10049620 __initterm [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __initterm

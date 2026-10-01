@@ -1,5 +1,5 @@
 // 1002a3b0 __ms_p5_mp_test_fdiv [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __ms_p5_mp_test_fdiv

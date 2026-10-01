@@ -1,5 +1,5 @@
 // 0041f250 _Java_NET_worlds_scape_Shape_extractSubclump@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int _Java_NET_worlds_scape_Shape_extractSubclump_12(int *param_1,int param_2,int param_3)
 

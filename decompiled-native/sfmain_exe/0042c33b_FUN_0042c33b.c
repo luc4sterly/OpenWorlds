@@ -1,5 +1,5 @@
 // 0042c33b FUN_0042c33b [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 FUN_0042c33b(int param_1)
 

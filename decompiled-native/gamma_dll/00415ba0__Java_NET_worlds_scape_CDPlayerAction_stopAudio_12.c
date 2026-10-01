@@ -1,5 +1,5 @@
 // 00415ba0 _Java_NET_worlds_scape_CDPlayerAction_stopAudio@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_CDPlayerAction_stopAudio_12
                (int *param_1,undefined4 param_2,MCIDEVICEID param_3)

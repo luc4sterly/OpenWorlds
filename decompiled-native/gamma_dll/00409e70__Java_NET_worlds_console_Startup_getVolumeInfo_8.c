@@ -1,5 +1,5 @@
 // 00409e70 _Java_NET_worlds_console_Startup_getVolumeInfo@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 _Java_NET_worlds_console_Startup_getVolumeInfo_8(void)
 

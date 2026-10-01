@@ -1,5 +1,5 @@
 // 0040faaf FUN_0040faaf [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_0040faaf(undefined4 param_1)
 

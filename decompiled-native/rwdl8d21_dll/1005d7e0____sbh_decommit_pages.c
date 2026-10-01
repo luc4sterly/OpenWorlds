@@ -1,5 +1,5 @@
 // 1005d7e0 ___sbh_decommit_pages [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     ___sbh_decommit_pages

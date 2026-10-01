@@ -1,5 +1,5 @@
 // 00455880 RwReadTexture [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwReadTexture(void)
 

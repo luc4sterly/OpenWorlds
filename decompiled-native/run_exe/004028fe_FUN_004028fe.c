@@ -1,5 +1,5 @@
 // 004028fe FUN_004028fe [Global]
-// programa: run.exe
+// program: run.exe
 
 undefined4 * FUN_004028fe(void)
 

@@ -1,5 +1,5 @@
 // 10067f30 ___init_ctype [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     ___init_ctype

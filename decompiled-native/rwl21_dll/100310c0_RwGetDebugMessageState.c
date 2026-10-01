@@ -1,5 +1,5 @@
 // 100310c0 RwGetDebugMessageState [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetDebugMessageState(void)
 

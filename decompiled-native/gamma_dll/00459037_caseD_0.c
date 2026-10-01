@@ -1,5 +1,5 @@
 // 00459037 caseD_0 [switchD_00459030]
-// programa: gamma.dll
+// program: gamma.dll
 
 int switchD_00459030::caseD_0(void)
 

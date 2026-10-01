@@ -1,5 +1,5 @@
 // 10028b30 FUN_10028b30 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 undefined4 FUN_10028b30(int param_1,int param_2,int param_3,int param_4,int param_5,uint param_6)
 

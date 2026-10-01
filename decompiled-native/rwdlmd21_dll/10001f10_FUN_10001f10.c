@@ -1,5 +1,5 @@
 // 10001f10 FUN_10001f10 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void FUN_10001f10(int param_1,int *param_2,HDC param_3)
 

@@ -1,5 +1,5 @@
 // 0040c1a0 FUN_0040c1a0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void FUN_0040c1a0(HWND param_1,uint param_2,HWND param_3,HWND param_4)
 

@@ -1,5 +1,5 @@
 // 1002e520 FUN_1002e520 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Removing unreachable block (ram,0x1002e6ae) */
 /* WARNING: Removing unreachable block (ram,0x1002e7e7) */

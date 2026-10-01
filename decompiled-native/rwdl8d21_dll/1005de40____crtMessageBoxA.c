@@ -1,5 +1,5 @@
 // 1005de40 ___crtMessageBoxA [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     ___crtMessageBoxA

@@ -1,5 +1,5 @@
 // 100029b0 FUN_100029b0 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void FUN_100029b0(int param_1)
 

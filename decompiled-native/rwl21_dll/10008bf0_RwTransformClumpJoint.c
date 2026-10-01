@@ -1,5 +1,5 @@
 // 10008bf0 RwTransformClumpJoint [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 uint __fastcall
 RwTransformClumpJoint

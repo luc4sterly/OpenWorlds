@@ -1,5 +1,5 @@
 // 1000bdc0 FUN_1000bdc0 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 byte FUN_1000bdc0(byte *param_1,byte *param_2,uint *param_3)
 

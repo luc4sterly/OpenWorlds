@@ -1,5 +1,5 @@
 // 10067d20 FUN_10067d20 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 uint __cdecl FUN_10067d20(int param_1)
 

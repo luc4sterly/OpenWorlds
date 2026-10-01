@@ -1,5 +1,5 @@
 // 0043d1b0 _Java_NET_worlds_console_IEWebControlImp_nativeDestroy@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_IEWebControlImp_nativeDestroy_8(int *param_1,undefined4 param_2)
 

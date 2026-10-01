@@ -1,5 +1,5 @@
 // 100194e0 RwGetTextureDithering [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 byte RwGetTextureDithering(void)
 

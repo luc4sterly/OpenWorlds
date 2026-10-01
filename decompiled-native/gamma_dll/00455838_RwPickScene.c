@@ -1,5 +1,5 @@
 // 00455838 RwPickScene [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwPickScene(void)
 

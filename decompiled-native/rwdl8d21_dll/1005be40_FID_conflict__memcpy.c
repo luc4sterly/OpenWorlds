@@ -1,5 +1,5 @@
 // 1005be40 FID_conflict:_memcpy [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Multiple Matches With Different Base Names
     _memcpy

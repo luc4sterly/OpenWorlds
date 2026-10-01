@@ -1,5 +1,5 @@
 // 0042fc50 FUN_0042fc50 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint * FUN_0042fc50(void)
 

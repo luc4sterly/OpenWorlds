@@ -1,5 +1,5 @@
 // 1002d170 FUN_1002d170 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool __fastcall FUN_1002d170(undefined4 param_1,undefined4 param_2,uint *param_3)
 

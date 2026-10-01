@@ -1,5 +1,5 @@
 // 0043c510 _Java_NET_worlds_scape_RenderWare_get3DHardwareAvailable@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 bool _Java_NET_worlds_scape_RenderWare_get3DHardwareAvailable_8(void)
 

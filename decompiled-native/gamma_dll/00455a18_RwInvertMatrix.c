@@ -1,5 +1,5 @@
 // 00455a18 RwInvertMatrix [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwInvertMatrix(void)
 

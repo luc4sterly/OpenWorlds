@@ -1,5 +1,5 @@
 // 10030780 $I10_OUTPUT [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     _$I10_OUTPUT

@@ -1,5 +1,5 @@
 // 1002aea0 __ioterm [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __ioterm

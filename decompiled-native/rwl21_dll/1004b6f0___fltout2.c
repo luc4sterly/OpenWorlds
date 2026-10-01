@@ -1,5 +1,5 @@
 // 1004b6f0 __fltout2 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __fltout2

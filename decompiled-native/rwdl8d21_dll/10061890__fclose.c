@@ -1,5 +1,5 @@
 // 10061890 _fclose [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     _fclose

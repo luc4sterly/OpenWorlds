@@ -1,5 +1,5 @@
 // 00424e70 _Java_NET_worlds_scape_Texture_nativeCopyFrom@32 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_Texture_nativeCopyFrom_32
                (undefined4 param_1,undefined4 param_2,int param_3,HDC param_4,int param_5,

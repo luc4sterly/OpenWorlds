@@ -1,5 +1,5 @@
 // 004033ce FUN_004033ce [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 

@@ -1,5 +1,5 @@
 // 10024a80 FUN_10024a80 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 undefined4 * FUN_10024a80(undefined4 *param_1)
 

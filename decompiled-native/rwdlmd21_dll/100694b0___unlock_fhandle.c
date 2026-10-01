@@ -1,5 +1,5 @@
 // 100694b0 __unlock_fhandle [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __unlock_fhandle

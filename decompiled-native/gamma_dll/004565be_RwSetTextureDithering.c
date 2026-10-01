@@ -1,5 +1,5 @@
 // 004565be RwSetTextureDithering [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetTextureDithering(void)
 

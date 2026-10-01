@@ -1,5 +1,5 @@
 // 004339dc FUN_004339dc [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 int FUN_004339dc(void)
 

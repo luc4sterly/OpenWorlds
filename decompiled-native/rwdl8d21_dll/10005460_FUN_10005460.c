@@ -1,5 +1,5 @@
 // 10005460 FUN_10005460 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 void FUN_10005460(void)
 

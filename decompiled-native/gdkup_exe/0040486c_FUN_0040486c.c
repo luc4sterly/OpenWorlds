@@ -1,5 +1,5 @@
 // 0040486c FUN_0040486c [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 longlong __fastcall FUN_0040486c(undefined4 param_1,uint param_2)
 

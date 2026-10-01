@@ -1,5 +1,5 @@
 // 10017de0 RwSetClumpVertexUV [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetClumpVertexUV(int param_1,int param_2,float param_3,float param_4)
 

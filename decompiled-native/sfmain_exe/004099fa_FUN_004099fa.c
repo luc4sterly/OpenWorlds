@@ -1,5 +1,5 @@
 // 004099fa FUN_004099fa [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_004099fa(undefined4 param_1,float *param_2,float param_3,float *param_4)
 

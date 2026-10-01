@@ -1,5 +1,5 @@
 // 1005f820 __handle_exc [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __handle_exc

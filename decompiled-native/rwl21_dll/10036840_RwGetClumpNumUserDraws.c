@@ -1,5 +1,5 @@
 // 10036840 RwGetClumpNumUserDraws [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetClumpNumUserDraws(int param_1)
 

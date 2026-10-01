@@ -1,5 +1,5 @@
 // 004557a8 RwGetClumpParent [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetClumpParent(void)
 

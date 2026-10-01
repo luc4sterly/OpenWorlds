@@ -1,5 +1,5 @@
 // 00403162 FUN_00403162 [Global]
-// programa: run.exe
+// program: run.exe
 
 int FUN_00403162(void)
 

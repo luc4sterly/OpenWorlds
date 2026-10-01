@@ -1,5 +1,5 @@
 // 00401860 _Java_NET_worlds_core_FastDataInput_skipBytes@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int _Java_NET_worlds_core_FastDataInput_skipBytes_12(int *param_1,undefined4 param_2,int param_3)
 

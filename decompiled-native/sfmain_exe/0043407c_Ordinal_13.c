@@ -1,5 +1,5 @@
 // 0043407c Ordinal_13 [WSOCK32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void Ordinal_13(void)
 

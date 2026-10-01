@@ -1,5 +1,5 @@
 // 0043ce30 _Java_NET_worlds_console_IEWebControlImp_nativeInit@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_console_IEWebControlImp_nativeInit_16

@@ -1,5 +1,5 @@
 // 10030e10 RwGetClumpAxisAlignment [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetClumpAxisAlignment(int param_1)
 

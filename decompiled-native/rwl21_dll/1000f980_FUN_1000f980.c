@@ -1,5 +1,5 @@
 // 1000f980 FUN_1000f980 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * FUN_1000f980(void)
 

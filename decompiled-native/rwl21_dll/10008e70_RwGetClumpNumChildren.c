@@ -1,5 +1,5 @@
 // 10008e70 RwGetClumpNumChildren [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwGetClumpNumChildren(int param_1)
 

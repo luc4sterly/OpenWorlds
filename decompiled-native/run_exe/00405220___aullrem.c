@@ -1,5 +1,5 @@
 // 00405220 __aullrem [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     __aullrem

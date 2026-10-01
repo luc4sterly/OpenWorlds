@@ -1,5 +1,5 @@
 // 004046ba FUN_004046ba [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void FUN_004046ba(void)
 

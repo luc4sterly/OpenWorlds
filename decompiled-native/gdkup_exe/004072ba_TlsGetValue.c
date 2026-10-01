@@ -1,5 +1,5 @@
 // 004072ba TlsGetValue [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 LPVOID TlsGetValue(DWORD dwTlsIndex)
 

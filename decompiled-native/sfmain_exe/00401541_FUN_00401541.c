@@ -1,5 +1,5 @@
 // 00401541 FUN_00401541 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_00401541(float *param_1,int param_2)
 

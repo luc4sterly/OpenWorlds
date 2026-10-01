@@ -1,5 +1,5 @@
 // 10004ad0 RwAddVertexToClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwAddVertexToClump(int param_1,float param_2,float param_3,float param_4)
 

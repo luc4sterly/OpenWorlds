@@ -1,5 +1,5 @@
 // 1000ee80 RwJointTransformBegin [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool __fastcall RwJointTransformBegin(undefined4 param_1,int param_2)
 

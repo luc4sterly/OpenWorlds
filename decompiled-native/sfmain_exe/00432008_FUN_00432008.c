@@ -1,5 +1,5 @@
 // 00432008 FUN_00432008 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_00432008(undefined4 param_1)
 

@@ -1,5 +1,5 @@
 // 004557ea RwGetCameraRaster [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetCameraRaster(void)
 

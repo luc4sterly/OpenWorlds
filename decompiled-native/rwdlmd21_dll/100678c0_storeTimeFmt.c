@@ -1,5 +1,5 @@
 // 100678c0 storeTimeFmt [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     _storeTimeFmt

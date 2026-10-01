@@ -1,5 +1,5 @@
 // 00415d20 _Java_NET_worlds_scape_CDPlayerAction_isPlaying@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 uint _Java_NET_worlds_scape_CDPlayerAction_isPlaying_12
                (int *param_1,undefined4 param_2,MCIDEVICEID param_3)

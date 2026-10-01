@@ -1,5 +1,5 @@
 // 1004e980 __mbschr [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __mbschr

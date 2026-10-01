@@ -1,5 +1,5 @@
 // 1006a0e0 FUN_1006a0e0 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 undefined8 __fastcall
 FUN_1006a0e0(undefined4 param_1,undefined4 param_2,undefined4 *param_3,undefined4 *param_4)

@@ -1,5 +1,5 @@
 // 1002ab90 __freeptd [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __freeptd

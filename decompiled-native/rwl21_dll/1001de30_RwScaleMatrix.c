@@ -1,5 +1,5 @@
 // 1001de30 RwScaleMatrix [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwScaleMatrix(float *param_1,float param_2,float param_3,float param_4,int param_5)
 

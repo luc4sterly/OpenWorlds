@@ -1,5 +1,5 @@
 // 10031180 RwGetDebugSeverity [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetDebugSeverity(void)
 

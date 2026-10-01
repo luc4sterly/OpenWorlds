@@ -1,5 +1,5 @@
 // 1006174b __ctrandisp1 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __ctrandisp1

@@ -1,5 +1,5 @@
 // 004557f6 RwGetClumpData [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetClumpData(void)
 

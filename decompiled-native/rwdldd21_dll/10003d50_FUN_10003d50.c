@@ -1,5 +1,5 @@
 // 10003d50 FUN_10003d50 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 void FUN_10003d50(int *param_1,int param_2)
 

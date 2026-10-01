@@ -1,5 +1,5 @@
 // 0044a450 FUN_0044a450 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 __thiscall
 FUN_0044a450(int param_1,uint param_2,uint param_3,undefined4 param_4,undefined4 param_5)

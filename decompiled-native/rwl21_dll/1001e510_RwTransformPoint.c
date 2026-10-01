@@ -1,5 +1,5 @@
 // 1001e510 RwTransformPoint [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwTransformPoint(float *param_1,float *param_2)
 

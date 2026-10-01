@@ -1,5 +1,5 @@
 // 0040adb7 FUN_0040adb7 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall
 FUN_0040adb7(undefined4 param_1,float *param_2,float param_3,float *param_4,int param_5)

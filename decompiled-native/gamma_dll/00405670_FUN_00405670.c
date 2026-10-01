@@ -1,5 +1,5 @@
 // 00405670 FUN_00405670 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 __cdecl FUN_00405670(HWND param_1)
 

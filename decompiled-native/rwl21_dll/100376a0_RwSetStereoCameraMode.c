@@ -1,5 +1,5 @@
 // 100376a0 RwSetStereoCameraMode [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetStereoCameraMode(int param_1,int param_2)
 

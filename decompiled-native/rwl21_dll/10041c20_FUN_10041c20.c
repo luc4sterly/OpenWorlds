@@ -1,5 +1,5 @@
 // 10041c20 FUN_10041c20 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void FUN_10041c20(void)
 

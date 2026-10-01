@@ -1,5 +1,5 @@
 // 1002f7b0 __set_errno [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __set_errno

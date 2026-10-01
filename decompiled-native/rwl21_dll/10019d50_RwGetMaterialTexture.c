@@ -1,5 +1,5 @@
 // 10019d50 RwGetMaterialTexture [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetMaterialTexture(int param_1)
 

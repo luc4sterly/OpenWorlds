@@ -1,5 +1,5 @@
 // 00455a54 RwReadStreamChunk [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwReadStreamChunk(void)
 

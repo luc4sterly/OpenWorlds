@@ -1,5 +1,5 @@
 // 00433fc8 GetStdHandle [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 HANDLE GetStdHandle(DWORD nStdHandle)
 

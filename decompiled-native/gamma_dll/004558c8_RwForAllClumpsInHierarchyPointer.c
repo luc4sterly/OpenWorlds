@@ -1,5 +1,5 @@
 // 004558c8 RwForAllClumpsInHierarchyPointer [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwForAllClumpsInHierarchyPointer(void)
 

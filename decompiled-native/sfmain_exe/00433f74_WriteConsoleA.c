@@ -1,5 +1,5 @@
 // 00433f74 WriteConsoleA [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 BOOL WriteConsoleA(HANDLE hConsoleOutput,void *lpBuffer,DWORD nNumberOfCharsToWrite,
                   LPDWORD lpNumberOfCharsWritten,LPVOID lpReserved)

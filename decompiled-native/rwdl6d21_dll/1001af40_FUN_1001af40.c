@@ -1,5 +1,5 @@
 // 1001af40 FUN_1001af40 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 undefined4 FUN_1001af40(int *param_1,int param_2)
 

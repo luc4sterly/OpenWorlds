@@ -1,5 +1,5 @@
 // 100029d0 RwSetupImmediateLine [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwSetupImmediateLine(undefined4 *param_1)
 

@@ -1,5 +1,5 @@
 // 1005bcf0 __fltout2 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __fltout2

@@ -1,5 +1,5 @@
 // 0043fb20 _Java_NET_worlds_scape_TextureSurface_nativeMakeDC@20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 HDC _Java_NET_worlds_scape_TextureSurface_nativeMakeDC_20
               (int *param_1,undefined4 param_2,HWND param_3,LONG param_4,LONG param_5)

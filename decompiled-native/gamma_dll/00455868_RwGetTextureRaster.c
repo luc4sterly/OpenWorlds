@@ -1,5 +1,5 @@
 // 00455868 RwGetTextureRaster [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwGetTextureRaster(void)
 

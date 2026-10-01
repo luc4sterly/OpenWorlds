@@ -1,5 +1,5 @@
 // 1005afb0 ___crtGetEnvironmentStringsA [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     ___crtGetEnvironmentStringsA

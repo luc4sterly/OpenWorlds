@@ -1,5 +1,5 @@
 // 10007a80 FUN_10007a80 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 undefined4 * FUN_10007a80(int *param_1,undefined4 *param_2,uint param_3)
 

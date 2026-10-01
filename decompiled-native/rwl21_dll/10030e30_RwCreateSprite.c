@@ -1,5 +1,5 @@
 // 10030e30 RwCreateSprite [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwCreateSprite(uint param_1)
 

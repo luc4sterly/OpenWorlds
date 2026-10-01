@@ -1,5 +1,5 @@
 // 004055e0 _Java_NET_worlds_console_RightMenu_create@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_RightMenu_create_8(void)
 

@@ -1,5 +1,5 @@
 // 100059b0 RwClumpDistance [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 float10 RwClumpDistance(int param_1,float *param_2)
 

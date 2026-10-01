@@ -1,5 +1,5 @@
 // 0045591c RwSetCameraBackColor [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetCameraBackColor(void)
 

@@ -1,5 +1,5 @@
 // 0042bb35 FUN_0042bb35 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 uint FUN_0042bb35(void)
 

@@ -1,5 +1,5 @@
 // 0045179e DdeFreeStringHandle [USER32.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 BOOL DdeFreeStringHandle(DWORD idInst,HSZ hsz)
 

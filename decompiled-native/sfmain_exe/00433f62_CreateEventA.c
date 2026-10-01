@@ -1,5 +1,5 @@
 // 00433f62 CreateEventA [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 HANDLE CreateEventA(LPSECURITY_ATTRIBUTES lpEventAttributes,BOOL bManualReset,BOOL bInitialState,
                    LPCSTR lpName)

@@ -1,5 +1,5 @@
 // 004260c0 _Java_NET_worlds_scape_Transform_spin@24 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_scape_Transform_spin_24

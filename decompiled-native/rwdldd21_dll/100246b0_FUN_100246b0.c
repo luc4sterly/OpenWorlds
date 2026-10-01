@@ -1,5 +1,5 @@
 // 100246b0 FUN_100246b0 [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 void FUN_100246b0(void)
 

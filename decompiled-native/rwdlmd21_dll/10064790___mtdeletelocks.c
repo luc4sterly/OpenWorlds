@@ -1,5 +1,5 @@
 // 10064790 __mtdeletelocks [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __mtdeletelocks

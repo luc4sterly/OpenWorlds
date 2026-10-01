@@ -1,5 +1,5 @@
 // 100642a0 ___sbh_alloc_block [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     ___sbh_alloc_block

@@ -1,5 +1,5 @@
 // 10019210 _RwGetTextureOwnPalette@0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 char _RwGetTextureOwnPalette_0(void)
 

@@ -1,5 +1,5 @@
 // 00407272 WriteConsoleA [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 BOOL WriteConsoleA(HANDLE hConsoleOutput,void *lpBuffer,DWORD nNumberOfCharsToWrite,
                   LPDWORD lpNumberOfCharsWritten,LPVOID lpReserved)

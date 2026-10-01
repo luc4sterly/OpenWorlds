@@ -1,5 +1,5 @@
 // 00425f60 _Java_NET_worlds_scape_Transform_postscaleHelper@20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_scape_Transform_postscaleHelper_20

@@ -1,5 +1,5 @@
 // 10078140 FUN_10078140 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void __fastcall FUN_10078140(int param_1)
 

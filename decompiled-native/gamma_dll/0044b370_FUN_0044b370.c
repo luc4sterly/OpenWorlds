@@ -1,5 +1,5 @@
 // 0044b370 FUN_0044b370 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined8
 FUN_0044b370(uint param_1,uint param_2,uint param_3,uint param_4,uint param_5,uint param_6,

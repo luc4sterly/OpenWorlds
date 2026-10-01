@@ -1,5 +1,5 @@
 // 004134f0 Java_NET_worlds_scape_WObject_getClumpBBox__LNET_worlds_scape_Point3Temp_2LNET_worlds_scape_Point3Temp_2 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* void __stdcall
    Java_NET_worlds_scape_WObject_getClumpBBox__LNET_worlds_scape_Point3Temp_2LNET_worlds_scape_Point3Temp_2(struct

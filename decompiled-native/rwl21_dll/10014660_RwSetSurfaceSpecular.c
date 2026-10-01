@@ -1,5 +1,5 @@
 // 10014660 RwSetSurfaceSpecular [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwSetSurfaceSpecular(uint param_1)
 

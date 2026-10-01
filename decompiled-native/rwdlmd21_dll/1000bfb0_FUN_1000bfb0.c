@@ -1,5 +1,5 @@
 // 1000bfb0 FUN_1000bfb0 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 undefined4 FUN_1000bfb0(void)
 

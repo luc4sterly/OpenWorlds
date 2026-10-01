@@ -1,5 +1,5 @@
 // 0040ae60 _Java_NET_worlds_console_IClassFactory_nDeactivate@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_IClassFactory_nDeactivate_16
                (int *param_1,undefined4 param_2,DWORD param_3)

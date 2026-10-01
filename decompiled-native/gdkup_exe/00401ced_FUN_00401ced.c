@@ -1,5 +1,5 @@
 // 00401ced FUN_00401ced [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 void FUN_00401ced(void)
 

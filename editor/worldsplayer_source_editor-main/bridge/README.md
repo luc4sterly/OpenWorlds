@@ -175,7 +175,7 @@ measured: in GroundZero **all** the visible materials come out as
 
 ### Added on 2026-09-26 (travel between worlds and game tests)
 
-Full report in `docs/pruebas-juego.md`.
+Full report in `docs/game-tests.md`.
 
 - **Installing worlds and updates.** The client requests `gdkup.exe
   updates.lst <pid>` (`NetUpdate.runUpdates` → `CreateProcSpecial`,

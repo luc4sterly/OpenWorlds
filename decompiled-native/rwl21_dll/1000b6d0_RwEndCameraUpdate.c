@@ -1,5 +1,5 @@
 // 1000b6d0 RwEndCameraUpdate [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwEndCameraUpdate(int param_1)
 

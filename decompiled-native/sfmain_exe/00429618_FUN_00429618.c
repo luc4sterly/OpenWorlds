@@ -1,5 +1,5 @@
 // 00429618 FUN_00429618 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 /* WARNING: Restarted to delay deadcode elimination for space: stack */
 

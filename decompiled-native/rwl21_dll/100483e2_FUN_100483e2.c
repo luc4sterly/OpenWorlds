@@ -1,5 +1,5 @@
 // 100483e2 FUN_100483e2 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Removing unreachable block (ram,0x10048401) */
 

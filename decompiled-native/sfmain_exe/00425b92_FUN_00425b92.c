@@ -1,5 +1,5 @@
 // 00425b92 FUN_00425b92 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 uint __fastcall FUN_00425b92(int param_1,undefined4 param_2)
 

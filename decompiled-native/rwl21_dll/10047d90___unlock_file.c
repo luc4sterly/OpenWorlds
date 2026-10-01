@@ -1,5 +1,5 @@
 // 10047d90 __unlock_file [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __unlock_file

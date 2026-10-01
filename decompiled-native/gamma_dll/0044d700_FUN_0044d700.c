@@ -1,5 +1,5 @@
 // 0044d700 FUN_0044d700 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 char * __cdecl FUN_0044d700(char *param_1,char *param_2)
 

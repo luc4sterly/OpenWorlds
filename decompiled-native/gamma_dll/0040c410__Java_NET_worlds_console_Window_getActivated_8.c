@@ -1,5 +1,5 @@
 // 0040c410 _Java_NET_worlds_console_Window_getActivated@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined1 _Java_NET_worlds_console_Window_getActivated_8(void)
 

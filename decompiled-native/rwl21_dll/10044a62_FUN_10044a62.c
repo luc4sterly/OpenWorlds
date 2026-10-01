@@ -1,5 +1,5 @@
 // 10044a62 FUN_10044a62 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void __fastcall FUN_10044a62(undefined4 param_1)
 

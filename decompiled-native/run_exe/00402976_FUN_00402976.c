@@ -1,5 +1,5 @@
 // 00402976 FUN_00402976 [Global]
-// programa: run.exe
+// program: run.exe
 
 LONG __cdecl FUN_00402976(int param_1,_EXCEPTION_POINTERS *param_2)
 

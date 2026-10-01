@@ -1,5 +1,5 @@
 // 0040d480 thunk_FUN_0040d492 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING (jumptable): Unable to track spacebase fully for stack */
 

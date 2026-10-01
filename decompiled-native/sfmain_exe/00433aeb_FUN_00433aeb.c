@@ -1,5 +1,5 @@
 // 00433aeb FUN_00433aeb [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 /* WARNING: Control flow encountered bad instruction data */
 /* WARNING: Instruction at (ram,0x00433b34) overlaps instruction at (ram,0x00433b33)

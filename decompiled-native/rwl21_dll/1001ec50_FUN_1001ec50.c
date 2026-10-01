@@ -1,5 +1,5 @@
 // 1001ec50 FUN_1001ec50 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void FUN_1001ec50(void)
 

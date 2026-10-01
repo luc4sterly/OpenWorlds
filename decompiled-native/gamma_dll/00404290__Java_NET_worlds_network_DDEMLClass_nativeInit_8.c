@@ -1,5 +1,5 @@
 // 00404290 _Java_NET_worlds_network_DDEMLClass_nativeInit@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_network_DDEMLClass_nativeInit_8(int *param_1)
 

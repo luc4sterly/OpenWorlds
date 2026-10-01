@@ -1,5 +1,5 @@
 // 00415dc0 _Java_NET_worlds_scape_CDPlayerAction_getPosition@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int _Java_NET_worlds_scape_CDPlayerAction_getPosition_12
               (int *param_1,undefined4 param_2,MCIDEVICEID param_3)

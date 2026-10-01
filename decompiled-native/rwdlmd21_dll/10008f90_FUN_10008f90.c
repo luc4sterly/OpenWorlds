@@ -1,5 +1,5 @@
 // 10008f90 FUN_10008f90 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void FUN_10008f90(int param_1,int param_2)
 

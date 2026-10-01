@@ -1,5 +1,5 @@
 // 1000ba60 FUN_1000ba60 [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 int FUN_1000ba60(int param_1,int param_2,byte *param_3)
 

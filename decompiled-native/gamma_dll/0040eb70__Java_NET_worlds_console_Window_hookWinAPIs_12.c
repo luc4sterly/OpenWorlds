@@ -1,5 +1,5 @@
 // 0040eb70 _Java_NET_worlds_console_Window_hookWinAPIs@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_Window_hookWinAPIs_12
                (int *param_1,undefined4 param_2,undefined4 param_3)

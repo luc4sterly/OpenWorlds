@@ -1,5 +1,5 @@
 // 0040729c GetFileType [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 DWORD GetFileType(HANDLE hFile)
 

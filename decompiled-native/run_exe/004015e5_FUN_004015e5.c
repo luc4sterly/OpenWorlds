@@ -1,5 +1,5 @@
 // 004015e5 FUN_004015e5 [Global]
-// programa: run.exe
+// program: run.exe
 
 int __cdecl FUN_004015e5(PCNZWCH param_1,int param_2)
 

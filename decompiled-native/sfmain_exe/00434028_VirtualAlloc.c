@@ -1,5 +1,5 @@
 // 00434028 VirtualAlloc [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 LPVOID VirtualAlloc(LPVOID lpAddress,SIZE_T dwSize,DWORD flAllocationType,DWORD flProtect)
 

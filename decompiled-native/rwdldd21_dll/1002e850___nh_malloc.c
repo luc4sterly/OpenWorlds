@@ -1,5 +1,5 @@
 // 1002e850 __nh_malloc [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __nh_malloc

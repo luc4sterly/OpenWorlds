@@ -1,5 +1,5 @@
 // 1005a670 __heap_init [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __heap_init

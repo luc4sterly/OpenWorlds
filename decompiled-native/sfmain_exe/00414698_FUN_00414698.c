@@ -1,5 +1,5 @@
 // 00414698 FUN_00414698 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 undefined4 FUN_00414698(void)
 

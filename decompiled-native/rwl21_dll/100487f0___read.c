@@ -1,5 +1,5 @@
 // 100487f0 __read [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __read

@@ -1,5 +1,5 @@
 // 00402770 _Java_NET_worlds_core_RegKey_createKey@16 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 HKEY _Java_NET_worlds_core_RegKey_createKey_16
                (int *param_1,undefined4 param_2,HKEY param_3,undefined4 param_4)

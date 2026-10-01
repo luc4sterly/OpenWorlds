@@ -1,5 +1,5 @@
 // 10007840 RwImmediateBegin [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwImmediateBegin(int *param_1)
 

@@ -1,5 +1,5 @@
 // 10061ed0 __free_osfhnd [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __free_osfhnd

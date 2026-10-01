@@ -1,5 +1,5 @@
 // 0045593a RwCopyMatrix [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwCopyMatrix(void)
 

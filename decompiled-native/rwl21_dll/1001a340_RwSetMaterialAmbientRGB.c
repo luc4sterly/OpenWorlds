@@ -1,5 +1,5 @@
 // 1001a340 RwSetMaterialAmbientRGB [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetMaterialAmbientRGB(int param_1,uint param_2,uint param_3,uint param_4)
 

@@ -1,5 +1,5 @@
 // 10009240 RwFindClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwFindClump(int param_1,undefined *param_2)
 

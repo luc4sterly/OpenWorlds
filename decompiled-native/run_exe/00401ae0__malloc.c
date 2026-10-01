@@ -1,5 +1,5 @@
 // 00401ae0 _malloc [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     _malloc

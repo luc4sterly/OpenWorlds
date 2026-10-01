@@ -1,5 +1,5 @@
 // 100451d0 __fseek_lk [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __fseek_lk

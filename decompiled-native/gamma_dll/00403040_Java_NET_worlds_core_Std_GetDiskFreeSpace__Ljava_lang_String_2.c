@@ -1,5 +1,5 @@
 // 00403040 Java_NET_worlds_core_Std_GetDiskFreeSpace__Ljava_lang_String_2 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* long __stdcall Java_NET_worlds_core_Std_GetDiskFreeSpace__Ljava_lang_String_2(struct JNIEnv_
    *,class _jclass *,class _jstring *) */

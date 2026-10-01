@@ -1,5 +1,5 @@
 // 10015300 RwRemoveMaterialModeFromSurface [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 bool RwRemoveMaterialModeFromSurface(uint param_1)
 

@@ -1,5 +1,5 @@
 // 0040727e GetConsoleMode [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 BOOL GetConsoleMode(HANDLE hConsoleHandle,LPDWORD lpMode)
 

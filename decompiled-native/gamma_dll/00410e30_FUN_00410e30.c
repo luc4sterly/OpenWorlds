@@ -1,5 +1,5 @@
 // 00410e30 FUN_00410e30 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void FUN_00410e30(undefined4 *param_1)
 

@@ -1,5 +1,5 @@
 // 0040bf70 _Java_NET_worlds_console_Cursor_getSystemCursorWidth@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_console_Cursor_getSystemCursorWidth_8(void)
 

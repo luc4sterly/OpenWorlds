@@ -1,5 +1,5 @@
 // 00451798 DdeCreateStringHandleA [USER32.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 HSZ DdeCreateStringHandleA(DWORD idInst,LPCSTR psz,int iCodePage)
 

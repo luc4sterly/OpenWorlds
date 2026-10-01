@@ -1,5 +1,5 @@
 // 004063b0 _strncpy [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     _strncpy

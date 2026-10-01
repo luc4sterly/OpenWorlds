@@ -1,5 +1,5 @@
 // 0043bc20 FUN_0043bc20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 * __cdecl FUN_0043bc20(undefined4 *param_1)
 

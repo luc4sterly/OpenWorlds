@@ -1,5 +1,5 @@
 // 10060da0 FID_conflict:__lockexit [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Multiple Matches With Different Base Names
     __lockexit

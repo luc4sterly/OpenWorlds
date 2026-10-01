@@ -1,5 +1,5 @@
 // 1000b620 FUN_1000b620 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 undefined4 FUN_1000b620(int *param_1)
 

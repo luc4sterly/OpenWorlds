@@ -1,5 +1,5 @@
 // 100180e0 RwGetPolygonUV [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 float * RwGetPolygonUV(int param_1,float *param_2)
 

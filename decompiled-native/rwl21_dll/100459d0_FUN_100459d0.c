@@ -1,5 +1,5 @@
 // 100459d0 FUN_100459d0 [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 __cdecl FUN_100459d0(LPCSTR param_1,byte param_2)
 

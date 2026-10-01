@@ -1,5 +1,5 @@
 // 0042cfa3 FUN_0042cfa3 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void __fastcall FUN_0042cfa3(undefined4 param_1,char *param_2)
 

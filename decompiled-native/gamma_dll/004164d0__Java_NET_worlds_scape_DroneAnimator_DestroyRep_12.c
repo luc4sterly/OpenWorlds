@@ -1,5 +1,5 @@
 // 004164d0 _Java_NET_worlds_scape_DroneAnimator_DestroyRep@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_DroneAnimator_DestroyRep_12
                (undefined4 param_1,undefined4 param_2,undefined4 *param_3)

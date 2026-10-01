@@ -1,5 +1,5 @@
 // 0044bad0 FUN_0044bad0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 DWORD FUN_0044bad0(HANDLE param_1,uint param_2,HWND param_3,UINT param_4,int param_5)
 

@@ -1,5 +1,5 @@
 // 00402998 FUN_00402998 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 /* WARNING: Instruction at (ram,0x00402a1e) overlaps instruction at (ram,0x00402a1c)
     */

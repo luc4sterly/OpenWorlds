@@ -1,5 +1,5 @@
 // 0040f1e0 _Java_NET_worlds_console_Window_getWindowHeight@12 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int _Java_NET_worlds_console_Window_getWindowHeight_12
               (undefined4 param_1,undefined4 param_2,HWND param_3)

@@ -1,5 +1,5 @@
 // 004507d0 FUN_004507d0 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 bool FUN_004507d0(byte param_1,ushort param_2)
 

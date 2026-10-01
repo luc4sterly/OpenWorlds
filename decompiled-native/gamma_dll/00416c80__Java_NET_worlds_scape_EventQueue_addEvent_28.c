@@ -1,5 +1,5 @@
 // 00416c80 _Java_NET_worlds_scape_EventQueue_addEvent@28 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_EventQueue_addEvent_28
                (undefined4 param_1,undefined4 param_2,uint param_3,int param_4,undefined4 param_5,

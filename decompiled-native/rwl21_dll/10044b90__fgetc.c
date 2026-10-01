@@ -1,5 +1,5 @@
 // 10044b90 _fgetc [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     _fgetc

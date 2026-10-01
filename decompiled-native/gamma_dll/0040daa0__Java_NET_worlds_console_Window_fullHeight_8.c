@@ -1,5 +1,5 @@
 // 0040daa0 _Java_NET_worlds_console_Window_fullHeight@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4 _Java_NET_worlds_console_Window_fullHeight_8(int *param_1,undefined4 param_2)
 

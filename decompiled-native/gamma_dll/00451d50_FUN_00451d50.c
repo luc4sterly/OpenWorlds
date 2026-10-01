@@ -1,5 +1,5 @@
 // 00451d50 FUN_00451d50 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined1
 FUN_00451d50(undefined4 param_1,undefined4 *param_2,int param_3,int *param_4,undefined4 *param_5,

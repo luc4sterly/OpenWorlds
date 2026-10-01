@@ -1,5 +1,5 @@
 // 0041736b FUN_0041736b [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 LRESULT __fastcall FUN_0041736b(LPARAM param_1,UINT param_2)
 

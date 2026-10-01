@@ -1,5 +1,5 @@
 // 00425ce0 _Java_NET_worlds_scape_Transform_moveTo@20 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined4
 _Java_NET_worlds_scape_Transform_moveTo_20

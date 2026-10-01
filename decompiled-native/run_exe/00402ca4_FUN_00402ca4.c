@@ -1,5 +1,5 @@
 // 00402ca4 FUN_00402ca4 [Global]
-// programa: run.exe
+// program: run.exe
 
 void __cdecl FUN_00402ca4(byte *param_1,undefined4 *param_2,byte *param_3,int *param_4,int *param_5)
 

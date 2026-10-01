@@ -1,5 +1,5 @@
 // 1000c0e0 RwCreateCamera [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwCreateCamera(undefined4 param_1,undefined4 param_2,undefined4 *param_3)
 

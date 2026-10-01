@@ -1,5 +1,5 @@
 // 10060ae2 FUN_10060ae2 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void __fastcall FUN_10060ae2(undefined4 param_1)
 

@@ -1,5 +1,5 @@
 // 10006c70 FUN_10006c70 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 void FUN_10006c70(byte *param_1,undefined1 *param_2)
 

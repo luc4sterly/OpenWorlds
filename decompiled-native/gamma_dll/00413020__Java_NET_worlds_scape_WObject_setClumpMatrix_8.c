@@ -1,5 +1,5 @@
 // 00413020 _Java_NET_worlds_scape_WObject_setClumpMatrix@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void _Java_NET_worlds_scape_WObject_setClumpMatrix_8(int *param_1,undefined4 param_2)
 

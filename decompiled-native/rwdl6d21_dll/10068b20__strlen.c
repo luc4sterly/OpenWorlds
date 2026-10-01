@@ -1,5 +1,5 @@
 // 10068b20 _strlen [Global]
-// programa: RWDL6D21.DLL
+// program: RWDL6D21.DLL
 
 /* Library Function - Single Match
     _strlen

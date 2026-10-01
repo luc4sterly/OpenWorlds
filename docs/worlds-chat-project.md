@@ -3447,7 +3447,7 @@ integrated in `df4d7517`/`1c02e60e`/`199461e9`). Three results:
    solve.**
 
 For login with a real account only the account is missing: exact requirements in
-`docs/net-real-account-login-requisitos.md`.
+`docs/net-real-account-login.md`.
 
 Additionally, in the same session **881 functions** of
 `gamma.dll` that the original dump did not have were recovered (only reachable via vtable;
@@ -3990,7 +3990,7 @@ with the camera at (230,180,170); terminal menu with 5 options,
 User request: "with Ghidra finish decompiling the game from end to
 end. And test going to other worlds, that hasn't been tested; test
 all the things that can be done in the game". Full report:
-`docs/pruebas-juego.md`.
+`docs/game-tests.md`.
 
 **Ghidra.** Six of the game's own binaries were missing. Ghidra 12.1.3 was downloaded
 from SourceForge's mirror (the cloud proxy blocks GitHub), with the SHA-256

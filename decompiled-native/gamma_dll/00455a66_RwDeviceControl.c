@@ -1,5 +1,5 @@
 // 00455a66 RwDeviceControl [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwDeviceControl(void)
 

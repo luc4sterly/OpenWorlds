@@ -1,5 +1,5 @@
 // 00434004 GetCurrentProcessId [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 DWORD GetCurrentProcessId(void)
 

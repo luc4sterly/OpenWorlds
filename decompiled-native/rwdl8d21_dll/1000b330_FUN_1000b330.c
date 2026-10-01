@@ -1,5 +1,5 @@
 // 1000b330 FUN_1000b330 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* WARNING: Removing unreachable block (ram,0x1000b341) */
 /* WARNING: Removing unreachable block (ram,0x1000b3d1) */

@@ -1,5 +1,5 @@
 // 1002ddd0 __mtdeletelocks [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Single Match
     __mtdeletelocks

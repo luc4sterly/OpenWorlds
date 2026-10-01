@@ -1,5 +1,5 @@
 // 10032840 FID_conflict:__mbscpy [Global]
-// programa: RWDLDD21.DLL
+// program: RWDLDD21.DLL
 
 /* Library Function - Multiple Matches With Different Base Names
     __mbscpy

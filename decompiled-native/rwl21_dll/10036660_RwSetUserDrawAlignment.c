@@ -1,5 +1,5 @@
 // 10036660 RwSetUserDrawAlignment [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwSetUserDrawAlignment(int param_1,uint param_2)
 

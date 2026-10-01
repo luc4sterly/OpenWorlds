@@ -1,5 +1,5 @@
 // 1000cbf0 RwGetInternalError [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetInternalError(void)
 

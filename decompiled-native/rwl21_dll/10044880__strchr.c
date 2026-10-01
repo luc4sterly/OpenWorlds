@@ -1,5 +1,5 @@
 // 10044880 _strchr [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     _strchr

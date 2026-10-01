@@ -1,5 +1,5 @@
 // 0041a110 FUN_0041a110 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined8 __fastcall FUN_0041a110(undefined4 param_1,undefined4 param_2,undefined4 param_3)
 

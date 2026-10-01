@@ -1,5 +1,5 @@
 // 004020a9 FUN_004020a9 [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 undefined4 FUN_004020a9(HINSTANCE param_1,undefined4 param_2,char *param_3)
 

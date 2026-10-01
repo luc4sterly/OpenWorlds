@@ -1,5 +1,5 @@
 // 0043408e Ordinal_115 [WSOCK32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void Ordinal_115(void)
 

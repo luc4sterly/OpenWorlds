@@ -1,5 +1,5 @@
 // 10041af0 RwFclose [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwFclose(FILE *param_1)
 

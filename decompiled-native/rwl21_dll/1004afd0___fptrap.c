@@ -1,5 +1,5 @@
 // 1004afd0 __fptrap [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     __fptrap

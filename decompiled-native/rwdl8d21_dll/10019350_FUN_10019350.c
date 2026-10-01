@@ -1,5 +1,5 @@
 // 10019350 FUN_10019350 [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 void FUN_10019350(uint *param_1)
 

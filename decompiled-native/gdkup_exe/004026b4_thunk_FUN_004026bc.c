@@ -1,5 +1,5 @@
 // 004026b4 thunk_FUN_004026bc [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 void thunk_FUN_004026bc(void)
 

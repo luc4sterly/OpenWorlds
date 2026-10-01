@@ -1,5 +1,5 @@
 // 10042ad0 RwSubtractVector [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwSubtractVector(float *param_1,float *param_2,float *param_3)
 

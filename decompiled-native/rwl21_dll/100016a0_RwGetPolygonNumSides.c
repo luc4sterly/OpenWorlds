@@ -1,5 +1,5 @@
 // 100016a0 RwGetPolygonNumSides [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined1 RwGetPolygonNumSides(int param_1)
 

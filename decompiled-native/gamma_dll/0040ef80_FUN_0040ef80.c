@@ -1,5 +1,5 @@
 // 0040ef80 FUN_0040ef80 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 void __cdecl FUN_0040ef80(int param_1,int param_2)
 

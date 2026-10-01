@@ -1,5 +1,5 @@
 // 004033de FUN_004033de [Global]
-// programa: run.exe
+// program: run.exe
 
 void FUN_004033de(void)
 

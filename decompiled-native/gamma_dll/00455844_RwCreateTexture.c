@@ -1,5 +1,5 @@
 // 00455844 RwCreateTexture [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwCreateTexture(void)
 

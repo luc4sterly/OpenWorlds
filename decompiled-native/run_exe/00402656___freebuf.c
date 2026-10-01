@@ -1,5 +1,5 @@
 // 00402656 __freebuf [Global]
-// programa: run.exe
+// program: run.exe
 
 /* Library Function - Single Match
     __freebuf

@@ -1,5 +1,5 @@
 // 0044e130 FUN_0044e130 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 undefined * FUN_0044e130(void)
 

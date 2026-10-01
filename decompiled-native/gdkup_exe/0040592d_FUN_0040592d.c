@@ -1,5 +1,5 @@
 // 0040592d FUN_0040592d [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 DWORD __fastcall FUN_0040592d(undefined4 param_1,LPCVOID param_2)
 

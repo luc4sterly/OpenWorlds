@@ -1,5 +1,5 @@
 // 10062920 __hw_cw [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 /* Library Function - Single Match
     __hw_cw

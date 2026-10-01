@@ -1,5 +1,5 @@
 // 1000c750 FUN_1000c750 [Global]
-// programa: rwdlmd21.dll
+// program: rwdlmd21.dll
 
 void FUN_1000c750(uint *param_1,uint param_2,byte *param_3,uint *param_4)
 

@@ -1,5 +1,5 @@
 // 00405068 FUN_00405068 [Global]
-// programa: run.exe
+// program: run.exe
 
 byte __cdecl FUN_00405068(uint param_1)
 

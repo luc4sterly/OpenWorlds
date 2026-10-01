@@ -1,5 +1,5 @@
 // 00407350 GetCommandLineA [KERNEL32.DLL]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 LPSTR GetCommandLineA(void)
 

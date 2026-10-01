@@ -1,5 +1,5 @@
 // 10016ee0 RwCubicTexturizeClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 int RwCubicTexturizeClump(int param_1)
 

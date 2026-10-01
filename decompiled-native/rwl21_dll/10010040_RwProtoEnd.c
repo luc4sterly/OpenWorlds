@@ -1,5 +1,5 @@
 // 10010040 RwProtoEnd [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwProtoEnd(void)
 

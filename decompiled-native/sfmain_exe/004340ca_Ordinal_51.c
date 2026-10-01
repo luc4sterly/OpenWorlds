@@ -1,5 +1,5 @@
 // 004340ca Ordinal_51 [WSOCK32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 void Ordinal_51(void)
 

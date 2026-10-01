@@ -1,5 +1,5 @@
 // 00436d50 FUN_00436d50 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Type propagation algorithm not settling */
 

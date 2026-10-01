@@ -1,5 +1,5 @@
 // 0042dc97 FUN_0042dc97 [Global]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 unkbyte10 FUN_0042dc97(void)
 

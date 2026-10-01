@@ -1,5 +1,5 @@
 // 100050f0 RwGetClumpLightSampleRate [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 

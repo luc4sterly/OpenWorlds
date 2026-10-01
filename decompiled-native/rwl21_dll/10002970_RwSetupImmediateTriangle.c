@@ -1,5 +1,5 @@
 // 10002970 RwSetupImmediateTriangle [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 void RwSetupImmediateTriangle(undefined4 *param_1)
 

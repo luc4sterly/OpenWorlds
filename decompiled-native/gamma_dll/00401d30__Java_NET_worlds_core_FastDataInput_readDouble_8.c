@@ -1,5 +1,5 @@
 // 00401d30 _Java_NET_worlds_core_FastDataInput_readDouble@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 float10 _Java_NET_worlds_core_FastDataInput_readDouble_8(int *param_1,undefined4 param_2)
 

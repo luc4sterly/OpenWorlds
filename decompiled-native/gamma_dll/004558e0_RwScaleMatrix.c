@@ -1,5 +1,5 @@
 // 004558e0 RwScaleMatrix [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwScaleMatrix(void)
 

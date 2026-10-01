@@ -1,5 +1,5 @@
 // 10020d80 RwDuplicateRaster [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwDuplicateRaster(int param_1)
 

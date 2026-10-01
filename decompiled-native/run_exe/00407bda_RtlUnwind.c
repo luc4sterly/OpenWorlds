@@ -1,5 +1,5 @@
 // 00407bda RtlUnwind [KERNEL32.DLL]
-// programa: run.exe
+// program: run.exe
 
 void RtlUnwind(PVOID TargetFrame,PVOID TargetIp,PEXCEPTION_RECORD ExceptionRecord,PVOID ReturnValue)
 

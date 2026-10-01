@@ -1,5 +1,5 @@
 // 00433f8c GetFileType [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 DWORD GetFileType(HANDLE hFile)
 

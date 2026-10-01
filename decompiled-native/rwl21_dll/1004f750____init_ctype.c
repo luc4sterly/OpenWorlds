@@ -1,5 +1,5 @@
 // 1004f750 ___init_ctype [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 /* Library Function - Single Match
     ___init_ctype

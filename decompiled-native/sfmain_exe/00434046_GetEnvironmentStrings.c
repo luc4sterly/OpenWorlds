@@ -1,5 +1,5 @@
 // 00434046 GetEnvironmentStrings [KERNEL32.DLL]
-// programa: sfmain.exe
+// program: sfmain.exe
 
 LPCH GetEnvironmentStrings(void)
 

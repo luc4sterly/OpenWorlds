@@ -1,5 +1,5 @@
 // 004129b0 Java_NET_worlds_scape_Room_setLightPosition__IFFF [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* void __stdcall Java_NET_worlds_scape_Room_setLightPosition__IFFF(struct JNIEnv_ *,class _jclass
    *,long,float,float,float) */

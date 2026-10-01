@@ -1,5 +1,5 @@
 // 1005fe80 __get_lc_time [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Single Match
     __get_lc_time

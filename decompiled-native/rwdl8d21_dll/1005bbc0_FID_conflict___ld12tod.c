@@ -1,5 +1,5 @@
 // 1005bbc0 FID_conflict:__ld12tod [Global]
-// programa: RWDL8D21.DLL
+// program: RWDL8D21.DLL
 
 /* Library Function - Multiple Matches With Different Base Names
     __ld12tod

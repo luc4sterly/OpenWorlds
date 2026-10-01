@@ -1,5 +1,5 @@
 // 00455aa2 RwSetClumpVertex [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwSetClumpVertex(void)
 

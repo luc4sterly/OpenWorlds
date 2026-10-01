@@ -1,5 +1,5 @@
 // 1000bca0 RwGetCameraPosition [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 RwGetCameraPosition(int param_1,undefined4 *param_2)
 

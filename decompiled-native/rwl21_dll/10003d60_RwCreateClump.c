@@ -1,5 +1,5 @@
 // 10003d60 RwCreateClump [Global]
-// programa: RWL21.DLL
+// program: RWL21.DLL
 
 undefined4 * RwCreateClump(int param_1,int param_2)
 

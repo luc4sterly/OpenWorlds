@@ -1,5 +1,5 @@
 // 0040140e FUN_0040140e [Global]
-// programa: gdkup.exe
+// program: gdkup.exe
 
 undefined4 FUN_0040140e(void)
 

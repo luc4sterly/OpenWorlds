@@ -1,5 +1,5 @@
 // 0040e680 _Java_NET_worlds_console_Window_getHiddenCursorDelta@8 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 int _Java_NET_worlds_console_Window_getHiddenCursorDelta_8(int *param_1)
 

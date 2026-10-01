@@ -1,5 +1,5 @@
 // 00455916 RwAddPolygonToClump [RWL21.DLL]
-// programa: gamma.dll
+// program: gamma.dll
 
 void RwAddPolygonToClump(void)
 

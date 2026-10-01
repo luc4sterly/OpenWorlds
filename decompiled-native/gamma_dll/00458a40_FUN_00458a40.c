@@ -1,5 +1,5 @@
 // 00458a40 FUN_00458a40 [Global]
-// programa: gamma.dll
+// program: gamma.dll
 
 /* WARNING: Restarted to delay deadcode elimination for space: ram */
 
