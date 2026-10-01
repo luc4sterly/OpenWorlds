@@ -136,7 +136,8 @@ on Linux (Xvfb, `xdotool`, mirror enabled):
    showed it; since Java 6 it throws "origin not in parent's hierarchy" (JDK
    bug 6278745). `AwtCompat.showPopup` opens it from its parent at the same
    point (`PopupShowCheck`). ⚠️ It remains to be seen whether the picking step hits
-   the hologram avatars (`HoloDrone`, nearly all of them): an agent is looking into it.
+   the hologram avatars (`HoloDrone`, nearly all of them): left for the client
+   polish session (now testable with two players on J Solar Server).
 10. **Releasing a world server** (`WorldServer.cleanup`) was cut short by
     `Thread.stop()`, which since Java 20 only throws: the socket was not closed
     and the unhooking did not finish. `JavaCompat.stopThread` (`JavaCompatCheck`).

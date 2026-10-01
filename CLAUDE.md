@@ -230,7 +230,10 @@ In order of what they unblock (detail in `docs/roadmap.md`):
    no longer ignored; `build-dist.sh` warns when it is missing.
 1. **See avatars animate in the original**: J Solar Server now shows other
    players (`docs/renders/solar-two-clients.png`); check a drone's
-   walk/wait cycle frame by frame against the translated rule.
+   walk/wait cycle frame by frame against the translated rule. Same setup
+   for the other open client item: whether clicking a hologram avatar
+   (`HoloDrone`, nearly all of them) hits it and opens its menu
+   (`docs/game-tests.md`, fixed bug 9).
 2. **Login with a real account** on the primary server
    (`worlds.worlio.com/register` needs a human to register):
    `docs/net-real-account-login.md`.
