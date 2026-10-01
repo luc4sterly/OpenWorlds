@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -23,7 +24,9 @@ import java.util.Map;
  * password, room numbers, subscribing and teleporting in, seeing the other
  * player (REGOBJID + APPRACTR / TELEPORT, their avatar by PROPUPD), movement,
  * chat, whispers, friends coming and going, shared room state, guests, a ban,
- * and the same sign-in over TLS with the certificate pinned by fingerprint.
+ * the same sign-in over TLS with the certificate pinned by fingerprint, and
+ * the limits for a server open to the Internet (connections per address,
+ * packet floods, table sizes, new accounts and wrong passwords per address).
  */
 public final class SolarProtocolCheck {
    private static int failures;
@@ -202,6 +205,89 @@ public final class SolarProtocolCheck {
       }
       check(listed, "the admin side lists Bob as encrypted");
       secure.close();
+
+      limits(server, port);
+   }
+
+   /** The limits; last, because the wrong-password one leaves this address waiting. */
+   private static void limits(SolarServer server, int port) throws Exception {
+      System.out.println("Limits:");
+      String here = "127.0.0.1";
+      List<Socket> held = new ArrayList<>();
+      try {
+         long end = System.currentTimeMillis() + 5000;
+         while (server.connectionsFrom(here) < SolarServer.MAX_PER_ADDRESS && System.currentTimeMillis() < end) {
+            held.add(new Socket(here, port));
+            Thread.sleep(20);
+         }
+         Fake extra = new Fake(new Socket(here, port));
+         check(server.connectionsFrom(here) == SolarServer.MAX_PER_ADDRESS && extra.closedSoon(),
+            "one address gets " + SolarServer.MAX_PER_ADDRESS + " connections; the next one is closed at once");
+         extra.close();
+      } finally {
+         for (Socket s : held) {
+            s.close();
+         }
+      }
+      long end = System.currentTimeMillis() + 3000;
+      while (server.connectionsFrom(here) > 0 && System.currentTimeMillis() < end) {
+         Thread.sleep(20);
+      }
+
+      Fake bob = new Fake(new Socket(here, port));
+      bob.handshakeProps();
+      check("0".equals(Props.readOld(bob.signIn("Bob", "hunter22")).get(Props.ERROR)), "and a connection is welcome again once they close");
+      server.maxBuddies = 3;
+      for (String f : new String[]{"Friend1", "Friend2", "Friend3", "Friend4"}) {
+         bob.send(new Packet.Out().utf(f).u8(1).packet(Packet.CLIENT, Packet.BUDDYLISTUPDATE));
+      }
+      bob.roomId("GroundZero#AvatarEnter"); // a round trip: the friends are handled by now
+      check(server.accounts.get("Bob").buddies.size() == 3, "a friends list stops at its limit (3 here)");
+      server.maxBuddies = 200;
+
+      int before = server.roomCount();
+      server.maxRooms = before + 1;
+      check(bob.roomId("Limits#OneMore") > 0 && bob.roomId("Limits#TooMany") < 0,
+         "room numbers stop at the table's limit (the request goes unanswered)");
+      server.maxRooms = 20_000;
+
+      for (int i = 0; i < Client.MAX_PACKETS_PER_2S + 20; i++) {
+         bob.send(new Packet.Out().s16(10).s16(20).s16(0).s16(i % 360).packet(Packet.CLIENT, Packet.LONGLOC));
+      }
+      check(bob.closedSoon(), "a connection sending more than " + Client.MAX_PACKETS_PER_2S + " packets in 2 s is dropped");
+
+      int made = server.recentNewAccounts(here);
+      boolean allMade = true;
+      for (int i = made; i < SolarServer.MAX_NEW_ACCOUNTS; i++) {
+         Fake f = new Fake(new Socket(here, port));
+         f.handshakeProps();
+         allMade &= "0".equals(Props.readOld(f.signIn("Newcomer" + i, "secret1")).get(Props.ERROR));
+         f.close();
+      }
+      Fake one = new Fake(new Socket(here, port));
+      one.handshakeProps();
+      Packet tooMany = one.signIn("Newcomer99", "secret1");
+      check(allMade && tooMany != null && "14".equals(Props.readOld(tooMany).get(Props.ERROR))
+            && server.accounts.get("Newcomer99") == null,
+         SolarServer.MAX_NEW_ACCOUNTS + " new accounts an hour from one address; the next is refused (VAR_ERROR 14)");
+      one.close();
+
+      int failed = server.recentFailures(here);
+      boolean allWrong = true;
+      for (int i = failed; i < SolarServer.MAX_FAILED_SIGN_INS; i++) {
+         Fake f = new Fake(new Socket(here, port));
+         f.handshakeProps();
+         allWrong &= "13".equals(Props.readOld(f.signIn("Bob", "guess" + i)).get(Props.ERROR));
+         f.close();
+      }
+      Fake right = new Fake(new Socket(here, port));
+      right.handshakeProps();
+      long t0 = System.currentTimeMillis();
+      Packet waits = right.signIn("Bob", "hunter22");
+      long took = System.currentTimeMillis() - t0;
+      check(allWrong && waits != null && "13".equals(Props.readOld(waits).get(Props.ERROR)),
+         "after " + SolarServer.MAX_FAILED_SIGN_INS + " wrong passwords, even the right one waits (" + took + " ms, no password work)");
+      right.close();
    }
 
    private static byte[] propSet(int objId, Props.Prop p) {

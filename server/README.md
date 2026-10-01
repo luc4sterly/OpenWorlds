@@ -45,6 +45,25 @@ build/dist/JSolarServer/JSolarServer.sh --headless    # a console instead (type 
 | `--add-user NAME PASSWORD [--vip] [--admin]` | create an account and exit |
 | `--fingerprint` | print the certificate's SHA-256 fingerprint (what players compare) and exit |
 
+## Limits
+
+For a server anyone on the Internet can reach (`SolarServer`, `Client`):
+
+| Limit | Value |
+|---|---|
+| Connections from one address / in all | 16 / 1000 (more are closed at once) |
+| Wrong passwords from one address | 5 in 10 minutes, then its sign-ins are refused without any password work |
+| New accounts from one address | 5 an hour |
+| Packets from one connection | 400 in 2 seconds, then it is dropped (the client sends a few a second) |
+| Chat lines | 12 in 5 seconds |
+| Rooms and shared objects with state | 20000 each (no world comes near) |
+| Friends per player | 200 |
+| Silence | 30 minutes before signing in, 10 minutes while playing |
+
+Passwords are PBKDF2-SHA256 (120000 iterations, a salt each), computed
+outside the server's lock; control characters never reach the log.
+`SolarProtocolCheck` tests each limit.
+
 The data folder holds `server.properties` (`server.name`, `welcome`,
 `port`, `plain.enabled`, `tls.enabled`, `tls.port`, `signup.open`,
 `guests.allowed`, `max.users`, `autostart`...), `accounts.tsv`, the

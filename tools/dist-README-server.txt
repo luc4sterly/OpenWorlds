@@ -52,6 +52,15 @@ certificate's fingerprint so they can compare it with the one in your
 Settings, and from then on it only trusts that one. Names, passwords and chat
 travel encrypted.
 
+Safe on the Internet
+--------------------
+J Solar Server keeps itself healthy when anyone can reach it: one address
+can have 16 connections open at once; after 5 wrong passwords from an
+address in 10 minutes, sign-ins from it wait; an address can make 5 new
+accounts an hour; a connection that floods the server with packets is
+dropped. Passwords are stored hashed, never as they are typed. With
+"Encrypted connections" on, names, passwords and chat travel encrypted.
+
 Admins in the game
 ------------------
 Accounts marked admin can type in the game's chat: /say TEXT (to everyone),

@@ -28,6 +28,12 @@ final class Client {
    private static final int MAX_QUEUE = 4000;
    private static final int IDLE_LOGIN_MS = 30 * 60_000;
    private static final int IDLE_PLAYING_MS = 10 * 60_000;
+   /**
+    * Packets a connection may send in 2 seconds before it is dropped: many
+    * times what the client sends (a room's worth of requests when a world
+    * loads, then a few position reports a second).
+    */
+   static final int MAX_PACKETS_PER_2S = 400;
 
    final SolarServer server;
    final Socket socket;
@@ -66,6 +72,8 @@ final class Client {
    final Set<String> guestBuddies = new LinkedHashSet<>();
    private long floodWindow;
    private int floodCount;
+   private long rateWindow;
+   private int rateCount;
 
    Client(SolarServer server, Socket socket, boolean secure) {
       this.server = server;
@@ -105,6 +113,14 @@ final class Client {
                break;
             }
             lastHeard = System.currentTimeMillis();
+            if (lastHeard - rateWindow > 2000) {
+               rateWindow = lastHeard;
+               rateCount = 0;
+            }
+            if (++rateCount > MAX_PACKETS_PER_2S) {
+               closeReason = "sent more than " + MAX_PACKETS_PER_2S + " packets in 2 seconds";
+               break;
+            }
             server.handle(this, p);
          }
       } catch (IOException e) {

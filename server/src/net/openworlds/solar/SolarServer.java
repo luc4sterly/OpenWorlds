@@ -104,6 +104,24 @@ public final class SolarServer {
    private static final String UPDATE_TIME_US = "600000";
    private static final int MAX_LOG = 2000;
 
+   // Limits for a server open to the Internet: without them anyone could
+   // open connections until it runs out of threads, guess passwords at
+   // full speed, fill accounts.tsv, or grow its tables without end.
+   /** Connections one address may have open at once (a household behind one router may bring a few players). */
+   static final int MAX_PER_ADDRESS = 16;
+   /** Connections open at once, signed in or not. */
+   static final int MAX_CONNECTIONS = 1000;
+   /** Wrong passwords one address may send in {@link #FAILURE_WINDOW_MS}; then its sign-ins wait. */
+   static final int MAX_FAILED_SIGN_INS = 5;
+   static final long FAILURE_WINDOW_MS = 10 * 60_000L;
+   /** Accounts one address may make in {@link #NEW_ACCOUNT_WINDOW_MS} (with open sign-up). */
+   static final int MAX_NEW_ACCOUNTS = 5;
+   static final long NEW_ACCOUNT_WINDOW_MS = 60 * 60_000L;
+   /** Rooms, and shared objects, the server keeps numbers and state for: far more than all the worlds have. */
+   int maxRooms = 20_000;
+   /** Friends one player keeps. */
+   int maxBuddies = 200;
+
    final File dataDir;
    final Config config;
    final Accounts accounts;
@@ -117,6 +135,11 @@ public final class SolarServer {
    /** Shared state of rooms and objects (PROPSET to a room or object), by long ObjID, then property id. */
    private final Map<String, Map<Integer, Props.Prop>> shared = new HashMap<>();
    private final Map<String, Long> kickedUntil = new HashMap<>();
+   /** When wrong passwords came, and accounts were made, by address (see the limits above). */
+   private final Map<String, Deque<Long>> failedSignIns = new HashMap<>();
+   private final Map<String, Deque<Long>> newAccounts = new HashMap<>();
+   /** When a refused connection from an address was last logged: once a minute is enough. */
+   private final Map<String, Long> refusalLogged = new HashMap<>();
    private final Deque<String> recent = new ArrayDeque<>();
    private int nextRoom = 1;
    private int guestNumber;
@@ -236,11 +259,10 @@ public final class SolarServer {
          while (running && !listener.isClosed()) {
             try {
                Socket s = listener.accept();
-               Client c = new Client(this, s, encrypted);
-               synchronized (lock) {
-                  connections.add(c);
+               Client c = admit(s, encrypted);
+               if (c != null) {
+                  c.start();
                }
-               c.start();
             } catch (SocketException e) {
                break; // listener closed by stop()
             } catch (IOException e) {
@@ -250,6 +272,96 @@ public final class SolarServer {
       }, encrypted ? "solar-accept-tls" : "solar-accept");
       t.setDaemon(true);
       t.start();
+   }
+
+   /**
+    * A new connection, registered; null when it is refused and closed: too
+    * many connections from its address ({@link #MAX_PER_ADDRESS}) or in all
+    * ({@link #MAX_CONNECTIONS}).
+    */
+   private Client admit(Socket s, boolean encrypted) {
+      String address = s.getInetAddress().getHostAddress();
+      String why;
+      boolean tell;
+      synchronized (lock) {
+         if (connections.size() < MAX_CONNECTIONS && connectionsFrom(address) < MAX_PER_ADDRESS) {
+            Client c = new Client(this, s, encrypted);
+            connections.add(c);
+            return c;
+         }
+         why = connections.size() >= MAX_CONNECTIONS ? MAX_CONNECTIONS + " connections are open"
+            : MAX_PER_ADDRESS + " connections from " + address + " are open already";
+         long now = System.currentTimeMillis();
+         refusalLogged.values().removeIf(t -> now - t > 60_000);
+         tell = refusalLogged.putIfAbsent(address, now) == null;
+      }
+      try {
+         s.close();
+      } catch (IOException ignored) {
+         // refused anyway
+      }
+      if (tell) {
+         log("[solar] refused a connection: " + why + " (said once a minute)");
+      }
+      return null;
+   }
+
+   /** Connections open from {@code address}, signed in or not. */
+   int connectionsFrom(String address) {
+      synchronized (lock) {
+         int n = 0;
+         for (Client c : connections) {
+            if (c.address.equals(address)) {
+               n++;
+            }
+         }
+         return n;
+      }
+   }
+
+   /** How many of the events in {@code m} for {@code address} fall within the last {@code windowMs} (older ones are dropped). */
+   private int recent(Map<String, Deque<Long>> m, String address, long windowMs) {
+      synchronized (lock) {
+         Deque<Long> d = m.get(address);
+         if (d == null) {
+            return 0;
+         }
+         long now = System.currentTimeMillis();
+         while (!d.isEmpty() && now - d.peekFirst() > windowMs) {
+            d.removeFirst();
+         }
+         if (d.isEmpty()) {
+            m.remove(address);
+            return 0;
+         }
+         return d.size();
+      }
+   }
+
+   private void record(Map<String, Deque<Long>> m, String address) {
+      synchronized (lock) {
+         if (m.size() > 10_000) {
+            m.clear(); // a flood of addresses: forget them rather than grow without end
+         }
+         m.computeIfAbsent(address, k -> new ArrayDeque<>()).addLast(System.currentTimeMillis());
+      }
+   }
+
+   /** Wrong passwords from {@code address} lately (for the check). */
+   int recentFailures(String address) {
+      return recent(failedSignIns, address, FAILURE_WINDOW_MS);
+   }
+
+   /** Accounts made from {@code address} lately (for the check). */
+   int recentNewAccounts(String address) {
+      return recent(newAccounts, address, NEW_ACCOUNT_WINDOW_MS);
+   }
+
+   /** Rooms with a number (for the check). */
+   int roomCount() {
+      synchronized (lock) {
+         return roomIds.size();
+      }
    }
 
    /** The normal port actually listening (useful when the configured one is 0), or -1. */
@@ -386,7 +498,12 @@ public final class SolarServer {
       int refusedCode = 0;
       if (!guestLogin) {
          user = user.trim();
-         if (!Accounts.validName(user)) {
+         if (recentFailures(c.address) >= MAX_FAILED_SIGN_INS) {
+            // before any password work: guessing gets nowhere, and costs no CPU
+            refusedCode = Props.NAK_BAD_PASSWORD;
+            refusedWhy = MAX_FAILED_SIGN_INS + " wrong passwords from " + c.address + " in the last "
+               + FAILURE_WINDOW_MS / 60_000 + " minutes";
+         } else if (!Accounts.validName(user)) {
             refusedCode = Props.NAK_BAD_USER;
             refusedWhy = "\"" + user + "\" is not a valid name";
          } else {
@@ -395,10 +512,15 @@ public final class SolarServer {
                if (!config.openSignup) {
                   refusedCode = Props.NAK_NO_SUCH_USER;
                   refusedWhy = "no account " + user + " and sign-up is closed";
+               } else if (recentNewAccounts(c.address) >= MAX_NEW_ACCOUNTS) {
+                  refusedCode = Props.NAK_BAD_ACCOUNT;
+                  refusedWhy = "cannot create " + user + ": " + MAX_NEW_ACCOUNTS + " accounts were made from "
+                     + c.address + " in the last hour";
                } else {
                   try {
                      account = accounts.create(user, password);
                      created = true;
+                     record(newAccounts, c.address);
                   } catch (IllegalArgumentException e) {
                      refusedCode = Props.NAK_BAD_PASSWORD;
                      refusedWhy = "cannot create " + user + ": " + e.getMessage();
@@ -407,6 +529,7 @@ public final class SolarServer {
             } else if (!Accounts.verify(account, password)) {
                refusedCode = Props.NAK_BAD_PASSWORD;
                refusedWhy = "wrong password for " + account.name;
+               record(failedSignIns, c.address);
             }
             if (refusedWhy == null && newPassword != null && !newPassword.isEmpty()) {
                try {
@@ -550,13 +673,20 @@ public final class SolarServer {
 
    private void roomIdRequest(Client c, Packet p) throws IOException {
       String name = p.utf();
-      int id = roomId(name);
+      Integer id = roomId(name);
+      if (id == null) {
+         return; // the room table is full: no real world has that many rooms
+      }
       c.send(new Packet.Out().utf(name).s16(id).packet(Packet.CLIENT, Packet.ROOMID));
    }
 
-   private int roomId(String name) {
+   /** The room's number, given the first time it is asked for; null when {@link #maxRooms} are numbered. */
+   private Integer roomId(String name) {
       Integer id = roomIds.get(name);
       if (id == null) {
+         if (roomIds.size() >= maxRooms) {
+            return null;
+         }
          id = nextRoom++;
          if (nextRoom > 65000) {
             nextRoom = 1;
@@ -757,6 +887,9 @@ public final class SolarServer {
       if (target == null || room == 0) {
          return;
       }
+      if (!shared.containsKey(target) && shared.size() >= maxRooms) {
+         return; // as many shared objects as rooms is already far more than the worlds have
+      }
       Map<Integer, Props.Prop> state = shared.computeIfAbsent(target, k -> new HashMap<>());
       for (Props.Prop pr : list) {
          state.put(pr.id, pr);
@@ -932,15 +1065,21 @@ public final class SolarServer {
          return;
       }
       Set<String> list = c.buddies();
+      boolean changed;
       if (add != 0) {
-         if (!containsIgnoreCase(list, buddy)) {
+         changed = !containsIgnoreCase(list, buddy);
+         if (changed && list.size() >= maxBuddies) {
+            reply(c, "Your friends list is full (" + maxBuddies + " friends).");
+            return;
+         }
+         if (changed) {
             list.add(buddy);
          }
          c.send(buddyNotify(buddy, online.containsKey(Accounts.key(buddy))));
       } else {
-         list.removeIf(b -> b.equalsIgnoreCase(buddy));
+         changed = list.removeIf(b -> b.equalsIgnoreCase(buddy));
       }
-      if (c.account != null) {
+      if (changed && c.account != null) {
          saveAccounts();
       }
    }
@@ -1050,7 +1189,9 @@ public final class SolarServer {
             return false;
          }
          c.send(text(config.sender, "You were disconnected by the server" + (reason == null ? "." : ": " + reason + ".")));
-         kickedUntil.put(c.key, System.currentTimeMillis() + 60_000);
+         long now = System.currentTimeMillis();
+         kickedUntil.values().removeIf(t -> t < now);
+         kickedUntil.put(c.key, now + 60_000);
          c.kick(reason == null ? "kicked" : reason);
          leaveWorld(c);
          return true;
@@ -1220,7 +1361,8 @@ public final class SolarServer {
    }
 
    void log(String line) {
-      String stamped = new SimpleDateFormat("HH:mm:ss").format(new Date()) + " " + line;
+      // chat lines and room names come from players: no line breaks or other control characters in the log
+      String stamped = new SimpleDateFormat("HH:mm:ss").format(new Date()) + " " + line.replaceAll("\\p{Cntrl}", " ");
       synchronized (recent) {
          recent.addLast(stamped);
          while (recent.size() > MAX_LOG) {
