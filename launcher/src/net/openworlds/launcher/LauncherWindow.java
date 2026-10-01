@@ -461,7 +461,7 @@ final class LauncherWindow {
             + "\n\nIf the server's owner made a new one, compare this fingerprint with the one J Solar Server shows. "
             + "If they did not, someone may be in the middle: do not connect."
          : "The first encrypted connection to " + address + ". Its certificate's fingerprint is:\n\n"
-            + Trust.pretty(c.fingerprint) + "\n\nIt should match the one J Solar Server shows (Network). "
+            + Trust.pretty(c.fingerprint) + "\n\nIt should match the one J Solar Server shows (Settings, Connections). "
             + "If it does, trust it: OpenWorlds remembers it and warns you if it ever changes.";
       boolean[] yes = {false};
       SwingUtilities.invokeAndWait(() -> yes[0] = Ui.ask(frame, c.changed() ? "The certificate changed" : "Check this server",

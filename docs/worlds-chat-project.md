@@ -4060,3 +4060,99 @@ in front, on a night-sky tile.
 (16-256), the ICNS (16-1024) and the launcher's window icon. Headless
 Chrome crops small windows, so everything is drawn at 1024
 and reduced with Lanczos.
+
+### 🟢 The launcher with the logo's look, its own updater and releases (2026-09-29)
+
+User request: the launcher dressed like the logo, without the log panel,
+updating itself; the CI publishing releases on GitHub; and fixes for what
+they found while playing (a world downloaded from the game did not start
+after the restart, clicking another user did nothing, the local whirl did
+not work).
+
+- The launcher's window: the icon's palette, the low-poly planet drawn live
+  (`PlanetView`, the same icosphere) and spinning, Poppins (OFL) bundled.
+  The session logs stay in `logs/` of the data folder.
+- `Updater` + `Bootstrap`: the newest release with a portable package,
+  SHA-256 checked, unpacked in `<data>/app/<version>`; on the next start the
+  app hands over to it in the same JVM, without rewriting itself; a broken
+  version goes to `app/bad`. `UpdaterCheck` against a fake GitHub.
+- The CI publishes `v1.0.<commits>` on every push to `main`.
+- Clicking another user: the 2004 code shows the drone's menu from a
+  component outside its parent's hierarchy, which Java 6+ refuses (JDK bug
+  6278745): `AwtCompat.showPopup` (`PopupShowCheck`). Releasing a world
+  server was cut short by `Thread.stop()` (only throws since Java 20):
+  `JavaCompat.stopThread`. The world asked for before it was installed is
+  the one the restart goes to. Details: `docs/game-tests.md` and the
+  roadmap, section 1e.
+
+### 🟢 OpenWorlds in English, J Solar Server, J Worlds Injector and an encrypted mode (2026-09-30)
+
+User request: the project is OpenWorlds and everything in English; the
+repository is public; clean up what is no longer useful; replace whirl,
+which had a long list of security advisories in its dependencies, with a
+server of our own called **J Solar Server**, with an admin app "super easy
+to understand for anyone", in violet and with another planet as its logo;
+an encrypted mode with its patch for the client; and **J Worlds Injector**,
+"to inject things into Worlds, like a VIP patch": the player picks the
+patches before playing and they are compiled when the game starts. Also:
+"the worlds work in a strange way".
+
+**J Solar Server** (`server/`). Written from the client's protocol code
+(`NET.worlds.network`) and the LibreWorlds wiki; one port does what the
+distributor, the user server and the room servers did. The rules that make
+players visible, each one something whirl did differently: `APPRACTR` (or
+a `TELEPORT` of an unknown object) to make an avatar appear, short ids
+2..127 per viewer (`regObjIDCmd` reads a signed byte; 1 is the client
+itself), the user name as the long id, movement relayed with the id each
+viewer knows, room numbers never 0, chat to whoever is in earshot,
+`VAR_UPDATETIME` in microseconds. Result: **two original clients see each
+other walk and chat**, the first time in the project
+(`docs/renders/solar-two-clients.png`). Accounts with PBKDF2 (computed
+outside the server's lock), guests, VIP/admin, bans, chat commands,
+whispers and friends lists. `SolarProtocolCheck`, 29 checks without a
+game. The admin window shares the launcher's look (the new `ui/` module)
+in violet. Also found on the way: the client's `_connectThread` race (see
+`docs/net-local-server.md`) hung connections to a server on the same
+machine; patched in `natives-java.patch`.
+
+**Encrypted mode.** TLS on port 6651 with a self-signed EC P-256
+certificate (the server makes it, with its own small DER encoder). There
+is no authority to vouch for it, so the launcher does what SSH does: it
+shows the SHA-256 fingerprint the first time, the player compares it with
+the one in the server's window, and it is remembered
+(`known_servers.properties`); a different one later is a warning. The
+client's "tls" patch opens the connection with `SSLSocket` and trusts only
+that fingerprint (`-Dopenworlds.tls.pin`). Measured: `[tls] encrypted
+connection to 127.0.0.1:6651 (TLSv1.3, TLS_AES_256_GCM_SHA384)`, the
+sign-in made the account, and Upgrade Now with its restart came back
+encrypted.
+
+**J Worlds Injector** (`injector/`). A patch is a folder with
+`patch.properties` and unified diffs against the client's source as the
+bridge builds it (`editor/.build-gamma/source`, packaged as
+`lib/worldsplayer-src.zip`). At start the launcher applies the chosen ones,
+compiles the touched files with `javax.tools` (`--release 8`, against
+`worldsplayer.jar`) and puts the classes before the jar on the class path;
+the result is cached by the hash of patches and inputs. Built in: VIP (the
+VIP features without a VIP account), Walk faster (×1.8 in
+`SmoothDriver`), Time in the chat (`[HH:mm] ` on each line), No word filter
+(`FilthFilter`), Encrypted connection. Measured in the game: "VIP Capitan"
+on the status bar and `[22:42] Solar> Welcome...` in the chat.
+
+**Worlds.** What felt strange: picking a world that was not installed
+started GroundZero, the client offered the download, and a restart was
+needed to get there. Now the launcher reads the world's `upgrades.lst` on
+the mirror (`-1 25#511534:1692`: from nothing to version 25, that size,
+for clients from build 1692), downloads the full installer and runs the
+Java gdkup on it **before** the game starts (`WorldInstall`). Measured:
+Avatar Gallery 36 installed and the game opened straight in its gallery.
+The client still offers, as in 2004, the worlds its portals lead to when a
+room loads (Avatar Gallery at GroundZero's entrance).
+
+**Clean-up.** Removed: `server/whirl`, its scripts and the launcher's
+`LocalWhirl`; `legacy/installer-reversing/` (the Wise stub that an early
+session took for the client; the bridge installs Wise and NSIS packages
+itself now, and `assets/Worlds1900.exe` stays). Everything translated to
+English, this history included. The CI builds no Rust anymore, packages
+both apps on the four systems and, on Linux, runs the packaged client
+against the packaged J Solar Server over TLS with patches built in.

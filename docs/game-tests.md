@@ -7,8 +7,8 @@ on Linux: Xvfb 1280×960 without a window manager, Java 21, the mirror enabled
 is, in single-user mode ("Single-user mode" in the "Internet
 Connection" dialog).
 
-Captures: `docs/renders/mapa-del-universo.png`, `blairwitch-cafeteria.png`,
-`bowie-bwstreet.png` and `cmp-taza-y-caleidoscopio.png`.
+Captures: `docs/renders/universe-map.png`, `blairwitch-cafeteria.png`,
+`bowie-bwstreet.png` and `cmp-mug-and-kaleidoscope.png`.
 
 ## Travel between worlds
 
@@ -125,7 +125,9 @@ on Linux (Xvfb, `xdotool`, mirror enabled):
    the launcher's session remembers the requested world and, if the update
    has just installed it, restarts in it (`Session.restartWith`). Tested with
    Meteor: Play → GroundZero offers Meteor → download → "Restart and
-   Upgrade" → the game comes back directly in Meteor.
+   Upgrade" → the game comes back directly in Meteor. Superseded on
+   2026-09-30: the launcher now installs a world picked in its list before
+   the game starts (`WorldInstall`), so this detour no longer happens.
 9. **"If you click on a user nothing happens".** Left-clicking another
    user's avatar (`Drone.handle(MouseDownEvent)`) opens their menu
    (add to friends, whisper, mute, actions) with
@@ -139,9 +141,10 @@ on Linux (Xvfb, `xdotool`, mirror enabled):
     `Thread.stop()`, which since Java 20 only throws: the socket was not closed
     and the unhooking did not finish. `JavaCompat.stopThread` (`JavaCompatCheck`).
 11. **"The local whirl doesn't work".** The launcher offered "Local whirl" but
-    nothing started it and the package did not include it. Now the apps ship whirl
-    (the CI builds it on the four systems) and `LocalWhirl` starts it, stops it
-    when done and leaves the login filled in (just "Sign In").
+    nothing started it and the package did not include it. The apps then
+    shipped whirl, started by the launcher. Superseded on 2026-09-30: whirl
+    was replaced by J Solar Server, where players do see each other (the
+    launcher's "Online", `docs/net-local-server.md`).
 12. **"Single player" asked about the connection** ("unable to connect to Worlds
     servers... Single-user mode"): the launcher passes
     `-Dopenworlds.singleUser=true` and the dialog answers by itself
@@ -162,7 +165,5 @@ on Linux (Xvfb, `xdotool`, mirror enabled):
   applied. `GdkUp` treats them as done and moves on.
 - The voice chat (`sfmain.exe`, SpeakFreely with GSM) is decompiled but
   not translated.
-- Multiple users: with the local whirl, two clients still cannot see each other (whirl does not
-  send `APPRACTR`, `docs/net-local-whirl.md`).
 - When GroundZero starts with the mirror enabled, the Avatar Gallery portal
   offers to download it right away: that is what the original does without that world.

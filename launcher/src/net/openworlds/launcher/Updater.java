@@ -251,8 +251,8 @@ final class Updater {
             if (name == null) {
                continue;
             }
-            if (name.endsWith("-portable.zip")) {
-               zip = a;
+            if (name.startsWith("OpenWorlds-") && name.endsWith("-portable.zip")) {
+               zip = a; // not J Solar Server's, which comes in the same release
             } else if (name.equalsIgnoreCase("SHA256SUMS.txt") || name.equalsIgnoreCase("SHA256SUMS")) {
                sums = a;
             }

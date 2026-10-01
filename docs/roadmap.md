@@ -171,6 +171,28 @@ does nothing, local whirl that does not work) and polish.
 | Game copy | ✅ | `Install.prepare` with a manifest: a new version (or the template at another path, macOS App Translocation) no longer overwrites what the client or gdkup changed (it undid GroundZero 37 → 40). `InstallCheck` |
 | Polish | ✅ partial | "Single player" without the "cannot connect" dialog (`bridge/natives-launcher.patch`, only with `-Dopenworlds.singleUser`); the game window at two thirds of the screen the first time (before, 568×424) |
 
+## 1f. OpenWorlds in English, J Solar Server and J Worlds Injector (2026-09-30)
+
+Request: everything named OpenWorlds and in English, clean-up of what is no
+longer useful, the repository public; whirl replaced by a server of our own
+called J Solar Server (whirl's dependencies had many security advisories)
+with an admin app anyone can use, in violet, with its own planet; an
+encrypted mode (HTTPS-like) and its client patch; and **J Worlds Injector**,
+patches the player picks before playing that are compiled when the game
+starts. Also "the worlds work in a strange way".
+
+| Area | Status | Evidence / what remains |
+|---|---|---|
+| J Solar Server | ✅ | `server/`: one port for distributor, user and room server, written from the client's protocol code; accounts (PBKDF2), guests, VIP/admin, bans, chat commands, friends, whispers. **Two original clients see each other** for the first time in the project (`docs/renders/solar-two-clients.png`). `SolarProtocolCheck` (29 checks), `SolarBot` (scripted walker). `docs/net-local-server.md` |
+| Admin app | ✅ | the launcher's look in violet with its own planet (`tools/icons/make_icons.py`, variant "solar"); players, accounts, chat & log, settings; `--headless` console; shared `ui/` module |
+| Encrypted mode | ✅ | TLS on port 6651 with a self-signed EC certificate; the launcher checks its SHA-256 fingerprint with the player the first time and remembers it (like SSH, `Trust`); the client's "tls" patch trusts only that certificate. Tested: `[tls] encrypted connection to 127.0.0.1:6651 (TLSv1.3, TLS_AES_256_GCM_SHA384)`, sign-in, account made, Upgrade Now and the restart, all encrypted |
+| J Worlds Injector | ✅ | `injector/`: unified diffs over the client's source as the bridge builds it, compiled with `javax.tools` against `worldsplayer.jar` into classes that go first on the class path, cached by content. Built in: VIP, Walk faster, Time in the chat, No word filter, Encrypted connection. Players' own in `<data>/patches/`. `InjectorCheck` |
+| Launcher | ✅ | "Single player" / "Online" (address, name, password, "Encrypted connection"), the patches row, the game's sign-in filled in (`Login`), Stop also ends the preparation; whirl and `LocalWhirl` gone |
+| Worlds | ✅ | a world picked in the list that is not installed is installed from the mirror **before** the game starts (`WorldInstall`, from the world's `upgrades.lst`): no detour through GroundZero and no restart. The client's own prompts (portals, universe map, Upgrade Now) still work as in 2004 |
+| English | ✅ | code comments, runtime messages, docs and the history (`docs/worlds-chat-project.md`) |
+| Clean-up | ✅ | removed: `server/whirl`, `tools/run-whirl.sh`, `tools/net-probe/run-whirl-duo.sh`, `legacy/installer-reversing/` (the installer itself stays in `assets/`) |
+| CI | ✅ | no Rust; both apps on the four systems; on Linux a second smoke test: the packaged client connects over TLS to the packaged J Solar Server with patches built in; releases carry both apps |
+
 ## 2. Milestones
 
 Sizes: **S** ≈ 1 session · **M** ≈ 2–4 sessions · **L** = more.
@@ -254,17 +276,19 @@ least 3 rooms, with each difference explained.
 - [x] Install Rust with rustup in the home directory (`x86_64-apple-darwin`, the
       toolchain of `server/whirl/rust-toolchain.toml`) and build whirl.
       **Without touching its code.** If any adjustment were needed, it goes in a
-      separate, documented patch.
+      separate, documented patch. (Superseded: whirl was replaced by J Solar
+      Server on 2026-09-30, section 1f.)
 - [x] Point the original under the bridge at whirl, in the temporary copy of
       `worlds.ini`, just as is already done with `upgradeServer`.
-- [~] Test with two instances: login, entering a room, seeing each other, chatting
-      and the friends list.
+- [x] Test with two instances: login, entering a room, seeing each other, chatting
+      and the friends list — with J Solar Server (`docs/net-local-server.md`).
 - [ ] Real login against `worlds.worlio.com`: **you need to register an
       account** (see `docs/net-real-account-login.md`). It remains
       as a final verification and no longer blocks anything.
 
 **Done when** two original clients on this Mac see each other move (with
-H2) and chat through whirl.
+H2) and chat through whirl. Met with J Solar Server instead of whirl,
+except the walk animation of the other player, which is H2's ⚠️ VERIFY.
 
 ### H4 — Our own client catches up with the original (retired)
 
@@ -318,10 +342,8 @@ There are 41 files with natives outside the bridge. `FastDataInput`, `IniFile` a
    is no other copy in the repo or in the CI.
 7. Test the apps on your Intel Mac and, if you can, on Windows and an ARM Mac:
    once this branch reaches `main`, on the Releases page.
-8. **Updates with the private repository:** the updater queries
-   the GitHub API, which answers 404 to a launcher without credentials.
-   Either the repository becomes public, or on each machine a read-only
-   "fine-grained" token (Contents: Read) for this repo is set in Settings.
+8. ~~**Updates with the private repository**~~: solved, the repository is
+   public since 2026-09-30 and the updater needs no token.
 9. Merge the branch into `main` so that the first release comes out (the CI
    publishes on every push to `main`).
 

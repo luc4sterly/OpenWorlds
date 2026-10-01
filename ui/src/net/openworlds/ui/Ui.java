@@ -455,7 +455,7 @@ public final class Ui {
       }
    }
 
-   // ------------------------------------------------------------ casillas
+   // ------------------------------------------------------------ checkboxes
 
    public static JCheckBox check(String text) {
       JCheckBox c = new JCheckBox(text);
@@ -517,7 +517,7 @@ public final class Ui {
       }
    }
 
-   // ------------------------------------------------------ paso a paso (hilos)
+   // ------------------------------------------------------ stepper (threads)
 
    /** "−  Auto  +": a small integer from 0 (shown as the zero label) to max. */
    public static final class Stepper extends JPanel {
@@ -613,7 +613,7 @@ public final class Ui {
       }
    }
 
-   // ------------------------------------------------------------ texto
+   // ------------------------------------------------------------ text
 
    /**
     * A paragraph that wraps at its real width (an HTML JLabel measures its

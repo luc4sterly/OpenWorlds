@@ -282,7 +282,8 @@ public final class Launcher {
          return c != null;
       }
       if (!trust) {
-         System.err.println("  Compare it with the one J Solar Server shows (Network), then run again with --trust.");
+         System.err.println("  Compare it with the one J Solar Server shows (Settings, Connections; or JSolarServer --fingerprint),"
+            + " then run again with --trust.");
          return false;
       }
       Trust.remember(layout, settings.server, c.fingerprint);
@@ -497,7 +498,7 @@ public final class Launcher {
                return;
             }
             if (!c.trusted()) {
-               String t = ask("Is it the one J Solar Server shows (Network)? Trust it (y/n)");
+               String t = ask("Is it the one J Solar Server shows (Settings, Connections)? Trust it (y/n)");
                if (t == null || !t.trim().toLowerCase(java.util.Locale.ROOT).startsWith("y")) {
                   return;
                }

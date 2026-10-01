@@ -295,7 +295,9 @@ public final class UpdaterCheck {
          + ",\"html_url\":\"https://example.invalid/" + tag + "\",\"assets\":["
          + "{\"name\":\"OpenWorlds-" + v + "-linux-x64.tar.gz\",\"size\":1,\"url\":\"" + api + "/assets/none\"},"
          + "{\"name\":\"OpenWorlds-" + v + "-portable.zip\",\"size\":" + zip.length + ",\"url\":\"" + api + "/assets/" + id
-         + "\",\"digest\":\"sha256:" + sha + "\"}]}";
+         + "\",\"digest\":\"sha256:" + sha + "\"},"
+         // the server's package is in the same release: never the launcher's update
+         + "{\"name\":\"JSolarServer-" + v + "-portable.zip\",\"size\":1,\"url\":\"" + api + "/assets/none\"}]}";
    }
 
    /** The launcher's classes (and resources) in a jar that says it is the given version. */

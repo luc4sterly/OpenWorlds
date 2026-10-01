@@ -1,21 +1,22 @@
-# Build, tests, paquetes y releases de OpenWorlds.
+# Build, tests, packages and releases of OpenWorlds and J Solar Server.
 #
-# - build (Linux): compila el cliente original con el puente (y los lectores
-#   de formats/), el lanzador y whirl (server/whirl, para "whirl local"); pasa
-#   tools/run-checks.sh y tools/verify-corpus.sh; arranca el cliente original
-#   empaquetado bajo Xvfb, solo y con el whirl de la app (prueba de humo: tiene
-#   que dibujar); deja el paquete portable (.zip, necesita Java 17+) y la app
-#   de Linux con su propio Java (.tar.gz).
-# - package: la app con Java y whirl incluidos para macOS (Intel y Apple
-#   Silicon) y Windows, desde el mismo build.
-# - release: cada push a main (la rama por defecto) publica una release en
-#   GitHub, tag v1.0.<commits>, con todos los paquetes y SHA256SUMS.txt; el
-#   actualizador del lanzador (Updater) la encuentra ahi. Un tag v* subido a
-#   mano tambien se publica. Desde otra rama: Actions > build > Run workflow
-#   > "prerelease" publica una version de prueba (v1.0.<commits>-pre.<run>)
-#   que solo reciben quienes marcan "versiones de prueba" en Ajustes.
+# - build (Linux): builds the original client with the bridge (and the
+#   formats/ readers), the launcher with the J Worlds Injector, and J Solar
+#   Server; runs tools/run-checks.sh and tools/verify-corpus.sh; starts the
+#   packaged original client under Xvfb (smoke tests: it has to draw, alone
+#   and connected over TLS to the packaged J Solar Server with patches
+#   built in); leaves the portable packages (.zip, need Java 17+) and the
+#   Linux apps with their own Java (.tar.gz).
+# - package: the apps with their own Java for macOS (Intel and Apple
+#   Silicon) and Windows, from the same build.
+# - release: every push to main (the default branch) publishes a GitHub
+#   release, tag v1.0.<commits>, with every package and SHA256SUMS.txt; the
+#   launcher's updater (Updater) finds it there. A v* tag pushed by hand is
+#   published too. From another branch: Actions > build > Run workflow >
+#   "prerelease" publishes a test version (v1.0.<commits>-pre.<run>) that
+#   only players who tick "test versions" in Settings get.
 #
-# Los paquetes de cada ejecucion quedan ademas en la pagina del run (Artifacts).
+# Each run's packages are also on the run's page (Artifacts).
 name: build
 
 on:
@@ -26,45 +27,38 @@ on:
   workflow_dispatch:
     inputs:
       prerelease:
-        description: "Publicar esta ejecucion como version de prueba (prerelease) en Releases"
+        description: "Publish this run as a test version (prerelease) in Releases"
         type: boolean
         default: false
 
-# En main no se cancela una ejecucion a medias: podria estar publicando.
+# On main a run is never cancelled half-way: it could be publishing.
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
 
-env:
-  # whirl (Rust, toolchain fijado en server/whirl/rust-toolchain.toml): sin el
-  # LTO "fat" de su perfil release, que triplica el tiempo de la CI
-  CARGO_PROFILE_RELEASE_LTO: "false"
-  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
-  CARGO_TERM_COLOR: never
-
 jobs:
   build:
-    name: Linux - compilar, probar y empaquetar
+    name: Linux - build, test and package
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # rev-list --count para la version
+          fetch-depth: 0  # rev-list --count for the version
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
 
-      - name: Paquetes del sistema
+      - name: System packages
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q xvfb patch zip
 
-      # 1.0.<commits> (base en launcher/VERSION); con un tag v*, el del tag; en
-      # una prerelease a mano, 1.0.<commits>-pre.<run>. Es la version que el
-      # actualizador compara, asi que va igual en el tag y dentro del jar.
+      # 1.0.<commits> (base in launcher/VERSION); with a v* tag, the tag's; in
+      # a prerelease by hand, 1.0.<commits>-pre.<run>. It is the version the
+      # updater compares, so it is the same in the tag and inside the jars.
       - name: Version
         id: v
         run: |
@@ -82,67 +76,76 @@ jobs:
           echo "commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
           echo "OpenWorlds $version ($(git rev-parse --short HEAD))"
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: server/whirl
-
-      # Si whirl no compila, la app sale sin el (el lanzador lo dice) y la
-      # prueba de humo con whirl falla: se ve en el resumen sin tumbar el resto.
-      - name: whirl para la app de Linux
-        id: whirl
-        continue-on-error: true
-        working-directory: server/whirl
-        run: cargo build --release --locked
-
-      - name: Paquete portable + app de Linux
+      - name: Portable packages + Linux apps
         env:
           OPENWORLDS_VERSION: ${{ steps.v.outputs.version }}
           OPENWORLDS_NUMERIC_VERSION: ${{ steps.v.outputs.numeric }}
           OPENWORLDS_COMMIT: ${{ steps.v.outputs.commit }}
         run: tools/build-dist.sh --app-image
 
-      - name: Checks unitarios (formats/test + bridge/test + launcher/test)
+      - name: Unit checks (formats, bridge, injector, launcher, server)
         run: xvfb-run -a -s "-screen 0 1280x1024x24" tools/run-checks.sh
 
       - name: Corpus (.seq, .bod, .cmp, .mov)
         run: tools/verify-corpus.sh --no-checks
 
-      - name: Prueba de humo - el cliente original empaquetado dibuja
+      - name: Smoke test - the packaged original client draws
         env:
           OPENWORLDS_DATA: ${{ runner.temp }}/openworlds-data
         run: xvfb-run -a -s "-screen 0 1280x1024x24" build/app/OpenWorlds/bin/OpenWorlds --smoke 120
 
-      - name: Prueba de humo - whirl local (el de la app) y el cliente conectado
-        if: steps.whirl.outcome == 'success'
+      # The packaged J Solar Server with TLS, and the packaged client online
+      # over TLS (its certificate trusted on the command line) with two
+      # patches: the J Worlds Injector must build them and the client connect.
+      - name: Smoke test - the client connects to J Solar Server, encrypted and patched
         env:
-          OPENWORLDS_DATA: ${{ runner.temp }}/openworlds-data-whirl
-        run: xvfb-run -a -s "-screen 0 1280x1024x24" build/app/OpenWorlds/bin/OpenWorlds --smoke 120 --server 127.0.0.1:6650
+          OPENWORLDS_DATA: ${{ runner.temp }}/openworlds-data-online
+        run: |
+          set -euo pipefail
+          SOLAR_LOG="$RUNNER_TEMP/j-solar-server.log"
+          build/app/JSolarServer/bin/JSolarServer --headless --tls --data "$RUNNER_TEMP/j-solar-server" \
+            > "$SOLAR_LOG" 2>&1 < /dev/null &
+          SOLAR=$!
+          trap 'kill $SOLAR 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do
+            grep -q "\] ready:" "$SOLAR_LOG" && break
+            sleep 1
+          done
+          cat "$SOLAR_LOG"
+          xvfb-run -a -s "-screen 0 1280x1024x24" build/app/OpenWorlds/bin/OpenWorlds --smoke 150 \
+            --server 127.0.0.1 --encrypted --trust --user SmokeTest --password smoke-test --patches vip,chat-time
+          cat "$SOLAR_LOG"
 
-      - name: Registros de las pruebas de humo
+      - name: Smoke test logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-log
           path: |
             ${{ runner.temp }}/openworlds-data/logs
-            ${{ runner.temp }}/openworlds-data-whirl/logs
+            ${{ runner.temp }}/openworlds-data-online/logs
+            ${{ runner.temp }}/j-solar-server.log
           if-no-files-found: ignore
 
-      - name: Subir el paquete portable
+      - name: Upload the portable packages
         uses: actions/upload-artifact@v4
         with:
-          name: OpenWorlds-${{ steps.v.outputs.version }}-portable
-          path: build/OpenWorlds-*-portable.zip
+          name: pkg-${{ steps.v.outputs.version }}-portable
+          path: |
+            build/OpenWorlds-*-portable.zip
+            build/JSolarServer-*-portable.zip
           compression-level: 0
 
-      - name: Subir la app de Linux
+      - name: Upload the Linux apps
         uses: actions/upload-artifact@v4
         with:
-          name: OpenWorlds-${{ steps.v.outputs.version }}-linux-x64
-          path: build/OpenWorlds-*-linux-x64.tar.gz
+          name: pkg-${{ steps.v.outputs.version }}-linux-x64
+          path: |
+            build/OpenWorlds-*-linux-x64.tar.gz
+            build/JSolarServer-*-linux-x64.tar.gz
           compression-level: 0
 
-      - name: Arbol del paquete para los demas sistemas
+      - name: Package tree for the other systems
         uses: actions/upload-artifact@v4
         with:
           name: dist-tree
@@ -155,7 +158,7 @@ jobs:
       commit: ${{ steps.v.outputs.commit }}
 
   package:
-    name: App ${{ matrix.name }}
+    name: Apps ${{ matrix.name }}
     needs: build
     strategy:
       fail-fast: false
@@ -185,26 +188,6 @@ jobs:
           name: dist-tree
           path: build/dist
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: server/whirl
-
-      # En Windows, ntapi 0.3 (de sysinfo 0.23, dependencia de whirl) no
-      # compila desde Rust 1.69: referencias a campos empaquetados sin alinear
-      # pasaron de aviso a error. Sin tocar whirl: un nightly anterior, y
-      # --cap-lints porque whirl_server niega un lint (non_local_definitions)
-      # que ese compilador aun no conoce.
-      - name: whirl para esta app
-        continue-on-error: true
-        working-directory: server/whirl
-        run: |
-          if [ "$RUNNER_OS" = Windows ]; then
-            rustup toolchain install nightly-2023-01-20 --profile minimal
-            RUSTFLAGS="--cap-lints warn" cargo +nightly-2023-01-20 build --release --locked
-          else
-            cargo build --release --locked
-          fi
-
       - name: jlink + jpackage
         env:
           OPENWORLDS_VERSION: ${{ needs.build.outputs.version }}
@@ -212,19 +195,21 @@ jobs:
           OPENWORLDS_COMMIT: ${{ needs.build.outputs.commit }}
         run: tools/build-dist.sh --package-only
 
-      - name: Prueba rapida del lanzador empaquetado
+      # The .exe/.app are GUI programs (no console): the tests use the java
+      # and the jars of each package to see the output.
+      - name: Quick test of the packaged apps
         run: |
           if [ -d build/app/OpenWorlds.app ]; then
             build/app/OpenWorlds.app/Contents/MacOS/OpenWorlds --version
             build/app/OpenWorlds.app/Contents/MacOS/OpenWorlds --paths
+            S=build/app/JSolarServer.app/Contents
+            "$S/runtime/Contents/Home/bin/java" -jar "$S/app/j-solar-server.jar" --version
           else
             build/app/OpenWorlds/OpenWorlds.exe --version || true
+            build/app/JSolarServer/runtime/bin/java.exe -jar build/app/JSolarServer/app/j-solar-server.jar --version
           fi
 
-      # El .exe/.app son de interfaz grafica (sin consola): la prueba de humo
-      # usa el java y los jars del propio paquete para ver la salida. Pasa en
-      # los tres sistemas desde la ejecucion #5, asi que ya es obligatoria.
-      - name: Prueba de humo - el cliente original empaquetado dibuja
+      - name: Smoke test - the packaged original client draws
         env:
           OPENWORLDS_DATA: ${{ runner.temp }}/openworlds-data
         run: |
@@ -237,7 +222,7 @@ jobs:
           fi
           "$JAVA" -jar "$APP/app/openworlds-launcher.jar" --smoke 120
 
-      - name: Registro de la prueba de humo
+      - name: Smoke test log
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -245,18 +230,19 @@ jobs:
           path: ${{ runner.temp }}/openworlds-data/logs
           if-no-files-found: ignore
 
-      # Tambien si la prueba de humo falla: la app sirve para investigarlo.
+      # Also when the smoke test fails: the apps help to look into it.
       - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: OpenWorlds-${{ needs.build.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
+          name: pkg-${{ needs.build.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
           path: |
             build/OpenWorlds-*.zip
-            !build/OpenWorlds-*-portable.zip
+            build/JSolarServer-*.zip
+            !build/*-portable.zip
           compression-level: 0
 
   release:
-    name: Release en GitHub
+    name: GitHub release
     needs: [build, package]
     if: >-
       (github.event_name == 'push' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
@@ -269,10 +255,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-          pattern: OpenWorlds-*
+          pattern: pkg-*
           merge-multiple: true
 
-      - name: Publicar
+      - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.build.outputs.version }}
@@ -281,7 +267,7 @@ jobs:
           set -euo pipefail
           cd artifacts
           ls -la
-          sha256sum OpenWorlds-* > SHA256SUMS.txt
+          sha256sum OpenWorlds-* JSolarServer-* > SHA256SUMS.txt
           PRE=""
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             TAG="$GITHUB_REF_NAME"
@@ -292,23 +278,23 @@ jobs:
           fi
           [[ "$VERSION" == *-* ]] && PRE="--prerelease"
           cat > notes.md <<EOF
-          OpenWorlds $VERSION (commit \`$COMMIT\`): el cliente original de Worlds Chat (2004) con el puente portable.
+          OpenWorlds $VERSION (commit \`$COMMIT\`): the original Worlds Chat client (2004) on the portable bridge, and J Solar Server, a world server to play together.
 
-          | Sistema | Paquete |
-          |---|---|
-          | macOS Apple Silicon | \`OpenWorlds-$VERSION-macos-arm64.zip\` |
-          | macOS Intel | \`OpenWorlds-$VERSION-macos-x64.zip\` |
-          | Windows | \`OpenWorlds-$VERSION-windows-x64.zip\` |
-          | Linux | \`OpenWorlds-$VERSION-linux-x64.tar.gz\` |
-          | Cualquier sistema con Java 17+ | \`OpenWorlds-$VERSION-portable.zip\` |
+          | System | OpenWorlds (to play) | J Solar Server (to host a world) |
+          |---|---|---|
+          | macOS Apple Silicon | \`OpenWorlds-$VERSION-macos-arm64.zip\` | \`JSolarServer-$VERSION-macos-arm64.zip\` |
+          | macOS Intel | \`OpenWorlds-$VERSION-macos-x64.zip\` | \`JSolarServer-$VERSION-macos-x64.zip\` |
+          | Windows | \`OpenWorlds-$VERSION-windows-x64.zip\` | \`JSolarServer-$VERSION-windows-x64.zip\` |
+          | Linux | \`OpenWorlds-$VERSION-linux-x64.tar.gz\` | \`JSolarServer-$VERSION-linux-x64.tar.gz\` |
+          | Any system with Java 17+ | \`OpenWorlds-$VERSION-portable.zip\` | \`JSolarServer-$VERSION-portable.zip\` |
 
-          Las apps llevan su propio Java y whirl para jugar en "whirl local". El lanzador se actualiza solo desde aqui (Ajustes > Actualizaciones). macOS: la app no esta firmada por Apple; la primera vez, "Abrir igualmente" en Privacidad y seguridad, o \`xattr -dr com.apple.quarantine OpenWorlds.app\`.
+          The apps bring their own Java. OpenWorlds updates itself from here (Settings > Updates). macOS: the apps are not signed by Apple; the first time, "Open Anyway" in Privacy & Security, or \`xattr -dr com.apple.quarantine OpenWorlds.app\`.
           EOF
           if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "La release $TAG ya existe: se reponen sus paquetes"
-            gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber OpenWorlds-* SHA256SUMS.txt
+            echo "Release $TAG already exists: its packages are replaced"
+            gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber OpenWorlds-* JSolarServer-* SHA256SUMS.txt
           else
             gh release create "$TAG" -R "$GITHUB_REPOSITORY" $TARGET \
               --title "OpenWorlds ${TAG#v}" --notes-file notes.md --generate-notes $PRE \
-              OpenWorlds-* SHA256SUMS.txt
+              OpenWorlds-* JSolarServer-* SHA256SUMS.txt
           fi

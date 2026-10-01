@@ -1,70 +1,77 @@
-OpenWorlds - Worlds Chat / WorldsPlayer (1995-2004), preservado
-=================================================================
+OpenWorlds - Worlds Chat / WorldsPlayer, the 3D chat of 1995-2004
+==================================================================
 
-Que es
-------
-El CLIENTE ORIGINAL de 2004 (WorldsPlayer), decompilado, con el motor
-RenderWare 2.1 y la DLL gamma.dll traducidos a Java (el "puente portable"):
-la misma logica, la misma interfaz (menus Help, Options, Teleport, mapa del
-universo...) y el mismo dibujo por software, sin Windows ni Wine.
+What it is
+----------
+The ORIGINAL 2004 client (WorldsPlayer), decompiled, with its RenderWare
+2.1 engine and gamma.dll translated to Java (the "portable bridge"): the
+same logic, the same interface (Help, Options, Teleport, the universe
+map...) and the same software drawing, without Windows or Wine.
 
-Como se arranca
----------------
-  macOS:   OpenWorlds.app (paquete con Java incluido). No esta firmado
-           por Apple: la primera vez macOS lo bloquea. En macOS 15
-           (Sequoia) ve a Ajustes del Sistema > Privacidad y seguridad >
-           "Abrir igualmente" tras el primer intento; o, en Terminal:
-              xattr -dr com.apple.quarantine /ruta/a/OpenWorlds.app
-           (esto tambien arregla el aviso de "esta danado").
+Starting it
+-----------
+  macOS:   OpenWorlds.app (Java included). It is not signed by Apple, so
+           the first time macOS blocks it. On macOS 15 (Sequoia) go to
+           System Settings > Privacy & Security > "Open Anyway" after the
+           first try; or, in Terminal:
+              xattr -dr com.apple.quarantine /path/to/OpenWorlds.app
+           (this also fixes the "is damaged" warning).
   Windows: OpenWorlds\OpenWorlds.exe
   Linux:   OpenWorlds/bin/OpenWorlds
 
-  Paquete portable (sin Java incluido, necesita Java 17 o mas nuevo):
+  Portable package (no Java included, needs Java 17 or newer):
            OpenWorlds.command (macOS), OpenWorlds.bat (Windows),
            OpenWorlds.sh (Linux)
 
-Se abre el lanzador: elige el mundo y el servidor y pulsa "Jugar". Sin
-pantalla, o con --tui, el menu sale en la terminal. Todas las opciones:
+The launcher opens: pick a world and a server and press "Play". Without a
+display, or with --tui, the menu shows in the terminal. Every option:
 OpenWorlds --help
 
-Cliente original
-----------------
-  - Un jugador (sin servidor): el lanzador elige por ti el "Single-user
-    mode" del juego y entras directo. Se anda con las flechas; los menus
-    son los de 2004.
-  - whirl local: las apps traen whirl (el servidor de Whirlsplash, ver
-    server/whirl en el repositorio) y el lanzador lo arranca y lo para con
-    el juego. El usuario y una contrasena ya van rellenos: en el juego basta
-    con pulsar "Sign In" (whirl no comprueba contrasenas). Con el paquete
-    portable hace falta un whirl propio escuchando en 127.0.0.1:6650.
-  - Otro servidor: escribelo como host:puerto y pon tu nombre.
-  - Tu copia de la instalacion (worlds.ini con amigos, contrasena recordada,
-    etc.) esta en la carpeta de datos (boton "Carpeta de datos"):
+Playing
+-------
+  - Single player (no server): the launcher picks the game's "Single-user
+    mode" for you and you go straight in. Walk with the arrow keys; the
+    menus are the 2004 ones.
+  - Online: type the address of a J Solar Server (the world server that
+    comes with OpenWorlds; its window shows the address to give out), your
+    name and a password. The first time, any name and password make your
+    account there. The game's sign-in comes filled in: press "Sign In".
+  - Encrypted connection: tick it when the server has encrypted connections
+    on. The first time, the launcher shows the server's certificate
+    fingerprint: compare it with the one J Solar Server shows (Settings,
+    Connections). OpenWorlds remembers it and warns you if it ever changes.
+  - Worlds: the 2004 install only has GroundZero. Pick any other world in
+    the list (Avatar Gallery, Worlds Center, Animal House, Hang, Meteor...)
+    and Play downloads and installs it first, from us1.worlds.net (today the
+    LibreWorlds mirror). Inside the game, the universe map, Teleport and
+    the portals offer the others too; the game asks to restart and the
+    launcher opens it again by itself. Options > Upgrade Now looks for
+    updates of the installed worlds. Without a network, or with "Download
+    missing worlds and avatars" off in Settings (--no-mirror), there is
+    only what is installed.
+  - Patches (J Worlds Injector): small changes to the 2004 game, ticked in
+    "Patches" and built into it when you press Play: VIP features, walking
+    faster, the time on each chat line, no word filter. Your own patches go
+    in the patches folder of the data folder (see the README there).
+  - Your copy of the install (worlds.ini with friends, remembered
+    passwords...), the logs and the settings are in the data folder ("Data
+    folder" button):
        macOS:   ~/Library/Application Support/OpenWorlds
        Windows: %LOCALAPPDATA%\OpenWorlds
        Linux:   ~/.local/share/openworlds
-  - Otros mundos: la instalacion de 2004 solo trae GroundZero. Los demas
-    (Avatar Gallery, Worlds Center, Animal House, Hang, Meteor, The Blair
-    Witch World, los de Bowie...) se piden desde el mapa, el menu Teleport
-    o el mapa del universo: el juego ofrece descargarlos de us1.worlds.net
-    (hoy el espejo de LibreWorlds) y pide reiniciar; el lanzador instala el
-    paquete y vuelve a abrir el juego solo. Options > Upgrade Now busca
-    actualizaciones de los mundos instalados. Sin red, o con la opcion
-    "Contenido" desmarcada (--no-mirror), solo hay GroundZero.
-  - Ventana grande = mas pixeles que dibujar por software: el puente usa
-    varios hilos (Ajustes > "Hilos de dibujo", Auto por defecto).
+  - A bigger window means more pixels to draw in software: the bridge uses
+    several threads (Settings > Drawing threads, Auto by default).
 
-Actualizaciones
----------------
-  El lanzador busca al abrirse una version nueva en las releases de GitHub
-  del proyecto, la descarga comprobando su SHA-256 y la usa al reiniciar
-  (boton "Reiniciar y actualizar"). Se guarda en la carpeta de datos (app/),
-  sin tocar la app instalada. Ajustes > Actualizaciones: desactivarlo,
-  recibir versiones de prueba o, mientras el repositorio sea privado, poner
-  un token de GitHub de solo lectura. A mano: OpenWorlds --update.
+Updates
+-------
+  When it opens, the launcher looks for a newer version among the
+  project's GitHub releases, downloads it checking its SHA-256 and uses it
+  after a restart ("Restart to update" button). It is kept in the data
+  folder (app/), without touching the installed app. In Settings you can
+  turn the check off or also get test builds. By hand: OpenWorlds --update.
 
-Problemas
----------
-  Al avisar de un fallo adjunta el ultimo fichero de logs/ de la carpeta de
-  datos (se guardan las 20 ultimas sesiones). Proyecto:
-  docs/worlds-chat-project.md en el repositorio.
+Problems
+--------
+  When reporting a bug, attach the newest file in logs/ in the data folder
+  (the last 20 sessions are kept). The project:
+  https://github.com/luc4sterly/OpenWorlds

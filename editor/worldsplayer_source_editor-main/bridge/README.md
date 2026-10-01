@@ -49,9 +49,10 @@ default they are only logged), `-Dopenworlds.typeChat=MS:text` /
 `-Dopenworlds.typePassword=MS:[x]text` (type like a person),
 `-Dopenworlds.registry=FILE` (portable Windows registry, REGEDIT4) and
 `-Dopenworlds.volumeSerial=0x…` (volume serial to decrypt a
-password saved on another disk). Networked session against a local whirl:
-`OPENWORLDS_SERVER=127.0.0.1:6650` (+ `OPENWORLDS_USER`, `OPENWORLDS_LOGIN`,
-`OPENWORLDS_CHAT`, `OPENWORLDS_NETDEBUG`); see `docs/net-local-whirl.md`.
+password saved on another disk). Networked session against J Solar Server
+on this machine: `OPENWORLDS_SERVER=127.0.0.1:6650` (+ `OPENWORLDS_USER`,
+`OPENWORLDS_LOGIN`, `OPENWORLDS_CHAT`, `OPENWORLDS_NETDEBUG`); see
+`docs/net-local-server.md`.
 
 Checks: `bridge/test/*Check.java` (hand-calculated cases, one per
 subsystem) are run with `tools/run-checks.sh`, which rebuilds the bridge
@@ -99,14 +100,15 @@ measured: in GroundZero **all** the visible materials come out as
   DroneAnimator and receive `prepFigure` and `moveto`/`update`
   (`-Dopenworlds.animLog=1`). They rotate, and the C code leaves them in states 1/2,
   which have no sequence.
-- Against a local whirl: login, two clients in the same room and chat
-  typed with Enter that reaches the other one. They cannot see each other: whirl does not send
-  APPRACTR (`hub.rs:246`, commented out).
+- Against J Solar Server on the same machine: two clients sign in, see each
+  other walk, chat (typed with Enter), whisper and keep friends lists; also
+  encrypted, with the injector's "tls" patch (`docs/net-local-server.md`).
 - The client writes its 2004 `Gamma.Log` with `OPENWORLDS_GAMMA_LOG=1`,
   with the `SystemInfo.Record` report.
-- `tools/run-checks.sh`: 38/38 (5 from `formats/` and 33 from the bridge, with
+- `tools/run-checks.sh`: 45/45 (5 from `formats/`, 35 from the bridge, with
   `RasterGoldenCheck`, `MatrixAffineCheck`, `GdkUpCheck` and
-  `UiDisposeCheck`; the 5 of the new engine left with it on 2026-09-26);
+  `UiDisposeCheck`, and 1 + 3 + 1 from the injector, the launcher and J Solar
+  Server; the 5 of the new engine left with it on 2026-09-26);
   the exceptions
   that appear in GroundZero (`WorldScriptGroundZero` and
   `NoWebControlException` from the signs) are the client's own path. Correction of
@@ -312,8 +314,9 @@ Shapes:
 
 Animation:
 - No avatar has been seen walking or in wait inside GroundZero: the
-  statues rotate (~70°/s) and stay in states 1/2. A networked
-  drone is needed (whirl does not send them) or a world with an avatar that does not rotate.
+  statues rotate (~70°/s) and stay in states 1/2. J Solar Server now sends
+  networked drones (other players): ⚠️ VERIFY their walk/wait cycle frame by
+  frame against the translated rule.
 - The catch for the syntax errors of `avatars.dat` (a C++ throw) has not
   been located.
 
@@ -340,9 +343,10 @@ UI, system and media:
 Network:
 - `_connectThread` race of the 2004 client (verified in the bytecode:
   `WSConnecting` starts its threads before `state_Initializing` assigns
-  the field). Against a local server about 4 out of every 27 connections hang;
-  `run-whirl-duo.sh` retries. It is not patched: that would change the original
-  behavior.
+  the field). Against a local server about 4 out of every 27 connections
+  hung. Patched (`natives-java.patch`): `WorldServer.setSocket` first takes
+  the lock of `_state`, which `state_Initializing` holds until it has stored
+  the thread.
 
 Input:
 - AWT→Win32 VK table for the keys whose code differs; auto-repeat is
