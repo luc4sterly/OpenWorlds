@@ -1,0 +1,98 @@
+diff --git a/cmake/Components.cmake b/cmake/Components.cmake
+index 43db0f9..7724ca1 100644
+--- a/cmake/Components.cmake
++++ b/cmake/Components.cmake
+@@ -27,11 +27,15 @@ set(GCC_URL
+ 
+ set(ZLIB_VERSION 1.3.1)
+ set(ZLIB_HASH SHA256=9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23)
+-set(ZLIB_URL https://github.com/madler/zlib/releases/download/v${ZLIB_VERSION}/zlib-${ZLIB_VERSION}.tar.gz)
++set(ZLIB_URL
++    https://zlib.net/fossils/zlib-${ZLIB_VERSION}.tar.gz
++    https://github.com/madler/zlib/releases/download/v${ZLIB_VERSION}/zlib-${ZLIB_VERSION}.tar.gz)
+ 
+ set(LIBELF_VERSION 0.8.13)
+ set(LIBELF_HASH SHA256=591a9b4ec81c1f2042a97aa60564e0cb79d041c52faa7416acb38bc95bd2c76d)
+-set(LIBELF_URL https://github.com/vitasdk/artifacts/releases/download/libelf-${LIBELF_VERSION}/libelf-${LIBELF_VERSION}.tar.gz)
++set(LIBELF_URL
++    https://fossies.org/linux/misc/old/libelf-${LIBELF_VERSION}.tar.gz
++    https://github.com/vitasdk/artifacts/releases/download/libelf-${LIBELF_VERSION}/libelf-${LIBELF_VERSION}.tar.gz)
+ 
+ set(LIBYAML_VERSION 0.2.2)
+ set(LIBYAML_HASH SHA256=4a9100ab61047fd9bd395bcef3ce5403365cafd55c1e0d0299cde14958e47be9)
+diff --git a/cmake/ValidateSdk.cmake b/cmake/ValidateSdk.cmake
+index 01791c0..4dfbc8b 100644
+--- a/cmake/ValidateSdk.cmake
++++ b/cmake/ValidateSdk.cmake
+@@ -5,7 +5,10 @@ if(NOT DEFINED HOST_SYSTEM_NAME)
+     set(HOST_SYSTEM_NAME "${CMAKE_HOST_SYSTEM_NAME}")
+ endif()
+ 
+-set(required_tools gcc g++ ld as ar ranlib strip objcopy objdump readelf nm gdb)
++set(required_tools gcc g++ ld as ar ranlib strip objcopy objdump readelf nm)
++if(NOT NO_GDB)
++    list(APPEND required_tools gdb)
++endif()
+ foreach(tool IN LISTS required_tools)
+     set(path "${SDK_DIR}/bin/${TARGET_TRIPLE}-${tool}")
+     if(HOST_SYSTEM_NAME STREQUAL "Windows")
+diff --git a/cmake/recipes/BuildHostDependencies.cmake b/cmake/recipes/BuildHostDependencies.cmake
+index e9e5b74..b1bf2bc 100644
+--- a/cmake/recipes/BuildHostDependencies.cmake
++++ b/cmake/recipes/BuildHostDependencies.cmake
+@@ -249,7 +249,7 @@ function(toolchain_deps toolchain_deps_dir toolchain_install_dir toolchain_suffi
+         ${UPDATE_DISCONNECTED_SUPPORT}
+         )
+ 
+-    if(NOT VITASDK_TARGET_ONLY)
++    if(NOT VITASDK_TARGET_ONLY AND NOT VITASDK_NO_GDB)
+         # Only gdb reads XML target descriptions; a producer has no gdb.
+         ExternalProject_add(expat${suffix}
+             URL ${EXPAT_URL}
+@@ -324,7 +324,7 @@ function(toolchain_deps toolchain_deps_dir toolchain_install_dir toolchain_suffi
+         INSTALL_COMMAND $(MAKE) install DESTDIR=${toolchain_install_dir} INFO_DEPS= DVIS= pdfs= htmls=
+         )
+ 
+-    if(NOT VITASDK_TARGET_ONLY)
++    if(NOT VITASDK_TARGET_ONLY AND NOT VITASDK_NO_GDB)
+         # gdb is a host binary through and through: it never takes part in
+         # producing target code, and every host builds its own.
+         ExternalProject_Add(gdb${suffix}
+@@ -386,7 +386,7 @@ function(toolchain_deps toolchain_deps_dir toolchain_install_dir toolchain_suffi
+             COMMENT "Installing binutils to ${CMAKE_INSTALL_PREFIX}"
+             )
+ 
+-        if(NOT VITASDK_TARGET_ONLY)
++        if(NOT VITASDK_TARGET_ONLY AND NOT VITASDK_NO_GDB)
+ 
+             ExternalProject_Add_Step(gdb${suffix}
+                 install_sdk
+diff --git a/cmake/recipes/FinalizeSdk.cmake b/cmake/recipes/FinalizeSdk.cmake
+index aec562b..1f6c4ab 100644
+--- a/cmake/recipes/FinalizeSdk.cmake
++++ b/cmake/recipes/FinalizeSdk.cmake
+@@ -32,13 +32,15 @@ endif()
+ set(finalize_sdk_dependencies
+     vita-toolchain_${target_suffix}
+     binutils_${target_suffix}
+-    gdb_${target_suffix}
+     vdpm
+     vita-makepkg
+     ${target_half_dependencies})
+ if(BUILD_PACMAN_CLIENT)
+     list(APPEND finalize_sdk_dependencies package-client-configuration)
+ endif()
++if(NOT VITASDK_NO_GDB)
++    list(APPEND finalize_sdk_dependencies gdb_${target_suffix})
++endif()
+ 
+ # Target objects are stripped where they are produced. In stage 2 they arrive
+ # already stripped from stage 1, and the objcopy that would do it belongs to
+@@ -107,6 +109,7 @@ add_custom_target(finalize-sdk
+         -DHOST_SYSTEM_NAME=${CMAKE_SYSTEM_NAME}
+         -DHOST_TRIPLE=${host_native}
+         -DVERSION_FILE=${version_info_file}
++        -DNO_GDB=${VITASDK_NO_GDB}
+         -P ${CMAKE_SOURCE_DIR}/cmake/ValidateSdk.cmake
+     COMMAND ${CMAKE_COMMAND}
+         -DSDK_DIR=${CMAKE_INSTALL_PREFIX}

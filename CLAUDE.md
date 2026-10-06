@@ -68,6 +68,7 @@ launcher/src/net/openworlds/launcher/   the game's launcher (window with the log
 launcher/test/                launcher checks (updater, game copy, online/TLS/world-install helpers)
 injector/                     J Worlds Injector: src/ (unified diffs applied and compiled with javax.tools), patches/ (built-in patches), test/
 server/                       J Solar Server: src/ (the server, its admin window and console), resources/, test/ (protocol check, scripted walker)
+vita/                         the PSVita port: the original client transpiled to C++ (Clearwing VM + our patches), VitaSDK and its tools, test/conformance
 .github/workflows/build.yml   CI: build + checks + corpus + smoke tests; apps for macOS/Windows/Linux; a release on every push to main
 .claude/hooks/session-start.sh   provisions each Claude Code on the web session (calls tools/setup-linux.sh)
 editor/worldsplayer_source_editor-main/   Whirlsplash's tool: decompiles/edits/recompiles the original .jar
@@ -109,7 +110,8 @@ itself (`WisePackage`, `NsisPackage`); it is in the git history.
 | UI (chat, friends, map, menus) | 🟢 in the original | the 2004 AWT UI runs under the bridge and was tested in full (`docs/game-tests.md`) |
 | Packages and CI | ✅ | `tools/build-dist.sh`: portable (.zip, Java 17+) and apps with their own Java (jlink + jpackage) for OpenWorlds and J Solar Server on macOS Intel/ARM, Windows and Linux. `.github/workflows/build.yml` does it on every push and **every push to main publishes a release** (`v1.0.<commits>`, packages + `SHA256SUMS.txt`) |
 | Launcher | ✅ | the logo's look (live planet, Poppins OFL); "Single player" or "Online" (address, name, password, "Encrypted connection" with the certificate checked with the player the first time, like SSH); patches; the game's sign-in filled in; **updates itself** from the releases (`Updater`/`Bootstrap`, the new version in `<data>/app/`; the repo is public, no token needed). The game copy keeps what the client changes (manifest in `Install.prepare`) |
-| OpenBSD / PSVita port | ⬜ 0% | phase 5. Note: the original client is Java with an AWT UI, and there is no Java on the PSVita |
+| PSVita port | 🟡 started | `vita/README.md`: the original client + bridge transpiled to C++ with Clearwing VM (v3.1.3 + 13 patches; `vita/tools/run-conformance.sh` identical to the JVM) and built with VitaSDK (built from source here). Missing: our own `java.awt` (101 classes), 15 more runtime classes, the SDL2 platform layer, the `.vpk` |
+| OpenBSD port | ⬜ 0% | phase 5: the OpenJDK from ports (⚠️ VERIFY its AWT) |
 
 Detailed status of the bridge, with what is pending:
 `editor/worldsplayer_source_editor-main/bridge/README.md`.
@@ -244,7 +246,11 @@ In order of what they unblock (detail in `docs/roadmap.md`):
    that was reported.
 5. Open decisions: fix or not the original's bug in `setDIBPixelInts`;
    language of the final engine for phase 5.
-6. Phase 5 (OpenBSD/PSVita): not started.
+6. PSVita (`vita/README.md`, the user's request of 2026-10-06: "the original,
+   no new engines"): toolchain and transpiler done; next, our own
+   `java.awt` (tested on a desktop JVM with `--limit-modules java.base`),
+   then the rest of the runtime, the SDL2 platform layer and the `.vpk`.
+   OpenBSD: not started.
 7. Try the CI apps on real machines: the macOS ones are signed ad hoc
    (Gatekeeper: "Open Anyway" or `xattr -dr com.apple.quarantine`). In the
    CI the packaged original draws GroundZero on the four runners (Linux,

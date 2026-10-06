@@ -1,0 +1,44 @@
+From 312cb598709072e2c16cdbbf5332853b62fe5472 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Tue, 6 Oct 2026 15:30:00 +0000
+Subject: [PATCH 09/13] Negative array sizes throw NegativeArraySizeException
+
+---
+ runtime/res/clearwing/src/Array.cpp                         | 4 ++++
+ transpiler/src/com/thelogicmaster/clearwing/Transpiler.java | 1 +
+ 2 files changed, 5 insertions(+)
+
+diff --git a/runtime/res/clearwing/src/Array.cpp b/runtime/res/clearwing/src/Array.cpp
+index 47bd123..936d13c 100644
+--- a/runtime/res/clearwing/src/Array.cpp
++++ b/runtime/res/clearwing/src/Array.cpp
+@@ -1,3 +1,4 @@
++#include "java/lang/NegativeArraySizeException.h"
+ #include "Array.hpp"
+ #include "java/lang/Object.h"
+ #include <map>
+@@ -113,6 +114,9 @@ jclass getArrayClass(jclass componentType, int dimensions) {
+ /// Creates a new multi-dimensional array. Throws exceptions.
+ extern "C++" jarray createMultiArray(jcontext ctx, jclass type, const std::vector<int> &dimensions) {
+     nullCheck(ctx, (jobject) type);
++    for (int dimension : dimensions)
++        if (dimension < 0) CPP_UNLIKELY
++            constructAndThrow<&class_java_lang_NegativeArraySizeException, init_java_lang_NegativeArraySizeException>(ctx);
+     auto array = (jarray) gcAllocProtected(ctx, getArrayClass(type, (int) dimensions.size())); // Safe because no methods are called on it, so no safepoint
+     array->length = dimensions[0];
+     if (array->length == 0) // Todo: Verify
+diff --git a/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java b/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
+index e100e4e..ce92cba 100644
+--- a/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
++++ b/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
+@@ -57,6 +57,7 @@ public class Transpiler {
+ 			"java/lang/Long",
+ 			"java/lang/Math",
+ 			"java/lang/NoSuchMethodError",
++			"java/lang/NegativeArraySizeException",
+ 			"java/lang/OutOfMemoryError",
+ 			"java/lang/reflect/Method",
+ 			"java/io/NativeOutputStream",
+-- 
+2.43.0
+

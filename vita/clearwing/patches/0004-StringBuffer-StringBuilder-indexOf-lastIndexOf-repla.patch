@@ -1,0 +1,77 @@
+From a9f93def8ca9722e5b912658601e293b6f85f663 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Tue, 6 Oct 2026 15:24:02 +0000
+Subject: [PATCH 04/13] StringBuffer/StringBuilder: indexOf, lastIndexOf,
+ replace, substring
+
+---
+ runtime/src/java/lang/StringBuffer.java  | 29 ++++++++++++++++++++++++
+ runtime/src/java/lang/StringBuilder.java | 12 ++++++++++
+ 2 files changed, 41 insertions(+)
+
+diff --git a/runtime/src/java/lang/StringBuffer.java b/runtime/src/java/lang/StringBuffer.java
+index 3ae0f01..884422a 100644
+--- a/runtime/src/java/lang/StringBuffer.java
++++ b/runtime/src/java/lang/StringBuffer.java
+@@ -322,6 +322,35 @@ public final class StringBuffer implements CharSequence, Appendable {
+      * Converts to a string representing the data in this string buffer. A new String object is allocated and initialized to contain the character sequence currently represented by this string buffer. This String is then returned. Subsequent changes to the string buffer do not affect the contents of the String.
+      * Implementation advice: This method can be coded so as to create a new String object without allocating new memory to hold a copy of the character sequence. Instead, the string can share the memory used by the string buffer. Any subsequent operation that alters the content or capacity of the string buffer must then make a copy of the internal buffer at that time. This strategy is effective for reducing the amount of memory allocated by a string concatenation operation when it is implemented using a string buffer.
+      */
++    public int indexOf(java.lang.String string) {
++        return internal.indexOf(string);
++    }
++
++    public int indexOf(java.lang.String string, int start) {
++        return internal.indexOf(string, start);
++    }
++
++    public int lastIndexOf(java.lang.String string) {
++        return internal.toString().lastIndexOf(string);
++    }
++
++    public int lastIndexOf(java.lang.String string, int start) {
++        return internal.toString().lastIndexOf(string, start);
++    }
++
++    public java.lang.StringBuffer replace(int start, int end, java.lang.String str) {
++        internal.replace(start, end, str);
++        return this;
++    }
++
++    public java.lang.String substring(int start) {
++        return internal.substring(start, internal.length());
++    }
++
++    public java.lang.String substring(int start, int end) {
++        return internal.substring(start, end);
++    }
++
+     public java.lang.String toString(){
+         return internal.toString();
+     }
+diff --git a/runtime/src/java/lang/StringBuilder.java b/runtime/src/java/lang/StringBuilder.java
+index 38d5c07..0cc7fb9 100644
+--- a/runtime/src/java/lang/StringBuilder.java
++++ b/runtime/src/java/lang/StringBuilder.java
+@@ -307,6 +307,18 @@ public final class StringBuilder implements CharSequence, Appendable {
+         System.arraycopy(value, start, dst, dstStart, end - start);
+     }*/
+ 
++    public int lastIndexOf(java.lang.String string) {
++        return toString().lastIndexOf(string);
++    }
++
++    public int lastIndexOf(java.lang.String string, int start) {
++        return toString().lastIndexOf(string, start);
++    }
++
++    public String substring(int start) {
++        return substring(start, length());
++    }
++
+     public StringBuilder replace(int start, int end, String str) {
+         if (start < 0)
+             throw new StringIndexOutOfBoundsException(start);
+-- 
+2.43.0
+

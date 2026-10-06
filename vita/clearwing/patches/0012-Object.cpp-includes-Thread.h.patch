@@ -1,0 +1,24 @@
+From e865df559ad594d0d2fae7f5bb6740068c06df42 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Tue, 6 Oct 2026 15:36:00 +0000
+Subject: [PATCH 12/13] Object.cpp includes Thread.h
+
+---
+ runtime/res/clearwing/src/Object.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/runtime/res/clearwing/src/Object.cpp b/runtime/res/clearwing/src/Object.cpp
+index 0321448..305a76f 100644
+--- a/runtime/res/clearwing/src/Object.cpp
++++ b/runtime/res/clearwing/src/Object.cpp
+@@ -1,6 +1,7 @@
+ #include "Clearwing.h"
+ 
+ #include "java/lang/Object.h"
++#include "java/lang/Thread.h"
+ #include "java/lang/Cloneable.h"
+ #include "java/lang/CloneNotSupportedException.h"
+ 
+-- 
+2.43.0
+

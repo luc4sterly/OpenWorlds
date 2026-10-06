@@ -323,8 +323,11 @@ There are 41 files with natives outside the bridge. `FastDataInput`, `IniFile` a
 - [~] Windows: the CI generates the x64 app (a folder with `OpenWorlds.exe`); the
       bridge does nothing with paths on Windows (`HostPath`). ⚠️
       VERIFY on a real machine.
-- [ ] PSVita: requires a native engine (C + SDL2/vitaGL, ⚠️ VERIFY). It has to be
-      decided before starting (section 1).
+- [~] PSVita: decided on 2026-10-06, the original and no new engine: the
+      client and the bridge transpiled to C++ (Clearwing VM) and built with
+      VitaSDK; the missing Java runtime (AWT above all) written in
+      `vita/`. Toolchain and transpiler done, conformance test identical to
+      the JVM; plan and status in `vita/README.md`.
 
 ## 3. What depends on you
 

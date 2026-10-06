@@ -1,0 +1,135 @@
+From 4455a9dc60acb128c946364e6ce3d378564c7209 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Tue, 6 Oct 2026 15:32:38 +0000
+Subject: [PATCH 10/13] Exception handler priority, exact float constants,
+ Math.max/min with NaN and -0.0, Random.nextBoolean
+
+---
+ runtime/res/clearwing/src/Math.cpp            | 24 +++++++++++++++----
+ runtime/src/java/util/Random.java             |  2 +-
+ .../com/thelogicmaster/clearwing/Parser.java  | 18 ++++----------
+ .../com/thelogicmaster/clearwing/Utils.java   | 11 +++------
+ 4 files changed, 28 insertions(+), 27 deletions(-)
+
+diff --git a/runtime/res/clearwing/src/Math.cpp b/runtime/res/clearwing/src/Math.cpp
+index 8210172..f389c8a 100644
+--- a/runtime/res/clearwing/src/Math.cpp
++++ b/runtime/res/clearwing/src/Math.cpp
+@@ -35,7 +35,11 @@ jdouble SM_java_lang_Math_floor_double_R_double(jcontext ctx, jdouble value) {
+ }
+ 
+ jdouble SM_java_lang_Math_max_double_double_R_double(jcontext ctx, jdouble value1, jdouble value2) {
+-    return std::max(value1, value2);
++    // Java: NaN wins, and +0.0 is greater than -0.0
++    if (value1 != value1) return value1;
++    if (value2 != value2) return value2;
++    if (value1 == 0 && value2 == 0) return std::signbit(value1) ? value2 : value1;
++    return value1 >= value2 ? value1 : value2;
+ }
+ 
+ jdouble SM_java_lang_Math_pow_double_double_R_double(jcontext ctx, jdouble value1, jdouble value2) {
+@@ -43,7 +47,11 @@ jdouble SM_java_lang_Math_pow_double_double_R_double(jcontext ctx, jdouble value
+ }
+ 
+ jfloat SM_java_lang_Math_max_float_float_R_float(jcontext ctx, jfloat value1, jfloat value2) {
+-    return std::max(value1, value2);
++    // Java: NaN wins, and +0.0 is greater than -0.0
++    if (value1 != value1) return value1;
++    if (value2 != value2) return value2;
++    if (value1 == 0 && value2 == 0) return std::signbit(value1) ? value2 : value1;
++    return value1 >= value2 ? value1 : value2;
+ }
+ 
+ jint SM_java_lang_Math_max_int_int_R_int(jcontext ctx, jint value1, jint value2) {
+@@ -55,11 +63,19 @@ jlong SM_java_lang_Math_max_long_long_R_long(jcontext ctx, jlong value1, jlong v
+ }
+ 
+ jdouble SM_java_lang_Math_min_double_double_R_double(jcontext ctx, jdouble value1, jdouble value2) {
+-    return std::min(value1, value2);
++    // Java: NaN wins, and -0.0 is less than +0.0
++    if (value1 != value1) return value1;
++    if (value2 != value2) return value2;
++    if (value1 == 0 && value2 == 0) return std::signbit(value1) ? value1 : value2;
++    return value1 <= value2 ? value1 : value2;
+ }
+ 
+ jfloat SM_java_lang_Math_min_float_float_R_float(jcontext ctx, jfloat value1, jfloat value2) {
+-    return std::min(value1, value2);
++    // Java: NaN wins, and -0.0 is less than +0.0
++    if (value1 != value1) return value1;
++    if (value2 != value2) return value2;
++    if (value1 == 0 && value2 == 0) return std::signbit(value1) ? value1 : value2;
++    return value1 <= value2 ? value1 : value2;
+ }
+ 
+ jint SM_java_lang_Math_min_int_int_R_int(jcontext ctx, jint value1, jint value2) {
+diff --git a/runtime/src/java/util/Random.java b/runtime/src/java/util/Random.java
+index 2c77531..b183d90 100644
+--- a/runtime/src/java/util/Random.java
++++ b/runtime/src/java/util/Random.java
+@@ -146,7 +146,7 @@ public class Random{
+     }
+ 
+     public boolean nextBoolean() {
+-        return nextInt() % 2 == 0;
++        return next(1) != 0;
+     }
+     
+     public void nextBytes(byte[] bytes) {
+diff --git a/transpiler/src/com/thelogicmaster/clearwing/Parser.java b/transpiler/src/com/thelogicmaster/clearwing/Parser.java
+index 5f3f5ba..f4a0b39 100644
+--- a/transpiler/src/com/thelogicmaster/clearwing/Parser.java
++++ b/transpiler/src/com/thelogicmaster/clearwing/Parser.java
+@@ -454,20 +454,10 @@ public class Parser extends ClassVisitor {
+             List<Instruction> instructions = method.getInstructions();
+             List<TryInstruction> tryCatchBlocks = new ArrayList<>(method.getTryCatchBlocks());
+ 
+-            // Invert order for nested try-catch with same start label
+-            for (int i = 0; i < tryCatchBlocks.size(); i++) {
+-                int first = i;
+-                while (i + 1 < tryCatchBlocks.size() && tryCatchBlocks.get(first).getStart() == tryCatchBlocks.get(i + 1).getStart())
+-                    i++;
+-                int last = i;
+-                if (first == last)
+-                    continue;
+-                for (int j = 0; j < (last - first + 1) / 2; j++) {
+-                    TryInstruction temp = tryCatchBlocks.get(first + j);
+-                    tryCatchBlocks.set(first + j, tryCatchBlocks.get(last - j));
+-                    tryCatchBlocks.set(last - j, temp);
+-                }
+-            }
++            // Each block is inserted right after its start label, so blocks sharing a start
++            // end up pushed in reverse table order: the first matching entry of the exception
++            // table (the innermost handler) is on top of the exception frame stack, where
++            // throwException looks first, as the JVM's first-match rule requires.
+ 
+             // Insert "Catch" block instructions
+             for (TryInstruction tryCatch : tryCatchBlocks) {
+diff --git a/transpiler/src/com/thelogicmaster/clearwing/Utils.java b/transpiler/src/com/thelogicmaster/clearwing/Utils.java
+index 11b681a..601cc92 100644
+--- a/transpiler/src/com/thelogicmaster/clearwing/Utils.java
++++ b/transpiler/src/com/thelogicmaster/clearwing/Utils.java
+@@ -171,17 +171,12 @@ public class Utils {
+ 			throw new TranspilerException("Invalid annotation parameter object of type: " + o.getClass());
+ 	}
+ 	
++	// Hexadecimal literals carry every bit of the constant (%e kept only 7 digits)
+ 	private static String formatFloatLiteral(float value) {
+-		float abs = Math.abs(value);
+-		if (abs > 10e7 || abs < 10e-3)
+-			return String.format("%e", value);
+-		return Float.toString(value);
++		return Float.toHexString(value);
+ 	}
+ 
+ 	private static String formatDoubleLiteral(double value) {
+-		double abs = Math.abs(value);
+-		if (abs > 10e7 || abs < 10e-3)
+-			return String.format("%e", value);
+-		return Double.toString(value);
++		return Double.toHexString(value);
+ 	}
+ }
+-- 
+2.43.0
+

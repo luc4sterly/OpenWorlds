@@ -1,0 +1,89 @@
+From e20e9c94ae071ee04855099cc1faf67573c74527 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Tue, 6 Oct 2026 15:18:32 +0000
+Subject: [PATCH 02/13] Array index checks: negative indexes,
+ ArrayIndexOutOfBoundsException
+
+---
+ runtime/res/clearwing/src/Clearwing.cpp                     | 5 +++++
+ runtime/res/clearwing/src/Clearwing.h                       | 5 +++--
+ runtime/res/clearwing/src/System.cpp                        | 4 ++--
+ transpiler/src/com/thelogicmaster/clearwing/Transpiler.java | 1 +
+ 4 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/runtime/res/clearwing/src/Clearwing.cpp b/runtime/res/clearwing/src/Clearwing.cpp
+index 08108cb..b5681b8 100644
+--- a/runtime/res/clearwing/src/Clearwing.cpp
++++ b/runtime/res/clearwing/src/Clearwing.cpp
+@@ -12,6 +12,7 @@
+ #include "java/lang/IllegalMonitorStateException.h"
+ #include "java/lang/IllegalArgumentException.h"
+ #include "java/lang/IndexOutOfBoundsException.h"
++#include "java/lang/ArrayIndexOutOfBoundsException.h"
+ #include "java/lang/OutOfMemoryError.h"
+ #include "java/lang/StackOverflowError.h"
+ #include "java/io/IOException.h"
+@@ -870,6 +871,10 @@ void throwIndexOutOfBounds(jcontext ctx) {
+     constructAndThrow<&class_java_lang_IndexOutOfBoundsException, init_java_lang_IndexOutOfBoundsException>(ctx);
+ }
+ 
++void throwArrayIndexOutOfBounds(jcontext ctx, jint index) {
++    constructAndThrow<&class_java_lang_ArrayIndexOutOfBoundsException, init_java_lang_ArrayIndexOutOfBoundsException_int>(ctx, index);
++}
++
+ void throwIllegalArgument(jcontext ctx) {
+     constructAndThrow<&class_java_lang_IllegalArgumentException, init_java_lang_IllegalArgumentException>(ctx);
+ }
+diff --git a/runtime/res/clearwing/src/Clearwing.h b/runtime/res/clearwing/src/Clearwing.h
+index f944341..dee67b4 100644
+--- a/runtime/res/clearwing/src/Clearwing.h
++++ b/runtime/res/clearwing/src/Clearwing.h
+@@ -303,6 +303,7 @@ NORETURN void throwClassCast(jcontext ctx);
+ NORETURN void throwNullPointer(jcontext ctx);
+ NORETURN void throwStackOverflow(jcontext ctx);
+ NORETURN void throwIndexOutOfBounds(jcontext ctx);
++NORETURN void throwArrayIndexOutOfBounds(jcontext ctx, jint index);
+ NORETURN void throwIllegalArgument(jcontext ctx);
+ NORETURN void throwNoSuchMethod(jcontext ctx);
+ NORETURN void throwIOException(jcontext ctx, const char *message);
+@@ -970,8 +971,8 @@ inline jobject checkCast(jcontext ctx, jclass type, jobject object) {
+ 
+ inline jarray arrayBoundsCheck(jcontext ctx, jarray array, int index) {
+     nullCheck(ctx, (jobject)array);
+-    if (index >= array->length) CPP_UNLIKELY
+-        throwIndexOutOfBounds(ctx);
++    if ((uint32_t) index >= (uint32_t) array->length) CPP_UNLIKELY
++        throwArrayIndexOutOfBounds(ctx, index);
+     return array;
+ }
+ 
+diff --git a/runtime/res/clearwing/src/System.cpp b/runtime/res/clearwing/src/System.cpp
+index 3ff967c..cbc8c2f 100644
+--- a/runtime/res/clearwing/src/System.cpp
++++ b/runtime/res/clearwing/src/System.cpp
+@@ -16,8 +16,8 @@ void SM_java_lang_System_arraycopy_java_lang_Object_int_java_lang_Object_int_int
+     auto dstType = (jclass) jclass(dst->clazz)->componentClass;
+     if (srcType->primitive != dstType->primitive or (srcType->primitive and srcType->nativeName != dstType->nativeName))
+         constructAndThrow<&class_java_lang_ArrayStoreException, init_java_lang_ArrayStoreException>(ctx);
+-    if (srcOffset < 0 or dstOffset < 0 or length < 0 or srcOffset + length > srcArray->length or dstOffset + length > dstArray->length)
+-        throwIndexOutOfBounds(ctx);
++    if (srcOffset < 0 or dstOffset < 0 or length < 0 or (jlong) srcOffset + length > srcArray->length or (jlong) dstOffset + length > dstArray->length)
++        throwArrayIndexOutOfBounds(ctx, srcOffset < 0 ? srcOffset : dstOffset < 0 ? dstOffset : length < 0 ? length : (jlong) srcOffset + length > srcArray->length ? srcOffset + length : dstOffset + length);
+     auto size = srcType->primitive ? srcType->size : sizeof(jobject);
+     if (src == dst)
+         memmove((char *) dstArray->data + dstOffset * size, (char *) srcArray->data + srcOffset * size, length * size);
+diff --git a/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java b/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
+index 688d799..e100e4e 100644
+--- a/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
++++ b/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
+@@ -29,6 +29,7 @@ public class Transpiler {
+ 
+ 	private final static String[] NATIVE_DEPENDENCIES = {
+ 			"java/lang/ArithmeticException",
++			"java/lang/ArrayIndexOutOfBoundsException",
+ 			"java/lang/reflect/Array",
+ 			"java/lang/Boolean",
+ 			"java/nio/Buffer",
+-- 
+2.43.0
+

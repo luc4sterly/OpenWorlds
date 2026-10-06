@@ -1,0 +1,33 @@
+From 46348ab2e7507be59f74bdc67c16815a28a9f735 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Tue, 6 Oct 2026 15:25:19 +0000
+Subject: [PATCH 07/13] Java arithmetic helpers with C++ linkage (overloads)
+
+---
+ runtime/res/clearwing/src/Clearwing.h | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/runtime/res/clearwing/src/Clearwing.h b/runtime/res/clearwing/src/Clearwing.h
+index 255d0df..8e3b3e3 100644
+--- a/runtime/res/clearwing/src/Clearwing.h
++++ b/runtime/res/clearwing/src/Clearwing.h
+@@ -301,6 +301,8 @@ NORETURN void throwException(jcontext ctx, jobject exception);
+ NORETURN void throwDivisionByZero(jcontext ctx);
+ 
+ // Java's integer arithmetic: shift counts masked, INT_MIN / -1 wraps, x / 0 throws.
++// Overloaded for int and long, so C++ linkage inside the extern "C" block.
++extern "C++" {
+ inline jint javaShl(jint a, jint n) { return (jint) ((uint32_t) a << (n & 31)); }
+ inline jint javaShr(jint a, jint n) { return a >> (n & 31); }
+ inline jint javaUshr(jint a, jint n) { return (jint) ((uint32_t) a >> (n & 31)); }
+@@ -328,6 +330,7 @@ inline jint javaF2I(jfloat f) { return f != f ? 0 : f >= 2147483648.0f ? 0x7ffff
+ inline jint javaD2I(jdouble d) { return d != d ? 0 : d >= 2147483647.0 ? 0x7fffffff : d <= -2147483648.0 ? (jint) 0x80000000 : (jint) d; }
+ inline jlong javaF2L(jfloat f) { return f != f ? 0 : f >= 9223372036854775808.0f ? 0x7fffffffffffffffll : f <= -9223372036854775808.0f ? (jlong) 0x8000000000000000ull : (jlong) f; }
+ inline jlong javaD2L(jdouble d) { return d != d ? 0 : d >= 9223372036854775808.0 ? 0x7fffffffffffffffll : d <= -9223372036854775808.0 ? (jlong) 0x8000000000000000ull : (jlong) d; }
++}
+ NORETURN void throwClassCast(jcontext ctx);
+ NORETURN void throwNullPointer(jcontext ctx);
+ NORETURN void throwStackOverflow(jcontext ctx);
+-- 
+2.43.0
+

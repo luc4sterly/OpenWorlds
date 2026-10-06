@@ -1,0 +1,26 @@
+From 7b07d4dee8cfd4b4272c191e34a4c3964583367d Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Tue, 6 Oct 2026 15:29:09 +0000
+Subject: [PATCH 08/13] Division by zero throws an ArithmeticException (was
+ constructed as a ClassCastException)
+
+---
+ runtime/res/clearwing/src/Clearwing.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/runtime/res/clearwing/src/Clearwing.cpp b/runtime/res/clearwing/src/Clearwing.cpp
+index b5681b8..b971149 100644
+--- a/runtime/res/clearwing/src/Clearwing.cpp
++++ b/runtime/res/clearwing/src/Clearwing.cpp
+@@ -852,7 +852,7 @@ void throwException(jcontext ctx, jobject exception) {
+ }
+ 
+ void throwDivisionByZero(jcontext ctx) {
+-    constructAndThrowMsg<&class_java_lang_ClassCastException, init_java_lang_ArithmeticException_java_lang_String>(ctx, "Division by Zero");
++    constructAndThrowMsg<&class_java_lang_ArithmeticException, init_java_lang_ArithmeticException_java_lang_String>(ctx, "Division by Zero");
+ }
+ 
+ void throwClassCast(jcontext ctx) {
+-- 
+2.43.0
+

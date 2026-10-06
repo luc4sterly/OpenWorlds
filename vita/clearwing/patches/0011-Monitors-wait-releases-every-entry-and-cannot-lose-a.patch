@@ -1,0 +1,226 @@
+From e79298cda55e59489569a2761ad12e22324e388a Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Tue, 6 Oct 2026 15:35:33 +0000
+Subject: [PATCH 11/13] Monitors: wait releases every entry and cannot lose a
+ notify; sleep holds no monitor; interrupt wakes sleepers and waiters
+
+---
+ runtime/res/clearwing/src/Clearwing.cpp | 15 +++--
+ runtime/res/clearwing/src/Clearwing.h   |  2 +
+ runtime/res/clearwing/src/Object.cpp    | 75 +++++++++++++------------
+ runtime/res/clearwing/src/Thread.cpp    | 41 ++++++++------
+ 4 files changed, 75 insertions(+), 58 deletions(-)
+
+diff --git a/runtime/res/clearwing/src/Clearwing.cpp b/runtime/res/clearwing/src/Clearwing.cpp
+index b971149..d0cc8d9 100644
+--- a/runtime/res/clearwing/src/Clearwing.cpp
++++ b/runtime/res/clearwing/src/Clearwing.cpp
+@@ -148,13 +148,20 @@ void shutdownVM(jcontext ctx) {
+         for (auto threadContext : threadContexts) { // Todo: Should be locked for
+             if (threadContext->dead) continue;
+             done = false;
+-            threadContext->lock.lock();
+-            if (threadContext->blockedBy)
+-                ((jmonitor) ((jobject) threadContext->blockedBy)->monitor)->condition.notify_all();
+-            threadContext->lock.unlock();
++            {
++                std::lock_guard<std::mutex> guard(threadContext->sleepMutex);
++                threadContext->sleepCondition.notify_all();
++            }
++            jobject blocked = threadContext->blockedBy;
++            if (blocked) {
++                auto monitor = (jmonitor) blocked->monitor;
++                std::lock_guard<std::mutex> guard(monitor->conditionMutex);
++                monitor->condition.notify_all();
++            }
+         }
+         if (done)
+             break;
++        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+     }
+ }
+ 
+diff --git a/runtime/res/clearwing/src/Clearwing.h b/runtime/res/clearwing/src/Clearwing.h
+index 8e3b3e3..5dbe3e6 100644
+--- a/runtime/res/clearwing/src/Clearwing.h
++++ b/runtime/res/clearwing/src/Clearwing.h
+@@ -966,6 +966,8 @@ struct Context {
+     volatile bool suspended{}; // Considered at safepoint, must check for suspendVM flag when un-suspending
+     std::recursive_mutex lock; // Lock on changing the stack or blocking monitor
+     std::atomic<jobject> blockedBy; // Object monitor blocking the current thread, or null
++    std::mutex sleepMutex; // Thread.sleep waits on sleepCondition, which interrupt() signals
++    std::condition_variable sleepCondition;
+     bool dead{};
+     std::vector<jobject> globalRefs{}; // Global JNI references
+ };
+diff --git a/runtime/res/clearwing/src/Object.cpp b/runtime/res/clearwing/src/Object.cpp
+index e0c3314..0321448 100644
+--- a/runtime/res/clearwing/src/Object.cpp
++++ b/runtime/res/clearwing/src/Object.cpp
+@@ -50,64 +50,65 @@ void M_java_lang_Object_finalize(jcontext ctx, jobject self) {
+ 
+ void M_java_lang_Object_notify(jcontext ctx, jobject self) {
+     monitorOwnerCheck(ctx, self);
+-    ((jmonitor) self->monitor)->condition.notify_one();
++    auto monitor = (jmonitor) self->monitor;
++    std::lock_guard<std::mutex> guard(monitor->conditionMutex);
++    monitor->condition.notify_one();
+ }
+ 
+ void M_java_lang_Object_notifyAll(jcontext ctx, jobject self) {
+     monitorOwnerCheck(ctx, self);
+-    ((jmonitor) self->monitor)->condition.notify_all();
++    auto monitor = (jmonitor) self->monitor;
++    std::lock_guard<std::mutex> guard(monitor->conditionMutex);
++    monitor->condition.notify_all();
+ }
+ 
+-void M_java_lang_Object_wait(jcontext ctx, jobject self) {
++/// Object.wait as the JVM does it: the monitor is released completely (however many times this
++/// thread entered it) only once the waiter holds conditionMutex, so a notify made by the next owner
++/// cannot be lost, and it is entered again as many times afterwards. Throws exceptions.
++static void waitOnMonitor(jcontext ctx, jobject self, bool timed, jlong millis, jint nanos) {
+     monitorOwnerCheck(ctx, self);
+     interruptedCheck(ctx);
+-    ctx->lock.lock();
+-    ctx->blockedBy = self;
+-    ctx->lock.unlock();
+-    monitorExit(ctx, self);
+-
+-    ctx->suspended = true;
+     auto monitor = (jmonitor) self->monitor;
++    ctx->blockedBy = self;
++    int depth;
+     {
+-        std::unique_lock<std::mutex> lock(monitor->conditionMutex);
+-        monitor->condition.wait(lock);
++        std::unique_lock<std::mutex> conditionLock(monitor->conditionMutex);
++        depth = monitor->depth;
++        monitor->depth = 0;
++        monitor->owner = nullptr;
++        for (int i = 0; i < depth; i++)
++            monitor->lock.unlock();
++        ctx->suspended = true;
++        if (!ctx->thread->F_interrupted) {
++            if (timed)
++                monitor->condition.wait_for(conditionLock, std::chrono::milliseconds(millis) + std::chrono::nanoseconds(nanos));
++            else
++                monitor->condition.wait(conditionLock);
++        }
+     }
++    for (int i = 0; i < depth; i++)
++        monitor->lock.lock();
++    monitor->owner = ctx;
++    monitor->depth = depth;
++    ctx->blockedBy = nullptr;
+     ctx->suspended = false;
+     SAFEPOINT();
+-
+-    monitorEnter(ctx, self);
+-    ctx->lock.lock();
+-    ctx->blockedBy = nullptr;
+-    ctx->lock.unlock();
+     interruptedCheck(ctx);
+ }
+ 
++void M_java_lang_Object_wait(jcontext ctx, jobject self) {
++    waitOnMonitor(ctx, self, false, 0, 0);
++}
++
+ void M_java_lang_Object_wait_long(jcontext ctx, jobject self, jlong millis) {
+     M_java_lang_Object_wait_long_int(ctx, self, millis, 0);
+ }
+ 
+ void M_java_lang_Object_wait_long_int(jcontext ctx, jobject self, jlong millis, jint nanos) {
+-    monitorOwnerCheck(ctx, self);
+-    interruptedCheck(ctx);
+-    ctx->lock.lock();
+-    ctx->blockedBy = self;
+-    ctx->lock.unlock();
+-    monitorExit(ctx, self);
+-
+-    ctx->suspended = true;
+-    auto monitor = (jmonitor) self->monitor;
+-    {
+-        std::unique_lock<std::mutex> lock(monitor->conditionMutex);
+-        monitor->condition.wait_for(lock, std::chrono::milliseconds(millis) + std::chrono::nanoseconds(nanos));
+-    }
+-    ctx->suspended = false;
+-    SAFEPOINT();
+-
+-    monitorEnter(ctx, self);
+-    ctx->lock.lock();
+-    ctx->blockedBy = nullptr;
+-    ctx->lock.unlock();
+-    interruptedCheck(ctx);
++    if (millis == 0 && nanos == 0)
++        waitOnMonitor(ctx, self, false, 0, 0);
++    else
++        waitOnMonitor(ctx, self, true, millis, nanos);
+ }
+ 
+ static void *vtable_java_lang_Object[] {
+diff --git a/runtime/res/clearwing/src/Thread.cpp b/runtime/res/clearwing/src/Thread.cpp
+index 5967ea0..5117b46 100644
+--- a/runtime/res/clearwing/src/Thread.cpp
++++ b/runtime/res/clearwing/src/Thread.cpp
+@@ -58,19 +58,17 @@ jobject SM_java_lang_Thread_currentThread_R_java_lang_Thread(jcontext ctx) {
+ }
+ 
+ void SM_java_lang_Thread_sleepImpl_long_int(jcontext ctx, jlong millis, jint nanos) {
+-    auto end = std::chrono::system_clock::now() + std::chrono::milliseconds(millis) + std::chrono::nanoseconds(nanos);
++    // Sleeping holds no monitor (the Thread's own monitor belongs to join); interrupt() wakes it.
+     interruptedCheck(ctx);
+-    auto thread = (jobject) ctx->thread;
+-    while (std::chrono::system_clock::now() < end) {
+-        auto remaining = end - std::chrono::system_clock::now();
+-        auto remainingNanos = duration_cast<std::chrono::nanoseconds>(remaining);
+-        auto remainingMillis = std::chrono::round<std::chrono::milliseconds>(remaining);
+-        remainingNanos -= remainingMillis;
+-        monitorEnter(ctx, thread);
+-        M_java_lang_Object_wait_long_int(ctx, thread, remainingMillis.count(), (int) remainingNanos.count());
+-        monitorExit(ctx, thread);
+-        interruptedCheck(ctx);
++    auto end = std::chrono::steady_clock::now() + std::chrono::milliseconds(millis) + std::chrono::nanoseconds(nanos);
++    ctx->suspended = true;
++    {
++        std::unique_lock<std::mutex> sleepLock(ctx->sleepMutex);
++        ctx->sleepCondition.wait_until(sleepLock, end, [&] { return (bool) ctx->thread->F_interrupted; });
+     }
++    ctx->suspended = false;
++    SAFEPOINT();
++    interruptedCheck(ctx);
+ }
+ 
+ void M_java_lang_Thread_start(jcontext ctx, jobject self) {
+@@ -84,12 +82,21 @@ void M_java_lang_Thread_start(jcontext ctx, jobject self) {
+ }
+ 
+ void M_java_lang_Thread_interrupt(jcontext ctx, jobject self) {
+-    auto threadCtx = (jcontext) ((jthread) NULL_CHECK(self))->F_nativeContext;
+-    threadCtx->lock.lock();
+-    threadCtx->thread->F_interrupted = true;
+-    if (threadCtx->blockedBy)
+-        ((jmonitor) ((jobject) threadCtx->blockedBy)->monitor)->condition.notify_all();
+-    threadCtx->lock.unlock();
++    auto thread = (jthread) NULL_CHECK(self);
++    thread->F_interrupted = true;
++    auto threadCtx = (jcontext) thread->F_nativeContext;
++    if (!threadCtx)
++        return;
++    {
++        std::lock_guard<std::mutex> guard(threadCtx->sleepMutex);
++        threadCtx->sleepCondition.notify_all();
++    }
++    jobject blocked = threadCtx->blockedBy;
++    if (blocked) {
++        auto monitor = (jmonitor) blocked->monitor;
++        std::lock_guard<std::mutex> guard(monitor->conditionMutex);
++        monitor->condition.notify_all();
++    }
+ }
+ 
+ void M_java_lang_Thread_finalize(jcontext ctx, jobject selfObj) {
+-- 
+2.43.0
+

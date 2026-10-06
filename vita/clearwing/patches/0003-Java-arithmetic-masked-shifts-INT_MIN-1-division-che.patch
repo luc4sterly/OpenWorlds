@@ -1,0 +1,638 @@
+From 0dfe109eff664a0b5edab9bb17f552ec8187e47a Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Tue, 6 Oct 2026 15:20:38 +0000
+Subject: [PATCH 03/13] Java arithmetic: masked shifts, INT_MIN/-1, division
+ checks in optimized code, float to int conversions, -fwrapv; Java
+ Double/Float.toString
+
+---
+ runtime/res/clearwing/project/CMakeLists.txt  |   2 +-
+ runtime/res/clearwing/src/Clearwing.h         |  61 +++++++---
+ runtime/res/clearwing/src/Double.cpp          | 113 ++++++++++--------
+ runtime/res/clearwing/src/Float.cpp           | 112 +++++++++--------
+ runtime/src/java/lang/Double.java             |  23 +---
+ runtime/src/java/lang/Float.java              |  26 +---
+ .../bytecode/ZeroOperandInstruction.java      |  60 ++++++----
+ 7 files changed, 213 insertions(+), 184 deletions(-)
+
+diff --git a/runtime/res/clearwing/project/CMakeLists.txt b/runtime/res/clearwing/project/CMakeLists.txt
+index 251c804..7bf8122 100644
+--- a/runtime/res/clearwing/project/CMakeLists.txt
++++ b/runtime/res/clearwing/project/CMakeLists.txt
+@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
+ project(dist)
+ 
+ set(CMAKE_CXX_STANDARD 20)
+-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-volatile")
++set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-volatile -fwrapv")
+ 
+ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+ find_package(ZLIB REQUIRED)
+diff --git a/runtime/res/clearwing/src/Clearwing.h b/runtime/res/clearwing/src/Clearwing.h
+index dee67b4..255d0df 100644
+--- a/runtime/res/clearwing/src/Clearwing.h
++++ b/runtime/res/clearwing/src/Clearwing.h
+@@ -299,6 +299,35 @@ void initializeJniClasses(jcontext ctx);
+ 
+ NORETURN void throwException(jcontext ctx, jobject exception);
+ NORETURN void throwDivisionByZero(jcontext ctx);
++
++// Java's integer arithmetic: shift counts masked, INT_MIN / -1 wraps, x / 0 throws.
++inline jint javaShl(jint a, jint n) { return (jint) ((uint32_t) a << (n & 31)); }
++inline jint javaShr(jint a, jint n) { return a >> (n & 31); }
++inline jint javaUshr(jint a, jint n) { return (jint) ((uint32_t) a >> (n & 31)); }
++inline jlong javaShl(jlong a, jint n) { return (jlong) ((uint64_t) a << (n & 63)); }
++inline jlong javaShr(jlong a, jint n) { return a >> (n & 63); }
++inline jlong javaUshr(jlong a, jint n) { return (jlong) ((uint64_t) a >> (n & 63)); }
++inline jint javaDiv(jcontext ctx, jint a, jint b) {
++    if (b == 0) throwDivisionByZero(ctx);
++    return b == -1 ? (jint) (0u - (uint32_t) a) : a / b;
++}
++inline jint javaRem(jcontext ctx, jint a, jint b) {
++    if (b == 0) throwDivisionByZero(ctx);
++    return b == -1 ? 0 : a % b;
++}
++inline jlong javaDiv(jcontext ctx, jlong a, jlong b) {
++    if (b == 0) throwDivisionByZero(ctx);
++    return b == -1 ? (jlong) (0ull - (uint64_t) a) : a / b;
++}
++inline jlong javaRem(jcontext ctx, jlong a, jlong b) {
++    if (b == 0) throwDivisionByZero(ctx);
++    return b == -1 ? 0 : a % b;
++}
++// Java's float to integer conversions: NaN is 0, out of range saturates.
++inline jint javaF2I(jfloat f) { return f != f ? 0 : f >= 2147483648.0f ? 0x7fffffff : f <= -2147483648.0f ? (jint) 0x80000000 : (jint) f; }
++inline jint javaD2I(jdouble d) { return d != d ? 0 : d >= 2147483647.0 ? 0x7fffffff : d <= -2147483648.0 ? (jint) 0x80000000 : (jint) d; }
++inline jlong javaF2L(jfloat f) { return f != f ? 0 : f >= 9223372036854775808.0f ? 0x7fffffffffffffffll : f <= -9223372036854775808.0f ? (jlong) 0x8000000000000000ull : (jlong) f; }
++inline jlong javaD2L(jdouble d) { return d != d ? 0 : d >= 9223372036854775808.0 ? 0x7fffffffffffffffll : d <= -9223372036854775808.0 ? (jlong) 0x8000000000000000ull : (jlong) d; }
+ NORETURN void throwClassCast(jcontext ctx);
+ NORETURN void throwNullPointer(jcontext ctx);
+ NORETURN void throwStackOverflow(jcontext ctx);
+@@ -448,10 +477,10 @@ jint longCompare(jlong value1, jlong value2);
+     sp[-1].f = sp[-1].d
+ 
+ #define INST_D2I() \
+-    sp[-1].i = (jint) sp[-1].d
++    sp[-1].i = javaD2I(sp[-1].d)
+ 
+ #define INST_D2L() \
+-    sp[-1].l = (jlong) sp[-1].d
++    sp[-1].l = javaD2L(sp[-1].d)
+ 
+ #define INST_DADD() \
+     sp--; \
+@@ -581,10 +610,10 @@ jint longCompare(jlong value1, jlong value2);
+     sp[-1].d = sp[-1].f
+ 
+ #define INST_F2I() \
+-    sp[-1].i = (jint) sp[-1].f
++    sp[-1].i = javaF2I(sp[-1].f)
+ 
+ #define INST_F2L() \
+-    sp[-1].l = (jlong) sp[-1].f
++    sp[-1].l = javaF2L(sp[-1].f)
+ 
+ #define INST_FADD() \
+     sp--; \
+@@ -669,8 +698,7 @@ jint longCompare(jlong value1, jlong value2);
+ 
+ #define INST_IDIV() \
+     sp--; \
+-    if (sp[0].i == 0) throwDivisionByZero(ctx); \
+-    sp[-1].i = sp[-1].i / sp[0].i
++    sp[-1].i = javaDiv(ctx, sp[-1].i, sp[0].i)
+ 
+ #define INST_IINC(local, amount) \
+     frame[local].i += amount
+@@ -694,16 +722,15 @@ jint longCompare(jlong value1, jlong value2);
+ 
+ #define INST_IREM() \
+     sp--; \
+-    if (sp[0].i == 0) throwDivisionByZero(ctx); \
+-    sp[-1].i = sp[-1].i % sp[0].i
++    sp[-1].i = javaRem(ctx, sp[-1].i, sp[0].i)
+ 
+ #define INST_ISHL() \
+     sp--; \
+-    sp[-1].i = sp[-1].i << sp[0].i
++    sp[-1].i = javaShl(sp[-1].i, sp[0].i)
+ 
+ #define INST_ISHR() \
+     sp--; \
+-    sp[-1].i = sp[-1].i >> sp[0].i
++    sp[-1].i = javaShr(sp[-1].i, sp[0].i)
+ 
+ #define INST_ISTORE(local) \
+     frame[local].i = (--sp)->i
+@@ -714,7 +741,7 @@ jint longCompare(jlong value1, jlong value2);
+ 
+ #define INST_IUSHR() \
+     sp--; \
+-    sp[-1].i = *(uint32_t *) &sp[-1].i >> sp[0].i
++    sp[-1].i = javaUshr(sp[-1].i, sp[0].i)
+ 
+ #define INST_IXOR() \
+     sp--; \
+@@ -754,8 +781,7 @@ jint longCompare(jlong value1, jlong value2);
+ 
+ #define INST_LDIV() \
+     sp--; \
+-    if (sp[0].l == 0) throwDivisionByZero(ctx); \
+-    sp[-1].l = sp[-1].l / sp[0].l
++    sp[-1].l = javaDiv(ctx, sp[-1].l, sp[0].l)
+ 
+ #define INST_LLOAD(local) \
+     (sp++)->l = frame[local].l
+@@ -773,16 +799,15 @@ jint longCompare(jlong value1, jlong value2);
+ 
+ #define INST_LREM() \
+     sp--; \
+-    if (sp[0].l == 0) throwDivisionByZero(ctx); \
+-    sp[-1].l = sp[-1].l % sp[0].l
++    sp[-1].l = javaRem(ctx, sp[-1].l, sp[0].l)
+ 
+ #define INST_LSHL() \
+     sp--; \
+-    sp[-1].l = sp[-1].l << sp[0].i
++    sp[-1].l = javaShl(sp[-1].l, sp[0].i)
+ 
+ #define INST_LSHR() \
+     sp--; \
+-    sp[-1].l = sp[-1].l >> sp[0].i
++    sp[-1].l = javaShr(sp[-1].l, sp[0].i)
+ 
+ #define INST_LSTORE(local) \
+     frame[local].l = (--sp)->l
+@@ -793,7 +818,7 @@ jint longCompare(jlong value1, jlong value2);
+ 
+ #define INST_LUSHR() \
+     sp--; \
+-    sp[-1].l = *(uint64_t *) &sp[-1].l >> sp[0].i
++    sp[-1].l = javaUshr(sp[-1].l, sp[0].i)
+ 
+ #define INST_LXOR() \
+     sp--; \
+diff --git a/runtime/res/clearwing/src/Double.cpp b/runtime/res/clearwing/src/Double.cpp
+index d6a080e..455a189 100644
+--- a/runtime/res/clearwing/src/Double.cpp
++++ b/runtime/res/clearwing/src/Double.cpp
+@@ -2,6 +2,66 @@
+ 
+ #include <cstring>
+ 
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++
++// Java's Double/Float.toString for a finite nonzero value: the shortest digits
++// that read back as the same value, in plain notation for 1e-3 <= |v| < 1e7
++// and as d.dddE<n> otherwise, always with a digit after the point.
++static void javaFloatingToString(char *out, double value, bool isFloat, bool scientific) {
++    char buf[48];
++    int maxDigits = isFloat ? 9 : 17;
++    for (int p = 1; p <= maxDigits; p++) {
++        snprintf(buf, sizeof buf, "%.*e", p - 1, value);
++        if (isFloat ? strtof(buf, nullptr) == (float) value : strtod(buf, nullptr) == value)
++            break;
++    }
++    // buf: [-]d[.ddd]e(+|-)xx
++    char digits[24];
++    int n = 0;
++    const char *c = buf;
++    bool negative = *c == '-';
++    if (negative)
++        c++;
++    for (; *c && *c != 'e'; c++)
++        if (*c >= '0' && *c <= '9')
++            digits[n++] = *c;
++    int exponent = atoi(c + 1);
++    while (n > 1 && digits[n - 1] == '0')
++        n--;
++    char *o = out;
++    if (negative)
++        *o++ = '-';
++    if (scientific) {
++        *o++ = digits[0];
++        *o++ = '.';
++        if (n > 1)
++            for (int i = 1; i < n; i++)
++                *o++ = digits[i];
++        else
++            *o++ = '0';
++        o += sprintf(o, "E%d", exponent);
++    } else if (exponent >= 0) {
++        for (int i = 0; i <= exponent; i++)
++            *o++ = i < n ? digits[i] : '0';
++        *o++ = '.';
++        if (n > exponent + 1)
++            for (int i = exponent + 1; i < n; i++)
++                *o++ = digits[i];
++        else
++            *o++ = '0';
++    } else {
++        *o++ = '0';
++        *o++ = '.';
++        for (int i = 0; i < -exponent - 1; i++)
++            *o++ = '0';
++        for (int i = 0; i < n; i++)
++            *o++ = digits[i];
++    }
++    *o = 0;
++}
++
+ extern "C" {
+ 
+ jlong SM_java_lang_Double_doubleToLongBits_double_R_long(jcontext ctx, jdouble value) {
+@@ -17,57 +77,8 @@ jdouble SM_java_lang_Double_longBitsToDouble_long_R_double(jcontext ctx, jlong v
+ }
+ 
+ jobject SM_java_lang_Double_toStringImpl_double_boolean_R_java_lang_String(jcontext ctx, jdouble d, jbool b) {
+-    char s[32]{};
+-    if (!b) {
+-        snprintf(s, 32, "%lf", d);
+-    } else {
+-        snprintf(s, 32, "%1.20E", d);
+-    }
+-
+-    // We need to match the format of Java spec.  That includes:
+-    // No "+" for positive exponent.
+-    // No leading zeroes in positive exponents.
+-    // No trailing zeroes in decimal portion.
+-    int j = 0;
+-    int i = 32;
+-    char s2[32]{};
+-    char inside = false;
+-    while (i-- > 0 && j < 32) {
+-        if (inside) {
+-            if (s[i] == '.') {
+-                s2[j++] = '0';
+-            }
+-            if (s[i] != '0') {
+-                inside = false;
+-                s2[j++] = s[i];
+-            }
+-
+-        } else {
+-            if (s[i] == 'E') {
+-                inside = true;
+-            }
+-            if (s[i] == '+') {
+-                // If a positive exponent, we don't need leading zeroes in
+-                // the exponent
+-                while (s2[--j] == '0') {
+-
+-                }
+-                j++;
+-                continue;
+-            }
+-            s2[j++] = s[i];
+-        }
+-    }
+-    i = 0;
+-    while (j-- > 0) {
+-        s[i++] = s2[j];
+-        if (s[i] == '\0') {
+-            break;
+-        }
+-    }
+-    if (strcmp(s, "NAN") == 0) {
+-        s[1] = 'a';
+-    }
++    char s[48];
++    javaFloatingToString(s, d, false, b);
+     return (jobject) stringFromNative(ctx, s);
+ }
+ 
+diff --git a/runtime/res/clearwing/src/Float.cpp b/runtime/res/clearwing/src/Float.cpp
+index 503b5f3..a46fad0 100644
+--- a/runtime/res/clearwing/src/Float.cpp
++++ b/runtime/res/clearwing/src/Float.cpp
+@@ -1,6 +1,66 @@
+ #include <cstring>
+ #include "java/lang/Float.h"
+ 
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++
++// Java's Double/Float.toString for a finite nonzero value: the shortest digits
++// that read back as the same value, in plain notation for 1e-3 <= |v| < 1e7
++// and as d.dddE<n> otherwise, always with a digit after the point.
++static void javaFloatingToString(char *out, double value, bool isFloat, bool scientific) {
++    char buf[48];
++    int maxDigits = isFloat ? 9 : 17;
++    for (int p = 1; p <= maxDigits; p++) {
++        snprintf(buf, sizeof buf, "%.*e", p - 1, value);
++        if (isFloat ? strtof(buf, nullptr) == (float) value : strtod(buf, nullptr) == value)
++            break;
++    }
++    // buf: [-]d[.ddd]e(+|-)xx
++    char digits[24];
++    int n = 0;
++    const char *c = buf;
++    bool negative = *c == '-';
++    if (negative)
++        c++;
++    for (; *c && *c != 'e'; c++)
++        if (*c >= '0' && *c <= '9')
++            digits[n++] = *c;
++    int exponent = atoi(c + 1);
++    while (n > 1 && digits[n - 1] == '0')
++        n--;
++    char *o = out;
++    if (negative)
++        *o++ = '-';
++    if (scientific) {
++        *o++ = digits[0];
++        *o++ = '.';
++        if (n > 1)
++            for (int i = 1; i < n; i++)
++                *o++ = digits[i];
++        else
++            *o++ = '0';
++        o += sprintf(o, "E%d", exponent);
++    } else if (exponent >= 0) {
++        for (int i = 0; i <= exponent; i++)
++            *o++ = i < n ? digits[i] : '0';
++        *o++ = '.';
++        if (n > exponent + 1)
++            for (int i = exponent + 1; i < n; i++)
++                *o++ = digits[i];
++        else
++            *o++ = '0';
++    } else {
++        *o++ = '0';
++        *o++ = '.';
++        for (int i = 0; i < -exponent - 1; i++)
++            *o++ = '0';
++        for (int i = 0; i < n; i++)
++            *o++ = digits[i];
++    }
++    *o = 0;
++}
++
+ extern "C" {
+ 
+ jint SM_java_lang_Float_floatToIntBits_float_R_int(jcontext ctx, jfloat value) {
+@@ -12,56 +72,8 @@ jfloat SM_java_lang_Float_intBitsToFloat_int_R_float(jcontext ctx, jint value) {
+ }
+ 
+ jobject SM_java_lang_Float_toStringImpl_float_boolean_R_java_lang_String(jcontext ctx, jfloat d, jbool b) {
+-    char s[32];
+-    if (!b){
+-        sprintf(s, "%f", d);
+-    } else {
+-        sprintf(s, "%1.20E", d);
+-    }
+-    // We need to match the format of Java spec.  That includes:
+-    // No "+" for positive exponent.
+-    // No leading zeroes in positive exponents.
+-    // No trailing zeroes in decimal portion.
+-    int j=0;
+-    int i=32;
+-    char s2[32];
+-    char inside=false;
+-    while (i-- > 0){
+-        if (inside){
+-            if (s[i]=='.'){
+-                s2[j++]='0';
+-            }
+-            if (s[i]!='0'){
+-                inside=false;
+-                s2[j++]=s[i];
+-            }
+-
+-        } else {
+-            if (s[i]=='E'){
+-                inside=true;
+-            }
+-            if (s[i]=='+'){
+-                // If a positive exponent, we don't need leading zeroes in
+-                // the exponent
+-                while (s2[--j]=='0'){
+-
+-                }
+-                j++;
+-                continue;
+-            }
+-            s2[j++]=s[i];
+-        }
+-    }
+-    i=0;
+-    while (j-- > 0){
+-        s[i++]=s2[j];
+-        if (s[i]=='\0'){
+-            break;
+-        }
+-    }
+-    if (strcmp(s, "NAN") == 0) {
+-        s[1] = 'a';
+-    }
++    char s[48];
++    javaFloatingToString(s, d, true, b);
+     return (jobject) stringFromNative(ctx, s);
+ }
+ 
+diff --git a/runtime/src/java/lang/Double.java b/runtime/src/java/lang/Double.java
+index febd084..44157d2 100644
+--- a/runtime/src/java/lang/Double.java
++++ b/runtime/src/java/lang/Double.java
+@@ -267,28 +267,11 @@ public final class Double extends Number implements Comparable<Double> {
+             return "-Infinity";
+         } else if ( d == 0 ){
+             return doubleToLongBits(d) == POSITIVE_ZERO_BITS ? "0.0" : "-0.0";
+-        } else if ( m >= 1e-3 && m < 1e7 ){
+-            String str = toStringImpl(d, false);
+-            char[] chars = str.toCharArray();
+-            int i = chars.length-1;
+-            char c;
+-            while ( i >=0 && (c = chars[i]) == '0' ){
+-                i--;
+-            }
+-            
+-            if ( i < 0 || str.indexOf('.') == -1 ){
+-                return str;
+-            } else if ( chars[i] == '.' || chars[i] == ','){
+-                i++;
+-            }
+-            
+-            return str.substring(0, i+1);
+-        } else {//if ( d < 1e-3 || d >= 1e7 ){
+-            return toStringImpl(d, true);
++        } else {
++            return toStringImpl(d, m < 1e-3 || m >= 1e7);
+         }
+-       
+     }
+-    
++
+     native static java.lang.String toStringImpl(double d, boolean scientificNotation);
+ 
+     
+diff --git a/runtime/src/java/lang/Float.java b/runtime/src/java/lang/Float.java
+index 4e320fb..597f221 100644
+--- a/runtime/src/java/lang/Float.java
++++ b/runtime/src/java/lang/Float.java
+@@ -252,31 +252,17 @@ public final class Float extends Number implements Comparable<Float> {
+      */
+     public static java.lang.String toString(float d){
+         float m = Math.abs(d);
+-        if ( d == POSITIVE_INFINITY ){
++        if (d != d) {
++            return "NaN";
++        } else if ( d == POSITIVE_INFINITY ){
+             return "Infinity";
+         } else if ( d == NEGATIVE_INFINITY ){
+             return "-Infinity";
+         } else if ( d == 0 ){
+-            return "0.0";
+-        } else if ( m >= 1e-3 && m < 1e7 ){
+-            String str = toStringImpl(d, false);
+-            char[] chars = str.toCharArray();
+-            int i = chars.length-1;
+-            char c;
+-            while ( i >=0 && (c = chars[i]) == '0' ){
+-                i--;
+-            }
+-            if ( i < 0 || str.indexOf('.') == -1 ){
+-                return str;
+-            } else if ( chars[i] == '.' || chars[i] == ','){
+-                i++;
+-            }
+-            
+-            return str.substring(0, i+1);
+-        } else {//if ( d < 1e-3 || d >= 1e7 ){
+-            return toStringImpl(d, true);
++            return floatToIntBits(d) == 0 ? "0.0" : "-0.0";
++        } else {
++            return toStringImpl(d, m < 1e-3f || m >= 1e7f);
+         }
+-       
+     }
+     public native static java.lang.String toStringImpl(float f, boolean scientificNotation);
+ 
+diff --git a/transpiler/src/com/thelogicmaster/clearwing/bytecode/ZeroOperandInstruction.java b/transpiler/src/com/thelogicmaster/clearwing/bytecode/ZeroOperandInstruction.java
+index d8640e1..10672b1 100644
+--- a/transpiler/src/com/thelogicmaster/clearwing/bytecode/ZeroOperandInstruction.java
++++ b/transpiler/src/com/thelogicmaster/clearwing/bytecode/ZeroOperandInstruction.java
+@@ -145,10 +145,12 @@ public class ZeroOperandInstruction extends Instruction {
+                 outputs.get(0).buildAssignment(builder).append(inputs.get(0).arg()).append(" - ").append(inputs.get(1).arg()).append(";\n");
+             case Opcodes.IMUL, Opcodes.LMUL, Opcodes.FMUL, Opcodes.DMUL ->
+                 outputs.get(0).buildAssignment(builder).append(inputs.get(0).arg()).append(" * ").append(inputs.get(1).arg()).append(";\n");
+-            case Opcodes.IDIV, Opcodes.LDIV, Opcodes.FDIV, Opcodes.DDIV ->
++            case Opcodes.FDIV, Opcodes.DDIV ->
+                 outputs.get(0).buildAssignment(builder).append(inputs.get(0).arg()).append(" / ").append(inputs.get(1).arg()).append(";\n");
++            case Opcodes.IDIV, Opcodes.LDIV ->
++                outputs.get(0).buildAssignment(builder).append("javaDiv(ctx, ").append(inputs.get(0).arg()).append(", ").append(inputs.get(1).arg()).append(");\n");
+             case Opcodes.IREM, Opcodes.LREM ->
+-                outputs.get(0).buildAssignment(builder).append(inputs.get(0).arg()).append(" % ").append(inputs.get(1).arg()).append(";\n");
++                outputs.get(0).buildAssignment(builder).append("javaRem(ctx, ").append(inputs.get(0).arg()).append(", ").append(inputs.get(1).arg()).append(");\n");
+             case Opcodes.FREM ->
+                 outputs.get(0).buildAssignment(builder).append("fmodf(").append(inputs.get(0).arg()).append(", ").append(inputs.get(1).arg()).append(");\n");
+             case Opcodes.DREM ->
+@@ -156,29 +158,33 @@ public class ZeroOperandInstruction extends Instruction {
+             case Opcodes.INEG, Opcodes.LNEG, Opcodes.FNEG, Opcodes.DNEG ->
+                 outputs.get(0).buildAssignment(builder).append("-").append(inputs.get(0).arg()).append(";\n");
+             case Opcodes.ISHL, Opcodes.LSHL ->
+-                outputs.get(0).buildAssignment(builder).append(inputs.get(0).arg()).append(" << ").append(inputs.get(1).arg()).append(";\n");
++                outputs.get(0).buildAssignment(builder).append("javaShl(").append(inputs.get(0).arg()).append(", ").append(inputs.get(1).arg()).append(");\n");
+             case Opcodes.ISHR, Opcodes.LSHR ->
+-                outputs.get(0).buildAssignment(builder).append(inputs.get(0).arg()).append(" >> ").append(inputs.get(1).arg()).append(";\n");
+-            case Opcodes.IUSHR ->
+-                outputs.get(0).buildAssignment(builder).append("bit_cast<jint>(bit_cast<uint32_t>(").append(inputs.get(0).arg())
+-                        .append(") >> ").append(inputs.get(1).arg()).append(");\n");
+-            case Opcodes.LUSHR ->
+-                outputs.get(0).buildAssignment(builder).append("bit_cast<jlong>(bit_cast<uint64_t>(").append(inputs.get(0).arg())
+-                            .append(") >> ").append(inputs.get(1).arg()).append(");\n");
++                outputs.get(0).buildAssignment(builder).append("javaShr(").append(inputs.get(0).arg()).append(", ").append(inputs.get(1).arg()).append(");\n");
++            case Opcodes.IUSHR, Opcodes.LUSHR ->
++                outputs.get(0).buildAssignment(builder).append("javaUshr(").append(inputs.get(0).arg()).append(", ").append(inputs.get(1).arg()).append(");\n");
+             case Opcodes.IAND, Opcodes.LAND ->
+                 outputs.get(0).buildAssignment(builder).append(inputs.get(0).arg()).append(" & ").append(inputs.get(1).arg()).append(";\n");
+             case Opcodes.IOR, Opcodes.LOR ->
+                 outputs.get(0).buildAssignment(builder).append(inputs.get(0).arg()).append(" | ").append(inputs.get(1).arg()).append(";\n");
+             case Opcodes.IXOR, Opcodes.LXOR ->
+                 outputs.get(0).buildAssignment(builder).append(inputs.get(0).arg()).append(" ^ ").append(inputs.get(1).arg()).append(";\n");
+-            case Opcodes.I2L, Opcodes.F2L, Opcodes.D2L ->
++            case Opcodes.I2L ->
+                 outputs.get(0).buildAssignment(builder).append("jlong(").append(inputs.get(0).arg()).append(");\n");
++            case Opcodes.F2L ->
++                outputs.get(0).buildAssignment(builder).append("javaF2L(").append(inputs.get(0).arg()).append(");\n");
++            case Opcodes.D2L ->
++                outputs.get(0).buildAssignment(builder).append("javaD2L(").append(inputs.get(0).arg()).append(");\n");
+             case Opcodes.I2F, Opcodes.L2F, Opcodes.D2F ->
+                 outputs.get(0).buildAssignment(builder).append("jfloat(").append(inputs.get(0).arg()).append(");\n");
+             case Opcodes.I2D, Opcodes.L2D, Opcodes.F2D ->
+                 outputs.get(0).buildAssignment(builder).append("jdouble(").append(inputs.get(0).arg()).append(");\n");
+-            case Opcodes.L2I, Opcodes.F2I, Opcodes.D2I ->
++            case Opcodes.L2I ->
+                 outputs.get(0).buildAssignment(builder).append("jint(").append(inputs.get(0).arg()).append(");\n");
++            case Opcodes.F2I ->
++                outputs.get(0).buildAssignment(builder).append("javaF2I(").append(inputs.get(0).arg()).append(");\n");
++            case Opcodes.D2I ->
++                outputs.get(0).buildAssignment(builder).append("javaD2I(").append(inputs.get(0).arg()).append(");\n");
+             case Opcodes.I2B -> outputs.get(0).buildAssignment(builder).append("jbyte(").append(inputs.get(0).arg()).append(");\n");
+             case Opcodes.I2C -> outputs.get(0).buildAssignment(builder).append("jchar(").append(inputs.get(0).arg()).append(");\n");
+             case Opcodes.I2S -> outputs.get(0).buildAssignment(builder).append("jshort(").append(inputs.get(0).arg()).append(");\n");
+@@ -241,10 +247,12 @@ public class ZeroOperandInstruction extends Instruction {
+                     builder.append(inputs.get(0).arg()).append(" - ").append(inputs.get(1).arg());
+             case Opcodes.IMUL, Opcodes.LMUL, Opcodes.FMUL, Opcodes.DMUL ->
+                     builder.append(inputs.get(0).arg()).append(" * ").append(inputs.get(1).arg());
+-            case Opcodes.IDIV, Opcodes.LDIV, Opcodes.FDIV, Opcodes.DDIV ->
++            case Opcodes.FDIV, Opcodes.DDIV ->
+                     builder.append(inputs.get(0).arg()).append(" / ").append(inputs.get(1).arg());
++            case Opcodes.IDIV, Opcodes.LDIV ->
++                    builder.append("javaDiv(ctx, ").append(inputs.get(0).arg()).append(", ").append(inputs.get(1).arg()).append(")");
+             case Opcodes.IREM, Opcodes.LREM ->
+-                    builder.append(inputs.get(0).arg()).append(" % ").append(inputs.get(1).arg());
++                    builder.append("javaRem(ctx, ").append(inputs.get(0).arg()).append(", ").append(inputs.get(1).arg()).append(")");
+             case Opcodes.FREM ->
+                     builder.append("fmodf(").append(inputs.get(0).arg()).append(", ").append(inputs.get(1).arg()).append(")");
+             case Opcodes.DREM ->
+@@ -252,29 +260,33 @@ public class ZeroOperandInstruction extends Instruction {
+             case Opcodes.INEG, Opcodes.LNEG, Opcodes.FNEG, Opcodes.DNEG ->
+                     builder.append("-").append(inputs.get(0).arg());
+             case Opcodes.ISHL, Opcodes.LSHL ->
+-                    builder.append(inputs.get(0).arg()).append(" << ").append(inputs.get(1).arg());
++                    builder.append("javaShl(").append(inputs.get(0).arg()).append(", ").append(inputs.get(1).arg()).append(")");
+             case Opcodes.ISHR, Opcodes.LSHR ->
+-                    builder.append(inputs.get(0).arg()).append(" >> ").append(inputs.get(1).arg());
+-            case Opcodes.IUSHR ->
+-                    builder.append("bit_cast<jint>(bit_cast<uint32_t>(").append(inputs.get(0).arg())
+-                            .append(") >> ").append(inputs.get(1).arg()).append(")");
+-            case Opcodes.LUSHR ->
+-                    builder.append("bit_cast<jlong>(bit_cast<uint64_t>(").append(inputs.get(0).arg())
+-                            .append(") >> ").append(inputs.get(1).arg()).append(")");
++                    builder.append("javaShr(").append(inputs.get(0).arg()).append(", ").append(inputs.get(1).arg()).append(")");
++            case Opcodes.IUSHR, Opcodes.LUSHR ->
++                    builder.append("javaUshr(").append(inputs.get(0).arg()).append(", ").append(inputs.get(1).arg()).append(")");
+             case Opcodes.IAND, Opcodes.LAND ->
+                     builder.append(inputs.get(0).arg()).append(" & ").append(inputs.get(1).arg());
+             case Opcodes.IOR, Opcodes.LOR ->
+                     builder.append(inputs.get(0).arg()).append(" | ").append(inputs.get(1).arg());
+             case Opcodes.IXOR, Opcodes.LXOR ->
+                     builder.append(inputs.get(0).arg()).append(" ^ ").append(inputs.get(1).arg());
+-            case Opcodes.I2L, Opcodes.F2L, Opcodes.D2L ->
++            case Opcodes.I2L ->
+                     builder.append("jlong(").append(inputs.get(0).arg()).append(")");
++            case Opcodes.F2L ->
++                    builder.append("javaF2L(").append(inputs.get(0).arg()).append(")");
++            case Opcodes.D2L ->
++                    builder.append("javaD2L(").append(inputs.get(0).arg()).append(")");
+             case Opcodes.I2F, Opcodes.L2F, Opcodes.D2F ->
+                     builder.append("jfloat(").append(inputs.get(0).arg()).append(")");
+             case Opcodes.I2D, Opcodes.L2D, Opcodes.F2D ->
+                     builder.append("jdouble(").append(inputs.get(0).arg()).append(")");
+-            case Opcodes.L2I, Opcodes.F2I, Opcodes.D2I ->
++            case Opcodes.L2I ->
+                     builder.append("jint(").append(inputs.get(0).arg()).append(")");
++            case Opcodes.F2I ->
++                    builder.append("javaF2I(").append(inputs.get(0).arg()).append(")");
++            case Opcodes.D2I ->
++                    builder.append("javaD2I(").append(inputs.get(0).arg()).append(")");
+             case Opcodes.I2B -> builder.append("jbyte(").append(inputs.get(0).arg()).append(")");
+             case Opcodes.I2C -> builder.append("jchar(").append(inputs.get(0).arg()).append(")");
+             case Opcodes.I2S -> builder.append("jshort(").append(inputs.get(0).arg()).append(")");
+-- 
+2.43.0
+

@@ -1,0 +1,28 @@
+From c89a8c283fbc2d76d1cba0fa81f4b345d3567ab3 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Tue, 6 Oct 2026 15:18:13 +0000
+Subject: [PATCH 01/13] Thread termination notifies the Thread's monitor (join)
+
+---
+ runtime/res/clearwing/src/Thread.cpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/runtime/res/clearwing/src/Thread.cpp b/runtime/res/clearwing/src/Thread.cpp
+index 9ea0a9e..5967ea0 100644
+--- a/runtime/res/clearwing/src/Thread.cpp
++++ b/runtime/res/clearwing/src/Thread.cpp
+@@ -42,7 +42,11 @@ void threadEntrypoint(jcontext ctx, jthread thread) {
+         popStackFrame(ctx);
+     } catch (ExitException &) { }
+ 
++    // Thread termination notifies the Thread's monitor, as on a JVM (join waits on it)
++    monitorEnter(ctx, (jobject) thread);
+     thread->F_alive = false;
++    M_java_lang_Object_notifyAll(ctx, (jobject) thread);
++    monitorExit(ctx, (jobject) thread);
+     ctx->suspended = true;
+     ctx->dead = true;
+ 
+-- 
+2.43.0
+

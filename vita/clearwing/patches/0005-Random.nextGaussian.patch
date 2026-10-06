@@ -1,0 +1,47 @@
+From 6d00cbf724d71b5f9818762452649c9b460b7f9d Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Tue, 6 Oct 2026 15:24:34 +0000
+Subject: [PATCH 05/13] Random.nextGaussian
+
+---
+ runtime/src/java/util/Random.java | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/runtime/src/java/util/Random.java b/runtime/src/java/util/Random.java
+index d79d286..2c77531 100644
+--- a/runtime/src/java/util/Random.java
++++ b/runtime/src/java/util/Random.java
+@@ -121,8 +121,30 @@ public class Random{
+      */
+     public void setSeed(long seed){
+         this.seed = (seed ^ multiplier) & ((1L << 48) - 1);
++        haveNextNextGaussian = false;
+     }
+     
++    private double nextNextGaussian;
++    private boolean haveNextNextGaussian;
++
++    /** The polar method, as java.util.Random specifies it. */
++    public synchronized double nextGaussian() {
++        if (haveNextNextGaussian) {
++            haveNextNextGaussian = false;
++            return nextNextGaussian;
++        }
++        double v1, v2, s;
++        do {
++            v1 = 2 * nextDouble() - 1;
++            v2 = 2 * nextDouble() - 1;
++            s = v1 * v1 + v2 * v2;
++        } while (s >= 1 || s == 0);
++        double multiplier = Math.sqrt(-2 * Math.log(s) / s);
++        nextNextGaussian = v2 * multiplier;
++        haveNextNextGaussian = true;
++        return v1 * multiplier;
++    }
++
+     public boolean nextBoolean() {
+         return nextInt() % 2 == 0;
+     }
+-- 
+2.43.0
+

@@ -1,0 +1,66 @@
+From 63531e5a12d7c2c7072907a8b6b37f1f9bfc5311 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Tue, 6 Oct 2026 15:39:26 +0000
+Subject: [PATCH 13/13] Double/Float.toString: two digits when one would do, as
+ Java
+
+---
+ runtime/res/clearwing/src/Double.cpp | 11 ++++++++++-
+ runtime/res/clearwing/src/Float.cpp  | 11 ++++++++++-
+ 2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/runtime/res/clearwing/src/Double.cpp b/runtime/res/clearwing/src/Double.cpp
+index 455a189..7d8ff2d 100644
+--- a/runtime/res/clearwing/src/Double.cpp
++++ b/runtime/res/clearwing/src/Double.cpp
+@@ -12,11 +12,20 @@
+ static void javaFloatingToString(char *out, double value, bool isFloat, bool scientific) {
+     char buf[48];
+     int maxDigits = isFloat ? 9 : 17;
+-    for (int p = 1; p <= maxDigits; p++) {
++    int p = 1;
++    for (; p <= maxDigits; p++) {
+         snprintf(buf, sizeof buf, "%.*e", p - 1, value);
+         if (isFloat ? strtof(buf, nullptr) == (float) value : strtod(buf, nullptr) == value)
+             break;
+     }
++    if (p == 1) {
++        // Java always shows two digits, so when one would do it picks the closest two-digit
++        // decimal (4.9E-324 rather than 5.0E-324)
++        char two[48];
++        snprintf(two, sizeof two, "%.1e", value);
++        if (isFloat ? strtof(two, nullptr) == (float) value : strtod(two, nullptr) == value)
++            memcpy(buf, two, sizeof buf);
++    }
+     // buf: [-]d[.ddd]e(+|-)xx
+     char digits[24];
+     int n = 0;
+diff --git a/runtime/res/clearwing/src/Float.cpp b/runtime/res/clearwing/src/Float.cpp
+index a46fad0..d80f899 100644
+--- a/runtime/res/clearwing/src/Float.cpp
++++ b/runtime/res/clearwing/src/Float.cpp
+@@ -11,11 +11,20 @@
+ static void javaFloatingToString(char *out, double value, bool isFloat, bool scientific) {
+     char buf[48];
+     int maxDigits = isFloat ? 9 : 17;
+-    for (int p = 1; p <= maxDigits; p++) {
++    int p = 1;
++    for (; p <= maxDigits; p++) {
+         snprintf(buf, sizeof buf, "%.*e", p - 1, value);
+         if (isFloat ? strtof(buf, nullptr) == (float) value : strtod(buf, nullptr) == value)
+             break;
+     }
++    if (p == 1) {
++        // Java always shows two digits, so when one would do it picks the closest two-digit
++        // decimal (4.9E-324 rather than 5.0E-324)
++        char two[48];
++        snprintf(two, sizeof two, "%.1e", value);
++        if (isFloat ? strtof(two, nullptr) == (float) value : strtod(two, nullptr) == value)
++            memcpy(buf, two, sizeof buf);
++    }
+     // buf: [-]d[.ddd]e(+|-)xx
+     char digits[24];
+     int n = 0;
+-- 
+2.43.0
+
