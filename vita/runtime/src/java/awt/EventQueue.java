@@ -153,9 +153,13 @@ public class EventQueue {
       while (condition == null || condition.holds()) {
          AWTEvent e;
          synchronized (q) {
-            while (q.queue.isEmpty()) {
+            // checked before each event: what a closed menu or dialog posted goes to the outer loop
+            while (true) {
                if (condition != null && !condition.holds()) {
                   return;
+               }
+               if (!q.queue.isEmpty()) {
+                  break;
                }
                try {
                   q.wait(condition == null ? 0 : 100);

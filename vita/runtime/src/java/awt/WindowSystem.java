@@ -344,6 +344,10 @@ final class WindowSystem {
          Rectangle client = area;
          if (c instanceof Window) {
             client = area.intersection(clientArea((Window) c));
+         } else if (c instanceof ScrollPane) {
+            // the edge and the bars are the native control's (its non-client area)
+            Rectangle v = ((ScrollPane) c).viewport();
+            client = area.intersection(new Rectangle(o.x + v.x, o.y + v.y, v.width, v.height));
          }
          if (client.width > 0 && client.height > 0) {
             SurfaceGraphics pg = new SurfaceGraphics(w, o.x, o.y, client);

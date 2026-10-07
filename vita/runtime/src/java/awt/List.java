@@ -440,7 +440,8 @@ public class List extends Component implements ItemSelectable {
             }
             int index = top + (m.getY() - 2) / rowHeight();
             if (index < items.size()) {
-               if (m.getClickCount() >= 2) {
+               // Windows sent the list box a double click on the 2nd, 4th... click (LBN_DBLCLK)
+               if (m.getClickCount() >= 2 && m.getClickCount() % 2 == 0) {
                   act(index, m.getModifiers());
                } else {
                   choose(index, m.isControlDown());
