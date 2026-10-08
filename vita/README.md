@@ -51,7 +51,7 @@ and SDL2 (Debian/Ubuntu: `zlib1g-dev libzzip-dev libffi-dev libsdl2-dev`).
 | Own `java.awt` | ✅ | 151 classes; `AwtCheck` 18/18 on java.base alone; layouts as JDK 1.4.2's (39 of 44 like today's JDK, the 5 others are 1.4.2's own) |
 | `javax.sound`, `javax.imageio`, `SwingUtilities` | ✅ | `SoundConformance` the same as the JDK's (232 lines); `SoundCheck` 20/20. ⚠️ No MIDI synthesizer yet: the sequencer keeps time, the music is silent |
 | The client transpiled | 🟡 | next: the whole client and bridge, run on Linux with our runtime |
-| Platform layer (screen, input, sound, network) | 🟡 | sound output on SDL2 written (`native/clearwing/src/openworlds/Audio.cpp`); the screen and input next. Network: BSD sockets in Clearwing (patch 0026) |
+| Platform layer (screen, input, sound, network) | 🟡 | SDL2 natives written (`native/clearwing/src/openworlds/`): `Screen.cpp` (a thread of its own owns the window; mouse, touch, keyboard, IME text; the Vita's buttons as a pointer and arrow keys, ⚠️ VERIFY on a Vita) and `Audio.cpp`. Network: BSD sockets in Clearwing (patch 0026). Our whole AWT transpiled to C++: `AwtCheck` 18/18, its pictures pixel-identical to the JVM's |
 | `.vpk` of the client | ⬜ | |
 
 ### The runtime that is ours (`runtime/src`)
