@@ -12,7 +12,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 WORK="$REPO/build/vita/conformance"
 PROGRAMS="$*"
-[ -n "$PROGRAMS" ] || PROGRAMS="Conformance RuntimeConformance NetConformance"
+[ -n "$PROGRAMS" ] || PROGRAMS="Conformance RuntimeConformance NetConformance SoundConformance"
 
 rm -rf "$WORK/classes"; mkdir -p "$WORK/classes"
 JAVA_TOOL_OPTIONS= javac -nowarn --release 8 -encoding UTF-8 -d "$WORK/classes" \
@@ -24,9 +24,9 @@ for P in $PROGRAMS; do
    mkdir -p "$W"
    # each run gets an empty directory to work in (the programs that need one)
    rm -rf "$W/jvm-dir" "$W/native-dir"; mkdir -p "$W/jvm-dir" "$W/native-dir"
-   JAVA_TOOL_OPTIONS= java -Dstdout.encoding=UTF-8 -cp "$WORK/classes" "conformance.$P" "$W/jvm-dir" > "$W/jvm.txt" 2> "$W/jvm.err"
+   JAVA_TOOL_OPTIONS= java -Dstdout.encoding=UTF-8 -cp "$WORK/classes" "conformance.$P" "$W/jvm-dir" "$REPO" > "$W/jvm.txt" 2> "$W/jvm.err"
    "$HERE/transpile.sh" "$W" "conformance.$P" "$WORK/classes"
-   if ! timeout 120 "$W/build/dist" "$W/native-dir" > "$W/native.txt" 2> "$W/native.err"; then
+   if ! timeout 120 "$W/build/dist" "$W/native-dir" "$REPO" > "$W/native.txt" 2> "$W/native.err"; then
       echo "[conformance] $P: the transpiled program failed"; tail "$W/native.txt" "$W/native.err"; FAILED=1; continue
    fi
    if diff "$W/jvm.txt" "$W/native.txt"; then

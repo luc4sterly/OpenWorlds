@@ -1,14 +1,10 @@
 package net.openworlds.awt;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayDeque;
-import java.util.zip.CRC32;
-import java.util.zip.Deflater;
 
 /**
  * A screen in memory: what tests and the desktop JVM use. Input is what the
@@ -166,54 +162,8 @@ public class HeadlessScreen extends Screen {
       }
    }
 
-   /** A PNG (8-bit RGB) of ARGB pixels, with java.util.zip only. */
+   /** A PNG (8-bit RGB) of ARGB pixels. */
    public static void writePng(int[] argb, int w, int h, OutputStream os) throws IOException {
-      DataOutputStream out = new DataOutputStream(os);
-      out.write(new byte[]{(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'});
-      ByteArrayOutputStream ihdr = new ByteArrayOutputStream();
-      DataOutputStream d = new DataOutputStream(ihdr);
-      d.writeInt(w);
-      d.writeInt(h);
-      d.writeByte(8);
-      d.writeByte(2);
-      d.writeByte(0);
-      d.writeByte(0);
-      d.writeByte(0);
-      chunk(out, "IHDR", ihdr.toByteArray());
-      byte[] raw = new byte[h * (1 + w * 3)];
-      int k = 0;
-      for (int y = 0; y < h; y++) {
-         raw[k++] = 0;
-         for (int x = 0; x < w; x++) {
-            int p = argb[y * w + x];
-            raw[k++] = (byte) (p >> 16);
-            raw[k++] = (byte) (p >> 8);
-            raw[k++] = (byte) p;
-         }
-      }
-      Deflater def = new Deflater();
-      def.setInput(raw);
-      def.finish();
-      ByteArrayOutputStream z = new ByteArrayOutputStream();
-      byte[] buf = new byte[65536];
-      while (!def.finished()) {
-         int n = def.deflate(buf);
-         z.write(buf, 0, n);
-      }
-      def.end();
-      chunk(out, "IDAT", z.toByteArray());
-      chunk(out, "IEND", new byte[0]);
-      out.flush();
-   }
-
-   private static void chunk(DataOutputStream out, String type, byte[] data) throws IOException {
-      out.writeInt(data.length);
-      byte[] t = type.getBytes("US-ASCII");
-      out.write(t);
-      out.write(data);
-      CRC32 crc = new CRC32();
-      crc.update(t);
-      crc.update(data);
-      out.writeInt((int) crc.getValue());
+      PngWriter.write(argb, w, h, false, os);
    }
 }

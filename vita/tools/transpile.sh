@@ -8,7 +8,8 @@
 # A config.json in <work dir> is used if present (Clearwing's options);
 # otherwise runtime checks (null, bounds, division) stay on.
 # Needs vita/tools/setup-clearwing.sh first, cmake, ninja, a C++20 compiler,
-# zlib, zziplib and libffi (Debian/Ubuntu: zlib1g-dev libzzip-dev libffi-dev).
+# zlib, zziplib, libffi and SDL2 (Debian/Ubuntu: zlib1g-dev libzzip-dev
+# libffi-dev libsdl2-dev).
 set -eu
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -26,7 +27,8 @@ WORK="$(cd "$WORK" && pwd)"
 # our own runtime classes (vita/runtime, when built) go before Clearwing's.
 CP="$(ls "$CW"/m2/*.jar | tr '\n' ':')$CW/classes/annotations:$CW/classes/transpiler"
 [ -d "$REPO/build/vita/runtime" ] && CP="$CP:$REPO/build/vita/runtime"
-CP="$CP:$CW/classes/runtime:$CW/src/runtime/res"
+# our platform natives (vita/native/clearwing/src) are copied into the project with Clearwing's
+CP="$CP:$REPO/vita/native:$CW/classes/runtime:$CW/src/runtime/res"
 
 rm -rf "$WORK/dist"
 if ! JAVA_TOOL_OPTIONS= java -Xmx6g -cp "$CP" com.thelogicmaster.clearwing.Transpiler \
@@ -35,6 +37,7 @@ if ! JAVA_TOOL_OPTIONS= java -Xmx6g -cp "$CP" com.thelogicmaster.clearwing.Trans
    exit 1
 fi
 echo "[transpile] $(find "$WORK/dist/src" -name '*.cpp' | wc -l | tr -d ' ') C++ files in $WORK/dist"
+cp "$REPO/vita/native/CMakeLists.txt" "$WORK/dist/CMakeLists.txt"
 
 LAUNCHER=""
 command -v ccache >/dev/null 2>&1 && LAUNCHER="-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"

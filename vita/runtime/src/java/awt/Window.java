@@ -65,6 +65,15 @@ public class Window extends Container {
       return owner;
    }
 
+   /**
+    * As in the JDK, a window's parent is its owner (code that walks up with
+    * getParent() from a dialog reaches its frame). Our own code walks the
+    * {@code parent} field, which stays null for a window.
+    */
+   public Container getParent() {
+      return owner;
+   }
+
    public Window[] getOwnedWindows() {
       synchronized (ownedWindows) {
          return ownedWindows.toArray(new Window[ownedWindows.size()]);

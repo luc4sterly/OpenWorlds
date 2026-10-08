@@ -356,6 +356,37 @@ public class AwtCheck {
       }
 
       save("7-end");
+
+      // javax.swing.SwingUtilities.getWindowAncestor (the bridge's text fields) and a window's parent being its owner
+      java.awt.Dialog dlg = new java.awt.Dialog(f, "owned");
+      Panel inner = new Panel();
+      dlg.add(inner);
+      check(javax.swing.SwingUtilities.getWindowAncestor(inner) == dlg && javax.swing.SwingUtilities.getWindowAncestor(dlg) == f && dlg.getParent() == f
+            && javax.swing.SwingUtilities.getWindowAncestor(f) == null, "getWindowAncestor, and a dialog's parent is its owner");
+      dlg.dispose();
+
+      // javax.imageio.ImageIO: a PNG written (the bridge's captures) and read back the same
+      java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(7, 5, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+      java.awt.image.BufferedImage rgb = new java.awt.image.BufferedImage(7, 5, java.awt.image.BufferedImage.TYPE_INT_RGB);
+      for (int y = 0; y < 5; y++) {
+         for (int x = 0; x < 7; x++) {
+            img.setRGB(x, y, (x * 36) << 24 | (y * 50) << 16 | (x * 30) << 8 | (x + y) * 10);
+            rgb.setRGB(x, y, (y * 50) << 16 | (x * 30) << 8 | (x + y) * 10);
+         }
+      }
+      File png = new File(out, "imageio.png");
+      File png2 = new File(out, "imageio-rgb.png");
+      boolean wrote = javax.imageio.ImageIO.write(img, "png", png) && javax.imageio.ImageIO.write(rgb, "PNG", png2);
+      java.awt.image.BufferedImage back = javax.imageio.ImageIO.read(png);
+      java.awt.image.BufferedImage back2 = javax.imageio.ImageIO.read(png2);
+      boolean same = wrote && back != null && back2 != null && back.getWidth() == 7 && back.getHeight() == 5;
+      for (int y = 0; same && y < 5; y++) {
+         for (int x = 0; x < 7; x++) {
+            same &= back.getRGB(x, y) == img.getRGB(x, y) && back2.getRGB(x, y) == rgb.getRGB(x, y);
+         }
+      }
+      check(same && !javax.imageio.ImageIO.write(img, "gif", new File(out, "x.gif")), "ImageIO writes PNG (with and without alpha) and reads it back; no other format");
+
       f.dispose();
       settle();
       System.out.println(checks - failures + "/" + checks + " checks passed; pictures in " + out);
