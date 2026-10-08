@@ -1,0 +1,821 @@
+From aa80dd2a01561d5f0b7ae360dddbe1fb9d569388 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Thu, 8 Oct 2026 16:23:50 +0000
+Subject: [PATCH 18/18] RandomAccessFile and FileChannel locks
+
+RandomAccessFile was a stub that threw: now on C stdio, with the JDK's
+DataInput/DataOutput (big-endian, readLine taking bytes as Latin-1,
+modified UTF-8) and getChannel(). The channel's tryLock/lock use flock()
+(always granted on the Vita, where one program runs at a time); FileLock
+added.
+---
+ .../res/clearwing/src/RandomAccessFile.cpp    | 102 +++++
+ runtime/src/java/io/ModifiedUtf8.java         |  92 +++++
+ runtime/src/java/io/RandomAccessFile.java     | 369 +++++++++++++++++-
+ .../src/java/nio/channels/FileChannel.java    | 121 +++++-
+ runtime/src/java/nio/channels/FileLock.java   |  62 +++
+ 5 files changed, 721 insertions(+), 25 deletions(-)
+ create mode 100644 runtime/res/clearwing/src/RandomAccessFile.cpp
+ create mode 100644 runtime/src/java/io/ModifiedUtf8.java
+ create mode 100644 runtime/src/java/nio/channels/FileLock.java
+
+diff --git a/runtime/res/clearwing/src/RandomAccessFile.cpp b/runtime/res/clearwing/src/RandomAccessFile.cpp
+new file mode 100644
+index 0000000..883bfaf
+--- /dev/null
++++ b/runtime/res/clearwing/src/RandomAccessFile.cpp
+@@ -0,0 +1,102 @@
++#include "java/io/RandomAccessFile.h"
++#include "java/nio/channels/FileChannel.h"
++#include "java/lang/String.h"
++
++#include <cerrno>
++#include <cstdio>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <unistd.h>
++#if !defined(__vita__)
++#include <sys/file.h>
++#endif
++
++// RandomAccessFile on C stdio; reads and writes let the collector run meanwhile.
++
++static FILE *fileOf(jlong handle) {
++    return (FILE *) (intptr_t) handle;
++}
++
++extern "C" {
++
++jlong SM_java_io_RandomAccessFile_open0_java_lang_String_boolean_R_long(jcontext ctx, jobject path, jbool rw) {
++    auto p = stringToNative(ctx, (jstring) NULL_CHECK(path));
++    FILE *f = fopen(p, rw ? "r+b" : "rb");
++    if (!f && rw && errno == ENOENT)
++        f = fopen(p, "w+b");
++    return (jlong) (intptr_t) f;
++}
++
++jint SM_java_io_RandomAccessFile_read0_long_Array1_byte_int_int_R_int(jcontext ctx, jlong handle, jobject b, jint off, jint len) {
++    auto data = (jbyte *) ((jarray) NULL_CHECK(b))->data;
++    FILE *f = fileOf(handle);
++    ctx->suspended = true;
++    size_t n = fread(data + off, 1, (size_t) len, f);
++    bool failed = n == 0 && ferror(f);
++    if (failed)
++        clearerr(f);
++    ctx->suspended = false;
++    SAFEPOINT();
++    if (failed)
++        throwIOException(ctx, "Read error");
++    return (jint) n;
++}
++
++jint SM_java_io_RandomAccessFile_write0_long_Array1_byte_int_int_R_int(jcontext ctx, jlong handle, jobject b, jint off, jint len) {
++    auto data = (jbyte *) ((jarray) NULL_CHECK(b))->data;
++    FILE *f = fileOf(handle);
++    ctx->suspended = true;
++    size_t n = fwrite(data + off, 1, (size_t) len, f);
++    fflush(f);
++    ctx->suspended = false;
++    SAFEPOINT();
++    return (jint) n;
++}
++
++jbool SM_java_io_RandomAccessFile_seek0_long_long_R_boolean(jcontext ctx, jlong handle, jlong pos) {
++    return fseeko(fileOf(handle), (off_t) pos, SEEK_SET) == 0;
++}
++
++jlong SM_java_io_RandomAccessFile_tell0_long_R_long(jcontext ctx, jlong handle) {
++    return (jlong) ftello(fileOf(handle));
++}
++
++jlong SM_java_io_RandomAccessFile_length0_long_R_long(jcontext ctx, jlong handle) {
++    FILE *f = fileOf(handle);
++    fflush(f);
++    struct stat s{};
++    if (fstat(fileno(f), &s) != 0)
++        return 0;
++    return (jlong) s.st_size;
++}
++
++jbool SM_java_io_RandomAccessFile_setLength0_long_long_R_boolean(jcontext ctx, jlong handle, jlong length) {
++    FILE *f = fileOf(handle);
++    fflush(f);
++    return ftruncate(fileno(f), (off_t) length) == 0;
++}
++
++jint SM_java_io_RandomAccessFile_fd0_long_R_int(jcontext ctx, jlong handle) {
++    return handle ? fileno(fileOf(handle)) : -1;
++}
++
++void SM_java_io_RandomAccessFile_close0_long(jcontext ctx, jlong handle) {
++    if (handle)
++        fclose(fileOf(handle));
++}
++
++jbool SM_java_nio_channels_FileChannel_lock0_int_boolean_R_boolean(jcontext ctx, jint fd, jbool shared) {
++#if defined(__vita__)
++    return true;
++#else
++    return flock(fd, (shared ? LOCK_SH : LOCK_EX) | LOCK_NB) == 0;
++#endif
++}
++
++void SM_java_nio_channels_FileChannel_unlock0_int(jcontext ctx, jint fd) {
++#if !defined(__vita__)
++    flock(fd, LOCK_UN);
++#endif
++}
++
++}
+diff --git a/runtime/src/java/io/ModifiedUtf8.java b/runtime/src/java/io/ModifiedUtf8.java
+new file mode 100644
+index 0000000..de4c961
+--- /dev/null
++++ b/runtime/src/java/io/ModifiedUtf8.java
+@@ -0,0 +1,92 @@
++package java.io;
++
++/** The modified UTF-8 of DataInput.readUTF and DataOutput.writeUTF. */
++final class ModifiedUtf8 {
++   private ModifiedUtf8() {
++   }
++
++   static String decode(byte[] b, int len) throws UTFDataFormatException {
++      char[] out = new char[len];
++      int count = 0;
++      int n = 0;
++      while (count < len) {
++         int c = b[count] & 0xFF;
++         switch (c >> 4) {
++            case 0:
++            case 1:
++            case 2:
++            case 3:
++            case 4:
++            case 5:
++            case 6:
++            case 7:
++               count++;
++               out[n++] = (char) c;
++               break;
++            case 12:
++            case 13: {
++               count += 2;
++               if (count > len) {
++                  throw new UTFDataFormatException("malformed input: partial character at end");
++               }
++               int c2 = b[count - 1];
++               if ((c2 & 0xC0) != 0x80) {
++                  throw new UTFDataFormatException("malformed input around byte " + count);
++               }
++               out[n++] = (char) (((c & 0x1F) << 6) | (c2 & 0x3F));
++               break;
++            }
++            case 14: {
++               count += 3;
++               if (count > len) {
++                  throw new UTFDataFormatException("malformed input: partial character at end");
++               }
++               int c2 = b[count - 2];
++               int c3 = b[count - 1];
++               if (((c2 & 0xC0) != 0x80) || ((c3 & 0xC0) != 0x80)) {
++                  throw new UTFDataFormatException("malformed input around byte " + (count - 1));
++               }
++               out[n++] = (char) (((c & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F));
++               break;
++            }
++            default:
++               throw new UTFDataFormatException("malformed input around byte " + count);
++         }
++      }
++      return new String(out, 0, n);
++   }
++
++   static byte[] encode(String str) throws UTFDataFormatException {
++      int strlen = str.length();
++      int utflen = 0;
++      for (int i = 0; i < strlen; i++) {
++         int c = str.charAt(i);
++         if ((c >= 0x0001) && (c <= 0x007F)) {
++            utflen++;
++         } else if (c > 0x07FF) {
++            utflen += 3;
++         } else {
++            utflen += 2;
++         }
++      }
++      if (utflen > 65535) {
++         throw new UTFDataFormatException("encoded string too long: " + utflen + " bytes");
++      }
++      byte[] b = new byte[utflen];
++      int count = 0;
++      for (int i = 0; i < strlen; i++) {
++         int c = str.charAt(i);
++         if ((c >= 0x0001) && (c <= 0x007F)) {
++            b[count++] = (byte) c;
++         } else if (c > 0x07FF) {
++            b[count++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
++            b[count++] = (byte) (0x80 | ((c >> 6) & 0x3F));
++            b[count++] = (byte) (0x80 | (c & 0x3F));
++         } else {
++            b[count++] = (byte) (0xC0 | ((c >> 6) & 0x1F));
++            b[count++] = (byte) (0x80 | (c & 0x3F));
++         }
++      }
++      return b;
++   }
++}
+diff --git a/runtime/src/java/io/RandomAccessFile.java b/runtime/src/java/io/RandomAccessFile.java
+index 7239d89..ecf0e0f 100644
+--- a/runtime/src/java/io/RandomAccessFile.java
++++ b/runtime/src/java/io/RandomAccessFile.java
+@@ -2,18 +2,367 @@ package java.io;
+ 
+ import java.nio.channels.FileChannel;
+ 
+-public class RandomAccessFile implements Closeable {
++/**
++ * A file read and written at any position, as java.io.RandomAccessFile
++ * (Clearwing had none): C stdio underneath, the DataInput/DataOutput
++ * methods as the JDK's (big-endian, readLine taking bytes as Latin-1).
++ */
++public class RandomAccessFile implements DataOutput, DataInput, Closeable {
++   private long handle;
++   private final String path;
++   private final boolean writable;
++   private FileChannel channel;
++   private final Object closeLock = new Object();
++   private volatile boolean closed;
+ 
+-	public RandomAccessFile (File file, String mode) {
+-		throw new UnsupportedOperationException();
+-	}
++   public RandomAccessFile(String name, String mode) throws FileNotFoundException {
++      this(name != null ? new File(name) : null, mode);
++   }
+ 
+-	public final FileChannel getChannel() {
+-		return null;
+-	}
++   public RandomAccessFile(File file, String mode) throws FileNotFoundException {
++      String name = file != null ? file.getAbsolutePath() : null;
++      if (mode == null) {
++         throw new NullPointerException();
++      }
++      boolean rw;
++      if (mode.equals("r")) {
++         rw = false;
++      } else if (mode.equals("rw") || mode.equals("rws") || mode.equals("rwd")) {
++         rw = true;
++      } else {
++         throw new IllegalArgumentException("Illegal mode \"" + mode + "\" must be one of \"r\", \"rw\", \"rws\", or \"rwd\"");
++      }
++      if (name == null) {
++         throw new NullPointerException();
++      }
++      this.path = name;
++      this.writable = rw;
++      handle = open0(name, rw);
++      if (handle == 0) {
++         throw new FileNotFoundException(name + (rw ? " (cannot open for writing)" : " (No such file or directory)"));
++      }
++   }
+ 
+-	@Override
+-	public void close () throws IOException {
++   public final FileDescriptor getFD() throws IOException {
++      return new FileDescriptor();
++   }
+ 
+-	}
++   public final FileChannel getChannel() {
++      synchronized (this) {
++         if (channel == null) {
++            channel = new FileChannel.ForRandomAccessFile(this, fd());
++         }
++         return channel;
++      }
++   }
++
++   /** The C descriptor, for the channel's locks (-1 once closed). */
++   private int fd() {
++      return closed ? -1 : fd0(handle);
++   }
++
++   private void ensureOpen() throws IOException {
++      if (closed) {
++         throw new IOException("Stream Closed");
++      }
++   }
++
++   public int read() throws IOException {
++      ensureOpen();
++      byte[] b = new byte[1];
++      int n = read0(handle, b, 0, 1);
++      return n <= 0 ? -1 : b[0] & 0xFF;
++   }
++
++   public int read(byte[] b, int off, int len) throws IOException {
++      ensureOpen();
++      if (off < 0 || len < 0 || len > b.length - off) {
++         throw new IndexOutOfBoundsException();
++      }
++      if (len == 0) {
++         return 0;
++      }
++      int n = read0(handle, b, off, len);
++      return n <= 0 ? -1 : n;
++   }
++
++   public int read(byte[] b) throws IOException {
++      return read(b, 0, b.length);
++   }
++
++   public final void readFully(byte[] b) throws IOException {
++      readFully(b, 0, b.length);
++   }
++
++   public final void readFully(byte[] b, int off, int len) throws IOException {
++      int n = 0;
++      do {
++         int count = read(b, off + n, len - n);
++         if (count < 0) {
++            throw new EOFException();
++         }
++         n += count;
++      } while (n < len);
++   }
++
++   public int skipBytes(int n) throws IOException {
++      if (n <= 0) {
++         return 0;
++      }
++      long pos = getFilePointer();
++      long len = length();
++      long newpos = pos + n;
++      if (newpos > len) {
++         newpos = len;
++      }
++      seek(newpos);
++      return (int) (newpos - pos);
++   }
++
++   public void write(int b) throws IOException {
++      write(new byte[]{(byte) b}, 0, 1);
++   }
++
++   public void write(byte[] b) throws IOException {
++      write(b, 0, b.length);
++   }
++
++   public void write(byte[] b, int off, int len) throws IOException {
++      ensureOpen();
++      if (off < 0 || len < 0 || len > b.length - off) {
++         throw new IndexOutOfBoundsException();
++      }
++      if (!writable) {
++         throw new IOException("Bad file descriptor");
++      }
++      if (len > 0 && write0(handle, b, off, len) != len) {
++         throw new IOException("Write error");
++      }
++   }
++
++   public long getFilePointer() throws IOException {
++      ensureOpen();
++      return tell0(handle);
++   }
++
++   public void seek(long pos) throws IOException {
++      ensureOpen();
++      if (pos < 0) {
++         throw new IOException("Negative seek offset");
++      }
++      if (!seek0(handle, pos)) {
++         throw new IOException("Seek failed");
++      }
++   }
++
++   public long length() throws IOException {
++      ensureOpen();
++      return length0(handle);
++   }
++
++   public void setLength(long newLength) throws IOException {
++      ensureOpen();
++      if (!writable) {
++         throw new IOException("Bad file descriptor");
++      }
++      long pos = getFilePointer();
++      if (!setLength0(handle, newLength)) {
++         throw new IOException("setLength failed");
++      }
++      if (pos > newLength) {
++         seek(newLength);
++      }
++   }
++
++   public void close() throws IOException {
++      synchronized (closeLock) {
++         if (closed) {
++            return;
++         }
++         closed = true;
++      }
++      close0(handle);
++      handle = 0;
++   }
++
++   public final boolean readBoolean() throws IOException {
++      int ch = read();
++      if (ch < 0) {
++         throw new EOFException();
++      }
++      return ch != 0;
++   }
++
++   public final byte readByte() throws IOException {
++      int ch = read();
++      if (ch < 0) {
++         throw new EOFException();
++      }
++      return (byte) ch;
++   }
++
++   public final int readUnsignedByte() throws IOException {
++      int ch = read();
++      if (ch < 0) {
++         throw new EOFException();
++      }
++      return ch;
++   }
++
++   public final short readShort() throws IOException {
++      int ch1 = read();
++      int ch2 = read();
++      if ((ch1 | ch2) < 0) {
++         throw new EOFException();
++      }
++      return (short) ((ch1 << 8) + ch2);
++   }
++
++   public final int readUnsignedShort() throws IOException {
++      int ch1 = read();
++      int ch2 = read();
++      if ((ch1 | ch2) < 0) {
++         throw new EOFException();
++      }
++      return (ch1 << 8) + ch2;
++   }
++
++   public final char readChar() throws IOException {
++      return (char) readUnsignedShort();
++   }
++
++   public final int readInt() throws IOException {
++      int ch1 = read();
++      int ch2 = read();
++      int ch3 = read();
++      int ch4 = read();
++      if ((ch1 | ch2 | ch3 | ch4) < 0) {
++         throw new EOFException();
++      }
++      return (ch1 << 24) + (ch2 << 16) + (ch3 << 8) + ch4;
++   }
++
++   public final long readLong() throws IOException {
++      return ((long) readInt() << 32) + (readInt() & 0xFFFFFFFFL);
++   }
++
++   public final float readFloat() throws IOException {
++      return Float.intBitsToFloat(readInt());
++   }
++
++   public final double readDouble() throws IOException {
++      return Double.longBitsToDouble(readLong());
++   }
++
++   /** As the JDK: bytes up to \n, \r or \r\n, each byte one char; null at the end of the file. */
++   public final String readLine() throws IOException {
++      StringBuilder input = new StringBuilder();
++      int c = -1;
++      boolean eol = false;
++      while (!eol) {
++         switch (c = read()) {
++            case -1:
++            case '\n':
++               eol = true;
++               break;
++            case '\r':
++               eol = true;
++               long cur = getFilePointer();
++               if (read() != '\n') {
++                  seek(cur);
++               }
++               break;
++            default:
++               input.append((char) c);
++         }
++      }
++      if ((c == -1) && (input.length() == 0)) {
++         return null;
++      }
++      return input.toString();
++   }
++
++   public final String readUTF() throws IOException {
++      int utflen = readUnsignedShort();
++      byte[] bytearr = new byte[utflen];
++      readFully(bytearr, 0, utflen);
++      return ModifiedUtf8.decode(bytearr, utflen);
++   }
++
++   public final void writeBoolean(boolean v) throws IOException {
++      write(v ? 1 : 0);
++   }
++
++   public final void writeByte(int v) throws IOException {
++      write(v);
++   }
++
++   public final void writeShort(int v) throws IOException {
++      write(new byte[]{(byte) (v >>> 8), (byte) v}, 0, 2);
++   }
++
++   public final void writeChar(int v) throws IOException {
++      writeShort(v);
++   }
++
++   public final void writeInt(int v) throws IOException {
++      write(new byte[]{(byte) (v >>> 24), (byte) (v >>> 16), (byte) (v >>> 8), (byte) v}, 0, 4);
++   }
++
++   public final void writeLong(long v) throws IOException {
++      writeInt((int) (v >>> 32));
++      writeInt((int) v);
++   }
++
++   public final void writeFloat(float v) throws IOException {
++      writeInt(Float.floatToIntBits(v));
++   }
++
++   public final void writeDouble(double v) throws IOException {
++      writeLong(Double.doubleToLongBits(v));
++   }
++
++   public final void writeBytes(String s) throws IOException {
++      int len = s.length();
++      byte[] b = new byte[len];
++      for (int i = 0; i < len; i++) {
++         b[i] = (byte) s.charAt(i);
++      }
++      write(b, 0, len);
++   }
++
++   public final void writeChars(String s) throws IOException {
++      int len = s.length();
++      byte[] b = new byte[len * 2];
++      for (int i = 0; i < len; i++) {
++         char c = s.charAt(i);
++         b[2 * i] = (byte) (c >>> 8);
++         b[2 * i + 1] = (byte) c;
++      }
++      write(b, 0, b.length);
++   }
++
++   public final void writeUTF(String str) throws IOException {
++      byte[] b = ModifiedUtf8.encode(str);
++      writeShort(b.length);
++      write(b, 0, b.length);
++   }
++
++   private static native long open0(String path, boolean rw);
++
++   private static native int read0(long handle, byte[] b, int off, int len);
++
++   private static native int write0(long handle, byte[] b, int off, int len);
++
++   private static native boolean seek0(long handle, long pos);
++
++   private static native long tell0(long handle);
++
++   private static native long length0(long handle);
++
++   private static native boolean setLength0(long handle, long length);
++
++   private static native int fd0(long handle);
++
++   private static native void close0(long handle);
+ }
+diff --git a/runtime/src/java/nio/channels/FileChannel.java b/runtime/src/java/nio/channels/FileChannel.java
+index c6d1b2d..535bac4 100644
+--- a/runtime/src/java/nio/channels/FileChannel.java
++++ b/runtime/src/java/nio/channels/FileChannel.java
+@@ -1,30 +1,121 @@
+ package java.nio.channels;
+ 
+ import java.io.IOException;
++import java.io.RandomAccessFile;
+ import java.nio.MappedByteBuffer;
+ 
++/**
++ * A file's channel, as far as the client uses it: a RandomAccessFile's
++ * channel to take a lock on the file (the bridge's single-instance check).
++ * Replaces Clearwing's empty class.
++ */
+ public class FileChannel {
++   private boolean open = true;
+ 
+-	public MappedByteBuffer map(FileChannel.MapMode mode, long position, long size) throws IOException {
+-		return null;
+-	}
++   public FileChannel() {
++   }
+ 
+-	public static class MapMode {
++   public MappedByteBuffer map(FileChannel.MapMode mode, long position, long size) throws IOException {
++      throw new IOException("map is not supported");
++   }
+ 
+-		public static final MapMode READ_ONLY = new MapMode("READ_ONLY");
++   public long size() throws IOException {
++      throw new IOException("size is not supported");
++   }
+ 
+-		public static final MapMode READ_WRITE = new MapMode("READ_WRITE");
++   public final boolean isOpen() {
++      return open;
++   }
+ 
+-		public static final MapMode PRIVATE = new MapMode("PRIVATE");
++   public final void close() throws IOException {
++      if (open) {
++         open = false;
++         implCloseChannel();
++      }
++   }
+ 
+-		private final String name;
++   protected void implCloseChannel() throws IOException {
++   }
+ 
+-		private MapMode(String name) {
+-			this.name = name;
+-		}
++   public final FileLock lock() throws IOException {
++      return lock(0L, Long.MAX_VALUE, false);
++   }
+ 
+-		public String toString() {
+-			return name;
+-		}
+-	}
++   public FileLock lock(long position, long size, boolean shared) throws IOException {
++      FileLock l = tryLock(position, size, shared);
++      if (l == null) {
++         throw new IOException("lock not available");
++      }
++      return l;
++   }
++
++   public final FileLock tryLock() throws IOException {
++      return tryLock(0L, Long.MAX_VALUE, false);
++   }
++
++   public FileLock tryLock(long position, long size, boolean shared) throws IOException {
++      if (!open) {
++         throw new ClosedChannelException();
++      }
++      return new FileLock(this, position, size, shared);
++   }
++
++   void release(FileLock lock) throws IOException {
++   }
++
++   public static class MapMode {
++      public static final MapMode READ_ONLY = new MapMode("READ_ONLY");
++      public static final MapMode READ_WRITE = new MapMode("READ_WRITE");
++      public static final MapMode PRIVATE = new MapMode("PRIVATE");
++
++      private final String name;
++
++      private MapMode(String name) {
++         this.name = name;
++      }
++
++      public String toString() {
++         return name;
++      }
++   }
++
++   /** flock() on a descriptor; true on the Vita, where one program runs at a time. */
++   static native boolean lock0(int fd, boolean shared);
++
++   static native void unlock0(int fd);
++
++   /** RandomAccessFile.getChannel: whole-file locks with flock() where there is one (not on the Vita: one program at a time). */
++   public static final class ForRandomAccessFile extends FileChannel {
++      private final RandomAccessFile file;
++      private final int fd;
++
++      public ForRandomAccessFile(RandomAccessFile file, int fd) {
++         this.file = file;
++         this.fd = fd;
++      }
++
++      public long size() throws IOException {
++         return file.length();
++      }
++
++      protected void implCloseChannel() throws IOException {
++         file.close();
++      }
++
++      public FileLock tryLock(long position, long size, boolean shared) throws IOException {
++         if (!isOpen()) {
++            throw new ClosedChannelException();
++         }
++         if (fd >= 0 && !lock0(fd, shared)) {
++            return null;
++         }
++         return new FileLock(this, position, size, shared);
++      }
++
++      void release(FileLock lock) throws IOException {
++         if (fd >= 0) {
++            unlock0(fd);
++         }
++      }
++   }
+ }
+diff --git a/runtime/src/java/nio/channels/FileLock.java b/runtime/src/java/nio/channels/FileLock.java
+new file mode 100644
+index 0000000..4eb3d01
+--- /dev/null
++++ b/runtime/src/java/nio/channels/FileLock.java
+@@ -0,0 +1,62 @@
++package java.nio.channels;
++
++import java.io.IOException;
++
++/** A lock on a file, as java.nio.channels.FileLock. */
++public class FileLock implements AutoCloseable {
++   private final FileChannel channel;
++   private final long position;
++   private final long size;
++   private final boolean shared;
++   private boolean valid = true;
++
++   protected FileLock(FileChannel channel, long position, long size, boolean shared) {
++      this.channel = channel;
++      this.position = position;
++      this.size = size;
++      this.shared = shared;
++   }
++
++   public final FileChannel channel() {
++      return channel;
++   }
++
++   public Channel acquiredBy() {
++      return null;
++   }
++
++   public final long position() {
++      return position;
++   }
++
++   public final long size() {
++      return size;
++   }
++
++   public final boolean isShared() {
++      return shared;
++   }
++
++   public final boolean overlaps(long position, long size) {
++      return position + size > this.position && this.position + this.size > position;
++   }
++
++   public synchronized boolean isValid() {
++      return valid && channel.isOpen();
++   }
++
++   public synchronized void release() throws IOException {
++      if (valid) {
++         valid = false;
++         channel.release(this);
++      }
++   }
++
++   public final void close() throws IOException {
++      release();
++   }
++
++   public final String toString() {
++      return getClass().getName() + "[" + position + ":" + size + " " + (shared ? "shared" : "exclusive") + " " + (isValid() ? "valid" : "invalid") + "]";
++   }
++}
+-- 
+2.43.0
+

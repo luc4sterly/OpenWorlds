@@ -1248,12 +1248,13 @@ public abstract class Component implements ImageObserver, MenuContainer, java.io
 
    // ---------------------------------------------------------------- listeners
 
+   @SuppressWarnings("unchecked")
    private <T extends EventListener> T[] listenersOf(Class<T> type, T[] empty) {
       synchronized (listeners) {
          ArrayList<T> out = new ArrayList<T>();
          for (EventListener l : listeners) {
             if (type.isInstance(l)) {
-               out.add(type.cast(l));
+               out.add((T) l);
             }
          }
          return out.toArray(empty);
@@ -1475,7 +1476,7 @@ public abstract class Component implements ImageObserver, MenuContainer, java.io
          ArrayList<T> out = new ArrayList<T>();
          for (EventListener l : listeners) {
             if (listenerType.isInstance(l)) {
-               out.add(listenerType.cast(l));
+               out.add((T) l);
             }
          }
          return out.toArray((T[]) java.lang.reflect.Array.newInstance(listenerType, out.size()));

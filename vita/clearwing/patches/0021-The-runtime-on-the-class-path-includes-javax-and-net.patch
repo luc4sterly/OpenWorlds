@@ -1,0 +1,26 @@
+From 7eebc70bafbeedfcbe3b2f39d49f56a97bf9abe0 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Thu, 8 Oct 2026 16:33:31 +0000
+Subject: [PATCH] The runtime on the class path includes javax and
+ net.openworlds.awt (OpenWorlds' java.awt and its helpers)
+
+---
+ transpiler/src/com/thelogicmaster/clearwing/Transpiler.java | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java b/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
+index 4868d85..cc1bfac 100644
+--- a/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
++++ b/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
+@@ -244,7 +244,7 @@ public class Transpiler {
+ 		ArrayList<Supplier<InputStream>> sources = new ArrayList<>();
+ 		List<BytecodeClass> classes;
+ 		ArrayList<Closeable> parserCloseables = new ArrayList<>();
+-		ScanResult scanResult = new ClassGraph().acceptPaths("regexodus/", "java/").enableClassInfo().ignoreClassVisibility().scan();
++		ScanResult scanResult = new ClassGraph().acceptPaths("regexodus/", "java/", "javax/", "net/openworlds/awt/").enableClassInfo().ignoreClassVisibility().scan();
+ 		parserCloseables.add(scanResult);
+ 		addScanResultSuppliers(scanResult, sources);
+ 
+-- 
+2.43.0
+

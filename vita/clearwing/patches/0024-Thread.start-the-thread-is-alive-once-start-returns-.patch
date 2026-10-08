@@ -1,0 +1,74 @@
+From c9b1f4b13510d2bad98e8110536f9369253d5862 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Thu, 8 Oct 2026 16:44:45 +0000
+Subject: [PATCH] Thread.start: the thread is alive once start() returns;
+ starting twice throws
+
+start() returned before the new thread marked itself alive, so join() or
+isAlive() right after it saw a dead thread (and a program could end
+before its thread ran). Thread.toString and the thread group's name as
+the JDK's.
+---
+ runtime/res/clearwing/src/Thread.cpp   | 8 +++++++-
+ runtime/src/java/lang/Thread.java      | 2 +-
+ runtime/src/java/lang/ThreadGroup.java | 4 +++-
+ 3 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/runtime/res/clearwing/src/Thread.cpp b/runtime/res/clearwing/src/Thread.cpp
+index 7a509e0..5cd71d9 100644
+--- a/runtime/res/clearwing/src/Thread.cpp
++++ b/runtime/res/clearwing/src/Thread.cpp
+@@ -2,6 +2,7 @@
+ 
+ #include "java/lang/Runnable.h"
+ #include "java/lang/Thread.h"
++#include "java/lang/IllegalThreadStateException.h"
+ #include "java/lang/StackTraceElement.h"
+ #include "java/lang/String.h"
+ #include "java/lang/Object.h"
+@@ -78,8 +79,13 @@ void SM_java_lang_Thread_sleepImpl_long_int(jcontext ctx, jlong millis, jint nan
+ }
+ 
+ void M_java_lang_Thread_start(jcontext ctx, jobject self) {
++    auto thread = (jthread) NULL_CHECK(self);
++    if (thread->F_started)
++        constructAndThrow<&class_java_lang_IllegalThreadStateException, init_java_lang_IllegalThreadStateException>(ctx);
++    // as on a JVM the thread is alive once start() returns (join and isAlive right after it see it)
++    thread->F_started = true;
++    thread->F_alive = true;
+     auto newContext = createContext();
+-    auto thread = (jthread) self;
+     protectObject((jobject)thread);
+     thread->F_nativeContext = (intptr_t) newContext;
+     newContext->thread = thread;
+diff --git a/runtime/src/java/lang/Thread.java b/runtime/src/java/lang/Thread.java
+index 3edd3d0..d1cf389 100644
+--- a/runtime/src/java/lang/Thread.java
++++ b/runtime/src/java/lang/Thread.java
+@@ -271,7 +271,7 @@ public class Thread implements java.lang.Runnable{
+      * Returns a string representation of this thread, including the thread's name and priority.
+      */
+     public java.lang.String toString(){
+-        return "Thread " + name; 
++        return "Thread[" + getName() + "," + getPriority() + "," + getThreadGroup().getName() + "]";
+     }
+ 
+     public native StackTraceElement[] getStackTrace();
+diff --git a/runtime/src/java/lang/ThreadGroup.java b/runtime/src/java/lang/ThreadGroup.java
+index ea3f0b9..8d24474 100644
+--- a/runtime/src/java/lang/ThreadGroup.java
++++ b/runtime/src/java/lang/ThreadGroup.java
+@@ -73,7 +73,9 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
+      */
+     /** The one group threads report (Thread.getThreadGroup). */
+     static ThreadGroup systemGroup() {
+-        return new ThreadGroup();
++        ThreadGroup g = new ThreadGroup();
++        g.name = "main";
++        return g;
+     }
+ 
+     private ThreadGroup() {     // called from C code
+-- 
+2.43.0
+

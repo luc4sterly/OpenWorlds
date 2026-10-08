@@ -1,0 +1,1040 @@
+From 35a57a21360424de71813dd6af7524c956211853 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Wed, 7 Oct 2026 14:44:27 +0000
+Subject: [PATCH 16/18] java.io.File as the JDK's
+
+Normalized paths, relative ones resolved against user.dir, absolute and
+canonical paths, equals/hashCode/compareTo by path, toString the path,
+lastModified in milliseconds, isFile, renameTo, createNewFile, mkdirs,
+setLastModified, permissions, space, list with filters, toURI, toPath.
+On the Vita a device prefix (ux0:) starts an absolute path. File streams
+open the absolute path; FileOutputStream(FileDescriptor) writes to the
+process output.
+---
+ runtime/res/clearwing/src/File.cpp        | 233 ++++++----
+ runtime/src/java/io/File.java             | 528 ++++++++++++++++------
+ runtime/src/java/io/FileInputStream.java  |   2 +-
+ runtime/src/java/io/FileOutputStream.java |  26 +-
+ 4 files changed, 561 insertions(+), 228 deletions(-)
+
+diff --git a/runtime/res/clearwing/src/File.cpp b/runtime/res/clearwing/src/File.cpp
+index cc82915..087ed0a 100644
+--- a/runtime/res/clearwing/src/File.cpp
++++ b/runtime/res/clearwing/src/File.cpp
+@@ -1,122 +1,197 @@
+ #include "java/io/File.h"
+ #include "java/lang/String.h"
+ 
+-#include <iostream>
++#include <cerrno>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <string>
++#include <vector>
+ #include <sys/stat.h>
++#include <sys/types.h>
+ #include <fcntl.h>
+-#include <fstream>
+-#include <filesystem>
+-
+-#if defined(__WIN32__) || defined(__WINRT__)
+-#include <Windows.h>
++#include <dirent.h>
++#include <unistd.h>
++#if defined(__vita__)
++#include <psp2/io/stat.h>
++#else
++#include <utime.h>
++#include <sys/statvfs.h>
++#include <climits>
+ #endif
+ 
+-namespace fs = std::filesystem;
+-
+-extern "C" {
++// java.io.File's natives: POSIX calls, on paths File has made absolute.
+ 
+-jbool SM_java_io_File_createFile_java_lang_String_R_boolean(jcontext ctx, jobject path) {
+-    auto nativePath = stringToNative(ctx, (jstring) NULL_CHECK(path));
+-    std::ifstream test(nativePath);
+-    if (test.good())
+-        return false;
+-    test.close();
+-    std::ofstream file(nativePath);
+-    return file.good();
++static const char *nativePath(jcontext ctx, jobject path) {
++    return stringToNative(ctx, (jstring) NULL_CHECK(path));
+ }
+ 
+-jbool M_java_io_File_delete_R_boolean(jcontext ctx, jobject self) {
+-    return !std::remove(stringToNative(ctx, (jstring) ((java_io_File *) NULL_CHECK(self))->F_path));
++extern "C" {
++
++jbool SM_java_io_File_exists0_java_lang_String_R_boolean(jcontext ctx, jobject path) {
++    struct stat s{};
++    return stat(nativePath(ctx, path), &s) == 0;
+ }
+ 
+-jbool M_java_io_File_exists_R_boolean(jcontext ctx, jobject self) {
++jint SM_java_io_File_kind0_java_lang_String_R_int(jcontext ctx, jobject path) {
+     struct stat s{};
+-    return !stat(stringToNative(ctx, (jstring) ((java_io_File *) NULL_CHECK(self))->F_path), &s);
++    if (stat(nativePath(ctx, path), &s) != 0)
++        return 0;
++    if (S_ISDIR(s.st_mode))
++        return 2;
++    if (S_ISREG(s.st_mode))
++        return 1;
++    return 3;
+ }
+ 
+-jbool M_java_io_File_isDirectory_R_boolean(jcontext ctx, jobject self) {
++jbool SM_java_io_File_access0_java_lang_String_int_R_boolean(jcontext ctx, jobject path, jint mode) {
++#if defined(__vita__)
+     struct stat s{};
+-    if (stat(stringToNative(ctx, (jstring) ((java_io_File *) NULL_CHECK(self))->F_path), &s))
+-        return false;
+-#ifdef __WINRT__
+-    return (S_IFDIR & s.st_mode) != 0;
++    return stat(nativePath(ctx, path), &s) == 0;
+ #else
+-    return S_ISDIR(s.st_mode);
++    int m = 0;
++    if (mode & 4) m |= R_OK;
++    if (mode & 2) m |= W_OK;
++    if (mode & 1) m |= X_OK;
++    return access(nativePath(ctx, path), m) == 0;
+ #endif
+ }
+ 
+-jlong M_java_io_File_lastModified_R_long(jcontext ctx, jobject self) {
++jlong SM_java_io_File_lastModified0_java_lang_String_R_long(jcontext ctx, jobject path) {
+     struct stat s{};
+-    if (stat(stringToNative(ctx, (jstring) ((java_io_File *) NULL_CHECK(self))->F_path), &s))
++    if (stat(nativePath(ctx, path), &s) != 0)
+         return 0;
+-#if defined(__WIN32__) || defined(__WINRT__) || defined(__APPLE__)
+-    return s.st_mtime;
++#if defined(__APPLE__)
++    return (jlong) s.st_mtimespec.tv_sec * 1000 + s.st_mtimespec.tv_nsec / 1000000;
++#elif defined(__vita__)
++    return (jlong) s.st_mtime * 1000;
+ #else
+-    return s.st_mtim.tv_sec;
++    return (jlong) s.st_mtim.tv_sec * 1000 + s.st_mtim.tv_nsec / 1000000;
+ #endif
+ }
+ 
+-jlong M_java_io_File_length_R_long(jcontext ctx, jobject self) {
++jlong SM_java_io_File_length0_java_lang_String_R_long(jcontext ctx, jobject path) {
+     struct stat s{};
+-    if (stat(stringToNative(ctx, (jstring) ((java_io_File *) NULL_CHECK(self))->F_path), &s))
++    if (stat(nativePath(ctx, path), &s) != 0)
+         return 0;
+-    return s.st_size;
++    return (jlong) s.st_size;
+ }
+ 
+-jobject M_java_io_File_list_R_Array1_java_lang_String(jcontext ctx, jobject self) {
+-    std::vector<std::string> collected;
+-    auto path = stringToNative(ctx, (jstring) ((java_io_File *) NULL_CHECK(self))->F_path);
+-    if (!fs::is_directory(path))
++jint SM_java_io_File_createNewFile0_java_lang_String_R_int(jcontext ctx, jobject path) {
++    int fd = open(nativePath(ctx, path), O_RDWR | O_CREAT | O_EXCL, 0666);
++    if (fd >= 0) {
++        close(fd);
++        return 1;
++    }
++    return errno == EEXIST ? 0 : -1;
++}
++
++jbool SM_java_io_File_delete0_java_lang_String_R_boolean(jcontext ctx, jobject path) {
++    auto p = nativePath(ctx, path);
++    struct stat s{};
++    if (stat(p, &s) != 0)
++        return false;
++    if (S_ISDIR(s.st_mode))
++        return rmdir(p) == 0;
++    return unlink(p) == 0;
++}
++
++jobject SM_java_io_File_list0_java_lang_String_R_Array1_java_lang_String(jcontext ctx, jobject path) {
++    std::vector<std::string> names;
++    DIR *dir = opendir(nativePath(ctx, path));
++    if (!dir)
+         return nullptr;
+-    for (const auto & entry : fs::directory_iterator(path)) {
+-#if defined(__WIN32__) || defined(__WINRT__)
+-        std::wstring wstring(entry.path().filename().c_str());
+-        std::string filePath(wstring.begin(), wstring.end());
+-#else
+-        auto filePath = entry.path().filename().string();
+-#endif
+-        collected.emplace_back(filePath);
++    while (struct dirent *entry = readdir(dir)) {
++        if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
++            continue;
++        names.emplace_back(entry->d_name);
+     }
+-    auto array = createArray(ctx, &class_java_lang_String, (int)collected.size());
+-    for (int i = 0; i < (int)collected.size(); i++)
+-        ((jobject *)array->data)[i] = (jobject) stringFromNative(ctx, collected[i]);
++    closedir(dir);
++    auto array = createArray(ctx, &class_java_lang_String, (int) names.size());
++    for (int i = 0; i < (int) names.size(); i++)
++        ((jobject *) array->data)[i] = (jobject) stringFromNative(ctx, names[i].c_str());
+     return (jobject) array;
+ }
+ 
+-jobject SM_java_io_File_listRoots_R_Array1_java_io_File(jcontext ctx) {
+-    std::vector<std::string> collected;
+-#if defined(__WINRT__)
+-    collected.emplace_back("C:\\");
+-#elif defined(__WIN32__)
+-    char buffer[512];
+-    int len = (int)GetLogicalDriveStrings(sizeof(buffer), buffer);
+-    if (len > sizeof(buffer))
+-        collected.emplace_back("C:\\");
+-    else {
+-        char *ptr = buffer;
+-        while (*ptr) {
+-            collected.emplace_back(ptr);
+-            ptr += strlen(ptr) + 1;
+-        }
+-    }
++jbool SM_java_io_File_mkdir0_java_lang_String_R_boolean(jcontext ctx, jobject path) {
++    return mkdir(nativePath(ctx, path), 0777) == 0;
++}
++
++jbool SM_java_io_File_rename0_java_lang_String_java_lang_String_R_boolean(jcontext ctx, jobject from, jobject to) {
++    std::string a(nativePath(ctx, from));
++    return rename(a.c_str(), nativePath(ctx, to)) == 0;
++}
++
++jbool SM_java_io_File_setLastModified0_java_lang_String_long_R_boolean(jcontext ctx, jobject path, jlong time) {
++#if defined(__vita__)
++    SceIoStat stat{};
++    if (sceIoGetstat(nativePath(ctx, path), &stat) < 0)
++        return false;
++    SceDateTime t{};
++    time_t seconds = (time_t) (time / 1000);
++    struct tm tm{};
++    gmtime_r(&seconds, &tm);
++    t.year = tm.tm_year + 1900;
++    t.month = tm.tm_mon + 1;
++    t.day = tm.tm_mday;
++    t.hour = tm.tm_hour;
++    t.minute = tm.tm_min;
++    t.second = tm.tm_sec;
++    t.microsecond = (unsigned) (time % 1000) * 1000;
++    stat.st_mtime = t;
++    return sceIoChstat(nativePath(ctx, path), &stat, SCE_CST_MT) >= 0;
+ #else
+-    collected.emplace_back("/");
++    struct stat s{};
++    auto p = nativePath(ctx, path);
++    if (stat(p, &s) != 0)
++        return false;
++    struct utimbuf times{};
++    times.actime = s.st_atime;
++    times.modtime = (time_t) (time / 1000);
++    return utime(p, &times) == 0;
++#endif
++}
++
++jbool SM_java_io_File_setPermission0_java_lang_String_int_boolean_boolean_R_boolean(jcontext ctx, jobject path, jint access, jbool enable, jbool ownerOnly) {
++#if defined(__vita__)
++    return false;
++#else
++    auto p = nativePath(ctx, path);
++    struct stat s{};
++    if (stat(p, &s) != 0)
++        return false;
++    mode_t bits = 0;
++    if (access & 4) bits |= ownerOnly ? S_IRUSR : (S_IRUSR | S_IRGRP | S_IROTH);
++    if (access & 2) bits |= ownerOnly ? S_IWUSR : (S_IWUSR | S_IWGRP | S_IWOTH);
++    if (access & 1) bits |= ownerOnly ? S_IXUSR : (S_IXUSR | S_IXGRP | S_IXOTH);
++    mode_t mode = enable ? (s.st_mode | bits) : (s.st_mode & ~bits);
++    return chmod(p, mode) == 0;
++#endif
++}
++
++jlong SM_java_io_File_space0_java_lang_String_int_R_long(jcontext ctx, jobject path, jint kind) {
++#if defined(__vita__)
++    return 0;
++#else
++    struct statvfs s{};
++    if (statvfs(nativePath(ctx, path), &s) != 0)
++        return 0;
++    switch (kind) {
++        case 0: return (jlong) s.f_blocks * (jlong) s.f_frsize;
++        case 1: return (jlong) s.f_bfree * (jlong) s.f_frsize;
++        default: return (jlong) s.f_bavail * (jlong) s.f_frsize;
++    }
+ #endif
+-    auto array = createArray(ctx, &class_java_lang_String, (int)collected.size());
+-    for (int i = 0; i < (int)collected.size(); i++)
+-        ((jobject *)array->data)[i] = (jobject) stringFromNative(ctx, collected[i]);
+-    return (jobject) array;
+ }
+ 
+-jbool M_java_io_File_mkdir_R_boolean(jcontext ctx, jobject self) {
+-#if defined(__WINRT__)
+-    std::string path(stringToNative(ctx, (jstring) ((java_io_File *) NULL_CHECK(self))->F_path));
+-    std::wstring wpath(path.begin(), path.end());
+-    return !_wmkdir(wpath.c_str());
+-#elif defined(__WIN32__)
+-    return !mkdir(stringToNative(ctx, (jstring) ((java_io_File *) NULL_CHECK(self))->F_path));
++jobject SM_java_io_File_canonicalize0_java_lang_String_R_java_lang_String(jcontext ctx, jobject path) {
++#if defined(__vita__)
++    return nullptr;
+ #else
+-    return !mkdir(stringToNative(ctx, (jstring) ((java_io_File *) NULL_CHECK(self))->F_path), 0777);
++    char resolved[PATH_MAX];
++    if (!realpath(nativePath(ctx, path), resolved))
++        return nullptr;
++    return (jobject) stringFromNative(ctx, resolved);
+ #endif
+ }
+ 
+diff --git a/runtime/src/java/io/File.java b/runtime/src/java/io/File.java
+index a22dfef..3d35844 100644
+--- a/runtime/src/java/io/File.java
++++ b/runtime/src/java/io/File.java
+@@ -33,258 +33,494 @@ import java.nio.file.Path;
+ import java.util.ArrayList;
+ 
+ /**
+- * @author shannah
++ * A file name, as the JDK's java.io.File on a Unix file system: paths are
++ * normalized (no doubled or trailing separators), relative ones are resolved
++ * against user.dir, equality is by path, times are milliseconds. On the
++ * PlayStation Vita a device prefix ("ux0:", "app0:") starts an absolute path
++ * as "/" does elsewhere.
+  */
+-public class File {
++public class File implements Serializable, Comparable<File> {
+ 	public static final String pathSeparator = ":";
+ 	public static final char pathSeparatorChar = ':';
+ 	public static final String separator = "/";
+ 	public static final char separatorChar = '/';
+ 
+ 	private final String path;
+-
+-	public File (File parent, String child) {
+-		if (child == null)
+-			throw new NullPointerException();
+-		if (parent == null || parent.path.isEmpty())
+-			path = normalizePath(child);
+-		else
+-			path = normalizePath(parent.path + separator + child);
+-	}
++	private final transient int prefixLength;
+ 
+ 	public File (String pathname) {
+ 		if (pathname == null)
+ 			throw new NullPointerException();
+-		this.path = normalizePath(pathname);
+-	}
+-	
+-	private String normalizePath(String path) {
+-		return path.length() < 2 || !path.endsWith(separator) ? path : path.substring(0, path.length() - 1);
+-	}
+-
+-	public File (URI uri) {
+-		throw new UnsupportedOperationException();
++		this.path = normalize(pathname);
++		this.prefixLength = prefixLength(this.path);
+ 	}
+ 
+ 	public File (String parent, String child) {
+-		this(parent.isEmpty() ? child : (parent + separator + child).replace(separator + separator, separator));
++		if (child == null)
++			throw new NullPointerException();
++		if (parent != null) {
++			if (parent.isEmpty())
++				this.path = resolve("/", normalize(child));
++			else
++				this.path = resolve(normalize(parent), normalize(child));
++		} else
++			this.path = normalize(child);
++		this.prefixLength = prefixLength(this.path);
+ 	}
+ 
+-	public boolean canExecute () {
+-		return true;
++	public File (File parent, String child) {
++		if (child == null)
++			throw new NullPointerException();
++		if (parent != null) {
++			if (parent.path.isEmpty())
++				this.path = resolve("/", normalize(child));
++			else
++				this.path = resolve(parent.path, normalize(child));
++		} else
++			this.path = normalize(child);
++		this.prefixLength = prefixLength(this.path);
+ 	}
+ 
+-	public boolean canRead () {
+-		return true;
++	public File (URI uri) {
++		if (!uri.isAbsolute())
++			throw new IllegalArgumentException("URI is not absolute");
++		if (!"file".equalsIgnoreCase(uri.getScheme()))
++			throw new IllegalArgumentException("URI scheme is not \"file\"");
++		String p = uri.getPath();
++		if (p == null || p.isEmpty())
++			throw new IllegalArgumentException("URI path component is empty");
++		this.path = normalize(p);
++		this.prefixLength = prefixLength(this.path);
++	}
++
++	// ------------------------------------------------------------------ names
++
++	/** The length of a device prefix ("ux0:" on the Vita), 0 if none. */
++	private static int devicePrefix(String p) {
++		int colon = p.indexOf(':');
++		if (colon <= 0)
++			return 0;
++		for (int i = 0; i < colon; i++) {
++			char c = p.charAt(i);
++			if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')))
++				return 0;
++		}
++		return isVita() ? colon + 1 : 0;
++	}
++
++	private static Boolean vita;
++
++	private static boolean isVita() {
++		if (vita == null)
++			vita = Boolean.valueOf("PSVita".equals(System.getProperty("os.name")));
++		return vita.booleanValue();
++	}
++
++	private static int prefixLength(String p) {
++		int d = devicePrefix(p);
++		if (d > 0)
++			return p.length() > d && p.charAt(d) == '/' ? d + 1 : d;
++		return p.startsWith("/") ? 1 : 0;
++	}
++
++	/** UnixFileSystem.normalize: no doubled separators, none at the end (but a root's). */
++	private static String normalize(String p) {
++		int n = p.length();
++		StringBuilder sb = null;
++		char prev = 0;
++		for (int i = 0; i < n; i++) {
++			char c = p.charAt(i);
++			if (c == '/' && prev == '/') {
++				if (sb == null) {
++					sb = new StringBuilder(n);
++					sb.append(p, 0, i);
++				}
++				prev = c;
++				continue;
++			}
++			if (sb != null)
++				sb.append(c);
++			prev = c;
++		}
++		String r = sb == null ? p : sb.toString();
++		int root = prefixLength(r);
++		if (r.length() > Math.max(root, 1) && r.endsWith("/"))
++			r = r.substring(0, r.length() - 1);
++		return r;
++	}
++
++	private static String resolve(String parent, String child) {
++		if (child.isEmpty())
++			return parent;
++		if (child.startsWith("/")) {
++			if (parent.equals("/"))
++				return child;
++			return parent + child;
++		}
++		if (parent.equals("/") || parent.endsWith("/"))
++			return parent + child;
++		return parent + "/" + child;
+ 	}
+ 
+-	public boolean canWrite () {
+-		return true;
++	public String getName () {
++		int index = path.lastIndexOf(separatorChar);
++		if (index < prefixLength)
++			return path.substring(prefixLength);
++		return path.substring(index + 1);
+ 	}
+ 
+-	public int compareTo (File pathname) {
+-		return 0;
++	public String getParent () {
++		int index = path.lastIndexOf(separatorChar);
++		if (index < prefixLength) {
++			if (prefixLength > 0 && path.length() > prefixLength)
++				return path.substring(0, prefixLength);
++			return null;
++		}
++		return path.substring(0, index);
+ 	}
+ 
+-	public boolean createNewFile () {
+-		return false;
++	public File getParentFile () {
++		String p = getParent();
++		return p == null ? null : new File(p);
+ 	}
+ 
+-	public static File createTempFile (String prefix, String suffix) {
+-		return createTempFile(prefix, suffix, null);
++	public String getPath () {
++		return path;
+ 	}
+ 
+-	public static File createTempFile (String prefix, String suffix, File directory) {
+-		String tempPath = System.getenv("java.io.tmpdir");
+-		if (tempPath == null)
+-			tempPath = "temp";
+-		File tempDir = directory == null ? new File(tempPath) : directory;
+-		if (!(tempDir.exists() && tempDir.isDirectory()) && !tempDir.mkdir())
+-			return null;
+-        String name = prefix + (int)(Math.random() * Integer.MAX_VALUE) + (suffix == null ? ".tmp" : suffix);
+-        File tempFile = new File(tempDir, name);
+-		if (!createFile(tempFile.path))
+-            return null;
+-        return tempFile;
++	/** A NUL in the name, as the JDK checks before opening. */
++	final boolean isInvalid () {
++		return path.indexOf('\0') >= 0;
+ 	}
+ 
+-	private static native boolean createFile (String path);
+-
+-	public native boolean delete ();
+-
+-	public void deleteOnExit () {
++	public boolean isAbsolute () {
++		return prefixLength > 0;
+ 	}
+ 
+-	public native boolean exists ();
++	public String getAbsolutePath () {
++		if (isAbsolute())
++			return path;
++		return resolve(System.getProperty("user.dir"), path);
++	}
+ 
+ 	public File getAbsoluteFile () {
+-		return this;
++		return new File(getAbsolutePath());
++	}
++
++	/** The absolute path without "." and "..", links resolved where the platform can. */
++	public String getCanonicalPath () throws IOException {
++		String abs = getAbsolutePath();
++		String real = canonicalize0(abs);
++		if (real != null)
++			return real;
++		int root = prefixLength(abs);
++		String head = abs.substring(0, root);
++		ArrayList<String> parts = new ArrayList<>();
++		for (String part : abs.substring(root).split("/")) {
++			if (part.isEmpty() || part.equals("."))
++				continue;
++			if (part.equals("..")) {
++				if (!parts.isEmpty())
++					parts.remove(parts.size() - 1);
++				continue;
++			}
++			parts.add(part);
++		}
++		StringBuilder sb = new StringBuilder(head);
++		for (int i = 0; i < parts.size(); i++) {
++			if (i > 0 || (sb.length() > 0 && sb.charAt(sb.length() - 1) != '/' && sb.charAt(sb.length() - 1) != ':'))
++				sb.append('/');
++			sb.append(parts.get(i));
++		}
++		return sb.length() == 0 ? "/" : sb.toString();
+ 	}
+ 
+-	public String getAbsolutePath () {
+-		return path;
++	public File getCanonicalFile () throws IOException {
++		return new File(getCanonicalPath());
+ 	}
+ 
+-	public String getCanonicalPath () {
+-		return path;
++	private String nativePath () {
++		return getAbsolutePath();
+ 	}
+ 
+-	public File getCanonicalFile () {
+-		return this;
+-	}
++	// ------------------------------------------------------------------ the file system
+ 
+-	public long getFreeSpace () {
+-		return 0;
++	public boolean canRead () {
++		return access0(nativePath(), 4);
+ 	}
+ 
+-	public String getName () {
+-		int index = path.lastIndexOf(separatorChar);
+-		if (index == -1 || index == path.length() - 1)
+-			return path;
+-		else
+-			return path.substring(index + 1);
++	public boolean canWrite () {
++		return access0(nativePath(), 2);
+ 	}
+ 
+-	public String getParent () {
+-		if (path.isEmpty())
+-			return null;
+-		int index = path.lastIndexOf(separatorChar);
+-		return index == -1 ? "" : path.substring(0, path.lastIndexOf(separatorChar));
++	public boolean canExecute () {
++		return access0(nativePath(), 1);
+ 	}
+ 
+-	public File getParentFile () {
+-		String parent = getParent();
+-		if (parent != null)
+-			return new File(parent);
+-		return null;
++	public boolean exists () {
++		return exists0(nativePath());
+ 	}
+ 
+-	public String getPath () {
+-		return path;
++	public boolean isDirectory () {
++		return kind0(nativePath()) == 2;
+ 	}
+ 
+-	public long getTotalSpace () {
+-		return 0;
++	public boolean isFile () {
++		return kind0(nativePath()) == 1;
+ 	}
+ 
+-	public long getUsableSpace () {
+-		return 0;
++	public boolean isHidden () {
++		return getName().startsWith(".");
+ 	}
+ 
+-	public boolean isAbsolute () {
+-		return false;
++	public long lastModified () {
++		return lastModified0(nativePath());
+ 	}
+ 
+-	public native boolean isDirectory ();
+-
+-	public boolean isFile () {
+-		return !isDirectory();
++	public long length () {
++		return length0(nativePath());
+ 	}
+ 
+-	public boolean isInvalid () {
+-		return false;
++	public boolean createNewFile () throws IOException {
++		int r = createNewFile0(nativePath());
++		if (r < 0)
++			throw new IOException("Cannot create " + path);
++		return r == 1;
+ 	}
+ 
+-	public boolean isHidden () {
+-		return false;
++	public boolean delete () {
++		return delete0(nativePath());
+ 	}
+ 
+-	public native long lastModified ();
++	public void deleteOnExit () {
++	}
+ 
+-	public native long length ();
++	public String[] list () {
++		return list0(nativePath());
++	}
+ 
+-	public native String[] list ();
++	public String[] list (FilenameFilter filter) {
++		String[] names = list();
++		if (names == null || filter == null)
++			return names;
++		ArrayList<String> v = new ArrayList<>();
++		for (String name : names)
++			if (filter.accept(this, name))
++				v.add(name);
++		return v.toArray(new String[0]);
++	}
+ 
+ 	public File[] listFiles () {
+-		String[] filenames = list();
+-		if (filenames == null)
++		String[] names = list();
++		if (names == null)
+ 			return null;
+-		File[] files = new File[filenames.length];
+-		for (int i = 0; i < filenames.length; i++)
+-			files[i] = new File(this, filenames[i]);
++		File[] files = new File[names.length];
++		for (int i = 0; i < names.length; i++)
++			files[i] = new File(this, names[i]);
+ 		return files;
+ 	}
+ 
+-	public File[] listFiles(FilenameFilter filter) {
++	public File[] listFiles (FilenameFilter filter) {
++		String[] names = list();
++		if (names == null)
++			return null;
+ 		ArrayList<File> files = new ArrayList<>();
+-		for (String name : list()) {
+-			File file = new File(this, name);
+-			if (filter.accept(this, name))
+-				files.add(file);
+-		}
++		for (String name : names)
++			if (filter == null || filter.accept(this, name))
++				files.add(new File(this, name));
+ 		return files.toArray(new File[0]);
+ 	}
+ 
+-	public File[] listFiles(FileFilter filter) {
++	public File[] listFiles (FileFilter filter) {
++		String[] names = list();
++		if (names == null)
++			return null;
+ 		ArrayList<File> files = new ArrayList<>();
+-		for (String name : list()) {
+-			File file = new File(this, name);
+-			if (filter.accept(file))
+-				files.add(file);
++		for (String name : names) {
++			File f = new File(this, name);
++			if (filter == null || filter.accept(f))
++				files.add(f);
+ 		}
+ 		return files.toArray(new File[0]);
+ 	}
+ 
+-	public native static File[] listRoots ();
+-
+-	public native boolean mkdir ();
++	public boolean mkdir () {
++		return mkdir0(nativePath());
++	}
+ 
++	/** As the JDK: the missing parents first. */
+ 	public boolean mkdirs () {
+-		File dir = this;
+-		while (dir != null && !dir.path.isEmpty()) {
+-			if (!dir.exists() && !dir.mkdir())
+-				return false;
+-			dir = dir.getParentFile();
++		if (exists())
++			return false;
++		if (mkdir())
++			return true;
++		File canonFile;
++		try {
++			canonFile = getCanonicalFile();
++		} catch (IOException e) {
++			return false;
+ 		}
+-		return true;
++		File parent = canonFile.getParentFile();
++		return parent != null && (parent.mkdirs() || parent.exists()) && canonFile.mkdir();
+ 	}
+ 
+-	public boolean renameTo (File f) {
+-		return false;
++	public boolean renameTo (File dest) {
++		if (dest == null)
++			throw new NullPointerException();
++		return rename0(nativePath(), dest.nativePath());
+ 	}
+ 
+-	public boolean setExecutable (boolean b) {
+-		return false;
++	public boolean setLastModified (long time) {
++		if (time < 0)
++			throw new IllegalArgumentException("Negative time");
++		return setLastModified0(nativePath(), time);
+ 	}
+ 
+-	public boolean setExecutable (boolean b, boolean owner) {
+-		return false;
++	public boolean setReadOnly () {
++		return setPermission0(nativePath(), 2, false, false);
+ 	}
+ 
+-	public boolean setReadable (boolean b) {
+-		return false;
++	public boolean setWritable (boolean writable, boolean ownerOnly) {
++		return setPermission0(nativePath(), 2, writable, ownerOnly);
+ 	}
+ 
+-	public boolean setReadable (boolean b1, boolean b2) {
+-		return false;
++	public boolean setWritable (boolean writable) {
++		return setWritable(writable, true);
+ 	}
+ 
+-	public boolean setReadOnly () {
+-		return false;
++	public boolean setReadable (boolean readable, boolean ownerOnly) {
++		return setPermission0(nativePath(), 4, readable, ownerOnly);
+ 	}
+ 
+-	public boolean setWritable (boolean writable) {
+-		return false;
++	public boolean setReadable (boolean readable) {
++		return setReadable(readable, true);
+ 	}
+ 
+-	public boolean setWritable (boolean writable, boolean ownerOnly) {
+-		return false;
++	public boolean setExecutable (boolean executable, boolean ownerOnly) {
++		return setPermission0(nativePath(), 1, executable, ownerOnly);
+ 	}
+ 
+-	public URI toURI () {
+-		return null;
++	public boolean setExecutable (boolean executable) {
++		return setExecutable(executable, true);
+ 	}
+ 
+-	public URL toURL () {
+-		return null;
++	public static File[] listRoots () {
++		return isVita() ? new File[]{new File("ux0:/"), new File("app0:/")} : new File[]{new File("/")};
+ 	}
+-	
+-	public Path toPath () {
+-		return null;
++
++	public long getTotalSpace () {
++		return space0(nativePath(), 0);
++	}
++
++	public long getFreeSpace () {
++		return space0(nativePath(), 1);
++	}
++
++	public long getUsableSpace () {
++		return space0(nativePath(), 2);
++	}
++
++	private static int tempCounter = (int) (System.currentTimeMillis() & 0xFFFF);
++
++	public static File createTempFile (String prefix, String suffix, File directory) throws IOException {
++		if (prefix.length() < 3)
++			throw new IllegalArgumentException("Prefix string too short");
++		if (suffix == null)
++			suffix = ".tmp";
++		File dir = directory != null ? directory : new File(System.getProperty("java.io.tmpdir"));
++		while (true) {
++			int n;
++			synchronized (File.class) {
++				n = tempCounter++;
++			}
++			File f = new File(dir, prefix + Long.toString(((long) n * 2654435761L) & 0x7FFFFFFFL) + suffix);
++			int r = createNewFile0(f.nativePath());
++			if (r == 1)
++				return f;
++			if (r < 0)
++				throw new IOException("Unable to create temporary file, " + f.getPath());
++		}
++	}
++
++	public static File createTempFile (String prefix, String suffix) throws IOException {
++		return createTempFile(prefix, suffix, null);
++	}
++
++	// ------------------------------------------------------------------ objects
++
++	public int compareTo (File pathname) {
++		return path.compareTo(pathname.path);
++	}
++
++	public boolean equals (Object obj) {
++		return obj instanceof File && compareTo((File) obj) == 0;
++	}
++
++	public int hashCode () {
++		return path.hashCode() ^ 1234321;
+ 	}
+ 
+-	@Override
+ 	public String toString () {
+-		return "File(" + path + ")";
++		return path;
+ 	}
++
++	public URI toURI () {
++		try {
++			String p = getAbsolutePath();
++			if (!p.startsWith("/"))
++				p = "/" + p;
++			if (!p.endsWith("/") && isDirectory())
++				p = p + "/";
++			return new URI("file", null, p, null, null);
++		} catch (java.net.URISyntaxException x) {
++			throw new Error(x);
++		}
++	}
++
++	/** @deprecated as in the JDK */
++	@Deprecated
++	public URL toURL () throws java.net.MalformedURLException {
++		String p = getAbsolutePath();
++		if (!p.startsWith("/"))
++			p = "/" + p;
++		if (!p.endsWith("/") && isDirectory())
++			p = p + "/";
++		return new URL("file", "", -1, p);
++	}
++
++	public Path toPath () {
++		return java.nio.file.Paths.get(path);
++	}
++
++	// ------------------------------------------------------------------ natives (File.cpp)
++
++	private static native boolean exists0 (String path);
++
++	/** 0 nothing, 1 a file, 2 a directory, 3 something else. */
++	private static native int kind0 (String path);
++
++	private static native boolean access0 (String path, int mode);
++
++	private static native long lastModified0 (String path);
++
++	private static native long length0 (String path);
++
++	/** 1 created, 0 it existed, -1 failed. */
++	private static native int createNewFile0 (String path);
++
++	private static native boolean delete0 (String path);
++
++	private static native String[] list0 (String path);
++
++	private static native boolean mkdir0 (String path);
++
++	private static native boolean rename0 (String from, String to);
++
++	private static native boolean setLastModified0 (String path, long time);
++
++	private static native boolean setPermission0 (String path, int access, boolean enable, boolean ownerOnly);
++
++	private static native long space0 (String path, int kind);
++
++	private static native String canonicalize0 (String path);
+ }
+diff --git a/runtime/src/java/io/FileInputStream.java b/runtime/src/java/io/FileInputStream.java
+index c3e6602..e41be0e 100644
+--- a/runtime/src/java/io/FileInputStream.java
++++ b/runtime/src/java/io/FileInputStream.java
+@@ -116,7 +116,7 @@ class FileInputStream extends InputStream
+ 	 * @see        java.lang.SecurityManager#checkRead(java.lang.String)
+ 	 */
+ 	public FileInputStream(File file) throws FileNotFoundException {
+-		String name = (file != null ? file.getPath() : null);
++		String name = (file != null ? file.getAbsolutePath() : null);
+ 		if (name == null)
+ 			throw new NullPointerException();
+ 		if (file.isInvalid())
+diff --git a/runtime/src/java/io/FileOutputStream.java b/runtime/src/java/io/FileOutputStream.java
+index 80ac25f..7619531 100644
+--- a/runtime/src/java/io/FileOutputStream.java
++++ b/runtime/src/java/io/FileOutputStream.java
+@@ -63,6 +63,8 @@ class FileOutputStream extends OutputStream
+ 	 * (null if the stream is created with a file descriptor)
+ 	 */
+ 	private final String path;
++	/** FileDescriptor.out or err: the process's own output. */
++	private final OutputStream descriptorStream;
+ 
+ 	private final Object closeLock = new Object();
+ 	private volatile boolean closed = false;
+@@ -185,13 +187,14 @@ class FileOutputStream extends OutputStream
+ 	public FileOutputStream(File file, boolean append)
+ 		throws FileNotFoundException
+ 	{
+-		String name = (file != null ? file.getPath() : null);
++		String name = (file != null ? file.getAbsolutePath() : null);
+ 		if (name == null)
+ 			throw new NullPointerException();
+ 		if (file.isInvalid())
+ 			throw new FileNotFoundException("Invalid file path");
+ 		this.append = append;
+ 		this.path = name;
++		this.descriptorStream = null;
+ 
+ 		open(name, append);
+ 	}
+@@ -219,7 +222,20 @@ class FileOutputStream extends OutputStream
+ 	 * @param      b   the byte to be written.
+ 	 * @exception  IOException  if an I/O error occurs.
+ 	 */
++	/** The standard output or error of the process. */
++	public FileOutputStream(FileDescriptor fdObj) {
++		if (fdObj == null)
++			throw new NullPointerException();
++		this.append = false;
++		this.path = null;
++		this.descriptorStream = new NativeOutputStream();
++	}
++
+ 	public void write(int b) throws IOException {
++		if (descriptorStream != null) {
++			descriptorStream.write(b);
++			return;
++		}
+ 		write(b, append);
+ 	}
+ 
+@@ -243,7 +259,7 @@ class FileOutputStream extends OutputStream
+ 	 * @exception  IOException  if an I/O error occurs.
+ 	 */
+ 	public void write(byte b[]) throws IOException {
+-		writeBytes(b, 0, b.length, append);
++		write(b, 0, b.length);
+ 	}
+ 
+ 	/**
+@@ -256,6 +272,10 @@ class FileOutputStream extends OutputStream
+ 	 * @exception  IOException  if an I/O error occurs.
+ 	 */
+ 	public void write(byte b[], int off, int len) throws IOException {
++		if (descriptorStream != null) {
++			descriptorStream.write(b, off, len);
++			return;
++		}
+ 		writeBytes(b, off, len, append);
+ 	}
+ 
+@@ -278,6 +298,8 @@ class FileOutputStream extends OutputStream
+ 				return;
+ 			closed = true;
+ 		}
++		if (descriptorStream != null)
++			return;
+ 
+ 		close0();
+ 	}
+-- 
+2.43.0
+

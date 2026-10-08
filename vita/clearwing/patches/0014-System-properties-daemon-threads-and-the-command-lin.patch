@@ -1,0 +1,695 @@
+From 6a78ce93ba4dfe25d94b6f5d78f5f7b41bc2e3d5 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Wed, 7 Oct 2026 14:44:27 +0000
+Subject: [PATCH 14/18] System properties, daemon threads and the command line,
+ as a JVM
+
+System keeps its properties in a Properties table (getProperties,
+setProperties, setProperty, clearProperty) filled from the platform
+(java.version 1.8.0, os.name, user.dir, file.encoding...); out and err can
+be replaced (setOut, setErr); getenv reads the environment. Threads take
+the daemon flag of their creator and setDaemon works; once main returns
+the program goes on while a thread that is not a daemon runs; main gets
+the command line. Thread.holdsLock, dumpStack, getThreadGroup;
+Runtime.availableProcessors counts the cores, exec throws an IOException;
+Integer.decode, Boolean.getBoolean, Float(String); AssertionError and
+EOFException keep their messages.
+---
+ runtime/res/clearwing/src/Clearwing.cpp       | 36 ++++++++
+ runtime/res/clearwing/src/Clearwing.h         |  2 +
+ runtime/res/clearwing/src/Platform.cpp        | 77 ++++++++++++++++-
+ runtime/res/clearwing/src/Runtime.cpp         | 11 +++
+ runtime/res/clearwing/src/System.cpp          |  8 +-
+ runtime/res/clearwing/src/Thread.cpp          |  8 +-
+ runtime/src/java/io/EOFException.java         |  2 +-
+ runtime/src/java/lang/AssertionError.java     | 45 +++++++---
+ runtime/src/java/lang/Boolean.java            | 10 +++
+ runtime/src/java/lang/Float.java              |  4 +
+ runtime/src/java/lang/Integer.java            | 36 ++++++++
+ runtime/src/java/lang/Runtime.java            | 16 ++--
+ runtime/src/java/lang/System.java             | 83 +++++++++++++++++--
+ runtime/src/java/lang/Thread.java             | 31 +++++--
+ runtime/src/java/lang/ThreadGroup.java        |  5 ++
+ .../thelogicmaster/clearwing/Transpiler.java  |  3 +-
+ 16 files changed, 339 insertions(+), 38 deletions(-)
+
+diff --git a/runtime/res/clearwing/src/Clearwing.cpp b/runtime/res/clearwing/src/Clearwing.cpp
+index d0cc8d9..332e753 100644
+--- a/runtime/res/clearwing/src/Clearwing.cpp
++++ b/runtime/res/clearwing/src/Clearwing.cpp
+@@ -89,6 +89,41 @@ Class class_double { .nativeName = (intptr_t)"D", .size = sizeof(jdouble), .stat
+ Class class_boolean { .nativeName = (intptr_t)"Z", .size = sizeof(jbool), .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x400 };
+ Class class_void { .nativeName = (intptr_t)"V", .size = 0, .staticInitializer = (intptr_t) clinitPrimitive, .markFunction = (intptr_t) markPrimitive, .primitive = true, .access = 0x400 };
+ 
++static int mainArgc;
++static char **mainArgv;
++
++void setMainArguments(int argc, char **argv) {
++    mainArgc = argc;
++    mainArgv = argv;
++}
++
++jarray createMainArguments(jcontext ctx) {
++    int count = mainArgc > 1 ? mainArgc - 1 : 0;
++    auto array = createArray(ctx, &class_java_lang_String, count);
++    for (int i = 0; i < count; i++)
++        ((jobject *) array->data)[i] = (jobject) stringFromNative(ctx, mainArgv[i + 1]);
++    return array;
++}
++
++/// As a JVM: once main returns, the program goes on while a thread that is not a daemon runs (an AWT program's event thread).
++static void waitForNonDaemonThreads(jcontext mainContext) {
++    while (!exiting) {
++        bool running = false;
++        acquireCriticalLock();
++        for (auto threadContext : threadContexts) {
++            if (threadContext == mainContext || threadContext->dead)
++                continue;
++            auto thread = threadContext->thread;
++            if (thread && thread != collectionThread && thread->F_alive && !thread->F_daemon)
++                running = true;
++        }
++        releaseCriticalLock();
++        if (!running)
++            break;
++        std::this_thread::sleep_for(std::chrono::milliseconds(50));
++    }
++}
++
+ void runVM(main_ptr entrypoint) {
+     auto mainContext = initVM();
+ 
+@@ -98,6 +133,7 @@ void runVM(main_ptr entrypoint) {
+     thread->F_entrypoint = (intptr_t) entrypoint;
+     thread->F_name = (intptr_t) stringFromNative(mainContext, "Main");
+     threadEntrypoint(mainContext, thread);
++    waitForNonDaemonThreads(mainContext);
+ 
+     shutdownVM(mainContext);
+     exit(0);
+diff --git a/runtime/res/clearwing/src/Clearwing.h b/runtime/res/clearwing/src/Clearwing.h
+index 5dbe3e6..51d8c70 100644
+--- a/runtime/res/clearwing/src/Clearwing.h
++++ b/runtime/res/clearwing/src/Clearwing.h
+@@ -236,6 +236,8 @@ extern void init_java_lang_NullPointerException(jcontext ctx, jobject object);
+ extern volatile bool suspendVM;
+ 
+ void runVM(main_ptr entrypoint);
++void setMainArguments(int argc, char **argv);
++jarray createMainArguments(jcontext ctx);
+ jvm getJavaVM();
+ jni createJni(jcontext ctx);
+ void destroyJni(jni env);
+diff --git a/runtime/res/clearwing/src/Platform.cpp b/runtime/res/clearwing/src/Platform.cpp
+index 71eff3c..9803441 100644
+--- a/runtime/res/clearwing/src/Platform.cpp
++++ b/runtime/res/clearwing/src/Platform.cpp
+@@ -1,5 +1,11 @@
+ #include "Clearwing.h"
+ 
++#include <cstdlib>
++#include <string>
++#if !defined(__vita__)
++#include <unistd.h>
++#endif
++
+ extern "C" {
+ 
+ // Strings returned here are never freed but are cached, so it's fine
+@@ -12,10 +18,77 @@ const char *getOSLanguage() {
+ 
+ const char *getSystemProperty(const char *key) {
+     std::string name(key);
+-    if (name == "os.name" || name == "os.arch")
+-        return "unknown";
++    if (name == "java.version")
++        return "1.8.0";
++    if (name == "java.specification.version")
++        return "1.8";
++    if (name == "java.class.version")
++        return "52.0";
++    if (name == "java.vendor" || name == "java.vm.name")
++        return "Clearwing";
++    if (name == "java.runtime.name")
++        return "Clearwing";
++    if (name == "file.separator")
++        return "/";
++    if (name == "path.separator")
++        return ":";
+     if (name == "line.separator")
+         return "\n";
++    if (name == "file.encoding")
++        return "UTF-8";
++    if (name == "user.language")
++        return "en";
++    if (name == "user.country")
++        return "US";
++#if defined(__vita__)
++    if (name == "os.name")
++        return "PSVita";
++    if (name == "os.arch")
++        return "arm";
++    if (name == "user.dir" || name == "user.home")
++        return "ux0:data/openworlds";
++    if (name == "java.io.tmpdir")
++        return "ux0:data/openworlds/tmp";
++    if (name == "user.name")
++        return "vita";
++#else
++    if (name == "os.name") {
++#if defined(__APPLE__)
++        return "Mac OS X";
++#elif defined(__linux__)
++        return "Linux";
++#else
++        return "unknown";
++#endif
++    }
++    if (name == "os.arch") {
++#if defined(__x86_64__)
++        return "amd64";
++#elif defined(__aarch64__)
++        return "aarch64";
++#elif defined(__arm__)
++        return "arm";
++#elif defined(__i386__)
++        return "x86";
++#else
++        return "unknown";
++#endif
++    }
++    if (name == "user.dir") {
++        static char cwd[4096];
++        return getcwd(cwd, sizeof(cwd)) ? cwd : ".";
++    }
++    if (name == "user.home") {
++        auto home = getenv("HOME");
++        return home ? home : "/";
++    }
++    if (name == "user.name") {
++        auto user = getenv("USER");
++        return user ? user : "user";
++    }
++    if (name == "java.io.tmpdir")
++        return "/tmp";
++#endif
+     return nullptr;
+ }
+ 
+diff --git a/runtime/res/clearwing/src/Runtime.cpp b/runtime/res/clearwing/src/Runtime.cpp
+index 3aa8abe..fe72231 100644
+--- a/runtime/res/clearwing/src/Runtime.cpp
++++ b/runtime/res/clearwing/src/Runtime.cpp
+@@ -15,3 +15,14 @@ jlong SM_java_lang_Runtime_maxMemoryImpl_R_long(jcontext ctx) {
+ }
+ 
+ }
++
++#include <thread>
++
++extern "C" jint SM_java_lang_Runtime_availableProcessorsImpl_R_int(jcontext ctx) {
++#if defined(__vita__)
++    return 3; // the cores an application gets
++#else
++    unsigned n = std::thread::hardware_concurrency();
++    return n ? (jint) n : 1;
++#endif
++}
+diff --git a/runtime/res/clearwing/src/System.cpp b/runtime/res/clearwing/src/System.cpp
+index cbc8c2f..5fa8eb1 100644
+--- a/runtime/res/clearwing/src/System.cpp
++++ b/runtime/res/clearwing/src/System.cpp
+@@ -1,3 +1,4 @@
++#include <cstdlib>
+ #include "java/lang/System.h"
+ #include "java/lang/ArrayStoreException.h"
+ #include "java/lang/IllegalArgumentException.h"
+@@ -38,7 +39,12 @@ void SM_java_lang_System_gc(jcontext ctx) {
+     runGC(ctx);
+ }
+ 
+-jobject SM_java_lang_System_getProperty_java_lang_String_R_java_lang_String(jcontext ctx, jobject keyObj) {
++jobject SM_java_lang_System_getenv_java_lang_String_R_java_lang_String(jcontext ctx, jobject nameObj) {
++    auto value = getenv(stringToNative(ctx, (jstring) NULL_CHECK(nameObj)));
++    return value ? (jobject) stringFromNative(ctx, value) : nullptr;
++}
++
++jobject SM_java_lang_System_getPlatformProperty_java_lang_String_R_java_lang_String(jcontext ctx, jobject keyObj) {
+     static std::map<const char *, const char *> cache;
+     static std::mutex lock;
+     auto key = stringToNative(ctx, (jstring) NULL_CHECK(keyObj));
+diff --git a/runtime/res/clearwing/src/Thread.cpp b/runtime/res/clearwing/src/Thread.cpp
+index 5117b46..7a509e0 100644
+--- a/runtime/res/clearwing/src/Thread.cpp
++++ b/runtime/res/clearwing/src/Thread.cpp
+@@ -24,7 +24,7 @@ void threadEntrypoint(jcontext ctx, jthread thread) {
+ 
+         tryCatch(frameRef, [&]{
+             if (thread->F_entrypoint) {
+-                frame[0].o = (jobject) createArray(ctx, &class_java_lang_String, 0);
++                frame[0].o = (jobject) createMainArguments(ctx);
+                 ((main_ptr) thread->F_entrypoint)(ctx, frame[0].o);
+             }
+             else
+@@ -53,6 +53,12 @@ void threadEntrypoint(jcontext ctx, jthread thread) {
+     unprotectObject((jobject)thread);
+ }
+ 
++jbool SM_java_lang_Thread_holdsLock_java_lang_Object_R_boolean(jcontext ctx, jobject obj) {
++    NULL_CHECK(obj);
++    auto monitor = (jmonitor) obj->monitor;
++    return monitor && monitor->owner == ctx;
++}
++
+ jobject SM_java_lang_Thread_currentThread_R_java_lang_Thread(jcontext ctx) {
+     return (jobject) ctx->thread;
+ }
+diff --git a/runtime/src/java/io/EOFException.java b/runtime/src/java/io/EOFException.java
+index 70e6a14..5290bc0 100644
+--- a/runtime/src/java/io/EOFException.java
++++ b/runtime/src/java/io/EOFException.java
+@@ -42,7 +42,7 @@ public class EOFException extends java.io.IOException{
+      * s - the detail message.
+      */
+     public EOFException(java.lang.String s){
+-         //TODO codavaj!!
++         super(s);
+     }
+ 
+ }
+diff --git a/runtime/src/java/lang/AssertionError.java b/runtime/src/java/lang/AssertionError.java
+index 8251875..b7c0b56 100644
+--- a/runtime/src/java/lang/AssertionError.java
++++ b/runtime/src/java/lang/AssertionError.java
+@@ -8,23 +8,42 @@ public class AssertionError extends Error {
+     public AssertionError() {
+         super();
+     }
+-    public AssertionError(String detailMessage) {
++
++    private AssertionError(String detailMessage, boolean unused) {
++        super(detailMessage);
+     }
+-    
++
+     public AssertionError(Object detailMessage) {
++        this(String.valueOf(detailMessage), false);
++        if (detailMessage instanceof Throwable)
++            initCause((Throwable) detailMessage);
+     }
+ 
+-    public AssertionError(boolean detailMessage) {}
++    public AssertionError(boolean detailMessage) {
++        this(String.valueOf(detailMessage), false);
++    }
+ 
+-    public AssertionError(char detailMessage) {}
++    public AssertionError(char detailMessage) {
++        this(String.valueOf(detailMessage), false);
++    }
+ 
+-    public AssertionError(int detailMessage) {}
+-    
+-    public AssertionError(long detailMessage) {}
+-    
+-    public AssertionError(float detailMessage) {}
+-    
+-    public AssertionError(double detailMessage) {}
+-    
+-    public AssertionError(String message, Throwable cause) {}
++    public AssertionError(int detailMessage) {
++        this(String.valueOf(detailMessage), false);
++    }
++
++    public AssertionError(long detailMessage) {
++        this(String.valueOf(detailMessage), false);
++    }
++
++    public AssertionError(float detailMessage) {
++        this(String.valueOf(detailMessage), false);
++    }
++
++    public AssertionError(double detailMessage) {
++        this(String.valueOf(detailMessage), false);
++    }
++
++    public AssertionError(String message, Throwable cause) {
++        super(message, cause);
++    }
+ }
+diff --git a/runtime/src/java/lang/Boolean.java b/runtime/src/java/lang/Boolean.java
+index b96e1ec..907e35f 100644
+--- a/runtime/src/java/lang/Boolean.java
++++ b/runtime/src/java/lang/Boolean.java
+@@ -108,6 +108,16 @@ public final class Boolean implements Comparable<Boolean> {
+             return valueOf(parseBoolean(b));
+     }
+ 
++    /** Whether the system property of that name is "true" (ignoring case). */
++    public static boolean getBoolean(String name) {
++        boolean result = false;
++        try {
++            result = parseBoolean(System.getProperty(name));
++        } catch (IllegalArgumentException | NullPointerException e) {
++        }
++        return result;
++    }
++
+     public static boolean parseBoolean(final String s) {
+             return (s != null) && s.equalsIgnoreCase("true");
+     }
+diff --git a/runtime/src/java/lang/Float.java b/runtime/src/java/lang/Float.java
+index 597f221..ac72d93 100644
+--- a/runtime/src/java/lang/Float.java
++++ b/runtime/src/java/lang/Float.java
+@@ -87,6 +87,10 @@ public final class Float extends Number implements Comparable<Float> {
+      * Constructs a newly allocated Floatobject that represents the argument converted to type float.
+      * value - the value to be represented by the Float.
+      */
++    public Float(String s) throws NumberFormatException {
++        this(parseFloat(s));
++    }
++
+     public Float(double value){
+          this.value = (float)value;
+     }
+diff --git a/runtime/src/java/lang/Integer.java b/runtime/src/java/lang/Integer.java
+index d84855f..7be095a 100644
+--- a/runtime/src/java/lang/Integer.java
++++ b/runtime/src/java/lang/Integer.java
+@@ -481,6 +481,42 @@ public final class Integer extends Number implements Comparable<Integer> {
+ 	 * @param i the primitive
+ 	 * @return object instance
+ 	 */
++	/** As the JDK: decimal, hexadecimal (0x, 0X, #) or octal (leading 0), with an optional sign. */
++	public static Integer decode(String nm) throws NumberFormatException {
++		int radix = 10;
++		int index = 0;
++		boolean negative = false;
++		Integer result;
++		if (nm.length() == 0)
++			throw new NumberFormatException("Zero length string");
++		char firstChar = nm.charAt(0);
++		if (firstChar == '-') {
++			negative = true;
++			index++;
++		} else if (firstChar == '+')
++			index++;
++		if (nm.startsWith("0x", index) || nm.startsWith("0X", index)) {
++			index += 2;
++			radix = 16;
++		} else if (nm.startsWith("#", index)) {
++			index++;
++			radix = 16;
++		} else if (nm.startsWith("0", index) && nm.length() > 1 + index) {
++			index++;
++			radix = 8;
++		}
++		if (nm.startsWith("-", index) || nm.startsWith("+", index))
++			throw new NumberFormatException("Sign character in wrong position");
++		try {
++			result = Integer.valueOf(Integer.parseInt(nm.substring(index), radix));
++			result = negative ? Integer.valueOf(-result.intValue()) : result;
++		} catch (NumberFormatException e) {
++			String constant = negative ? ("-" + nm.substring(index)) : nm.substring(index);
++			result = Integer.valueOf(Integer.parseInt(constant, radix));
++		}
++		return result;
++	}
++
+ 	public static Integer valueOf (int i) {
+ 		return new Integer(i);
+ 	}
+diff --git a/runtime/src/java/lang/Runtime.java b/runtime/src/java/lang/Runtime.java
+index a8c2875..81f1ab5 100644
+--- a/runtime/src/java/lang/Runtime.java
++++ b/runtime/src/java/lang/Runtime.java
+@@ -83,30 +83,32 @@ public class Runtime {
+     private static native long maxMemoryImpl();
+ 
+     public int availableProcessors() {
+-        return 1;
++        return availableProcessorsImpl();
+     }
+ 
++    private static native int availableProcessorsImpl();
++
+     public Process exec(String command) throws IOException {
+-        throw new UnsupportedOperationException();
++        throw new IOException("Cannot run a program on this platform");
+     }
+ 
+     public Process exec(String command, String[] envp) throws IOException {
+-        throw new UnsupportedOperationException();
++        throw new IOException("Cannot run a program on this platform");
+     }
+ 
+     public Process exec(String command, String[] envp, File dir) throws IOException {
+-        throw new UnsupportedOperationException();
++        throw new IOException("Cannot run a program on this platform");
+     }
+ 
+     public Process exec(String[] cmdarray) throws IOException {
+-        throw new UnsupportedOperationException();
++        throw new IOException("Cannot run a program on this platform");
+     }
+ 
+     public Process exec(String[] cmdarray, String[] envp) throws IOException {
+-        throw new UnsupportedOperationException();
++        throw new IOException("Cannot run a program on this platform");
+     }
+ 
+     public Process exec(String[] cmdarray, String[] envp, File dir) throws IOException {
+-        throw new UnsupportedOperationException();
++        throw new IOException("Cannot run a program on this platform");
+     }
+ }
+diff --git a/runtime/src/java/lang/System.java b/runtime/src/java/lang/System.java
+index 5133fac..d1583be 100644
+--- a/runtime/src/java/lang/System.java
++++ b/runtime/src/java/lang/System.java
+@@ -27,6 +27,7 @@ import java.io.NativeOutputStream;
+ import java.io.PrintStream;
+ import java.util.HashMap;
+ import java.util.Map;
++import java.util.Properties;
+ 
+ /**
+  * The System class contains several useful class fields and methods. It cannot be instantiated.
+@@ -37,7 +38,7 @@ public final class System {
+      * The "standard" error output stream. This stream is already open and ready to accept output data.
+      * Typically this stream corresponds to display output or another output destination specified by the host environment or user. By convention, this output stream is used to display error messages or other information that should come to the immediate attention of a user even if the principal output stream, the value of the variable out, has been redirected to a file or other destination that is typically not continuously monitored.
+      */
+-    public static final java.io.PrintStream err = new PrintStream(new NativeOutputStream());
++    public static java.io.PrintStream err = new PrintStream(new NativeOutputStream());
+ 
+     /**
+      * The "standard" output stream. This stream is already open and ready to accept output data. Typically this stream corresponds to display output or another output destination specified by the host environment or user.
+@@ -46,7 +47,71 @@ public final class System {
+      * See the println methods in class PrintStream.
+      * See Also:PrintStream.println(), PrintStream.println(boolean), PrintStream.println(char), PrintStream.println(char[]), PrintStream.println(int), PrintStream.println(long), PrintStream.println(java.lang.Object), PrintStream.println(java.lang.String)
+      */
+-    public static final java.io.PrintStream out = new PrintStream(new NativeOutputStream());
++    public static java.io.PrintStream out = new PrintStream(new NativeOutputStream());
++
++    public static void setOut(PrintStream out) {
++        System.out = out;
++    }
++
++    public static void setErr(PrintStream err) {
++        System.err = err;
++    }
++
++    public static String lineSeparator() {
++        return "\n";
++    }
++
++    public static void runFinalization() {
++    }
++
++    private static Properties props;
++
++    /** What the platform reports for these, read once into System's properties (getProperty, getProperties). */
++    private static final String[] PLATFORM_KEYS = {
++            "java.version", "java.vendor", "java.vendor.url", "java.home", "java.class.version", "java.class.path",
++            "java.runtime.name", "java.specification.version", "java.vm.name", "os.name", "os.arch", "os.version",
++            "file.separator", "path.separator", "line.separator", "file.encoding", "user.name", "user.home",
++            "user.dir", "user.language", "user.country", "java.io.tmpdir"};
++
++    private static Properties initProperties() {
++        Properties p = new Properties();
++        for (String key : PLATFORM_KEYS) {
++            String value = getPlatformProperty(key);
++            if (value != null)
++                p.put(key, value);
++        }
++        return p;
++    }
++
++    public static Properties getProperties() {
++        synchronized (System.class) {
++            if (props == null)
++                props = initProperties();
++            return props;
++        }
++    }
++
++    public static void setProperties(Properties p) {
++        synchronized (System.class) {
++            props = p != null ? p : initProperties();
++        }
++    }
++
++    public static String setProperty(String key, String value) {
++        if (key == null || value == null)
++            throw new NullPointerException();
++        if (key.isEmpty())
++            throw new IllegalArgumentException("key can't be empty");
++        return (String) getProperties().put(key, value);
++    }
++
++    public static String clearProperty(String key) {
++        if (key == null)
++            throw new NullPointerException();
++        if (key.isEmpty())
++            throw new IllegalArgumentException("key can't be empty");
++        return (String) getProperties().remove(key);
++    }
+ 
+     /**
+      * Copies an array from the specified source array, beginning at the specified position, to the specified position of the destination array. A subsequence of array components are copied from the source array referenced by src to the destination array referenced by dst. The number of components copied is equal to the length argument. The components at positions srcOffset through srcOffset+length-1 in the source array are copied into positions dstOffset through dstOffset+length-1, respectively, of the destination array.
+@@ -93,7 +158,15 @@ public final class System {
+     /**
+      * Gets the system property indicated by the specified key.
+      */
+-    public static native java.lang.String getProperty(java.lang.String key);
++    public static java.lang.String getProperty(java.lang.String key) {
++        if (key == null)
++            throw new NullPointerException("key can't be null");
++        if (key.isEmpty())
++            throw new IllegalArgumentException("key can't be empty");
++        return getProperties().getProperty(key);
++    }
++
++    private static native java.lang.String getPlatformProperty(java.lang.String key);
+ 
+     public static String getProperty(String key, String def) {
+         String value = getProperty(key);
+@@ -104,9 +177,7 @@ public final class System {
+         return new HashMap<>();
+     }
+ 
+-    public static String getenv(String name) {
+-        return null;
+-    }
++    public static native String getenv(String name);
+ 
+     /**
+      * Returns the same hashcode for the given object as would be returned by the default method hashCode(), whether or not the given object's class overrides hashCode(). The hashcode for the null reference is zero.
+diff --git a/runtime/src/java/lang/Thread.java b/runtime/src/java/lang/Thread.java
+index 3d90425..3edd3d0 100644
+--- a/runtime/src/java/lang/Thread.java
++++ b/runtime/src/java/lang/Thread.java
+@@ -61,6 +61,9 @@ public class Thread implements java.lang.Runnable{
+     private long id;
+     private volatile boolean started;
+     private long nativeContext;
++    private volatile boolean daemon;
++    private static int threadInitNumber;
++    private static ThreadGroup group;
+ 
+     private volatile UncaughtExceptionHandler uncaughtExceptionHandler;
+     private static volatile UncaughtExceptionHandler defaultUncaughtExceptionHandler;
+@@ -99,9 +102,12 @@ public class Thread implements java.lang.Runnable{
+          this.name = name;
+          synchronized (Thread.class) {
+              id = currentId++;
++             if (this.name == null)
++                 this.name = "Thread-" + threadInitNumber++;
+          }
+-         if (this.name == null)
+-             this.name = "Unnamed " + id;
++         // as on a JVM: a new thread is a daemon if the thread creating it is
++         Thread parent = currentThread();
++         this.daemon = parent != null && parent.daemon;
+     }
+ 
+     /**
+@@ -109,7 +115,7 @@ public class Thread implements java.lang.Runnable{
+      * name - the name of the new thread.
+      */
+     public Thread(java.lang.String name){
+-         this.name = name;
++         this(null, name);
+     }
+ 
+     /**
+@@ -170,11 +176,20 @@ public class Thread implements java.lang.Runnable{
+     }
+ 
+     public final boolean isDaemon(){
+-        return false;
++        return daemon;
+     }
+ 
++    /** The program ends when the last thread that is not a daemon does (see runVM). */
+     public final void setDaemon(boolean on) {
+-//        throw new UnsupportedOperationException();
++        if (alive)
++            throw new IllegalThreadStateException();
++        daemon = on;
++    }
++
++    public static native boolean holdsLock(Object obj);
++
++    public static void dumpStack() {
++        new Exception("Stack trace").printStackTrace();
+     }
+ 
+     /**
+@@ -306,7 +321,11 @@ public class Thread implements java.lang.Runnable{
+     }
+ 
+     public final ThreadGroup getThreadGroup() {
+-        return null;
++        synchronized (Thread.class) {
++            if (group == null)
++                group = ThreadGroup.systemGroup();
++            return group;
++        }
+     }
+     
+     public enum State {
+diff --git a/runtime/src/java/lang/ThreadGroup.java b/runtime/src/java/lang/ThreadGroup.java
+index c33559d..ea3f0b9 100644
+--- a/runtime/src/java/lang/ThreadGroup.java
++++ b/runtime/src/java/lang/ThreadGroup.java
+@@ -71,6 +71,11 @@ class ThreadGroup implements Thread.UncaughtExceptionHandler {
+      * Creates an empty Thread group that is not in any Thread group.
+      * This method is used to create the system Thread group.
+      */
++    /** The one group threads report (Thread.getThreadGroup). */
++    static ThreadGroup systemGroup() {
++        return new ThreadGroup();
++    }
++
+     private ThreadGroup() {     // called from C code
+         this.name = "system";
+         this.maxPriority = Thread.MAX_PRIORITY;
+diff --git a/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java b/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
+index ce92cba..4868d85 100644
+--- a/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
++++ b/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
+@@ -416,7 +416,8 @@ public class Transpiler {
+ 						"#include \"" + Utils.getClassFilename(mainClass.getName()) + ".h\"\n" +
+ 						"#include \"Clearwing.h\"\n" +
+ 						"\n" +
+-						"int main() {\n" +
++						"int main(int argc, char **argv) {\n" +
++						"\tsetMainArguments(argc, argv);\n" +
+ 						"\trunVM(SM_" + mainClass.getQualifiedName() + "_main_Array1_java_lang_String);\n" +
+ 						"}\n"
+ 				);
+-- 
+2.43.0
+

@@ -1,0 +1,27 @@
+From 86989efd8a33026281f83f5deabb16df1895c6bf Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Thu, 8 Oct 2026 16:33:56 +0000
+Subject: [PATCH] A class that fails to transpile is named, with the stack
+ trace
+
+---
+ transpiler/src/com/thelogicmaster/clearwing/Transpiler.java | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java b/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
+index cc1bfac..bd832e2 100644
+--- a/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
++++ b/transpiler/src/com/thelogicmaster/clearwing/Transpiler.java
+@@ -400,7 +400,8 @@ public class Transpiler {
+ 			try {
+ 				clazz.generateCpp(builder, config, classMap);
+ 			} catch (Exception e) {
+-				System.err.println("ERR: " + e.getMessage());
++				System.err.println("ERR: " + clazz.getName() + ": " + e);
++				e.printStackTrace();
+ 				failed = true;
+ 			}
+ 			writer.write(builder.toString());
+-- 
+2.43.0
+

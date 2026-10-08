@@ -101,6 +101,7 @@ public class FlowLayout implements LayoutManager, java.io.Serializable {
             if (m.visible) {
                Dimension d = m.getMinimumSize();
                dim.height = Math.max(dim.height, d.height);
+               // 1.4.2: a gap before every component but the first, hidden or not (⚠️ VERIFY)
                if (i > 0) {
                   dim.width += hgap;
                }

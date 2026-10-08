@@ -1,0 +1,641 @@
+From f0262a4bf9d5220b9112ccf86edd6be7b7f0072a Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Wed, 7 Oct 2026 14:44:28 +0000
+Subject: [PATCH 17/18] java.nio.file: Paths, Files and a Path for the default
+ file system
+
+---
+ runtime/res/clearwing/src/NioFiles.cpp        |  15 ++
+ .../java/nio/file/AccessDeniedException.java  |  12 ++
+ .../nio/file/DirectoryNotEmptyException.java  |  12 ++
+ .../nio/file/FileAlreadyExistsException.java  |  12 ++
+ .../java/nio/file/FileSystemException.java    |  51 +++++
+ .../nio/file/FileSystemNotFoundException.java |  11 +
+ runtime/src/java/nio/file/Files.java          | 190 ++++++++++++++++++
+ .../java/nio/file/NoSuchFileException.java    |  12 ++
+ runtime/src/java/nio/file/Paths.java          |  27 +++
+ .../src/java/nio/file/StandardOpenOption.java |   6 +
+ runtime/src/java/nio/file/UnixPath.java       | 177 ++++++++++++++++
+ .../nio/file/attribute/FileAttribute.java     |   8 +
+ 12 files changed, 533 insertions(+)
+ create mode 100644 runtime/res/clearwing/src/NioFiles.cpp
+ create mode 100644 runtime/src/java/nio/file/AccessDeniedException.java
+ create mode 100644 runtime/src/java/nio/file/DirectoryNotEmptyException.java
+ create mode 100644 runtime/src/java/nio/file/FileAlreadyExistsException.java
+ create mode 100644 runtime/src/java/nio/file/FileSystemException.java
+ create mode 100644 runtime/src/java/nio/file/FileSystemNotFoundException.java
+ create mode 100644 runtime/src/java/nio/file/Files.java
+ create mode 100644 runtime/src/java/nio/file/NoSuchFileException.java
+ create mode 100644 runtime/src/java/nio/file/Paths.java
+ create mode 100644 runtime/src/java/nio/file/StandardOpenOption.java
+ create mode 100644 runtime/src/java/nio/file/UnixPath.java
+ create mode 100644 runtime/src/java/nio/file/attribute/FileAttribute.java
+
+diff --git a/runtime/res/clearwing/src/NioFiles.cpp b/runtime/res/clearwing/src/NioFiles.cpp
+new file mode 100644
+index 0000000..5c1adce
+--- /dev/null
++++ b/runtime/res/clearwing/src/NioFiles.cpp
+@@ -0,0 +1,15 @@
++#include "java/nio/file/Files.h"
++#include "java/lang/String.h"
++
++#include <sys/stat.h>
++
++extern "C" {
++
++jlong SM_java_nio_file_Files_device0_java_lang_String_R_long(jcontext ctx, jobject path) {
++    struct stat s{};
++    if (stat(stringToNative(ctx, (jstring) NULL_CHECK(path)), &s) != 0)
++        return 0;
++    return (jlong) s.st_dev;
++}
++
++}
+diff --git a/runtime/src/java/nio/file/AccessDeniedException.java b/runtime/src/java/nio/file/AccessDeniedException.java
+new file mode 100644
+index 0000000..d8bf912
+--- /dev/null
++++ b/runtime/src/java/nio/file/AccessDeniedException.java
+@@ -0,0 +1,12 @@
++package java.nio.file;
++
++/** As java.nio.file.AccessDeniedException. */
++public class AccessDeniedException extends FileSystemException {
++   public AccessDeniedException(String file) {
++      super(file);
++   }
++
++   public AccessDeniedException(String file, String other, String reason) {
++      super(file, other, reason);
++   }
++}
+diff --git a/runtime/src/java/nio/file/DirectoryNotEmptyException.java b/runtime/src/java/nio/file/DirectoryNotEmptyException.java
+new file mode 100644
+index 0000000..a9c5355
+--- /dev/null
++++ b/runtime/src/java/nio/file/DirectoryNotEmptyException.java
+@@ -0,0 +1,12 @@
++package java.nio.file;
++
++/** As java.nio.file.DirectoryNotEmptyException. */
++public class DirectoryNotEmptyException extends FileSystemException {
++   public DirectoryNotEmptyException(String file) {
++      super(file);
++   }
++
++   public DirectoryNotEmptyException(String file, String other, String reason) {
++      super(file, other, reason);
++   }
++}
+diff --git a/runtime/src/java/nio/file/FileAlreadyExistsException.java b/runtime/src/java/nio/file/FileAlreadyExistsException.java
+new file mode 100644
+index 0000000..6c970b0
+--- /dev/null
++++ b/runtime/src/java/nio/file/FileAlreadyExistsException.java
+@@ -0,0 +1,12 @@
++package java.nio.file;
++
++/** As java.nio.file.FileAlreadyExistsException. */
++public class FileAlreadyExistsException extends FileSystemException {
++   public FileAlreadyExistsException(String file) {
++      super(file);
++   }
++
++   public FileAlreadyExistsException(String file, String other, String reason) {
++      super(file, other, reason);
++   }
++}
+diff --git a/runtime/src/java/nio/file/FileSystemException.java b/runtime/src/java/nio/file/FileSystemException.java
+new file mode 100644
+index 0000000..441cbfb
+--- /dev/null
++++ b/runtime/src/java/nio/file/FileSystemException.java
+@@ -0,0 +1,51 @@
++package java.nio.file;
++
++/** A file system operation failed on a file, as java.nio.file.FileSystemException. */
++public class FileSystemException extends java.io.IOException {
++   private final String file;
++   private final String other;
++   private final String reason;
++
++   public FileSystemException(String file) {
++      super((String) null);
++      this.file = file;
++      this.other = null;
++      this.reason = null;
++   }
++
++   public FileSystemException(String file, String other, String reason) {
++      super(reason);
++      this.file = file;
++      this.other = other;
++      this.reason = reason;
++   }
++
++   public String getFile() {
++      return file;
++   }
++
++   public String getOtherFile() {
++      return other;
++   }
++
++   public String getReason() {
++      return reason;
++   }
++
++   public String getMessage() {
++      if (file == null && other == null)
++         return getReason();
++      StringBuilder sb = new StringBuilder();
++      if (file != null)
++         sb.append(file);
++      if (other != null) {
++         sb.append(" -> ");
++         sb.append(other);
++      }
++      if (getReason() != null) {
++         sb.append(": ");
++         sb.append(getReason());
++      }
++      return sb.toString();
++   }
++}
+diff --git a/runtime/src/java/nio/file/FileSystemNotFoundException.java b/runtime/src/java/nio/file/FileSystemNotFoundException.java
+new file mode 100644
+index 0000000..675589c
+--- /dev/null
++++ b/runtime/src/java/nio/file/FileSystemNotFoundException.java
+@@ -0,0 +1,11 @@
++package java.nio.file;
++
++/** As java.nio.file.FileSystemNotFoundException. */
++public class FileSystemNotFoundException extends RuntimeException {
++   public FileSystemNotFoundException() {
++   }
++
++   public FileSystemNotFoundException(String msg) {
++      super(msg);
++   }
++}
+diff --git a/runtime/src/java/nio/file/Files.java b/runtime/src/java/nio/file/Files.java
+new file mode 100644
+index 0000000..cf89986
+--- /dev/null
++++ b/runtime/src/java/nio/file/Files.java
+@@ -0,0 +1,190 @@
++package java.nio.file;
++
++import java.io.BufferedReader;
++import java.io.ByteArrayOutputStream;
++import java.io.File;
++import java.io.FileInputStream;
++import java.io.FileOutputStream;
++import java.io.IOException;
++import java.io.InputStream;
++import java.io.InputStreamReader;
++import java.io.OutputStream;
++import java.nio.charset.Charset;
++import java.nio.charset.StandardCharsets;
++import java.util.ArrayList;
++import java.util.List;
++
++/** What java.nio.file.Files does with whole files, over java.io (the default file system only). */
++public final class Files {
++   private Files() {
++   }
++
++   private static File file(Path path) {
++      return new File(path.toString());
++   }
++
++   public static byte[] readAllBytes(Path path) throws IOException {
++      File f = file(path);
++      if (!f.exists())
++         throw new NoSuchFileException(path.toString());
++      try (InputStream in = new FileInputStream(f)) {
++         long size = f.length();
++         if (size > Integer.MAX_VALUE - 8)
++            throw new OutOfMemoryError("Required array size too large");
++         ByteArrayOutputStream out = new ByteArrayOutputStream(size > 0 ? (int) size : 8192);
++         byte[] buf = new byte[8192];
++         int n;
++         while ((n = in.read(buf)) > 0)
++            out.write(buf, 0, n);
++         return out.toByteArray();
++      }
++   }
++
++   public static List<String> readAllLines(Path path, Charset cs) throws IOException {
++      File f = file(path);
++      if (!f.exists())
++         throw new NoSuchFileException(path.toString());
++      try (BufferedReader r = new BufferedReader(new InputStreamReader(new FileInputStream(f), cs))) {
++         List<String> result = new ArrayList<>();
++         for (String line = r.readLine(); line != null; line = r.readLine())
++            result.add(line);
++         return result;
++      }
++   }
++
++   public static List<String> readAllLines(Path path) throws IOException {
++      return readAllLines(path, StandardCharsets.UTF_8);
++   }
++
++   private static OutputStream open(Path path, OpenOption... options) throws IOException {
++      boolean append = false;
++      boolean createNew = false;
++      boolean create = options.length == 0;
++      for (OpenOption o : options) {
++         if (o == StandardOpenOption.APPEND)
++            append = true;
++         else if (o == StandardOpenOption.CREATE_NEW)
++            createNew = true;
++         else if (o == StandardOpenOption.CREATE)
++            create = true;
++      }
++      File f = file(path);
++      if (createNew && f.exists())
++         throw new FileAlreadyExistsException(path.toString());
++      if (!create && !createNew && !f.exists())
++         throw new NoSuchFileException(path.toString());
++      return new FileOutputStream(f, append);
++   }
++
++   public static Path write(Path path, byte[] bytes, OpenOption... options) throws IOException {
++      try (OutputStream out = open(path, options)) {
++         out.write(bytes, 0, bytes.length);
++      }
++      return path;
++   }
++
++   public static Path write(Path path, Iterable<? extends CharSequence> lines, Charset cs, OpenOption... options) throws IOException {
++      StringBuilder sb = new StringBuilder();
++      for (CharSequence line : lines)
++         sb.append(line).append(System.lineSeparator());
++      return write(path, sb.toString().getBytes(cs), options);
++   }
++
++   public static Path write(Path path, Iterable<? extends CharSequence> lines, OpenOption... options) throws IOException {
++      return write(path, lines, StandardCharsets.UTF_8, options);
++   }
++
++   public static boolean exists(Path path, LinkOption... options) {
++      return file(path).exists();
++   }
++
++   public static boolean notExists(Path path, LinkOption... options) {
++      return !file(path).exists();
++   }
++
++   public static boolean isDirectory(Path path, LinkOption... options) {
++      return file(path).isDirectory();
++   }
++
++   public static boolean isRegularFile(Path path, LinkOption... options) {
++      return file(path).isFile();
++   }
++
++   public static boolean isReadable(Path path) {
++      return file(path).canRead();
++   }
++
++   public static boolean isWritable(Path path) {
++      return file(path).canWrite();
++   }
++
++   public static long size(Path path) throws IOException {
++      File f = file(path);
++      if (!f.exists())
++         throw new NoSuchFileException(path.toString());
++      return f.length();
++   }
++
++   public static void delete(Path path) throws IOException {
++      File f = file(path);
++      if (!f.exists())
++         throw new NoSuchFileException(path.toString());
++      if (!f.delete())
++         throw new FileSystemException(path.toString(), null, f.isDirectory() ? "Directory not empty" : "Cannot delete");
++   }
++
++   public static boolean deleteIfExists(Path path) throws IOException {
++      File f = file(path);
++      if (!f.exists())
++         return false;
++      delete(path);
++      return true;
++   }
++
++   public static Path createDirectory(Path dir, java.nio.file.attribute.FileAttribute<?>... attrs) throws IOException {
++      File f = file(dir);
++      if (f.exists())
++         throw new FileAlreadyExistsException(dir.toString());
++      if (!f.mkdir())
++         throw new FileSystemException(dir.toString(), null, "Cannot create directory");
++      return dir;
++   }
++
++   public static Path createDirectories(Path dir, java.nio.file.attribute.FileAttribute<?>... attrs) throws IOException {
++      File f = file(dir);
++      if (f.isDirectory())
++         return dir;
++      if (!f.mkdirs() && !f.isDirectory())
++         throw new FileSystemException(dir.toString(), null, "Cannot create directories");
++      return dir;
++   }
++
++   public static Path move(Path source, Path target, CopyOption... options) throws IOException {
++      if (!file(source).renameTo(file(target)))
++         throw new FileSystemException(source.toString(), target.toString(), "Cannot move");
++      return target;
++   }
++
++   /** "unix:dev" (the device of the file, as stat's st_dev); other attributes are not kept here. */
++   public static Object getAttribute(Path path, String attribute, LinkOption... options) throws IOException {
++      int colon = attribute.indexOf(':');
++      String view = colon < 0 ? "basic" : attribute.substring(0, colon);
++      String name = colon < 0 ? attribute : attribute.substring(colon + 1);
++      File f = file(path);
++      if (!f.exists())
++         throw new NoSuchFileException(path.toString());
++      if (view.equals("unix") && name.equals("dev"))
++         return Long.valueOf(device0(f.getAbsolutePath()));
++      if (view.equals("basic") && name.equals("size"))
++         return Long.valueOf(f.length());
++      if (view.equals("basic") && (name.equals("isDirectory")))
++         return Boolean.valueOf(f.isDirectory());
++      if (view.equals("basic") && (name.equals("isRegularFile")))
++         return Boolean.valueOf(f.isFile());
++      if (!view.equals("unix") && !view.equals("basic"))
++         throw new UnsupportedOperationException("View '" + view + "' not available");
++      throw new IllegalArgumentException("'" + name + "' not recognized");
++   }
++
++   private static native long device0(String path);
++}
+diff --git a/runtime/src/java/nio/file/NoSuchFileException.java b/runtime/src/java/nio/file/NoSuchFileException.java
+new file mode 100644
+index 0000000..ca30ea4
+--- /dev/null
++++ b/runtime/src/java/nio/file/NoSuchFileException.java
+@@ -0,0 +1,12 @@
++package java.nio.file;
++
++/** As java.nio.file.NoSuchFileException. */
++public class NoSuchFileException extends FileSystemException {
++   public NoSuchFileException(String file) {
++      super(file);
++   }
++
++   public NoSuchFileException(String file, String other, String reason) {
++      super(file, other, reason);
++   }
++}
+diff --git a/runtime/src/java/nio/file/Paths.java b/runtime/src/java/nio/file/Paths.java
+new file mode 100644
+index 0000000..dd0403e
+--- /dev/null
++++ b/runtime/src/java/nio/file/Paths.java
+@@ -0,0 +1,27 @@
++package java.nio.file;
++
++import java.net.URI;
++
++/** Paths of the default file system, as java.nio.file.Paths. */
++public final class Paths {
++   private Paths() {
++   }
++
++   public static Path get(String first, String... more) {
++      StringBuilder sb = new StringBuilder(first);
++      for (String m : more) {
++         if (m.isEmpty())
++            continue;
++         if (sb.length() > 0)
++            sb.append('/');
++         sb.append(m);
++      }
++      return new UnixPath(sb.toString());
++   }
++
++   public static Path get(URI uri) {
++      if (!"file".equalsIgnoreCase(uri.getScheme()))
++         throw new FileSystemNotFoundException("Provider \"" + uri.getScheme() + "\" not installed");
++      return new UnixPath(uri.getPath());
++   }
++}
+diff --git a/runtime/src/java/nio/file/StandardOpenOption.java b/runtime/src/java/nio/file/StandardOpenOption.java
+new file mode 100644
+index 0000000..268cfd7
+--- /dev/null
++++ b/runtime/src/java/nio/file/StandardOpenOption.java
+@@ -0,0 +1,6 @@
++package java.nio.file;
++
++/** As java.nio.file.StandardOpenOption. */
++public enum StandardOpenOption implements OpenOption {
++   READ, WRITE, APPEND, TRUNCATE_EXISTING, CREATE, CREATE_NEW, DELETE_ON_CLOSE, SPARSE, SYNC, DSYNC
++}
+diff --git a/runtime/src/java/nio/file/UnixPath.java b/runtime/src/java/nio/file/UnixPath.java
+new file mode 100644
+index 0000000..1ca6cb6
+--- /dev/null
++++ b/runtime/src/java/nio/file/UnixPath.java
+@@ -0,0 +1,177 @@
++package java.nio.file;
++
++import java.io.File;
++import java.io.IOException;
++import java.net.URI;
++import java.util.ArrayList;
++
++/** The runtime's one kind of Path: a file name as java.io.File keeps it (Paths.get, File.toPath). */
++final class UnixPath implements Path {
++   private final String path;
++   private String[] names;
++
++   UnixPath(String path) {
++      this.path = new File(path).getPath();
++   }
++
++   private String[] names() {
++      if (names == null) {
++         ArrayList<String> out = new ArrayList<>();
++         for (String s : path.split("/"))
++            if (!s.isEmpty())
++               out.add(s);
++         names = out.toArray(new String[0]);
++      }
++      return names;
++   }
++
++   public FileSystem getFileSystem() {
++      return null;
++   }
++
++   public boolean isAbsolute() {
++      return new File(path).isAbsolute();
++   }
++
++   public Path getRoot() {
++      return isAbsolute() ? new UnixPath(path.substring(0, path.indexOf('/') + 1)) : null;
++   }
++
++   public Path getFileName() {
++      if (path.isEmpty())
++         return this;
++      String[] n = names();
++      return n.length == 0 ? null : new UnixPath(n[n.length - 1]);
++   }
++
++   public Path getParent() {
++      String p = new File(path).getParent();
++      return p == null ? null : new UnixPath(p);
++   }
++
++   public int getNameCount() {
++      return path.isEmpty() ? 1 : names().length;
++   }
++
++   public Path getName(int index) {
++      String[] n = names();
++      if (index < 0 || index >= n.length)
++         throw new IllegalArgumentException();
++      return new UnixPath(n[index]);
++   }
++
++   public Path subpath(int beginIndex, int endIndex) {
++      String[] n = names();
++      if (beginIndex < 0 || endIndex > n.length || beginIndex >= endIndex)
++         throw new IllegalArgumentException();
++      StringBuilder sb = new StringBuilder();
++      for (int i = beginIndex; i < endIndex; i++) {
++         if (i > beginIndex)
++            sb.append('/');
++         sb.append(n[i]);
++      }
++      return new UnixPath(sb.toString());
++   }
++
++   public boolean startsWith(Path other) {
++      return path.equals(other.toString()) || path.startsWith(other.toString().endsWith("/") ? other.toString() : other + "/");
++   }
++
++   public boolean startsWith(String other) {
++      return startsWith(new UnixPath(other));
++   }
++
++   public boolean endsWith(Path other) {
++      String o = other.toString();
++      return path.equals(o) || (!other.isAbsolute() && path.endsWith("/" + o));
++   }
++
++   public boolean endsWith(String other) {
++      return endsWith(new UnixPath(other));
++   }
++
++   public Path normalize() {
++      ArrayList<String> out = new ArrayList<>();
++      for (String s : names()) {
++         if (s.equals("."))
++            continue;
++         if (s.equals("..") && !out.isEmpty() && !out.get(out.size() - 1).equals("..")) {
++            out.remove(out.size() - 1);
++            continue;
++         }
++         out.add(s);
++      }
++      StringBuilder sb = new StringBuilder(isAbsolute() ? path.substring(0, path.indexOf('/') + 1) : "");
++      for (int i = 0; i < out.size(); i++) {
++         if (i > 0)
++            sb.append('/');
++         sb.append(out.get(i));
++      }
++      return new UnixPath(sb.toString());
++   }
++
++   public Path resolve(Path other) {
++      if (other.isAbsolute())
++         return other;
++      if (other.toString().isEmpty())
++         return this;
++      return new UnixPath(new File(path, other.toString()).getPath());
++   }
++
++   public Path resolve(String other) {
++      return resolve(new UnixPath(other));
++   }
++
++   public Path resolveSibling(String other) {
++      return resolveSibling(new UnixPath(other));
++   }
++
++   public Path relativize(Path other) {
++      String o = other.toString();
++      if (o.startsWith(path + "/"))
++         return new UnixPath(o.substring(path.length() + 1));
++      if (o.equals(path))
++         return new UnixPath("");
++      throw new IllegalArgumentException("'other' is not under this path");
++   }
++
++   public URI toUri() {
++      return new File(path).toURI();
++   }
++
++   public Path toAbsolutePath() {
++      return new UnixPath(new File(path).getAbsolutePath());
++   }
++
++   public Path toRealPath(LinkOption... options) throws IOException {
++      return new UnixPath(new File(path).getCanonicalPath());
++   }
++
++   public File toFile() {
++      return new File(path);
++   }
++
++   public WatchKey register(WatchService watcher, WatchEvent.Kind<?>[] events, WatchEvent.Modifier... modifiers) throws IOException {
++      throw new UnsupportedOperationException();
++   }
++
++   public WatchKey register(WatchService watcher, WatchEvent.Kind<?>... events) throws IOException {
++      throw new UnsupportedOperationException();
++   }
++
++   public int compareTo(Path other) {
++      return path.compareTo(other.toString());
++   }
++
++   public boolean equals(Object o) {
++      return o instanceof UnixPath && ((UnixPath) o).path.equals(path);
++   }
++
++   public int hashCode() {
++      return path.hashCode();
++   }
++
++   public String toString() {
++      return path;
++   }
++}
+diff --git a/runtime/src/java/nio/file/attribute/FileAttribute.java b/runtime/src/java/nio/file/attribute/FileAttribute.java
+new file mode 100644
+index 0000000..b460f21
+--- /dev/null
++++ b/runtime/src/java/nio/file/attribute/FileAttribute.java
+@@ -0,0 +1,8 @@
++package java.nio.file.attribute;
++
++/** As java.nio.file.attribute.FileAttribute. */
++public interface FileAttribute<T> {
++   String name();
++
++   T value();
++}
+-- 
+2.43.0
+
