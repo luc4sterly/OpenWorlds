@@ -52,6 +52,7 @@ public class RuntimeConformance {
 		randomAccess(dir);
 		nio(dir);
 		system();
+		misc(dir);
 		threads();
 	}
 
@@ -252,6 +253,37 @@ public class RuntimeConformance {
 		System.out.println("captured");
 		System.setOut(old);
 		p("setOut " + captured.toString().trim());
+	}
+
+	static void misc(File dir) throws Exception {
+		java.text.NumberFormat nf = java.text.NumberFormat.getNumberInstance(java.util.Locale.US);
+		double[] ds = {0, 1, 12345, 1234567.891, 0.5, 2.5, 3.5, 1.0005, 1.0015, 0.0001, -0.0001, -1234.5, 1e15, 123.456789, Double.NaN, 1 / 0.0};
+		StringBuilder sb = new StringBuilder();
+		for (double d : ds) sb.append('[').append(nf.format(d)).append(']');
+		p("numbers " + sb);
+		p("longs " + nf.format(0L) + " " + nf.format(999L) + " " + nf.format(1000L) + " " + nf.format(-1234567L) + " " + java.text.NumberFormat.getInstance().format(42 / 1000));
+		nf.setMaximumFractionDigits(1);
+		nf.setMinimumFractionDigits(1);
+		nf.setGroupingUsed(false);
+		p("fraction " + nf.format(1234.56) + " " + nf.format(2) + " " + nf.isGroupingUsed());
+		java.util.Calendar cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("GMT"));
+		cal.clear();
+		cal.set(2004, java.util.Calendar.MARCH, 15, 10, 30, 45);
+		p("calendar " + cal.getTime().getTime() + " " + cal.get(java.util.Calendar.DAY_OF_WEEK));
+		p("utc " + java.util.Date.UTC(104, 2, 15, 10, 30, 45) + " " + java.util.Date.UTC(70, 0, 1, 0, 0, 0) + " " + java.util.Date.UTC(99, 13, 1, 0, 0, 0));
+		p("base64 " + java.util.Base64.getEncoder().encodeToString("Worlds.com chat".getBytes()) + " " + java.util.Base64.getEncoder().encodeToString(new byte[]{(byte) 0xFF, 0}) + " " + new String(java.util.Base64.getDecoder().decode("V29ybGRz")));
+		final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(3);
+		for (int i = 0; i < 3; i++)
+			new Thread(new Runnable() { public void run() { latch.countDown(); } }).start();
+		latch.await();
+		p("latch " + latch.getCount());
+		String name = java.lang.management.ManagementFactory.getRuntimeMXBean().getName();
+		p("runtime bean " + name.matches("[0-9]+@.+") + " os bean " + (java.lang.management.ManagementFactory.getOperatingSystemMXBean().getAvailableProcessors() > 0));
+		PrintWriter pw = new PrintWriter(new File(dir, "pw.txt"), "UTF-8");
+		pw.println("pr\u00e9");
+		pw.close();
+		p("printwriter " + hex(Files.readAllBytes(new File(dir, "pw.txt").toPath())));
+		p("link error " + new UnsatisfiedLinkError("no lib").getMessage() + " " + (new UnsatisfiedLinkError() instanceof LinkageError));
 	}
 
 	static void threads() throws Exception {

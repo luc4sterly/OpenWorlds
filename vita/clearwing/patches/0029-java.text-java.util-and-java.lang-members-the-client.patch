@@ -1,0 +1,646 @@
+From 0838eefed82fbea4bab92f804124add1e20bdf98 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Thu, 8 Oct 2026 17:06:30 +0000
+Subject: [PATCH] java.text, java.util and java.lang members the client and the
+ bridge use
+
+NumberFormat number and integer instances as the JDK's (grouped
+thousands, half-even rounding, digit limits; formatting was plain
+toString), DateFormat/NumberFormat.getAvailableLocales, Calendar.set
+with a date and time, Calendar.clear, Date.UTC, Base64, CountDownLatch,
+java.lang.management (the runtime's "pid@host" name and the operating
+system bean), UnsatisfiedLinkError, PrintWriter on a file with an
+encoding.
+---
+ runtime/res/clearwing/src/Runtime.cpp         |  13 ++
+ runtime/src/java/io/PrintWriter.java          |  16 ++
+ .../src/java/lang/UnsatisfiedLinkError.java   |  12 ++
+ .../lang/management/ManagementFactory.java    |  84 +++++++++++
+ .../management/OperatingSystemMXBean.java     |  14 ++
+ .../java/lang/management/RuntimeMXBean.java   |  20 +++
+ runtime/src/java/text/DateFormat.java         |   5 +
+ runtime/src/java/text/NumberFormat.java       |  98 +++++++++++-
+ runtime/src/java/util/Base64.java             | 140 ++++++++++++++++++
+ runtime/src/java/util/Calendar.java           |  36 +++++
+ runtime/src/java/util/Date.java               |  17 +++
+ .../java/util/concurrent/CountDownLatch.java  |  41 +++++
+ 12 files changed, 493 insertions(+), 3 deletions(-)
+ create mode 100644 runtime/src/java/lang/UnsatisfiedLinkError.java
+ create mode 100644 runtime/src/java/lang/management/ManagementFactory.java
+ create mode 100644 runtime/src/java/lang/management/OperatingSystemMXBean.java
+ create mode 100644 runtime/src/java/lang/management/RuntimeMXBean.java
+ create mode 100644 runtime/src/java/util/Base64.java
+ create mode 100644 runtime/src/java/util/concurrent/CountDownLatch.java
+
+diff --git a/runtime/res/clearwing/src/Runtime.cpp b/runtime/res/clearwing/src/Runtime.cpp
+index fe72231..d07012a 100644
+--- a/runtime/res/clearwing/src/Runtime.cpp
++++ b/runtime/res/clearwing/src/Runtime.cpp
+@@ -26,3 +26,16 @@ extern "C" jint SM_java_lang_Runtime_availableProcessorsImpl_R_int(jcontext ctx)
+     return n ? (jint) n : 1;
+ #endif
+ }
++
++#if __has_include("java/lang/management/ManagementFactory.h")
++#include "java/lang/management/ManagementFactory.h"
++#include <unistd.h>
++
++extern "C" jlong SM_java_lang_management_ManagementFactory_pid_R_long(jcontext ctx) {
++#if defined(__vita__)
++    return 1;
++#else
++    return (jlong) getpid();
++#endif
++}
++#endif
+diff --git a/runtime/src/java/io/PrintWriter.java b/runtime/src/java/io/PrintWriter.java
+index ba36084..8d110c8 100644
+--- a/runtime/src/java/io/PrintWriter.java
++++ b/runtime/src/java/io/PrintWriter.java
+@@ -6,6 +6,22 @@ public class PrintWriter extends Writer {
+ 	private boolean trouble;
+ 	private PrintStream psOut;
+ 
++	public PrintWriter(String fileName) throws FileNotFoundException {
++		this(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName))), false);
++	}
++
++	public PrintWriter(String fileName, String csn) throws FileNotFoundException, UnsupportedEncodingException {
++		this(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName), csn)), false);
++	}
++
++	public PrintWriter(File file) throws FileNotFoundException {
++		this(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file))), false);
++	}
++
++	public PrintWriter(File file, String csn) throws FileNotFoundException, UnsupportedEncodingException {
++		this(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), csn)), false);
++	}
++
+ 	public PrintWriter(Writer out) {
+ 		this(out, false);
+ 	}
+diff --git a/runtime/src/java/lang/UnsatisfiedLinkError.java b/runtime/src/java/lang/UnsatisfiedLinkError.java
+new file mode 100644
+index 0000000..3bc8ac6
+--- /dev/null
++++ b/runtime/src/java/lang/UnsatisfiedLinkError.java
+@@ -0,0 +1,12 @@
++package java.lang;
++
++/** As java.lang.UnsatisfiedLinkError: a native method has no implementation. */
++public class UnsatisfiedLinkError extends LinkageError {
++   public UnsatisfiedLinkError() {
++      super();
++   }
++
++   public UnsatisfiedLinkError(String s) {
++      super(s);
++   }
++}
+diff --git a/runtime/src/java/lang/management/ManagementFactory.java b/runtime/src/java/lang/management/ManagementFactory.java
+new file mode 100644
+index 0000000..20600dd
+--- /dev/null
++++ b/runtime/src/java/lang/management/ManagementFactory.java
+@@ -0,0 +1,84 @@
++package java.lang.management;
++
++/** The two beans the bridge asks for: the operating system's and the runtime's. */
++public class ManagementFactory {
++   private ManagementFactory() {
++   }
++
++   private static final OperatingSystemMXBean OS = new OperatingSystemMXBean() {
++      public String getName() {
++         return System.getProperty("os.name");
++      }
++
++      public String getArch() {
++         return System.getProperty("os.arch");
++      }
++
++      public String getVersion() {
++         String v = System.getProperty("os.version");
++         return v != null ? v : "";
++      }
++
++      public int getAvailableProcessors() {
++         return Runtime.getRuntime().availableProcessors();
++      }
++
++      public double getSystemLoadAverage() {
++         return -1.0;
++      }
++   };
++
++   private static final long START = System.currentTimeMillis();
++
++   private static final RuntimeMXBean RUNTIME = new RuntimeMXBean() {
++      public String getName() {
++         return pid() + "@" + host();
++      }
++
++      public long getUptime() {
++         return System.currentTimeMillis() - START;
++      }
++
++      public long getStartTime() {
++         return START;
++      }
++
++      public String getVmName() {
++         return System.getProperty("java.vm.name");
++      }
++
++      public String getVmVendor() {
++         return System.getProperty("java.vendor");
++      }
++
++      public String getVmVersion() {
++         return System.getProperty("java.version");
++      }
++
++      public String getSpecVersion() {
++         return System.getProperty("java.specification.version");
++      }
++
++      public java.util.List<String> getInputArguments() {
++         return new java.util.ArrayList<String>();
++      }
++   };
++
++   public static OperatingSystemMXBean getOperatingSystemMXBean() {
++      return OS;
++   }
++
++   public static RuntimeMXBean getRuntimeMXBean() {
++      return RUNTIME;
++   }
++
++   private static String host() {
++      try {
++         return java.net.InetAddress.getLocalHost().getHostName();
++      } catch (Exception e) {
++         return "localhost";
++      }
++   }
++
++   private static native long pid();
++}
+diff --git a/runtime/src/java/lang/management/OperatingSystemMXBean.java b/runtime/src/java/lang/management/OperatingSystemMXBean.java
+new file mode 100644
+index 0000000..8a0a446
+--- /dev/null
++++ b/runtime/src/java/lang/management/OperatingSystemMXBean.java
+@@ -0,0 +1,14 @@
++package java.lang.management;
++
++/** As java.lang.management.OperatingSystemMXBean. */
++public interface OperatingSystemMXBean {
++   String getName();
++
++   String getArch();
++
++   String getVersion();
++
++   int getAvailableProcessors();
++
++   double getSystemLoadAverage();
++}
+diff --git a/runtime/src/java/lang/management/RuntimeMXBean.java b/runtime/src/java/lang/management/RuntimeMXBean.java
+new file mode 100644
+index 0000000..c5be4c2
+--- /dev/null
++++ b/runtime/src/java/lang/management/RuntimeMXBean.java
+@@ -0,0 +1,20 @@
++package java.lang.management;
++
++/** As java.lang.management.RuntimeMXBean (getName is "pid@host", as on HotSpot). */
++public interface RuntimeMXBean {
++   String getName();
++
++   long getUptime();
++
++   long getStartTime();
++
++   String getVmName();
++
++   String getVmVendor();
++
++   String getVmVersion();
++
++   String getSpecVersion();
++
++   java.util.List<String> getInputArguments();
++}
+diff --git a/runtime/src/java/text/DateFormat.java b/runtime/src/java/text/DateFormat.java
+index c591645..0e2401a 100644
+--- a/runtime/src/java/text/DateFormat.java
++++ b/runtime/src/java/text/DateFormat.java
+@@ -23,6 +23,7 @@
+ package java.text;
+ 
+ import java.util.Date;
++import java.util.Locale;
+ import java.util.TimeZone;
+ 
+ 
+@@ -143,6 +144,10 @@ public class DateFormat extends Format {
+ 	 * Get a DateFormat instance with default style for date/time (SHORT/SHORT).
+ 	 * @return a DateFormat instance.
+ 	 */
++	public static Locale[] getAvailableLocales() {
++		return new Locale[]{Locale.US};
++	}
++
+ 	public static final DateFormat getInstance() {
+ 		return getDateTimeInstance(SHORT, SHORT);
+ 	}
+diff --git a/runtime/src/java/text/NumberFormat.java b/runtime/src/java/text/NumberFormat.java
+index ff8c17e..74c9cbf 100644
+--- a/runtime/src/java/text/NumberFormat.java
++++ b/runtime/src/java/text/NumberFormat.java
+@@ -30,16 +30,108 @@ public class NumberFormat extends Format  {
+         throw new UnsupportedOperationException();
+     }
+ 
++    private boolean groupingUsed;
++    private boolean parseIntegerOnly;
++
++    /** As the JDK's "#,##0.###" for a number instance: grouped thousands, fractions rounded half-even. */
+     public String format(long number) {
+-        return Long.toString(number);
++        return digits(number < 0, Long.toString(number).replace("-", ""), "");
+     }
+ 
+     public String format(double number) {
+-        return Double.toString(number);
++        if (Double.isNaN(number))
++            return "NaN";
++        if (Double.isInfinite(number))
++            return number < 0 ? "-\u221E" : "\u221E";
++        boolean negative = number < 0 || (number == 0.0 && 1 / number < 0);
++        java.math.BigDecimal d = new java.math.BigDecimal(Double.toString(Math.abs(number)))
++                .setScale(maximumFractionDigits, RoundingMode.HALF_EVEN);
++        String plain = d.toPlainString();
++        int dot = plain.indexOf('.');
++        String integer = dot < 0 ? plain : plain.substring(0, dot);
++        String fraction = dot < 0 ? "" : plain.substring(dot + 1);
++        int keep = fraction.length();
++        while (keep > minimumFractionDigits && fraction.charAt(keep - 1) == '0')
++            keep--;
++        fraction = fraction.substring(0, keep);
++        // as the JDK, a negative number that rounds to zero keeps its sign ("-0")
++        return digits(negative, integer, fraction);
++    }
++
++    private String digits(boolean negative, String integer, String fraction) {
++        while (integer.length() > 1 && integer.charAt(0) == '0')
++            integer = integer.substring(1);
++        if (integer.equals("0") && minimumIntegerDigits == 0 && !fraction.isEmpty())
++            integer = "";
++        if (integer.length() > maximumIntegerDigits)
++            integer = integer.substring(integer.length() - maximumIntegerDigits);
++        StringBuilder in = new StringBuilder(integer);
++        while (in.length() < minimumIntegerDigits)
++            in.insert(0, '0');
++        StringBuilder sb = new StringBuilder();
++        if (negative)
++            sb.append('-');
++        String i = in.toString();
++        for (int k = 0; k < i.length(); k++) {
++            if (groupingUsed && k > 0 && (i.length() - k) % 3 == 0)
++                sb.append(',');
++            sb.append(i.charAt(k));
++        }
++        StringBuilder fr = new StringBuilder(fraction);
++        while (fr.length() < minimumFractionDigits)
++            fr.append('0');
++        if (fr.length() > 0)
++            sb.append('.').append(fr);
++        return sb.toString();
++    }
++
++    public boolean isGroupingUsed() {
++        return groupingUsed;
++    }
++
++    public void setGroupingUsed(boolean newValue) {
++        groupingUsed = newValue;
++    }
++
++    public boolean isParseIntegerOnly() {
++        return parseIntegerOnly;
++    }
++
++    public void setParseIntegerOnly(boolean value) {
++        parseIntegerOnly = value;
+     }
+ 
+     public static NumberFormat getInstance(Locale inLocale) {
+-        return new NumberFormat();
++        return getNumberInstance(inLocale);
++    }
++
++    public static NumberFormat getInstance() {
++        return getNumberInstance(Locale.getDefault());
++    }
++
++    public static NumberFormat getNumberInstance() {
++        return getNumberInstance(Locale.getDefault());
++    }
++
++    public static NumberFormat getNumberInstance(Locale inLocale) {
++        NumberFormat f = new NumberFormat();
++        f.groupingUsed = true;
++        return f;
++    }
++
++    public static NumberFormat getIntegerInstance() {
++        return getIntegerInstance(Locale.getDefault());
++    }
++
++    public static NumberFormat getIntegerInstance(Locale inLocale) {
++        NumberFormat f = getNumberInstance(inLocale);
++        f.setMaximumFractionDigits(0);
++        f.parseIntegerOnly = true;
++        return f;
++    }
++
++    public static Locale[] getAvailableLocales() {
++        return new Locale[]{Locale.US};
+     }
+ 
+     /**
+diff --git a/runtime/src/java/util/Base64.java b/runtime/src/java/util/Base64.java
+new file mode 100644
+index 0000000..e770adb
+--- /dev/null
++++ b/runtime/src/java/util/Base64.java
+@@ -0,0 +1,140 @@
++package java.util;
++
++/** RFC 4648 Base64, as java.util.Base64 (basic, URL-safe and MIME encoders and decoders). */
++public class Base64 {
++   private Base64() {
++   }
++
++   private static final char[] BASIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray();
++   private static final char[] URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".toCharArray();
++
++   public static Encoder getEncoder() {
++      return new Encoder(BASIC, true, 0);
++   }
++
++   public static Encoder getUrlEncoder() {
++      return new Encoder(URL, true, 0);
++   }
++
++   public static Encoder getMimeEncoder() {
++      return new Encoder(BASIC, true, 76);
++   }
++
++   public static Decoder getDecoder() {
++      return new Decoder(false, false);
++   }
++
++   public static Decoder getUrlDecoder() {
++      return new Decoder(true, false);
++   }
++
++   public static Decoder getMimeDecoder() {
++      return new Decoder(false, true);
++   }
++
++   public static class Encoder {
++      private final char[] table;
++      private final boolean padding;
++      private final int lineLength;
++
++      private Encoder(char[] table, boolean padding, int lineLength) {
++         this.table = table;
++         this.padding = padding;
++         this.lineLength = lineLength;
++      }
++
++      public Encoder withoutPadding() {
++         return new Encoder(table, false, lineLength);
++      }
++
++      public String encodeToString(byte[] src) {
++         StringBuilder sb = new StringBuilder(4 * ((src.length + 2) / 3));
++         int line = 0;
++         for (int i = 0; i < src.length; i += 3) {
++            int b0 = src[i] & 0xFF;
++            int b1 = i + 1 < src.length ? src[i + 1] & 0xFF : 0;
++            int b2 = i + 2 < src.length ? src[i + 2] & 0xFF : 0;
++            if (lineLength > 0 && line == lineLength) {
++               sb.append("\r\n");
++               line = 0;
++            }
++            sb.append(table[b0 >> 2]);
++            sb.append(table[((b0 & 3) << 4) | (b1 >> 4)]);
++            if (i + 1 < src.length)
++               sb.append(table[((b1 & 15) << 2) | (b2 >> 6)]);
++            else if (padding)
++               sb.append('=');
++            if (i + 2 < src.length)
++               sb.append(table[b2 & 63]);
++            else if (padding)
++               sb.append('=');
++            line += 4;
++         }
++         return sb.toString();
++      }
++
++      public byte[] encode(byte[] src) {
++         String s = encodeToString(src);
++         byte[] b = new byte[s.length()];
++         for (int i = 0; i < b.length; i++)
++            b[i] = (byte) s.charAt(i);
++         return b;
++      }
++   }
++
++   public static class Decoder {
++      private final boolean url;
++      private final boolean mime;
++
++      private Decoder(boolean url, boolean mime) {
++         this.url = url;
++         this.mime = mime;
++      }
++
++      private int value(char c) {
++         if (c >= 'A' && c <= 'Z')
++            return c - 'A';
++         if (c >= 'a' && c <= 'z')
++            return c - 'a' + 26;
++         if (c >= '0' && c <= '9')
++            return c - '0' + 52;
++         if (c == (url ? '-' : '+'))
++            return 62;
++         if (c == (url ? '_' : '/'))
++            return 63;
++         return -1;
++      }
++
++      public byte[] decode(String src) {
++         java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
++         int bits = 0;
++         int count = 0;
++         int i = 0;
++         for (; i < src.length(); i++) {
++            char c = src.charAt(i);
++            if (c == '=')
++               break;
++            int v = value(c);
++            if (v < 0) {
++               if (mime)
++                  continue;
++               throw new IllegalArgumentException("Illegal base64 character " + Integer.toHexString(c));
++            }
++            bits = (bits << 6) | v;
++            count += 6;
++            if (count >= 8) {
++               count -= 8;
++               out.write((bits >> count) & 0xFF);
++            }
++         }
++         return out.toByteArray();
++      }
++
++      public byte[] decode(byte[] src) {
++         StringBuilder sb = new StringBuilder(src.length);
++         for (byte b : src)
++            sb.append((char) (b & 0xFF));
++         return decode(sb.toString());
++      }
++   }
++}
+diff --git a/runtime/src/java/util/Calendar.java b/runtime/src/java/util/Calendar.java
+index ad2d090..095c10b 100644
+--- a/runtime/src/java/util/Calendar.java
++++ b/runtime/src/java/util/Calendar.java
+@@ -450,6 +450,42 @@ public abstract class Calendar{
+     /**
+      * Sets the time field with the given value.
+      */
++    public final void set(int year, int month, int date) {
++        set(YEAR, year);
++        set(MONTH, month);
++        set(DATE, date);
++    }
++
++    public final void set(int year, int month, int date, int hourOfDay, int minute) {
++        set(year, month, date);
++        set(HOUR_OF_DAY, hourOfDay);
++        set(MINUTE, minute);
++    }
++
++    public final void set(int year, int month, int date, int hourOfDay, int minute, int second) {
++        set(year, month, date, hourOfDay, minute);
++        set(SECOND, second);
++    }
++
++    /** As the JDK: every field unset and 0, the time to be computed again. */
++    public final void clear() {
++        for (int i = 0; i < fields.length; i++) {
++            fields[i] = 0;
++            isSet[i] = false;
++        }
++        areFieldsSet = isTimeSet = false;
++    }
++
++    public final void clear(int field) {
++        fields[field] = 0;
++        isSet[field] = false;
++        areFieldsSet = isTimeSet = false;
++    }
++
++    public final boolean isSet(int field) {
++        return isSet[field];
++    }
++
+     public final void set(int field, int value){
+         fields[field] = value;
+         isSet[field] = true;
+diff --git a/runtime/src/java/util/Date.java b/runtime/src/java/util/Date.java
+index 9ab11a1..45e845b 100644
+--- a/runtime/src/java/util/Date.java
++++ b/runtime/src/java/util/Date.java
+@@ -94,6 +94,23 @@ public class Date implements Comparable<Date> {
+         return getTime() < another.getTime() ? -1 : getTime() > another.getTime() ? 1 : 0;
+     }
+ 
++    /** @deprecated As the JDK: the time of that UTC date (year from 1900, month from 0); out-of-range values carry over. */
++    @Deprecated
++    public static long UTC(int year, int month, int date, int hrs, int min, int sec) {
++        int y = year + 1900;
++        // months outside 0..11 carry into the year
++        y += Math.floorDiv(month, 12);
++        month = Math.floorMod(month, 12);
++        long m = month + 1;
++        long yy = y - (m <= 2 ? 1 : 0);
++        long era = (yy >= 0 ? yy : yy - 399) / 400;
++        long yoe = yy - era * 400;
++        long doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + 1 - 1;
++        long doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
++        long days = era * 146097 + doe - 719468 + (date - 1);
++        return ((days * 24 + hrs) * 60 + min) * 60000L + sec * 1000L;
++    }
++
+     public static long parse(String s) {
+         return 0;
+     }
+diff --git a/runtime/src/java/util/concurrent/CountDownLatch.java b/runtime/src/java/util/concurrent/CountDownLatch.java
+new file mode 100644
+index 0000000..211ff19
+--- /dev/null
++++ b/runtime/src/java/util/concurrent/CountDownLatch.java
+@@ -0,0 +1,41 @@
++package java.util.concurrent;
++
++/** As java.util.concurrent.CountDownLatch, on a monitor. */
++public class CountDownLatch {
++   private long count;
++
++   public CountDownLatch(int count) {
++      if (count < 0)
++         throw new IllegalArgumentException("count < 0");
++      this.count = count;
++   }
++
++   public synchronized void await() throws InterruptedException {
++      while (count > 0)
++         wait();
++   }
++
++   public synchronized boolean await(long timeout, TimeUnit unit) throws InterruptedException {
++      long end = System.currentTimeMillis() + unit.toMillis(timeout);
++      while (count > 0) {
++         long left = end - System.currentTimeMillis();
++         if (left <= 0)
++            return false;
++         wait(left);
++      }
++      return true;
++   }
++
++   public synchronized void countDown() {
++      if (count > 0 && --count == 0)
++         notifyAll();
++   }
++
++   public synchronized long getCount() {
++      return count;
++   }
++
++   public String toString() {
++      return super.toString() + "[Count = " + getCount() + "]";
++   }
++}
+-- 
+2.43.0
+
