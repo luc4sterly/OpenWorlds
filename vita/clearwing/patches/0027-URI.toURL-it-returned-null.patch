@@ -1,0 +1,26 @@
+From d5f96933542fbf455430289626e63c9ea50cad4e Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Thu, 8 Oct 2026 16:58:32 +0000
+Subject: [PATCH] URI.toURL (it returned null)
+
+---
+ runtime/src/java/net/URI.java | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/runtime/src/java/net/URI.java b/runtime/src/java/net/URI.java
+index 5ecb944..a3a87ed 100644
+--- a/runtime/src/java/net/URI.java
++++ b/runtime/src/java/net/URI.java
+@@ -977,6 +977,8 @@ public class URI {
+     }
+ 
+     public URL toURL() throws MalformedURLException {
+-        return null;
++        if (!isAbsolute())
++            throw new IllegalArgumentException("URI is not absolute");
++        return new URL(toString());
+     }
+ }
+-- 
+2.43.0
+

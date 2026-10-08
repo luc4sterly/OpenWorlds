@@ -1,0 +1,60 @@
+From 702be34f9c9656b48fb66192c52d29ead7410cda Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Thu, 8 Oct 2026 16:59:56 +0000
+Subject: [PATCH] An interface method called on null throws
+ NullPointerException; unknown hosts throw UnknownHostException
+
+resolveInterfaceMethod read the null object's class (a segmentation
+fault instead of the exception Java programs catch). InetAddress's
+expiry set was null (every lookup crashed) and a failed lookup returned
+null instead of throwing UnknownHostException.
+---
+ runtime/res/clearwing/src/Clearwing.h |  3 ++-
+ runtime/src/java/net/InetAddress.java | 10 ++++++----
+ 2 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/runtime/res/clearwing/src/Clearwing.h b/runtime/res/clearwing/src/Clearwing.h
+index 51d8c70..cd1d1f1 100644
+--- a/runtime/res/clearwing/src/Clearwing.h
++++ b/runtime/res/clearwing/src/Clearwing.h
+@@ -984,7 +984,8 @@ T *nullCheck(jcontext ctx, T *object) {
+ 
+ /// Resolves an interface in an object vtable. Method index must be an index into the method metadata array of this exact interface (Not a super class). Throws exceptions.
+ inline void *resolveInterfaceMethod(jcontext ctx, jclass interface, int method, jobject object) {
+-    auto objectClass = NULL_CHECK((jclass) object->clazz);
++    // an interface method called on null throws a NullPointerException (it read the null object's class)
++    auto objectClass = (jclass) NULL_CHECK(object)->clazz;
+     auto cache = (std::unordered_map<jclass, std::vector<int>> *)objectClass->interfaceCache;
+     auto it = cache->find(interface);
+     if (it == cache->end()) CPP_UNLIKELY
+diff --git a/runtime/src/java/net/InetAddress.java b/runtime/src/java/net/InetAddress.java
+index 1f747ae..89f4d18 100644
+--- a/runtime/src/java/net/InetAddress.java
++++ b/runtime/src/java/net/InetAddress.java
+@@ -750,7 +750,8 @@ class InetAddress implements java.io.Serializable {
+ 
+     // CachedAddresses that have to expire are kept ordered in this NavigableSet
+     // which is scanned on each access
+-    private static final NavigableSet<CachedAddresses> expirySet = null;// new ConcurrentSkipListSet<>();
++    // nothing is cached with an expiry here (lookups are made again each time), so this stays empty
++    private static final NavigableSet<CachedAddresses> expirySet = new java.util.TreeSet<>();
+ 
+     // common interface
+     private interface Addresses {
+@@ -851,9 +852,10 @@ class InetAddress implements java.io.Serializable {
+ //                            expirySet.add(cachedAddresses);
+ //                        }
+ //                    }
+-//                    if (inetAddresses == null) {
+-//                        throw ex == null ? new UnknownHostException(host) : ex;
+-//                    }
++                    if (inetAddresses == null) {
++                        cache.remove(host, this);
++                        throw ex == null ? new UnknownHostException(host) : ex;
++                    }
+                     return inetAddresses;
+                 }
+                 // else addresses != this
+-- 
+2.43.0
+

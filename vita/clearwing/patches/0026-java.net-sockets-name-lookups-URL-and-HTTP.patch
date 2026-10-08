@@ -1,0 +1,3131 @@
+From ab1abff42e0280b44d5a813de51a75c22e673269 Mon Sep 17 00:00:00 2001
+From: OpenWorlds <openworlds@localhost>
+Date: Thu, 8 Oct 2026 16:54:15 +0000
+Subject: [PATCH] java.net: sockets, name lookups, URL and HTTP
+
+Socket and ServerSocket on BSD sockets (IPv4 TCP: connect with a timeout,
+read timeouts, accept timeouts, options, the JDK's exceptions:
+ConnectException, NoRouteToHostException, SocketTimeoutException);
+InetAddress resolves with getaddrinfo (Inet4AddressImpl, no reflection);
+URL parsed as the JDK's URLStreamHandler (it was a stub that threw);
+URLConnection with request properties and header dates;
+HttpURLConnection over a socket (GET, HEAD, POST, redirects, chunked and
+length-delimited bodies, If-Modified-Since, the JDK's exceptions for 404
+and other errors); file: URLs. Natives only built when used.
+---
+ runtime/res/clearwing/src/Net.cpp             | 331 +++++++++++++
+ runtime/src/java/net/ConnectException.java    |  11 +
+ runtime/src/java/net/FileURLConnection.java   |  80 +++
+ runtime/src/java/net/HttpConnection.java      | 391 +++++++++++++++
+ runtime/src/java/net/HttpDates.java           |  94 ++++
+ runtime/src/java/net/HttpURLConnection.java   | 384 ++++++---------
+ runtime/src/java/net/Inet4AddressImpl.java    |  56 +++
+ runtime/src/java/net/InetAddress.java         |   3 +-
+ .../src/java/net/NoRouteToHostException.java  |  11 +
+ runtime/src/java/net/PlainSocketImpl.java     |  80 +++
+ runtime/src/java/net/ServerSocket.java        | 137 ++++++
+ runtime/src/java/net/Socket.java              | 394 +++++++++++++++
+ .../src/java/net/SocketTimeoutException.java  |  11 +
+ runtime/src/java/net/URL.java                 | 464 ++++++++++++++++--
+ runtime/src/java/net/URLConnection.java       | 457 +++++++++++------
+ runtime/src/java/net/URLDecoderPlain.java     |  32 ++
+ .../src/java/net/UnknownServiceException.java |  11 +
+ 17 files changed, 2534 insertions(+), 413 deletions(-)
+ create mode 100644 runtime/res/clearwing/src/Net.cpp
+ create mode 100644 runtime/src/java/net/ConnectException.java
+ create mode 100644 runtime/src/java/net/FileURLConnection.java
+ create mode 100644 runtime/src/java/net/HttpConnection.java
+ create mode 100644 runtime/src/java/net/HttpDates.java
+ create mode 100644 runtime/src/java/net/Inet4AddressImpl.java
+ create mode 100644 runtime/src/java/net/NoRouteToHostException.java
+ create mode 100644 runtime/src/java/net/PlainSocketImpl.java
+ create mode 100644 runtime/src/java/net/ServerSocket.java
+ create mode 100644 runtime/src/java/net/Socket.java
+ create mode 100644 runtime/src/java/net/SocketTimeoutException.java
+ create mode 100644 runtime/src/java/net/URLDecoderPlain.java
+ create mode 100644 runtime/src/java/net/UnknownServiceException.java
+
+diff --git a/runtime/res/clearwing/src/Net.cpp b/runtime/res/clearwing/src/Net.cpp
+new file mode 100644
+index 0000000..5f06fa4
+--- /dev/null
++++ b/runtime/res/clearwing/src/Net.cpp
+@@ -0,0 +1,331 @@
++// java.net's natives: BSD sockets (IPv4, TCP) and the resolver. Only built when the program uses them.
++#if __has_include("java/net/PlainSocketImpl.h")
++#include "java/net/PlainSocketImpl.h"
++#define HAS_SOCKETS 1
++#endif
++#if __has_include("java/net/Inet4AddressImpl.h")
++#include "java/net/Inet4AddressImpl.h"
++#define HAS_RESOLVER 1
++#endif
++#include "java/lang/String.h"
++
++#if HAS_SOCKETS || HAS_RESOLVER
++#include <cerrno>
++#include <cstring>
++#include <string>
++#include <vector>
++#include <unistd.h>
++#include <fcntl.h>
++#include <poll.h>
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <netinet/tcp.h>
++#include <arpa/inet.h>
++#include <netdb.h>
++#if !defined(__vita__)
++#include <sys/ioctl.h>
++#endif
++
++/// Waits until the descriptor is ready (POLLIN or POLLOUT): 1 ready, 0 timed out, -errno.
++static int waitReady(jcontext ctx, int fd, short events, int timeout) {
++    struct pollfd p{};
++    p.fd = fd;
++    p.events = events;
++    ctx->suspended = true;
++    int r;
++    do {
++        r = poll(&p, 1, timeout > 0 ? timeout : -1);
++    } while (r < 0 && errno == EINTR);
++    int err = errno;
++    ctx->suspended = false;
++    SAFEPOINT();
++    return r < 0 ? -err : r;
++}
++
++static void toAddress(struct sockaddr_in &sa, const jbyte *address, int port) {
++    memset(&sa, 0, sizeof(sa));
++    sa.sin_family = AF_INET;
++    sa.sin_port = htons((uint16_t) port);
++    memcpy(&sa.sin_addr, address, 4);
++}
++#endif
++
++extern "C" {
++
++#if HAS_SOCKETS
++jint SM_java_net_PlainSocketImpl_socket0_R_int(jcontext ctx) {
++    int fd = socket(AF_INET, SOCK_STREAM, 0);
++    if (fd < 0)
++        return -errno;
++#if defined(SO_NOSIGPIPE)
++    int one = 1;
++    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
++#endif
++    return fd;
++}
++
++jint SM_java_net_PlainSocketImpl_connect0_int_Array1_byte_int_int_R_int(jcontext ctx, jint fd, jobject address, jint port, jint timeout) {
++    struct sockaddr_in sa{};
++    toAddress(sa, (jbyte *) ((jarray) NULL_CHECK(address))->data, port);
++    if (timeout <= 0) {
++        ctx->suspended = true;
++        int r;
++        do {
++            r = connect(fd, (struct sockaddr *) &sa, sizeof(sa));
++        } while (r < 0 && errno == EINTR);
++        int err = errno;
++        ctx->suspended = false;
++        SAFEPOINT();
++        return r < 0 ? -err : 0;
++    }
++    // with a timeout: non-blocking connect, then wait for it
++    int flags = fcntl(fd, F_GETFL, 0);
++    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
++    int r = connect(fd, (struct sockaddr *) &sa, sizeof(sa));
++    int result = 0;
++    if (r < 0) {
++        if (errno != EINPROGRESS && errno != EWOULDBLOCK)
++            result = -errno;
++        else {
++            int w = waitReady(ctx, fd, POLLOUT, timeout);
++            if (w == 0)
++                result = -ETIMEDOUT;
++            else if (w < 0)
++                result = w;
++            else {
++                int err = 0;
++                socklen_t len = sizeof(err);
++                getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len);
++                result = err ? -err : 0;
++            }
++        }
++    }
++    fcntl(fd, F_SETFL, flags);
++    return result;
++}
++
++jint SM_java_net_PlainSocketImpl_read0_int_Array1_byte_int_int_int_R_int(jcontext ctx, jint fd, jobject b, jint off, jint len, jint timeout) {
++    if (timeout > 0) {
++        int w = waitReady(ctx, fd, POLLIN, timeout);
++        if (w == 0)
++            return -ETIMEDOUT;
++        if (w < 0)
++            return w;
++    }
++    auto data = (jbyte *) ((jarray) NULL_CHECK(b))->data;
++    ctx->suspended = true;
++    ssize_t n;
++    do {
++        n = recv(fd, data + off, (size_t) len, 0);
++    } while (n < 0 && errno == EINTR);
++    int err = errno;
++    ctx->suspended = false;
++    SAFEPOINT();
++    return n < 0 ? -err : (jint) n;
++}
++
++jint SM_java_net_PlainSocketImpl_write0_int_Array1_byte_int_int_R_int(jcontext ctx, jint fd, jobject b, jint off, jint len) {
++    auto data = (jbyte *) ((jarray) NULL_CHECK(b))->data;
++    ctx->suspended = true;
++    ssize_t n;
++    do {
++#if defined(MSG_NOSIGNAL)
++        n = send(fd, data + off, (size_t) len, MSG_NOSIGNAL);
++#else
++        n = send(fd, data + off, (size_t) len, 0);
++#endif
++    } while (n < 0 && errno == EINTR);
++    int err = errno;
++    ctx->suspended = false;
++    SAFEPOINT();
++    return n < 0 ? -err : (jint) n;
++}
++
++jint SM_java_net_PlainSocketImpl_available0_int_R_int(jcontext ctx, jint fd) {
++#if defined(__vita__)
++    // no FIONREAD: say whether a read would not block
++    struct pollfd p{};
++    p.fd = fd;
++    p.events = POLLIN;
++    return poll(&p, 1, 0) > 0 ? 1 : 0;
++#else
++    int n = 0;
++    if (ioctl(fd, FIONREAD, &n) < 0)
++        return -errno;
++    return n;
++#endif
++}
++
++void SM_java_net_PlainSocketImpl_close0_int(jcontext ctx, jint fd) {
++    // shutdown wakes a thread blocked reading it, as closing a Java socket does
++    shutdown(fd, SHUT_RDWR);
++    close(fd);
++}
++
++jint SM_java_net_PlainSocketImpl_shutdown0_int_int_R_int(jcontext ctx, jint fd, jint how) {
++    return shutdown(fd, how == 0 ? SHUT_RD : SHUT_WR) < 0 ? -errno : 0;
++}
++
++jint SM_java_net_PlainSocketImpl_bind0_int_Array1_byte_int_R_int(jcontext ctx, jint fd, jobject address, jint port) {
++    struct sockaddr_in sa{};
++    toAddress(sa, (jbyte *) ((jarray) NULL_CHECK(address))->data, port);
++    return bind(fd, (struct sockaddr *) &sa, sizeof(sa)) < 0 ? -errno : 0;
++}
++
++jint SM_java_net_PlainSocketImpl_listen0_int_int_R_int(jcontext ctx, jint fd, jint backlog) {
++    return listen(fd, backlog) < 0 ? -errno : 0;
++}
++
++jint SM_java_net_PlainSocketImpl_accept0_int_int_Array1_byte_Array1_int_R_int(jcontext ctx, jint fd, jint timeout, jobject address, jobject port) {
++    if (timeout > 0) {
++        int w = waitReady(ctx, fd, POLLIN, timeout);
++        if (w == 0)
++            return -ETIMEDOUT;
++        if (w < 0)
++            return w;
++    }
++    struct sockaddr_in sa{};
++    socklen_t len = sizeof(sa);
++    ctx->suspended = true;
++    int s;
++    do {
++        s = accept(fd, (struct sockaddr *) &sa, &len);
++    } while (s < 0 && errno == EINTR);
++    int err = errno;
++    ctx->suspended = false;
++    SAFEPOINT();
++    if (s < 0)
++        return -err;
++    memcpy(((jarray) NULL_CHECK(address))->data, &sa.sin_addr, 4);
++    ((jint *) ((jarray) NULL_CHECK(port))->data)[0] = ntohs(sa.sin_port);
++    return s;
++}
++
++jint SM_java_net_PlainSocketImpl_localPort0_int_R_int(jcontext ctx, jint fd) {
++    struct sockaddr_in sa{};
++    socklen_t len = sizeof(sa);
++    if (getsockname(fd, (struct sockaddr *) &sa, &len) < 0)
++        return -1;
++    return ntohs(sa.sin_port);
++}
++
++void SM_java_net_PlainSocketImpl_localAddress0_int_Array1_byte(jcontext ctx, jint fd, jobject address) {
++    struct sockaddr_in sa{};
++    socklen_t len = sizeof(sa);
++    if (getsockname(fd, (struct sockaddr *) &sa, &len) == 0)
++        memcpy(((jarray) NULL_CHECK(address))->data, &sa.sin_addr, 4);
++}
++
++jint SM_java_net_PlainSocketImpl_setOption0_int_int_int_R_int(jcontext ctx, jint fd, jint option, jint value) {
++    int r;
++    switch (option) {
++        case 1:
++            r = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value));
++            break;
++        case 2:
++            r = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &value, sizeof(value));
++            break;
++        case 3: {
++            struct linger l{};
++            l.l_onoff = value >= 0;
++            l.l_linger = value >= 0 ? value : 0;
++            r = setsockopt(fd, SOL_SOCKET, SO_LINGER, &l, sizeof(l));
++            break;
++        }
++        case 4:
++            r = setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &value, sizeof(value));
++            break;
++        case 5:
++            r = setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &value, sizeof(value));
++            break;
++        case 6:
++            r = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &value, sizeof(value));
++            break;
++        default:
++            return -EINVAL;
++    }
++    return r < 0 ? -errno : 0;
++}
++
++jint SM_java_net_PlainSocketImpl_errnoKind_int_R_int(jcontext ctx, jint err) {
++    switch (err) {
++        case ECONNREFUSED: return 1;
++        case ETIMEDOUT: return 2;
++        case EHOSTUNREACH:
++        case ENETUNREACH: return 3;
++        case EADDRINUSE: return 4;
++        case EAGAIN:
++#if EWOULDBLOCK != EAGAIN
++        case EWOULDBLOCK:
++#endif
++            return 5;
++        case ECONNRESET:
++        case ECONNABORTED: return 6;
++        case EPIPE: return 7;
++        default: return 0;
++    }
++}
++
++jobject SM_java_net_PlainSocketImpl_errorText_int_R_java_lang_String(jcontext ctx, jint err) {
++    return (jobject) stringFromNative(ctx, strerror(err));
++}
++#endif
++
++#if HAS_RESOLVER
++jobject SM_java_net_Inet4AddressImpl_localHostName0_R_java_lang_String(jcontext ctx) {
++    char name[256]{};
++    if (gethostname(name, sizeof(name) - 1) != 0)
++        return nullptr;
++    return (jobject) stringFromNative(ctx, name);
++}
++
++jobject SM_java_net_Inet4AddressImpl_lookup0_java_lang_String_R_Array2_byte(jcontext ctx, jobject host) {
++    std::string name(stringToNative(ctx, (jstring) NULL_CHECK(host)));
++    struct addrinfo hints{};
++    hints.ai_family = AF_INET;
++    hints.ai_socktype = SOCK_STREAM;
++    struct addrinfo *result = nullptr;
++    ctx->suspended = true;
++    int r = getaddrinfo(name.c_str(), nullptr, &hints, &result);
++    ctx->suspended = false;
++    SAFEPOINT();
++    if (r != 0 || !result)
++        return nullptr;
++    std::vector<uint32_t> found;
++    for (auto p = result; p; p = p->ai_next) {
++        if (p->ai_family != AF_INET)
++            continue;
++        uint32_t a = ((struct sockaddr_in *) p->ai_addr)->sin_addr.s_addr;
++        bool seen = false;
++        for (auto f : found)
++            seen |= f == a;
++        if (!seen)
++            found.push_back(a);
++    }
++    freeaddrinfo(result);
++    jclass arrayType = getArrayClass(&class_byte, 1);
++    auto array = createArray(ctx, arrayType, (int) found.size());
++    for (int i = 0; i < (int) found.size(); i++) {
++        auto bytes = createArray(ctx, &class_byte, 4);
++        memcpy(bytes->data, &found[i], 4);
++        ((jobject *) array->data)[i] = (jobject) bytes;
++    }
++    return (jobject) array;
++}
++
++jobject SM_java_net_Inet4AddressImpl_hostByAddr0_Array1_byte_R_java_lang_String(jcontext ctx, jobject addr) {
++    struct sockaddr_in sa{};
++    toAddress(sa, (jbyte *) ((jarray) NULL_CHECK(addr))->data, 0);
++    char name[NI_MAXHOST]{};
++    ctx->suspended = true;
++    int r = getnameinfo((struct sockaddr *) &sa, sizeof(sa), name, sizeof(name), nullptr, 0, NI_NAMEREQD);
++    ctx->suspended = false;
++    SAFEPOINT();
++    if (r != 0)
++        return nullptr;
++    return (jobject) stringFromNative(ctx, name);
++}
++#endif
++
++}
+diff --git a/runtime/src/java/net/ConnectException.java b/runtime/src/java/net/ConnectException.java
+new file mode 100644
+index 0000000..57df03a
+--- /dev/null
++++ b/runtime/src/java/net/ConnectException.java
+@@ -0,0 +1,11 @@
++package java.net;
++
++/** As java.net.ConnectException: Signals that an error occurred while attempting to connect a socket to a remote address and port (connection refused). */
++public class ConnectException extends SocketException {
++   public ConnectException(String msg) {
++      super(msg);
++   }
++
++   public ConnectException() {
++   }
++}
+diff --git a/runtime/src/java/net/FileURLConnection.java b/runtime/src/java/net/FileURLConnection.java
+new file mode 100644
+index 0000000..3ec9000
+--- /dev/null
++++ b/runtime/src/java/net/FileURLConnection.java
+@@ -0,0 +1,80 @@
++package java.net;
++
++import java.io.File;
++import java.io.FileInputStream;
++import java.io.FileNotFoundException;
++import java.io.IOException;
++import java.io.InputStream;
++import java.util.List;
++import java.util.Map;
++
++/** A file: URL opened, as the JDK's (the file's length, date and type as headers). */
++final class FileURLConnection extends URLConnection {
++   private File file;
++   private InputStream is;
++
++   FileURLConnection(URL u) {
++      super(u);
++   }
++
++   private File file() {
++      if (file == null) {
++         String p = url.getPath();
++         file = new File(URLDecoderPlain.decode(p));
++      }
++      return file;
++   }
++
++   public void connect() throws IOException {
++      if (!connected) {
++         File f = file();
++         if (f.isDirectory()) {
++            String[] names = f.list();
++            if (names == null)
++               throw new FileNotFoundException(f.getPath() + " exists, but is not accessible");
++            java.util.Arrays.sort(names);
++            StringBuilder sb = new StringBuilder();
++            for (String n : names)
++               sb.append(n).append('\n');
++            is = new java.io.ByteArrayInputStream(sb.toString().getBytes());
++         } else {
++            is = new java.io.BufferedInputStream(new FileInputStream(f));
++         }
++         connected = true;
++      }
++   }
++
++   public String getHeaderField(String name) {
++      if (name == null)
++         return null;
++      File f = file();
++      if (name.equalsIgnoreCase("content-length"))
++         return f.exists() ? String.valueOf(f.length()) : null;
++      if (name.equalsIgnoreCase("last-modified"))
++         return f.exists() ? HttpDates.format(f.lastModified()) : null;
++      if (name.equalsIgnoreCase("content-type")) {
++         if (f.isDirectory())
++            return "text/plain";
++         String t = guessContentTypeFromName(f.getName());
++         return t != null ? t : "content/unknown";
++      }
++      return null;
++   }
++
++   public long getLastModified() {
++      return file().lastModified();
++   }
++
++   public long getContentLengthLong() {
++      return file().exists() ? file().length() : -1;
++   }
++
++   public Map<String, List<String>> getHeaderFields() {
++      return super.getHeaderFields();
++   }
++
++   public InputStream getInputStream() throws IOException {
++      connect();
++      return is;
++   }
++}
+diff --git a/runtime/src/java/net/HttpConnection.java b/runtime/src/java/net/HttpConnection.java
+new file mode 100644
+index 0000000..f1171b2
+--- /dev/null
++++ b/runtime/src/java/net/HttpConnection.java
+@@ -0,0 +1,391 @@
++package java.net;
++
++import java.io.BufferedInputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.FileNotFoundException;
++import java.io.FilterInputStream;
++import java.io.IOException;
++import java.io.InputStream;
++import java.io.OutputStream;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
++
++/**
++ * HTTP/1.1 over a Socket, one request per connection: what the JDK's
++ * HttpURLConnection does that the client needs (GET, HEAD, POST, request
++ * headers, redirects, chunked and length-delimited bodies, the JDK's
++ * exceptions for error codes). No proxies, no keep-alive, no https.
++ */
++final class HttpConnection extends HttpURLConnection {
++   private Socket socket;
++   private InputStream body;
++   private InputStream errorBody;
++   /** Header lines as received: keys[0] null with the status line. */
++   private final ArrayList<String> keys = new ArrayList<String>();
++   private final ArrayList<String> values = new ArrayList<String>();
++   private ByteArrayOutputStream posted;
++   private IOException failure;
++   private boolean requested;
++
++   HttpConnection(URL u) {
++      super(u);
++   }
++
++   public void connect() throws IOException {
++      if (connected)
++         return;
++      connected = true;
++   }
++
++   public boolean usingProxy() {
++      return false;
++   }
++
++   public void disconnect() {
++      if (socket != null) {
++         try {
++            socket.close();
++         } catch (IOException e) {
++         }
++      }
++   }
++
++   public OutputStream getOutputStream() throws IOException {
++      if (!doOutput)
++         throw new ProtocolException("cannot write to a URLConnection if doOutput=false - call setDoOutput(true)");
++      if (requested)
++         throw new ProtocolException("Cannot write output after reading input.");
++      if (method.equals("GET"))
++         method = "POST";
++      connect();
++      if (posted == null)
++         posted = new ByteArrayOutputStream();
++      return posted;
++   }
++
++   /** Sends the request and reads the status and headers, following redirects. */
++   private void request() throws IOException {
++      if (requested) {
++         if (failure != null)
++            throw failure;
++         return;
++      }
++      requested = true;
++      connect();
++      try {
++         URL target = url;
++         for (int redirects = 0; ; redirects++) {
++            exchange(target);
++            int code = statusCode();
++            if (instanceFollowRedirects && redirects < 20 && (code == 301 || code == 302 || code == 303 || code == 307)
++                  && (posted == null || code == 303)) {
++               String loc = getHeaderField("Location");
++               if (loc != null) {
++                  URL next = new URL(target, loc);
++                  if (next.getProtocol().equals(target.getProtocol())) {
++                     socket.close();
++                     if (code == 303)
++                        method = "GET";
++                     target = next;
++                     url = next;
++                     continue;
++                  }
++               }
++            }
++            break;
++         }
++      } catch (IOException e) {
++         failure = e;
++         throw e;
++      }
++   }
++
++   private int statusCode() {
++      String status = values.isEmpty() ? null : values.get(0);
++      if (status == null)
++         return -1;
++      String[] p = status.split(" ");
++      try {
++         return p.length > 1 ? Integer.parseInt(p[1]) : -1;
++      } catch (NumberFormatException e) {
++         return -1;
++      }
++   }
++
++   private void exchange(URL target) throws IOException {
++      keys.clear();
++      values.clear();
++      responseCode = -1;
++      responseMessage = null;
++      String host = target.getHost();
++      int port = target.getPort() != -1 ? target.getPort() : 80;
++      if (host == null || host.isEmpty())
++         throw new UnknownHostException("no host in " + target);
++      Socket s = new Socket();
++      s.connect(new InetSocketAddress(host, port), getConnectTimeout());
++      if (getReadTimeout() > 0)
++         s.setSoTimeout(getReadTimeout());
++      socket = s;
++      String file = target.getFile();
++      if (file == null || file.isEmpty())
++         file = "/";
++      StringBuilder req = new StringBuilder();
++      req.append(method).append(' ').append(file).append(" HTTP/1.1\r\n");
++      Map<String, List<String>> props = requestHeaders();
++      if (!has(props, "Host"))
++         req.append("Host: ").append(host).append(target.getPort() != -1 && target.getPort() != 80 ? ":" + target.getPort() : "").append("\r\n");
++      if (!has(props, "User-Agent"))
++         req.append("User-Agent: Java/").append(System.getProperty("java.version")).append("\r\n");
++      if (!has(props, "Accept"))
++         req.append("Accept: text/html, image/gif, image/jpeg, *; q=.2, */*; q=.2\r\n");
++      if (ifModifiedSince != 0 && !has(props, "If-Modified-Since"))
++         req.append("If-Modified-Since: ").append(HttpDates.format(ifModifiedSince)).append("\r\n");
++      for (Map.Entry<String, List<String>> e : props.entrySet())
++         for (String v : e.getValue())
++            req.append(e.getKey()).append(": ").append(v == null ? "" : v).append("\r\n");
++      byte[] payload = posted != null ? posted.toByteArray() : null;
++      if (payload != null) {
++         if (!has(props, "Content-Type"))
++            req.append("Content-Type: application/x-www-form-urlencoded\r\n");
++         req.append("Content-Length: ").append(payload.length).append("\r\n");
++      }
++      req.append("Connection: close\r\n\r\n");
++      OutputStream out = s.getOutputStream();
++      out.write(req.toString().getBytes("ISO-8859-1"));
++      if (payload != null)
++         out.write(payload);
++      out.flush();
++
++      InputStream in = new BufferedInputStream(s.getInputStream());
++      String status = line(in);
++      while (status != null && status.startsWith("HTTP/1.1 100")) {
++         // 100 Continue: its headers end with an empty line
++         while (true) {
++            String l = line(in);
++            if (l == null || l.isEmpty())
++               break;
++         }
++         status = line(in);
++      }
++      if (status == null)
++         throw new SocketException("Unexpected end of file from server");
++      keys.add(null);
++      values.add(status);
++      while (true) {
++         String l = line(in);
++         if (l == null || l.isEmpty())
++            break;
++         int colon = l.indexOf(':');
++         if (colon < 0)
++            continue;
++         keys.add(l.substring(0, colon).trim());
++         values.add(l.substring(colon + 1).trim());
++      }
++      int code = statusCode();
++      InputStream b;
++      String te = getHeaderField("Transfer-Encoding");
++      String cl = getHeaderField("Content-Length");
++      if (method.equals("HEAD") || code == 204 || code == 304 || (code >= 100 && code < 200)) {
++         b = new java.io.ByteArrayInputStream(new byte[0]);
++      } else if (te != null && te.toLowerCase().indexOf("chunked") >= 0) {
++         b = new ChunkedInputStream(in);
++      } else if (cl != null) {
++         long n;
++         try {
++            n = Long.parseLong(cl.trim());
++         } catch (NumberFormatException e) {
++            n = -1;
++         }
++         b = n >= 0 ? new LimitedInputStream(in, n) : in;
++      } else {
++         b = in;
++      }
++      body = b;
++   }
++
++   private static boolean has(Map<String, List<String>> props, String key) {
++      for (String k : props.keySet())
++         if (k.equalsIgnoreCase(key))
++            return true;
++      return false;
++   }
++
++   /** A header line in ISO-8859-1 without its CR LF; null at the end of the stream. */
++   private static String line(InputStream in) throws IOException {
++      StringBuilder sb = new StringBuilder();
++      int c;
++      while ((c = in.read()) >= 0) {
++         if (c == '\n')
++            break;
++         if (c != '\r')
++            sb.append((char) c);
++      }
++      if (c < 0 && sb.length() == 0)
++         return null;
++      return sb.toString();
++   }
++
++   public InputStream getInputStream() throws IOException {
++      if (!doInput)
++         throw new ProtocolException("Cannot read from URLConnection if doInput=false (call setDoInput(true))");
++      request();
++      int code = statusCode();
++      if (code >= 400) {
++         errorBody = body;
++         if (code == 404 || code == 410)
++            throw new FileNotFoundException(url.toString());
++         throw new IOException("Server returned HTTP response code: " + code + " for URL: " + url.toString());
++      }
++      return body;
++   }
++
++   public InputStream getErrorStream() {
++      return errorBody != null ? errorBody : (requested && statusCode() >= 400 ? body : null);
++   }
++
++   private void quietRequest() {
++      try {
++         request();
++      } catch (IOException e) {
++      }
++   }
++
++   public String getHeaderField(String name) {
++      quietRequest();
++      if (name == null)
++         return null;
++      for (int i = keys.size() - 1; i >= 1; i--)
++         if (name.equalsIgnoreCase(keys.get(i)))
++            return values.get(i);
++      return null;
++   }
++
++   public String getHeaderField(int n) {
++      quietRequest();
++      return n >= 0 && n < values.size() ? values.get(n) : null;
++   }
++
++   public String getHeaderFieldKey(int n) {
++      quietRequest();
++      return n >= 0 && n < keys.size() ? keys.get(n) : null;
++   }
++
++   public Map<String, List<String>> getHeaderFields() {
++      quietRequest();
++      LinkedHashMap<String, List<String>> m = new LinkedHashMap<String, List<String>>();
++      for (int i = 0; i < keys.size(); i++) {
++         List<String> l = m.get(keys.get(i));
++         if (l == null) {
++            l = new ArrayList<String>();
++            m.put(keys.get(i), l);
++         }
++         l.add(0, values.get(i));
++      }
++      return Collections.unmodifiableMap(m);
++   }
++
++   public int getResponseCode() throws IOException {
++      if (responseCode != -1)
++         return responseCode;
++      request();
++      return super.getResponseCode();
++   }
++
++   /** A body of a known length. */
++   private static final class LimitedInputStream extends FilterInputStream {
++      private long left;
++
++      LimitedInputStream(InputStream in, long length) {
++         super(in);
++         left = length;
++      }
++
++      public int read() throws IOException {
++         if (left <= 0)
++            return -1;
++         int c = in.read();
++         if (c >= 0)
++            left--;
++         return c;
++      }
++
++      public int read(byte[] b, int off, int len) throws IOException {
++         if (left <= 0)
++            return -1;
++         int n = in.read(b, off, (int) Math.min(len, left));
++         if (n > 0)
++            left -= n;
++         return n;
++      }
++
++      public int available() throws IOException {
++         return (int) Math.min(in.available(), left);
++      }
++   }
++
++   /** A chunked body (RFC 2616 3.6.1), trailers skipped. */
++   private static final class ChunkedInputStream extends InputStream {
++      private final InputStream in;
++      private long left;
++      private boolean done;
++
++      ChunkedInputStream(InputStream in) {
++         this.in = in;
++      }
++
++      private boolean next() throws IOException {
++         if (done)
++            return false;
++         if (left > 0)
++            return true;
++         String size = line(in);
++         if (size != null && size.isEmpty())
++            size = line(in);
++         if (size == null)
++            throw new IOException("Premature EOF");
++         int semi = size.indexOf(';');
++         if (semi >= 0)
++            size = size.substring(0, semi);
++         left = Long.parseLong(size.trim(), 16);
++         if (left == 0) {
++            while (true) {
++               String t = line(in);
++               if (t == null || t.isEmpty())
++                  break;
++            }
++            done = true;
++            return false;
++         }
++         return true;
++      }
++
++      public int read() throws IOException {
++         if (!next())
++            return -1;
++         int c = in.read();
++         if (c < 0)
++            throw new IOException("Premature EOF");
++         left--;
++         return c;
++      }
++
++      public int read(byte[] b, int off, int len) throws IOException {
++         if (len == 0)
++            return 0;
++         if (!next())
++            return -1;
++         int n = in.read(b, off, (int) Math.min(len, left));
++         if (n < 0)
++            throw new IOException("Premature EOF");
++         left -= n;
++         return n;
++      }
++
++      public void close() throws IOException {
++         in.close();
++      }
++   }
++}
+diff --git a/runtime/src/java/net/HttpDates.java b/runtime/src/java/net/HttpDates.java
+new file mode 100644
+index 0000000..cc3351a
+--- /dev/null
++++ b/runtime/src/java/net/HttpDates.java
+@@ -0,0 +1,94 @@
++package java.net;
++
++/** The three date forms of HTTP headers (RFC 1123, RFC 850, asctime), all GMT. */
++final class HttpDates {
++   private HttpDates() {
++   }
++
++   private static final String[] MONTHS = {"jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"};
++   private static final String[] DAYS = {"Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"};
++
++   /** Milliseconds since 1970, or Long.MIN_VALUE if it is not a date. */
++   static long parse(String s) {
++      if (s == null)
++         return Long.MIN_VALUE;
++      try {
++         String t = s.trim();
++         int comma = t.indexOf(',');
++         if (comma >= 0)
++            t = t.substring(comma + 1).trim();
++         else {
++            // asctime: "Sun Nov  6 08:49:37 1994"
++            String[] p = t.split("\\s+");
++            if (p.length == 5) {
++               int month = month(p[1]);
++               int day = Integer.parseInt(p[2]);
++               int year = Integer.parseInt(p[4]);
++               return toMillis(year, month, day, p[3]);
++            }
++            return Long.MIN_VALUE;
++         }
++         String[] p = t.split("[\\s-]+");
++         // RFC 1123 "06 Nov 1994 08:49:37 GMT", RFC 850 "06-Nov-94 08:49:37 GMT"
++         int day = Integer.parseInt(p[0]);
++         int month = month(p[1]);
++         int year = Integer.parseInt(p[2]);
++         if (p[2].length() <= 2)
++            year += year < 70 ? 2000 : 1900;
++         return toMillis(year, month, day, p[3]);
++      } catch (RuntimeException e) {
++         return Long.MIN_VALUE;
++      }
++   }
++
++   private static int month(String m) {
++      String l = m.toLowerCase();
++      for (int i = 0; i < 12; i++)
++         if (l.startsWith(MONTHS[i]))
++            return i + 1;
++      throw new IllegalArgumentException(m);
++   }
++
++   private static long toMillis(int year, int month, int day, String time) {
++      String[] hms = time.split(":");
++      int h = Integer.parseInt(hms[0]);
++      int mi = Integer.parseInt(hms[1]);
++      int se = hms.length > 2 ? Integer.parseInt(hms[2]) : 0;
++      return (daysFromCivil(year, month, day) * 86400L + h * 3600L + mi * 60L + se) * 1000L;
++   }
++
++   /** Days since 1970-01-01 of a proleptic Gregorian date. */
++   static long daysFromCivil(long y, int m, int d) {
++      y -= m <= 2 ? 1 : 0;
++      long era = (y >= 0 ? y : y - 399) / 400;
++      long yoe = y - era * 400;
++      long doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
++      long doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
++      return era * 146097 + doe - 719468;
++   }
++
++   private static final String[] MON = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
++
++   /** RFC 1123, for If-Modified-Since. */
++   static String format(long millis) {
++      long days = Math.floorDiv(millis, 86400000L);
++      long secs = Math.floorMod(millis, 86400000L) / 1000;
++      long z = days + 719468;
++      long era = (z >= 0 ? z : z - 146096) / 146097;
++      long doe = z - era * 146097;
++      long yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
++      long y = yoe + era * 400;
++      long doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
++      long mp = (5 * doy + 2) / 153;
++      long d = doy - (153 * mp + 2) / 5 + 1;
++      long m = mp + (mp < 10 ? 3 : -9);
++      if (m <= 2)
++         y++;
++      String dow = DAYS[(int) Math.floorMod(days, 7L)];
++      return dow + ", " + two(d) + " " + MON[(int) m - 1] + " " + y + " " + two(secs / 3600) + ":" + two((secs / 60) % 60) + ":" + two(secs % 60) + " GMT";
++   }
++
++   private static String two(long v) {
++      return v < 10 ? "0" + v : String.valueOf(v);
++   }
++}
+diff --git a/runtime/src/java/net/HttpURLConnection.java b/runtime/src/java/net/HttpURLConnection.java
+index a2f1ad5..1438a4c 100644
+--- a/runtime/src/java/net/HttpURLConnection.java
++++ b/runtime/src/java/net/HttpURLConnection.java
+@@ -1,244 +1,168 @@
+-//
+-// Source code recreated from a .class file by IntelliJ IDEA
+-// (powered by FernFlower decompiler)
+-//
+-
+ package java.net;
+ 
+ import java.io.IOException;
+ import java.io.InputStream;
+-import java.util.Date;
+ 
++/** An HTTP connection, as java.net.HttpURLConnection. */
+ public abstract class HttpURLConnection extends URLConnection {
+-    protected String method = "GET";
+-    protected int chunkLength = -1;
+-    protected int fixedContentLength = -1;
+-    protected long fixedContentLengthLong = -1L;
+-    private static final int DEFAULT_CHUNK_SIZE = 4096;
+-    protected int responseCode = -1;
+-    protected String responseMessage = null;
+-    private static boolean followRedirects = true;
+-    protected boolean instanceFollowRedirects;
+-    private static final String[] methods = new String[]{"GET", "POST", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE"};
+-    public static final int HTTP_OK = 200;
+-    public static final int HTTP_CREATED = 201;
+-    public static final int HTTP_ACCEPTED = 202;
+-    public static final int HTTP_NOT_AUTHORITATIVE = 203;
+-    public static final int HTTP_NO_CONTENT = 204;
+-    public static final int HTTP_RESET = 205;
+-    public static final int HTTP_PARTIAL = 206;
+-    public static final int HTTP_MULT_CHOICE = 300;
+-    public static final int HTTP_MOVED_PERM = 301;
+-    public static final int HTTP_MOVED_TEMP = 302;
+-    public static final int HTTP_SEE_OTHER = 303;
+-    public static final int HTTP_NOT_MODIFIED = 304;
+-    public static final int HTTP_USE_PROXY = 305;
+-    public static final int HTTP_BAD_REQUEST = 400;
+-    public static final int HTTP_UNAUTHORIZED = 401;
+-    public static final int HTTP_PAYMENT_REQUIRED = 402;
+-    public static final int HTTP_FORBIDDEN = 403;
+-    public static final int HTTP_NOT_FOUND = 404;
+-    public static final int HTTP_BAD_METHOD = 405;
+-    public static final int HTTP_NOT_ACCEPTABLE = 406;
+-    public static final int HTTP_PROXY_AUTH = 407;
+-    public static final int HTTP_CLIENT_TIMEOUT = 408;
+-    public static final int HTTP_CONFLICT = 409;
+-    public static final int HTTP_GONE = 410;
+-    public static final int HTTP_LENGTH_REQUIRED = 411;
+-    public static final int HTTP_PRECON_FAILED = 412;
+-    public static final int HTTP_ENTITY_TOO_LARGE = 413;
+-    public static final int HTTP_REQ_TOO_LONG = 414;
+-    public static final int HTTP_UNSUPPORTED_TYPE = 415;
+-    /** @deprecated */
+-    @Deprecated
+-    public static final int HTTP_SERVER_ERROR = 500;
+-    public static final int HTTP_INTERNAL_ERROR = 500;
+-    public static final int HTTP_NOT_IMPLEMENTED = 501;
+-    public static final int HTTP_BAD_GATEWAY = 502;
+-    public static final int HTTP_UNAVAILABLE = 503;
+-    public static final int HTTP_GATEWAY_TIMEOUT = 504;
+-    public static final int HTTP_VERSION = 505;
+-
+-    public void setAuthenticator(Authenticator auth) {
+-        throw new UnsupportedOperationException("Supplying an authenticator is not supported by " + this.getClass());
+-    }
+-
+-    public String getHeaderFieldKey(int n) {
+-        return null;
+-    }
+-
+-    public void setFixedLengthStreamingMode(int contentLength) {
+-        if (this.connected) {
+-            throw new IllegalStateException("Already connected");
+-        } else if (this.chunkLength != -1) {
+-            throw new IllegalStateException("Chunked encoding streaming mode set");
+-        } else if (contentLength < 0) {
+-            throw new IllegalArgumentException("invalid content length");
+-        } else {
+-            this.fixedContentLength = contentLength;
+-        }
+-    }
+-
+-    public void setFixedLengthStreamingMode(long contentLength) {
+-        if (this.connected) {
+-            throw new IllegalStateException("Already connected");
+-        } else if (this.chunkLength != -1) {
+-            throw new IllegalStateException("Chunked encoding streaming mode set");
+-        } else if (contentLength < 0L) {
+-            throw new IllegalArgumentException("invalid content length");
+-        } else {
+-            this.fixedContentLengthLong = contentLength;
+-        }
+-    }
+-
+-    public void setChunkedStreamingMode(int chunklen) {
+-        if (this.connected) {
+-            throw new IllegalStateException("Can't set streaming mode: already connected");
+-        } else if (this.fixedContentLength == -1 && this.fixedContentLengthLong == -1L) {
+-            this.chunkLength = chunklen <= 0 ? 4096 : chunklen;
+-        } else {
+-            throw new IllegalStateException("Fixed length streaming mode set");
+-        }
+-    }
+-
+-    public String getHeaderField(int n) {
+-        return null;
+-    }
+-
+-    protected HttpURLConnection(URL u) {
+-        super(u);
+-        this.instanceFollowRedirects = followRedirects;
+-    }
+-
+-    public static void setFollowRedirects(boolean set) {
+-//        SecurityManager sec = System.getSecurityManager();
+-//        if (sec != null) {
+-//            sec.checkSetFactory();
+-//        }
+-
+-        followRedirects = set;
+-    }
+-
+-    public static boolean getFollowRedirects() {
+-        return followRedirects;
+-    }
+-
+-    public void setInstanceFollowRedirects(boolean followRedirects) {
+-        this.instanceFollowRedirects = followRedirects;
+-    }
+-
+-    public boolean getInstanceFollowRedirects() {
+-        return this.instanceFollowRedirects;
+-    }
+-
+-    public void setRequestMethod(String method) throws ProtocolException {
+-        if (this.connected) {
+-            throw new ProtocolException("Can't reset method: already connected");
+-        } else {
+-            for(int i = 0; i < methods.length; ++i) {
+-                if (methods[i].equals(method)) {
+-                    if (method.equals("TRACE")) {
+-//                        SecurityManager s = System.getSecurityManager();
+-//                        if (s != null) {
+-//                            s.checkPermission(new NetPermission("allowHttpTrace"));
+-//                        }
+-                    }
+-
+-                    this.method = method;
+-                    return;
+-                }
+-            }
+-
+-            throw new ProtocolException("Invalid HTTP method: " + method);
+-        }
+-    }
+-
+-    public String getRequestMethod() {
+-        return this.method;
+-    }
+-
+-    public int getResponseCode() throws IOException {
+-        if (this.responseCode != -1) {
+-            return this.responseCode;
+-        } else {
+-            Exception exc = null;
+-
++   protected String method = "GET";
++   protected int chunkLength = -1;
++   protected int fixedContentLength = -1;
++   protected long fixedContentLengthLong = -1;
++   protected int responseCode = -1;
++   protected String responseMessage;
++   private static boolean followRedirects = true;
++   protected boolean instanceFollowRedirects = followRedirects;
++
++   private static final String[] methods = {"GET", "POST", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE"};
++
++   public static final int HTTP_OK = 200;
++   public static final int HTTP_CREATED = 201;
++   public static final int HTTP_ACCEPTED = 202;
++   public static final int HTTP_NOT_AUTHORITATIVE = 203;
++   public static final int HTTP_NO_CONTENT = 204;
++   public static final int HTTP_RESET = 205;
++   public static final int HTTP_PARTIAL = 206;
++   public static final int HTTP_MULT_CHOICE = 300;
++   public static final int HTTP_MOVED_PERM = 301;
++   public static final int HTTP_MOVED_TEMP = 302;
++   public static final int HTTP_SEE_OTHER = 303;
++   public static final int HTTP_NOT_MODIFIED = 304;
++   public static final int HTTP_USE_PROXY = 305;
++   public static final int HTTP_BAD_REQUEST = 400;
++   public static final int HTTP_UNAUTHORIZED = 401;
++   public static final int HTTP_PAYMENT_REQUIRED = 402;
++   public static final int HTTP_FORBIDDEN = 403;
++   public static final int HTTP_NOT_FOUND = 404;
++   public static final int HTTP_BAD_METHOD = 405;
++   public static final int HTTP_NOT_ACCEPTABLE = 406;
++   public static final int HTTP_PROXY_AUTH = 407;
++   public static final int HTTP_CLIENT_TIMEOUT = 408;
++   public static final int HTTP_CONFLICT = 409;
++   public static final int HTTP_GONE = 410;
++   public static final int HTTP_LENGTH_REQUIRED = 411;
++   public static final int HTTP_PRECON_FAILED = 412;
++   public static final int HTTP_ENTITY_TOO_LARGE = 413;
++   public static final int HTTP_REQ_TOO_LONG = 414;
++   public static final int HTTP_UNSUPPORTED_TYPE = 415;
++   @Deprecated
++   public static final int HTTP_SERVER_ERROR = 500;
++   public static final int HTTP_INTERNAL_ERROR = 500;
++   public static final int HTTP_NOT_IMPLEMENTED = 501;
++   public static final int HTTP_BAD_GATEWAY = 502;
++   public static final int HTTP_UNAVAILABLE = 503;
++   public static final int HTTP_GATEWAY_TIMEOUT = 504;
++   public static final int HTTP_VERSION = 505;
++
++   protected HttpURLConnection(URL u) {
++      super(u);
++   }
++
++   public String getHeaderFieldKey(int n) {
++      return null;
++   }
++
++   public void setFixedLengthStreamingMode(int contentLength) {
++      if (connected)
++         throw new IllegalStateException("Already connected");
++      if (contentLength < 0)
++         throw new IllegalArgumentException("invalid content length");
++      fixedContentLength = contentLength;
++   }
++
++   public void setChunkedStreamingMode(int chunklen) {
++      if (connected)
++         throw new IllegalStateException("Can't set streaming mode: already connected");
++      chunkLength = chunklen <= 0 ? 4096 : chunklen;
++   }
++
++   public String getHeaderField(int n) {
++      return null;
++   }
++
++   public static void setFollowRedirects(boolean set) {
++      followRedirects = set;
++   }
++
++   public static boolean getFollowRedirects() {
++      return followRedirects;
++   }
++
++   public void setInstanceFollowRedirects(boolean followRedirects) {
++      instanceFollowRedirects = followRedirects;
++   }
++
++   public boolean getInstanceFollowRedirects() {
++      return instanceFollowRedirects;
++   }
++
++   public void setRequestMethod(String method) throws ProtocolException {
++      if (connected)
++         throw new ProtocolException("Can't reset method: already connected");
++      for (String m : methods) {
++         if (m.equals(method)) {
++            this.method = method;
++            return;
++         }
++      }
++      throw new ProtocolException("Invalid HTTP method: " + method);
++   }
++
++   public String getRequestMethod() {
++      return method;
++   }
++
++   /** As the JDK: the status line's code (connecting if needed), -1 if there is none. */
++   public int getResponseCode() throws IOException {
++      if (responseCode != -1)
++         return responseCode;
++      Exception exc = null;
++      try {
++         getInputStream();
++      } catch (Exception e) {
++         exc = e;
++      }
++      String statusLine = getHeaderField(0);
++      if (statusLine == null) {
++         if (exc != null) {
++            if (exc instanceof RuntimeException)
++               throw (RuntimeException) exc;
++            throw (IOException) exc;
++         }
++         return -1;
++      }
++      if (statusLine.startsWith("HTTP/1.")) {
++         int codePos = statusLine.indexOf(' ');
++         if (codePos > 0) {
++            int phrasePos = statusLine.indexOf(' ', codePos + 1);
++            if (phrasePos > 0 && phrasePos < statusLine.length())
++               responseMessage = statusLine.substring(phrasePos + 1);
++            if (phrasePos < 0)
++               phrasePos = statusLine.length();
+             try {
+-                this.getInputStream();
+-            } catch (Exception var6) {
+-                Exception e = var6;
+-                exc = e;
+-            }
+-
+-            String statusLine = this.getHeaderField(0);
+-            if (statusLine == null) {
+-                if (exc != null) {
+-                    if (exc instanceof RuntimeException) {
+-                        throw (RuntimeException)exc;
+-                    } else {
+-                        throw (IOException)exc;
+-                    }
+-                } else {
+-                    return -1;
+-                }
+-            } else {
+-                if (statusLine.startsWith("HTTP/1.")) {
+-                    int codePos = statusLine.indexOf(32);
+-                    if (codePos > 0) {
+-                        int phrasePos = statusLine.indexOf(32, codePos + 1);
+-                        if (phrasePos > 0 && phrasePos < statusLine.length()) {
+-                            this.responseMessage = statusLine.substring(phrasePos + 1);
+-                        }
+-
+-                        if (phrasePos < 0) {
+-                            phrasePos = statusLine.length();
+-                        }
+-
+-                        try {
+-                            this.responseCode = Integer.parseInt(statusLine.substring(codePos + 1, phrasePos));
+-                            return this.responseCode;
+-                        } catch (NumberFormatException var7) {
+-                        }
+-                    }
+-                }
+-
+-                return -1;
+-            }
+-        }
+-    }
+-
+-    public String getResponseMessage() throws IOException {
+-        this.getResponseCode();
+-        return this.responseMessage;
+-    }
+-
+-    public long getHeaderFieldDate(String name, long Default) {
+-        String dateString = this.getHeaderField(name);
+-
+-        try {
+-            if (dateString.indexOf("GMT") == -1) {
+-                dateString = dateString + " GMT";
++               responseCode = Integer.parseInt(statusLine.substring(codePos + 1, phrasePos));
++               return responseCode;
++            } catch (NumberFormatException e) {
+             }
++         }
++      }
++      return -1;
++   }
+ 
+-            return Date.parse(dateString);
+-        } catch (Exception var6) {
+-            return Default;
+-        }
+-    }
++   public String getResponseMessage() throws IOException {
++      getResponseCode();
++      return responseMessage;
++   }
+ 
+-    public abstract void disconnect();
++   public long getHeaderFieldDate(String name, long Default) {
++      return super.getHeaderFieldDate(name, Default);
++   }
+ 
+-    public abstract boolean usingProxy();
++   public abstract void disconnect();
+ 
+-//    public Permission getPermission() throws IOException {
+-//        int port = this.url.getPort();
+-//        port = port < 0 ? 80 : port;
+-//        String host = this.url.getHost() + ":" + port;
+-//        Permission permission = new SocketPermission(host, "connect");
+-//        return permission;
+-//    }
++   public abstract boolean usingProxy();
+ 
+-    public InputStream getErrorStream() {
+-        return null;
+-    }
++   public InputStream getErrorStream() {
++      return null;
++   }
+ }
+diff --git a/runtime/src/java/net/Inet4AddressImpl.java b/runtime/src/java/net/Inet4AddressImpl.java
+new file mode 100644
+index 0000000..a8f76ba
+--- /dev/null
++++ b/runtime/src/java/net/Inet4AddressImpl.java
+@@ -0,0 +1,56 @@
++package java.net;
++
++import java.io.IOException;
++
++/** Name lookups for IPv4 with the platform's resolver (getaddrinfo, getnameinfo). */
++final class Inet4AddressImpl implements InetAddressImpl {
++   public String getLocalHostName() throws UnknownHostException {
++      String name = localHostName0();
++      return name != null ? name : "localhost";
++   }
++
++   public InetAddress[] lookupAllHostAddr(String host) throws UnknownHostException {
++      byte[][] found = lookup0(host);
++      if (found == null || found.length == 0)
++         throw new UnknownHostException(host);
++      InetAddress[] out = new InetAddress[found.length];
++      for (int i = 0; i < found.length; i++)
++         out[i] = new Inet4Address(host, found[i]);
++      return out;
++   }
++
++   public String getHostByAddr(byte[] addr) throws UnknownHostException {
++      String name = hostByAddr0(addr);
++      if (name == null)
++         throw new UnknownHostException();
++      return name;
++   }
++
++   public InetAddress anyLocalAddress() {
++      return new Inet4Address(null, new byte[]{0, 0, 0, 0});
++   }
++
++   public InetAddress loopbackAddress() {
++      return new Inet4Address("localhost", new byte[]{127, 0, 0, 1});
++   }
++
++   /** As the JDK without privileges: a TCP connection to the echo port answers (accepted or refused). */
++   public boolean isReachable(InetAddress addr, int timeout, NetworkInterface netif, int ttl) throws IOException {
++      int fd = PlainSocketImpl.socket0();
++      if (fd < 0)
++         return false;
++      try {
++         int r = PlainSocketImpl.connect0(fd, addr.getAddress(), 7, timeout);
++         return r == 0 || PlainSocketImpl.errnoKind(-r) == PlainSocketImpl.REFUSED;
++      } finally {
++         PlainSocketImpl.close0(fd);
++      }
++   }
++
++   private static native String localHostName0();
++
++   /** The IPv4 addresses of a name, null if it has none. */
++   private static native byte[][] lookup0(String host);
++
++   private static native String hostByAddr0(byte[] addr);
++}
+diff --git a/runtime/src/java/net/InetAddress.java b/runtime/src/java/net/InetAddress.java
+index 1f10f25..1f747ae 100644
+--- a/runtime/src/java/net/InetAddress.java
++++ b/runtime/src/java/net/InetAddress.java
+@@ -1750,7 +1750,8 @@ class InetAddress implements java.io.Serializable {
+ class InetAddressImplFactory {
+ 
+     static InetAddressImpl create() {
+-        return InetAddress.loadImpl(/*isIPv6Supported() ? "Inet6AddressImpl" :*/ "Inet4AddressImpl");
++        // no reflection: the runtime has the IPv4 one
++        return new Inet4AddressImpl();
+     }
+ 
+ //    static native boolean isIPv6Supported();
+diff --git a/runtime/src/java/net/NoRouteToHostException.java b/runtime/src/java/net/NoRouteToHostException.java
+new file mode 100644
+index 0000000..8280846
+--- /dev/null
++++ b/runtime/src/java/net/NoRouteToHostException.java
+@@ -0,0 +1,11 @@
++package java.net;
++
++/** As java.net.NoRouteToHostException: The remote host cannot be reached (a firewall, or a router that is down). */
++public class NoRouteToHostException extends SocketException {
++   public NoRouteToHostException(String msg) {
++      super(msg);
++   }
++
++   public NoRouteToHostException() {
++   }
++}
+diff --git a/runtime/src/java/net/PlainSocketImpl.java b/runtime/src/java/net/PlainSocketImpl.java
+new file mode 100644
+index 0000000..0f3ce64
+--- /dev/null
++++ b/runtime/src/java/net/PlainSocketImpl.java
+@@ -0,0 +1,80 @@
++package java.net;
++
++import java.io.IOException;
++
++/**
++ * The BSD socket calls under Socket and ServerSocket (IPv4, TCP). Blocking
++ * calls let the collector run meanwhile. Errors come back as negative
++ * errno values and become the JDK's exceptions here.
++ */
++final class PlainSocketImpl {
++   private PlainSocketImpl() {
++   }
++
++   static final int TCP_NODELAY = 1;
++   static final int SO_KEEPALIVE = 2;
++   static final int SO_LINGER = 3;
++   static final int SO_RCVBUF = 4;
++   static final int SO_SNDBUF = 5;
++   static final int SO_REUSEADDR = 6;
++
++   /** What a negative result means (errnoKind). */
++   static final int OTHER = 0;
++   static final int REFUSED = 1;
++   static final int TIMED_OUT = 2;
++   static final int UNREACHABLE = 3;
++   static final int IN_USE = 4;
++   static final int WOULD_BLOCK = 5;
++   static final int RESET = 6;
++   static final int BROKEN_PIPE = 7;
++
++   static native int socket0();
++
++   /** 0, or a negative errno; the timeout in milliseconds (0: none). */
++   static native int connect0(int fd, byte[] address, int port, int timeout);
++
++   /** Bytes read, 0 at the end of the stream (with len > 0), or a negative errno; -ETIMEDOUT after timeout ms. */
++   static native int read0(int fd, byte[] b, int off, int len, int timeout);
++
++   static native int write0(int fd, byte[] b, int off, int len);
++
++   static native int available0(int fd);
++
++   static native void close0(int fd);
++
++   static native int shutdown0(int fd, int how);
++
++   static native int bind0(int fd, byte[] address, int port);
++
++   static native int listen0(int fd, int backlog);
++
++   /** The new descriptor, the peer in address and port[0]; a negative errno (-ETIMEDOUT after timeout ms). */
++   static native int accept0(int fd, int timeout, byte[] address, int[] port);
++
++   static native int localPort0(int fd);
++
++   static native void localAddress0(int fd, byte[] address);
++
++   static native int setOption0(int fd, int option, int value);
++
++   static native int errnoKind(int err);
++
++   static native String errorText(int err);
++
++   static IOException exception(int result, String context) {
++      int kind = errnoKind(-result);
++      String text = errorText(-result) + (context != null ? " (" + context + ")" : "");
++      switch (kind) {
++         case REFUSED:
++            return new ConnectException("Connection refused" + (context != null ? " (" + context + ")" : ""));
++         case TIMED_OUT:
++            return new SocketTimeoutException(context != null && context.startsWith("connect") ? "connect timed out" : "Read timed out");
++         case UNREACHABLE:
++            return new NoRouteToHostException(text);
++         case IN_USE:
++            return new BindException(text);
++         default:
++            return new SocketException(text);
++      }
++   }
++}
+diff --git a/runtime/src/java/net/ServerSocket.java b/runtime/src/java/net/ServerSocket.java
+new file mode 100644
+index 0000000..5eb2544
+--- /dev/null
++++ b/runtime/src/java/net/ServerSocket.java
+@@ -0,0 +1,137 @@
++package java.net;
++
++import java.io.IOException;
++
++/** A TCP server socket (IPv4), as java.net.ServerSocket. */
++public class ServerSocket implements java.io.Closeable {
++   private int fd = -1;
++   private boolean bound;
++   private boolean closed;
++   private int soTimeout;
++   private InetAddress bindAddress;
++   private final Object closeLock = new Object();
++
++   public ServerSocket() throws IOException {
++   }
++
++   public ServerSocket(int port) throws IOException {
++      this(port, 50, null);
++   }
++
++   public ServerSocket(int port, int backlog) throws IOException {
++      this(port, backlog, null);
++   }
++
++   public ServerSocket(int port, int backlog, InetAddress bindAddr) throws IOException {
++      if (port < 0 || port > 0xFFFF)
++         throw new IllegalArgumentException("Port value out of range: " + port);
++      try {
++         bind(new InetSocketAddress(bindAddr != null ? bindAddr : InetAddress.getByAddress(new byte[4]), port), backlog);
++      } catch (IOException e) {
++         close();
++         throw e;
++      }
++   }
++
++   public void bind(SocketAddress endpoint) throws IOException {
++      bind(endpoint, 50);
++   }
++
++   public void bind(SocketAddress endpoint, int backlog) throws IOException {
++      if (isClosed())
++         throw new SocketException("Socket is closed");
++      if (bound)
++         throw new SocketException("Already bound");
++      InetSocketAddress ep = endpoint != null ? (InetSocketAddress) endpoint : new InetSocketAddress(0);
++      if (ep.isUnresolved())
++         throw new SocketException("Unresolved address");
++      if (backlog < 1)
++         backlog = 50;
++      int s = PlainSocketImpl.socket0();
++      if (s < 0)
++         throw PlainSocketImpl.exception(s, null);
++      fd = s;
++      PlainSocketImpl.setOption0(fd, PlainSocketImpl.SO_REUSEADDR, 1);
++      byte[] raw = ep.getAddress().getAddress();
++      int r = PlainSocketImpl.bind0(fd, raw, ep.getPort());
++      if (r < 0)
++         throw PlainSocketImpl.exception(r, "Address already in use");
++      r = PlainSocketImpl.listen0(fd, backlog);
++      if (r < 0)
++         throw PlainSocketImpl.exception(r, null);
++      bindAddress = ep.getAddress();
++      bound = true;
++   }
++
++   public InetAddress getInetAddress() {
++      return bound ? bindAddress : null;
++   }
++
++   public int getLocalPort() {
++      return bound ? PlainSocketImpl.localPort0(fd) : -1;
++   }
++
++   public SocketAddress getLocalSocketAddress() {
++      return bound ? new InetSocketAddress(bindAddress, getLocalPort()) : null;
++   }
++
++   public Socket accept() throws IOException {
++      if (isClosed())
++         throw new SocketException("Socket is closed");
++      if (!bound)
++         throw new SocketException("Socket is not bound yet");
++      byte[] addr = new byte[4];
++      int[] port = new int[1];
++      int s = PlainSocketImpl.accept0(fd, soTimeout, addr, port);
++      if (s < 0) {
++         if (isClosed())
++            throw new SocketException("Socket closed");
++         int kind = PlainSocketImpl.errnoKind(-s);
++         if (kind == PlainSocketImpl.TIMED_OUT)
++            throw new SocketTimeoutException("Accept timed out");
++         throw PlainSocketImpl.exception(s, null);
++      }
++      return new Socket(s, InetAddress.getByAddress(addr), port[0]);
++   }
++
++   public void close() throws IOException {
++      synchronized (closeLock) {
++         if (closed)
++            return;
++         closed = true;
++      }
++      if (fd >= 0)
++         PlainSocketImpl.close0(fd);
++   }
++
++   public boolean isBound() {
++      return bound;
++   }
++
++   public boolean isClosed() {
++      synchronized (closeLock) {
++         return closed;
++      }
++   }
++
++   public synchronized void setSoTimeout(int timeout) throws SocketException {
++      if (isClosed())
++         throw new SocketException("Socket is closed");
++      if (timeout < 0)
++         throw new IllegalArgumentException("timeout < 0");
++      soTimeout = timeout;
++   }
++
++   public synchronized int getSoTimeout() throws IOException {
++      return soTimeout;
++   }
++
++   public void setReuseAddress(boolean on) throws SocketException {
++   }
++
++   public String toString() {
++      if (!bound)
++         return "ServerSocket[unbound]";
++      return "ServerSocket[addr=" + bindAddress + ",localport=" + getLocalPort() + "]";
++   }
++}
+diff --git a/runtime/src/java/net/Socket.java b/runtime/src/java/net/Socket.java
+new file mode 100644
+index 0000000..593790a
+--- /dev/null
++++ b/runtime/src/java/net/Socket.java
+@@ -0,0 +1,394 @@
++package java.net;
++
++import java.io.IOException;
++import java.io.InputStream;
++import java.io.OutputStream;
++
++/** A TCP client socket (IPv4), as java.net.Socket. */
++public class Socket implements java.io.Closeable {
++   private int fd = -1;
++   private InetAddress address;
++   private int port;
++   private int localPort = -1;
++   private boolean connected;
++   private boolean closed;
++   private boolean shutIn;
++   private boolean shutOut;
++   private int soTimeout;
++   private final Object closeLock = new Object();
++   private InputStream in;
++   private OutputStream out;
++
++   public Socket() {
++   }
++
++   public Socket(String host, int port) throws UnknownHostException, IOException {
++      this(host != null ? new InetSocketAddress(host, port) : new InetSocketAddress(InetAddress.getByName(null), port));
++   }
++
++   public Socket(InetAddress address, int port) throws IOException {
++      this(address != null ? new InetSocketAddress(address, port) : null);
++   }
++
++   public Socket(String host, int port, InetAddress localAddr, int localPort) throws IOException {
++      this(host, port);
++   }
++
++   public Socket(InetAddress address, int port, InetAddress localAddr, int localPort) throws IOException {
++      this(address, port);
++   }
++
++   private Socket(SocketAddress endpoint) throws IOException {
++      if (endpoint == null)
++         throw new NullPointerException();
++      try {
++         connect(endpoint);
++      } catch (IOException | RuntimeException e) {
++         try {
++            close();
++         } catch (IOException ignored) {
++         }
++         throw e;
++      }
++   }
++
++   /** A socket accept() made. */
++   Socket(int fd, InetAddress address, int port) {
++      this.fd = fd;
++      this.address = address;
++      this.port = port;
++      this.connected = true;
++   }
++
++   public void connect(SocketAddress endpoint) throws IOException {
++      connect(endpoint, 0);
++   }
++
++   public void connect(SocketAddress endpoint, int timeout) throws IOException {
++      if (endpoint == null)
++         throw new IllegalArgumentException("connect: The address can't be null");
++      if (timeout < 0)
++         throw new IllegalArgumentException("connect: timeout can't be negative");
++      if (isClosed())
++         throw new SocketException("Socket is closed");
++      if (connected)
++         throw new SocketException("already connected");
++      if (!(endpoint instanceof InetSocketAddress))
++         throw new IllegalArgumentException("Unsupported address type");
++      InetSocketAddress epoint = (InetSocketAddress) endpoint;
++      InetAddress addr = epoint.getAddress();
++      int p = epoint.getPort();
++      if (epoint.isUnresolved())
++         throw new UnknownHostException(epoint.getHostName());
++      byte[] raw = addr.getAddress();
++      if (raw.length != 4)
++         throw new SocketException("Protocol family unavailable");
++      if (fd < 0) {
++         int s = PlainSocketImpl.socket0();
++         if (s < 0)
++            throw PlainSocketImpl.exception(s, null);
++         fd = s;
++      }
++      int r = PlainSocketImpl.connect0(fd, raw, p, timeout);
++      if (r < 0)
++         throw PlainSocketImpl.exception(r, "connect " + addr.getHostAddress() + ":" + p);
++      address = addr;
++      port = p;
++      connected = true;
++   }
++
++   public void bind(SocketAddress bindpoint) throws IOException {
++   }
++
++   public InetAddress getInetAddress() {
++      return connected ? address : null;
++   }
++
++   public InetAddress getLocalAddress() {
++      byte[] a = new byte[4];
++      if (fd >= 0)
++         PlainSocketImpl.localAddress0(fd, a);
++      try {
++         return InetAddress.getByAddress(a);
++      } catch (UnknownHostException e) {
++         return null;
++      }
++   }
++
++   public int getPort() {
++      return connected ? port : 0;
++   }
++
++   public int getLocalPort() {
++      if (fd < 0)
++         return -1;
++      if (localPort < 0)
++         localPort = PlainSocketImpl.localPort0(fd);
++      return localPort;
++   }
++
++   public SocketAddress getRemoteSocketAddress() {
++      return connected ? new InetSocketAddress(address, port) : null;
++   }
++
++   public SocketAddress getLocalSocketAddress() {
++      return fd < 0 ? null : new InetSocketAddress(getLocalAddress(), getLocalPort());
++   }
++
++   public InputStream getInputStream() throws IOException {
++      if (isClosed())
++         throw new SocketException("Socket is closed");
++      if (!connected)
++         throw new SocketException("Socket is not connected");
++      if (shutIn)
++         throw new SocketException("Socket input is shutdown");
++      synchronized (this) {
++         if (in == null)
++            in = new SocketInputStream();
++         return in;
++      }
++   }
++
++   public OutputStream getOutputStream() throws IOException {
++      if (isClosed())
++         throw new SocketException("Socket is closed");
++      if (!connected)
++         throw new SocketException("Socket is not connected");
++      if (shutOut)
++         throw new SocketException("Socket output is shutdown");
++      synchronized (this) {
++         if (out == null)
++            out = new SocketOutputStream();
++         return out;
++      }
++   }
++
++   private void option(int option, int value) throws SocketException {
++      if (isClosed())
++         throw new SocketException("Socket is closed");
++      if (fd < 0) {
++         int s = PlainSocketImpl.socket0();
++         if (s < 0)
++            throw new SocketException("socket failed");
++         fd = s;
++      }
++      int r = PlainSocketImpl.setOption0(fd, option, value);
++      if (r < 0)
++         throw new SocketException(PlainSocketImpl.errorText(-r));
++   }
++
++   private boolean tcpNoDelay;
++   private boolean keepAlive;
++   private int linger = -1;
++   private int receiveBufferSize = 65536;
++   private int sendBufferSize = 65536;
++
++   public void setTcpNoDelay(boolean on) throws SocketException {
++      option(PlainSocketImpl.TCP_NODELAY, on ? 1 : 0);
++      tcpNoDelay = on;
++   }
++
++   public boolean getTcpNoDelay() throws SocketException {
++      return tcpNoDelay;
++   }
++
++   public void setSoLinger(boolean on, int linger) throws SocketException {
++      if (on && linger < 0)
++         throw new IllegalArgumentException("invalid value for SO_LINGER");
++      option(PlainSocketImpl.SO_LINGER, on ? Math.min(linger, 65535) : -1);
++      this.linger = on ? linger : -1;
++   }
++
++   public int getSoLinger() throws SocketException {
++      return linger;
++   }
++
++   public void setSoTimeout(int timeout) throws SocketException {
++      if (isClosed())
++         throw new SocketException("Socket is closed");
++      if (timeout < 0)
++         throw new IllegalArgumentException("timeout can't be negative");
++      soTimeout = timeout;
++   }
++
++   public int getSoTimeout() throws SocketException {
++      return soTimeout;
++   }
++
++   public void setKeepAlive(boolean on) throws SocketException {
++      option(PlainSocketImpl.SO_KEEPALIVE, on ? 1 : 0);
++      keepAlive = on;
++   }
++
++   public boolean getKeepAlive() throws SocketException {
++      return keepAlive;
++   }
++
++   public void setReceiveBufferSize(int size) throws SocketException {
++      if (size <= 0)
++         throw new IllegalArgumentException("invalid receive size");
++      option(PlainSocketImpl.SO_RCVBUF, size);
++      receiveBufferSize = size;
++   }
++
++   public int getReceiveBufferSize() throws SocketException {
++      return receiveBufferSize;
++   }
++
++   public void setSendBufferSize(int size) throws SocketException {
++      if (size <= 0)
++         throw new IllegalArgumentException("negative send size");
++      option(PlainSocketImpl.SO_SNDBUF, size);
++      sendBufferSize = size;
++   }
++
++   public int getSendBufferSize() throws SocketException {
++      return sendBufferSize;
++   }
++
++   public void setReuseAddress(boolean on) throws SocketException {
++      option(PlainSocketImpl.SO_REUSEADDR, on ? 1 : 0);
++   }
++
++   public void close() throws IOException {
++      synchronized (closeLock) {
++         if (closed)
++            return;
++         closed = true;
++      }
++      if (fd >= 0)
++         PlainSocketImpl.close0(fd);
++   }
++
++   public void shutdownInput() throws IOException {
++      if (isClosed())
++         throw new SocketException("Socket is closed");
++      if (!connected)
++         throw new SocketException("Socket is not connected");
++      if (shutIn)
++         throw new SocketException("Socket input is already shutdown");
++      PlainSocketImpl.shutdown0(fd, 0);
++      shutIn = true;
++   }
++
++   public void shutdownOutput() throws IOException {
++      if (isClosed())
++         throw new SocketException("Socket is closed");
++      if (!connected)
++         throw new SocketException("Socket is not connected");
++      if (shutOut)
++         throw new SocketException("Socket output is already shutdown");
++      PlainSocketImpl.shutdown0(fd, 1);
++      shutOut = true;
++   }
++
++   public boolean isConnected() {
++      return connected;
++   }
++
++   public boolean isBound() {
++      return fd >= 0 && connected;
++   }
++
++   public boolean isClosed() {
++      synchronized (closeLock) {
++         return closed;
++      }
++   }
++
++   public boolean isInputShutdown() {
++      return shutIn;
++   }
++
++   public boolean isOutputShutdown() {
++      return shutOut;
++   }
++
++   public String toString() {
++      if (connected)
++         return "Socket[addr=" + address + ",port=" + port + ",localport=" + getLocalPort() + "]";
++      return "Socket[unconnected]";
++   }
++
++   private final class SocketInputStream extends InputStream {
++      private boolean eof;
++
++      public int read() throws IOException {
++         byte[] b = new byte[1];
++         int n = read(b, 0, 1);
++         return n <= 0 ? -1 : b[0] & 0xFF;
++      }
++
++      public int read(byte[] b, int off, int len) throws IOException {
++         if (off < 0 || len < 0 || len > b.length - off)
++            throw new IndexOutOfBoundsException();
++         // as the JDK: once the end was read it stays the end, closed or not
++         if (eof)
++            return -1;
++         if (isClosed())
++            throw new SocketException("Socket closed");
++         if (shutIn)
++            return -1;
++         if (len == 0)
++            return 0;
++         int n = PlainSocketImpl.read0(fd, b, off, len, soTimeout);
++         if (n == 0) {
++            eof = true;
++            return -1;
++         }
++         if (n < 0) {
++            if (isClosed())
++               throw new SocketException("Socket closed");
++            int kind = PlainSocketImpl.errnoKind(-n);
++            if (kind == PlainSocketImpl.TIMED_OUT || kind == PlainSocketImpl.WOULD_BLOCK)
++               throw new SocketTimeoutException("Read timed out");
++            throw new SocketException(kind == PlainSocketImpl.RESET ? "Connection reset" : PlainSocketImpl.errorText(-n));
++         }
++         return n;
++      }
++
++      public int available() throws IOException {
++         if (isClosed())
++            throw new SocketException("Socket closed");
++         if (eof || shutIn)
++            return 0;
++         int n = PlainSocketImpl.available0(fd);
++         return n < 0 ? 0 : n;
++      }
++
++      public void close() throws IOException {
++         Socket.this.close();
++      }
++   }
++
++   private final class SocketOutputStream extends OutputStream {
++      public void write(int b) throws IOException {
++         write(new byte[]{(byte) b}, 0, 1);
++      }
++
++      public void write(byte[] b, int off, int len) throws IOException {
++         if (off < 0 || len < 0 || len > b.length - off)
++            throw new IndexOutOfBoundsException();
++         if (isClosed())
++            throw new SocketException("Socket closed");
++         if (shutOut)
++            throw new SocketException("Socket output is shutdown");
++         while (len > 0) {
++            int n = PlainSocketImpl.write0(fd, b, off, len);
++            if (n < 0) {
++               if (isClosed())
++                  throw new SocketException("Socket closed");
++               int kind = PlainSocketImpl.errnoKind(-n);
++               throw new SocketException(kind == PlainSocketImpl.BROKEN_PIPE ? "Broken pipe"
++                     : kind == PlainSocketImpl.RESET ? "Connection reset by peer" : PlainSocketImpl.errorText(-n));
++            }
++            off += n;
++            len -= n;
++         }
++      }
++
++      public void close() throws IOException {
++         Socket.this.close();
++      }
++   }
++}
+diff --git a/runtime/src/java/net/SocketTimeoutException.java b/runtime/src/java/net/SocketTimeoutException.java
+new file mode 100644
+index 0000000..4144eda
+--- /dev/null
++++ b/runtime/src/java/net/SocketTimeoutException.java
+@@ -0,0 +1,11 @@
++package java.net;
++
++/** As java.net.SocketTimeoutException: a read or accept timed out. */
++public class SocketTimeoutException extends java.io.InterruptedIOException {
++   public SocketTimeoutException(String msg) {
++      super(msg);
++   }
++
++   public SocketTimeoutException() {
++   }
++}
+diff --git a/runtime/src/java/net/URL.java b/runtime/src/java/net/URL.java
+index ec43b0f..df8d02f 100644
+--- a/runtime/src/java/net/URL.java
++++ b/runtime/src/java/net/URL.java
+@@ -1,44 +1,436 @@
+-/*
+- * To change this license header, choose License Headers in Project Properties.
+- * To change this template file, choose Tools | Templates
+- * and open the template in the editor.
+- */
+ package java.net;
+ 
+ import java.io.IOException;
+ import java.io.InputStream;
+ 
+ /**
+- *
+- * @author shannah
++ * A Uniform Resource Locator, as java.net.URL: parsed as the JDK's
++ * URLStreamHandler.parseURL does (relative specs against a context, the
++ * same authority, path, query and ref splitting), for the protocols the
++ * runtime can open (http, file) and the ones it only names (https, ftp,
++ * jar, mailto). equals and hashCode compare the text of the host instead of
++ * resolving it as the JDK did.
+  */
+-public class URL {
+-    
+-    public URL(String spec) {
+-        throw new UnsupportedOperationException("URL not implemented on this platform");
+-    }
+-    
+-    public URL(String protocol, String host, int port, String file) {
+-        throw new UnsupportedOperationException("URL not implemented on this platform");
+-    }
+-    
+-    public URL(String protocl, String host, String file) {
+-        throw new UnsupportedOperationException("URL not implemented on this platform");
+-    }
+-    
+-    public URL(URL context, String spec) {
+-        throw new UnsupportedOperationException("URL not implemented on this platform");
+-    }
+-    
+-    public URL(URL context, String spec, URLStreamHandler handler) {
+-        throw new UnsupportedOperationException("URL not implemented on this platform");
+-    }
+-    
+-    public final InputStream openStream() throws IOException {
+-        throw new UnsupportedOperationException();
+-    }
+-
+-    public URLConnection openConnection() {
+-        throw new UnsupportedOperationException();
+-    }
++public final class URL implements java.io.Serializable {
++   private String protocol;
++   private String host;
++   private int port = -1;
++   private String file;
++   private transient String query;
++   private String authority;
++   private transient String path;
++   private transient String userInfo;
++   private String ref;
++   private transient URLStreamHandler handler;
++
++   private static final String[] KNOWN = {"http", "https", "file", "ftp", "jar", "mailto"};
++
++   public URL(String protocol, String host, int port, String file) throws MalformedURLException {
++      this(protocol, host, port, file, null);
++   }
++
++   public URL(String protocol, String host, String file) throws MalformedURLException {
++      this(protocol, host, -1, file);
++   }
++
++   public URL(String protocol, String host, int port, String file, URLStreamHandler handler) throws MalformedURLException {
++      protocol = protocol.toLowerCase();
++      this.protocol = protocol;
++      if (host != null) {
++         if (host.indexOf(':') >= 0 && !host.startsWith("["))
++            host = "[" + host + "]";
++         this.host = host;
++         if (port < -1)
++            throw new MalformedURLException("Invalid port number :" + port);
++         this.port = port;
++         authority = (port == -1) ? host : host + ":" + port;
++      }
++      int index = file.indexOf('#');
++      this.ref = index < 0 ? null : file.substring(index + 1);
++      file = index < 0 ? file : file.substring(0, index);
++      int q = file.lastIndexOf('?');
++      if (q != -1) {
++         this.query = file.substring(q + 1);
++         this.path = file.substring(0, q);
++         this.file = this.path + "?" + this.query;
++      } else {
++         this.path = file;
++         this.file = path;
++      }
++      if (!known(protocol))
++         throw new MalformedURLException("unknown protocol: " + protocol);
++      this.handler = handler;
++   }
++
++   public URL(String spec) throws MalformedURLException {
++      this(null, spec);
++   }
++
++   public URL(URL context, String spec) throws MalformedURLException {
++      this(context, spec, null);
++   }
++
++   public URL(URL context, String spec, URLStreamHandler handler) throws MalformedURLException {
++      String original = spec;
++      int i, limit, c;
++      int start = 0;
++      String newProtocol = null;
++      boolean aRef = false;
++      boolean isRelative = false;
++      try {
++         limit = spec.length();
++         while ((limit > 0) && (spec.charAt(limit - 1) <= ' '))
++            limit--;
++         while ((start < limit) && (spec.charAt(start) <= ' '))
++            start++;
++         if (spec.regionMatches(true, start, "url:", 0, 4))
++            start += 4;
++         if (start < spec.length() && spec.charAt(start) == '#')
++            aRef = true;
++         for (i = start; !aRef && (i < limit) && ((c = spec.charAt(i)) != '/'); i++) {
++            if (c == ':') {
++               String s = spec.substring(start, i).toLowerCase();
++               if (isValidProtocol(s)) {
++                  newProtocol = s;
++                  start = i + 1;
++               }
++               break;
++            }
++         }
++         protocol = newProtocol;
++         if ((context != null) && ((newProtocol == null) || newProtocol.equalsIgnoreCase(context.protocol))) {
++            if (handler == null)
++               handler = context.handler;
++            if (context.path != null && context.path.startsWith("/"))
++               newProtocol = null;
++            if (newProtocol == null) {
++               protocol = context.protocol;
++               authority = context.authority;
++               userInfo = context.userInfo;
++               host = context.host;
++               port = context.port;
++               file = context.file;
++               path = context.path;
++               isRelative = true;
++            }
++         }
++         if (protocol == null)
++            throw new MalformedURLException("no protocol: " + original);
++         if (!known(protocol))
++            throw new MalformedURLException("unknown protocol: " + protocol);
++         this.handler = handler;
++         i = spec.indexOf('#', start);
++         if (i >= 0) {
++            ref = spec.substring(i + 1, limit);
++            limit = i;
++         }
++         if (isRelative && start == limit) {
++            query = context.query;
++            if (ref == null)
++               ref = context.ref;
++         }
++         parseURL(spec, start, limit);
++      } catch (MalformedURLException e) {
++         throw e;
++      } catch (Exception e) {
++         MalformedURLException exception = new MalformedURLException(e.getMessage());
++         exception.initCause(e);
++         throw exception;
++      }
++   }
++
++   private static boolean known(String protocol) {
++      for (String k : KNOWN)
++         if (k.equals(protocol))
++            return true;
++      return false;
++   }
++
++   private static boolean isValidProtocol(String protocol) {
++      int len = protocol.length();
++      if (len < 1)
++         return false;
++      char c = protocol.charAt(0);
++      if (!Character.isLetter(c))
++         return false;
++      for (int i = 1; i < len; i++) {
++         c = protocol.charAt(i);
++         if (!Character.isLetterOrDigit(c) && c != '.' && c != '+' && c != '-')
++            return false;
++      }
++      return true;
++   }
++
++   /** URLStreamHandler.parseURL of the JDK. */
++   private void parseURL(String spec, int start, int limit) {
++      String protocol = this.protocol;
++      String authority = this.authority;
++      String userInfo = this.userInfo;
++      String host = this.host;
++      int port = this.port;
++      String path = this.path;
++      String query = this.query;
++      String ref = this.ref;
++      boolean isRelPath = false;
++      boolean queryOnly = false;
++
++      if (start < limit) {
++         int queryStart = spec.indexOf('?');
++         queryOnly = queryStart == start;
++         if ((queryStart != -1) && (queryStart < limit)) {
++            query = spec.substring(queryStart + 1, limit);
++            if (limit > queryStart)
++               limit = queryStart;
++            spec = spec.substring(0, queryStart);
++         }
++      }
++
++      int i = 0;
++      boolean isUNCName = (start <= limit - 4) && (spec.charAt(start) == '/') && (spec.charAt(start + 1) == '/')
++            && (spec.charAt(start + 2) == '/') && (spec.charAt(start + 3) == '/');
++      if (!isUNCName && (start <= limit - 2) && (spec.charAt(start) == '/') && (spec.charAt(start + 1) == '/')) {
++         start += 2;
++         i = spec.indexOf('/', start);
++         if (i < 0 || i > limit) {
++            i = spec.indexOf('?', start);
++            if (i < 0 || i > limit)
++               i = limit;
++         }
++         host = authority = spec.substring(start, i);
++         int ind = authority.indexOf('@');
++         if (ind != -1) {
++            if (ind != authority.lastIndexOf('@')) {
++               userInfo = null;
++               host = null;
++            } else {
++               userInfo = authority.substring(0, ind);
++               host = authority.substring(ind + 1);
++            }
++         } else {
++            userInfo = null;
++         }
++         if (host != null) {
++            if (host.length() > 0 && (host.charAt(0) == '[')) {
++               if ((ind = host.indexOf(']')) > 2) {
++                  String nhost = host;
++                  host = nhost.substring(0, ind + 1);
++                  port = -1;
++                  if (nhost.length() > ind + 1) {
++                     if (nhost.charAt(ind + 1) == ':') {
++                        ++ind;
++                        if (nhost.length() > (ind + 1))
++                           port = Integer.parseInt(nhost.substring(ind + 1));
++                     } else {
++                        throw new IllegalArgumentException("Invalid authority field: " + authority);
++                     }
++                  }
++               } else {
++                  throw new IllegalArgumentException("Invalid authority field: " + authority);
++               }
++            } else {
++               ind = host.indexOf(':');
++               port = -1;
++               if (ind >= 0) {
++                  if (host.length() > (ind + 1))
++                     port = Integer.parseInt(host.substring(ind + 1));
++                  host = host.substring(0, ind);
++               }
++            }
++         } else {
++            host = "";
++         }
++         if (port < -1)
++            throw new IllegalArgumentException("Invalid port number :" + port);
++         start = i;
++         if (authority != null && authority.length() > 0)
++            path = "";
++      }
++
++      if (host == null)
++         host = "";
++
++      if (start < limit) {
++         if (spec.charAt(start) == '/') {
++            path = spec.substring(start, limit);
++         } else if (path != null && path.length() > 0) {
++            isRelPath = true;
++            int ind = path.lastIndexOf('/');
++            String separator = "";
++            if (ind == -1 && authority != null)
++               separator = "/";
++            path = path.substring(0, ind + 1) + separator + spec.substring(start, limit);
++         } else {
++            path = spec.substring(start, limit);
++            path = (authority != null) ? "/" + path : path;
++         }
++      } else if (queryOnly && path != null) {
++         int ind = path.lastIndexOf('/');
++         if (ind < 0)
++            ind = 0;
++         path = path.substring(0, ind) + "/";
++      }
++      if (path == null)
++         path = "";
++
++      if (isRelPath) {
++         while ((i = path.indexOf("/./")) >= 0)
++            path = path.substring(0, i) + path.substring(i + 2);
++         i = 0;
++         while ((i = path.indexOf("/../", i)) >= 0) {
++            if (i > 0 && (limit = path.lastIndexOf('/', i - 1)) >= 0 && (path.indexOf("/../", limit) != 0)) {
++               path = path.substring(0, limit) + path.substring(i + 3);
++               i = 0;
++            } else {
++               i = i + 3;
++            }
++         }
++         while (path.endsWith("/..")) {
++            i = path.indexOf("/..");
++            if ((limit = path.lastIndexOf('/', i - 1)) >= 0)
++               path = path.substring(0, limit + 1);
++            else
++               break;
++         }
++         if (path.startsWith("./") && path.length() > 2)
++            path = path.substring(2);
++         if (path.endsWith("/."))
++            path = path.substring(0, path.length() - 1);
++      }
++      set(protocol, host, port, authority, userInfo, path, query, ref);
++   }
++
++   void set(String protocol, String host, int port, String authority, String userInfo, String path, String query, String ref) {
++      synchronized (this) {
++         this.protocol = protocol;
++         this.host = host;
++         this.port = port;
++         this.file = (query == null) ? path : path + "?" + query;
++         this.userInfo = userInfo;
++         this.path = path;
++         this.ref = ref;
++         this.authority = authority;
++         this.query = query;
++      }
++   }
++
++   public String getQuery() {
++      return query;
++   }
++
++   public String getPath() {
++      return path;
++   }
++
++   public String getUserInfo() {
++      return userInfo;
++   }
++
++   public String getAuthority() {
++      return authority;
++   }
++
++   public int getPort() {
++      return port;
++   }
++
++   public int getDefaultPort() {
++      switch (protocol) {
++         case "http":
++            return 80;
++         case "https":
++            return 443;
++         case "ftp":
++            return 21;
++         default:
++            return -1;
++      }
++   }
++
++   public String getProtocol() {
++      return protocol;
++   }
++
++   public String getHost() {
++      return host;
++   }
++
++   public String getFile() {
++      return file;
++   }
++
++   public String getRef() {
++      return ref;
++   }
++
++   public boolean equals(Object obj) {
++      if (!(obj instanceof URL))
++         return false;
++      URL u2 = (URL) obj;
++      return sameFile(u2) && (ref == null ? u2.ref == null : ref.equals(u2.ref));
++   }
++
++   public synchronized int hashCode() {
++      int h = 0;
++      if (protocol != null)
++         h += protocol.hashCode();
++      if (host != null)
++         h += host.toLowerCase().hashCode();
++      if (file != null)
++         h += file.hashCode();
++      h += port == -1 ? getDefaultPort() : port;
++      if (ref != null)
++         h += ref.hashCode();
++      return h;
++   }
++
++   public boolean sameFile(URL other) {
++      if (other == null)
++         return false;
++      if (!(protocol == other.protocol || (protocol != null && protocol.equalsIgnoreCase(other.protocol))))
++         return false;
++      if (!(file == other.file || (file != null && file.equals(other.file))))
++         return false;
++      int p1 = port != -1 ? port : getDefaultPort();
++      int p2 = other.port != -1 ? other.port : other.getDefaultPort();
++      if (p1 != p2)
++         return false;
++      return host == null ? other.host == null : other.host != null && host.equalsIgnoreCase(other.host);
++   }
++
++   public String toString() {
++      return toExternalForm();
++   }
++
++   public String toExternalForm() {
++      String s;
++      return protocol + ':' + ((s = authority) != null && s.length() > 0 ? "//" + s : "") + ((s = path) != null ? s : "")
++            + ((s = query) != null ? '?' + s : "") + ((s = ref) != null ? '#' + s : "");
++   }
++
++   public URI toURI() throws URISyntaxException {
++      return new URI(toString());
++   }
++
++   public URLConnection openConnection() throws IOException {
++      switch (protocol) {
++         case "http":
++            return new HttpConnection(this);
++         case "file":
++            return new FileURLConnection(this);
++         default:
++            throw new IOException("Cannot open a " + protocol + " connection on this platform");
++      }
++   }
++
++   public final InputStream openStream() throws IOException {
++      return openConnection().getInputStream();
++   }
++
++   public final Object getContent() throws IOException {
++      return openConnection().getContent();
++   }
++
++   public static void setURLStreamHandlerFactory(URLStreamHandlerFactory fac) {
++      throw new Error("factory already defined");
++   }
+ }
+diff --git a/runtime/src/java/net/URLConnection.java b/runtime/src/java/net/URLConnection.java
+index b803617..d2e5a3c 100644
+--- a/runtime/src/java/net/URLConnection.java
++++ b/runtime/src/java/net/URLConnection.java
+@@ -3,154 +3,319 @@ package java.net;
+ import java.io.IOException;
+ import java.io.InputStream;
+ import java.io.OutputStream;
+-import java.security.Permission;
+-import java.util.Hashtable;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.LinkedHashMap;
+ import java.util.List;
+ import java.util.Map;
+ 
++/** A connection to what a URL names, as java.net.URLConnection. */
+ public abstract class URLConnection {
+-    protected URL url;
+-//    ContentHandler defaultHandler = new DefaultContentHandler();
+-    protected long ifModifiedSince;
+-    protected boolean useCaches;
+-    protected boolean connected;
+-    protected boolean doOutput;
+-    protected boolean doInput;
+-    protected boolean allowUserInteraction;
+-    static Hashtable<String, Object> contentHandlers = new Hashtable();
+-    
+-    public static FileNameMap getFileNameMap() { return null; }
+-
+-    public static void setFileNameMap(FileNameMap map) {}
+-
+-    public abstract void connect() throws IOException;
+-
+-    public void setConnectTimeout(int timeout) {}
+-
+-    public int getConnectTimeout() { return 0; }
+-
+-    public void setReadTimeout(int timeout) {}
+-    
+-    public int getReadTimeout() { return 0; }
+-
+-    protected URLConnection(URL url) {}
+-
+-    public URL getURL() { return null; }
+-
+-    public int getContentLength() { return 0; }
+-
+-    public long getContentLengthLong() { return 0; }
+-
+-    public String getContentType() {
+-        return getHeaderField("content-type");
+-    }
+-
+-    public String getContentEncoding() {
+-        return getHeaderField("content-encoding");
+-    }
+-
+-    public long getExpiration() {
+-        return getHeaderFieldDate("expires", 0);
+-    }
+-
+-    public long getDate() {
+-        return getHeaderFieldDate("date", 0);
+-    }
+-
+-    public long getLastModified() {
+-        return getHeaderFieldDate("last-modified", 0);
+-    }
+-
+-    public String getHeaderField(String name) {
+-        return null;
+-    }
+-
+-    public Map<String,List<String>> getHeaderFields() { return null; }
+-
+-    public int getHeaderFieldInt(String name, int Default) {
+-        String value = getHeaderField(name);
+-        try {
+-            return Integer.parseInt(value);
+-        } catch (Exception e) { }
+-        return Default;
+-    }
+-
+-    public long getHeaderFieldLong(String name, long Default) {
+-        String value = getHeaderField(name);
+-        try {
+-            return Long.parseLong(value);
+-        } catch (Exception e) { }
+-        return Default;
+-    }
+-
+-    @SuppressWarnings("deprecation")
+-    public long getHeaderFieldDate(String name, long Default) { return 0; }
+-
+-    public String getHeaderFieldKey(int n) { return null; }
+-
+-    public String getHeaderField(int n) { return null; }
+-
+-    public Object getContent() throws IOException { return null; }
+-
+-    public Object getContent(Class<?>[] classes) throws IOException { return null; }
+-
+-    public Permission getPermission() throws IOException { return null; }
+-
+-    public InputStream getInputStream() throws IOException { return null; }
+-
+-    public OutputStream getOutputStream() throws IOException { return null; }
+-
+-    public String toString() { return null; }
+-
+-    public void setDoInput(boolean doinput) {}
+-
+-    public boolean getDoInput() { return false; }
+-
+-    public void setDoOutput(boolean dooutput) {}
+-
+-    public boolean getDoOutput() { return false; }
+-
+-    public void setAllowUserInteraction(boolean allowuserinteraction) {}
+-
+-    public boolean getAllowUserInteraction() { return false; }
+-
+-    public static void setDefaultAllowUserInteraction(boolean defaultallowuserinteraction) {}
+-
+-    public static boolean getDefaultAllowUserInteraction() { return false; }
+-
+-    public void setUseCaches(boolean usecaches) {}
+-
+-    public boolean getUseCaches() { return false; }
+-
+-    public void setIfModifiedSince(long ifmodifiedsince) {}
+-
+-    public long getIfModifiedSince() { return 0; }
+-
+-    public boolean getDefaultUseCaches() { return false; }
+-
+-    public void setDefaultUseCaches(boolean defaultusecaches) {}
+-
+-    public static void setDefaultUseCaches(String protocol, boolean defaultVal) {}
+-
+-    public static boolean getDefaultUseCaches(String protocol) { return false; }
+-
+-    public void setRequestProperty(String key, String value) {}
+-
+-    public void addRequestProperty(String key, String value) {}
+-
+-    public String getRequestProperty(String key)  { return null; }
+-
+-    public Map<String, List<String>> getRequestProperties() { return null; }
+-
+-    @Deprecated
+-    public static void setDefaultRequestProperty(String key, String value) {}
+-
+-    @Deprecated
+-    public static String getDefaultRequestProperty(String key) { return null; }
+-
+-    public static synchronized void setContentHandlerFactory(ContentHandlerFactory fac) {}
+-
+-    public static String guessContentTypeFromName(String fname) { return null; }
+-
+-    public static String guessContentTypeFromStream(InputStream is) throws IOException { return null; }
++   protected URL url;
++   protected boolean doInput = true;
++   protected boolean doOutput;
++   private static boolean defaultAllowUserInteraction;
++   protected boolean allowUserInteraction = defaultAllowUserInteraction;
++   private static boolean defaultUseCaches = true;
++   protected boolean useCaches = defaultUseCaches;
++   protected long ifModifiedSince;
++   protected boolean connected;
++   private int connectTimeout;
++   private int readTimeout;
++   private final LinkedHashMap<String, List<String>> requests = new LinkedHashMap<String, List<String>>();
++
++   protected URLConnection(URL url) {
++      this.url = url;
++   }
++
++   public static FileNameMap getFileNameMap() {
++      return null;
++   }
++
++   public static void setFileNameMap(FileNameMap map) {
++   }
++
++   public abstract void connect() throws IOException;
++
++   public void setConnectTimeout(int timeout) {
++      if (timeout < 0)
++         throw new IllegalArgumentException("timeout can not be negative");
++      connectTimeout = timeout;
++   }
++
++   public int getConnectTimeout() {
++      return connectTimeout;
++   }
++
++   public void setReadTimeout(int timeout) {
++      if (timeout < 0)
++         throw new IllegalArgumentException("timeout can not be negative");
++      readTimeout = timeout;
++   }
++
++   public int getReadTimeout() {
++      return readTimeout;
++   }
++
++   public URL getURL() {
++      return url;
++   }
++
++   public int getContentLength() {
++      long l = getContentLengthLong();
++      return l > Integer.MAX_VALUE ? -1 : (int) l;
++   }
++
++   public long getContentLengthLong() {
++      return getHeaderFieldLong("content-length", -1);
++   }
++
++   public String getContentType() {
++      return getHeaderField("content-type");
++   }
++
++   public String getContentEncoding() {
++      return getHeaderField("content-encoding");
++   }
++
++   public long getExpiration() {
++      return getHeaderFieldDate("expires", 0);
++   }
++
++   public long getDate() {
++      return getHeaderFieldDate("date", 0);
++   }
++
++   public long getLastModified() {
++      return getHeaderFieldDate("last-modified", 0);
++   }
++
++   public String getHeaderField(String name) {
++      return null;
++   }
++
++   public Map<String, List<String>> getHeaderFields() {
++      return Collections.emptyMap();
++   }
++
++   public int getHeaderFieldInt(String name, int Default) {
++      String value = getHeaderField(name);
++      try {
++         return Integer.parseInt(value.trim());
++      } catch (Exception e) {
++      }
++      return Default;
++   }
++
++   public long getHeaderFieldLong(String name, long Default) {
++      String value = getHeaderField(name);
++      try {
++         return Long.parseLong(value.trim());
++      } catch (Exception e) {
++      }
++      return Default;
++   }
++
++   public long getHeaderFieldDate(String name, long Default) {
++      String value = getHeaderField(name);
++      long t = HttpDates.parse(value);
++      return t == Long.MIN_VALUE ? Default : t;
++   }
++
++   public String getHeaderFieldKey(int n) {
++      return null;
++   }
++
++   public String getHeaderField(int n) {
++      return null;
++   }
++
++   public Object getContent() throws IOException {
++      return getInputStream();
++   }
++
++   public Object getContent(Class<?>[] classes) throws IOException {
++      return getContent();
++   }
++
++   public InputStream getInputStream() throws IOException {
++      throw new UnknownServiceException("protocol doesn't support input");
++   }
++
++   public OutputStream getOutputStream() throws IOException {
++      throw new UnknownServiceException("protocol doesn't support output");
++   }
++
++   public String toString() {
++      return getClass().getName() + ":" + url;
++   }
++
++   public void setDoInput(boolean doinput) {
++      checkConnected();
++      doInput = doinput;
++   }
++
++   public boolean getDoInput() {
++      return doInput;
++   }
++
++   public void setDoOutput(boolean dooutput) {
++      checkConnected();
++      doOutput = dooutput;
++   }
++
++   public boolean getDoOutput() {
++      return doOutput;
++   }
++
++   public void setAllowUserInteraction(boolean allowuserinteraction) {
++      checkConnected();
++      allowUserInteraction = allowuserinteraction;
++   }
++
++   public boolean getAllowUserInteraction() {
++      return allowUserInteraction;
++   }
++
++   public static void setDefaultAllowUserInteraction(boolean defaultallowuserinteraction) {
++      defaultAllowUserInteraction = defaultallowuserinteraction;
++   }
++
++   public static boolean getDefaultAllowUserInteraction() {
++      return defaultAllowUserInteraction;
++   }
++
++   public void setUseCaches(boolean usecaches) {
++      checkConnected();
++      useCaches = usecaches;
++   }
++
++   public boolean getUseCaches() {
++      return useCaches;
++   }
++
++   public void setIfModifiedSince(long ifmodifiedsince) {
++      checkConnected();
++      ifModifiedSince = ifmodifiedsince;
++   }
++
++   public long getIfModifiedSince() {
++      return ifModifiedSince;
++   }
++
++   public boolean getDefaultUseCaches() {
++      return defaultUseCaches;
++   }
++
++   public void setDefaultUseCaches(boolean defaultusecaches) {
++      defaultUseCaches = defaultusecaches;
++   }
++
++   public static void setDefaultUseCaches(String protocol, boolean defaultVal) {
++   }
++
++   public static boolean getDefaultUseCaches(String protocol) {
++      return defaultUseCaches;
++   }
++
++   private void checkConnected() {
++      if (connected)
++         throw new IllegalStateException("Already connected");
++   }
++
++   public void setRequestProperty(String key, String value) {
++      checkConnected();
++      if (key == null)
++         throw new NullPointerException("key is null");
++      List<String> l = new ArrayList<String>();
++      l.add(value);
++      for (String k : new ArrayList<String>(requests.keySet()))
++         if (k.equalsIgnoreCase(key))
++            requests.remove(k);
++      requests.put(key, l);
++   }
++
++   public void addRequestProperty(String key, String value) {
++      checkConnected();
++      if (key == null)
++         throw new NullPointerException("key is null");
++      for (Map.Entry<String, List<String>> e : requests.entrySet()) {
++         if (e.getKey().equalsIgnoreCase(key)) {
++            e.getValue().add(value);
++            return;
++         }
++      }
++      setRequestProperty(key, value);
++   }
++
++   public String getRequestProperty(String key) {
++      if (connected)
++         throw new IllegalStateException("Already connected");
++      for (Map.Entry<String, List<String>> e : requests.entrySet())
++         if (key != null && e.getKey().equalsIgnoreCase(key))
++            return e.getValue().get(e.getValue().size() - 1);
++      return null;
++   }
++
++   public Map<String, List<String>> getRequestProperties() {
++      if (connected)
++         throw new IllegalStateException("Already connected");
++      return Collections.unmodifiableMap(requests);
++   }
++
++   /** What setRequestProperty and addRequestProperty gave, for the protocol to send. */
++   Map<String, List<String>> requestHeaders() {
++      return requests;
++   }
++
++   @Deprecated
++   public static void setDefaultRequestProperty(String key, String value) {
++   }
++
++   @Deprecated
++   public static String getDefaultRequestProperty(String key) {
++      return null;
++   }
++
++   public static synchronized void setContentHandlerFactory(ContentHandlerFactory fac) {
++      throw new Error("factory already defined");
++   }
++
++   public static String guessContentTypeFromName(String fname) {
++      String f = fname.toLowerCase();
++      int dot = f.lastIndexOf('.');
++      String ext = dot < 0 ? "" : f.substring(dot + 1);
++      switch (ext) {
++         case "html":
++         case "htm":
++            return "text/html";
++         case "txt":
++         case "text":
++         case "java":
++            return "text/plain";
++         case "gif":
++            return "image/gif";
++         case "jpg":
++         case "jpeg":
++         case "jpe":
++            return "image/jpeg";
++         case "png":
++            return "image/png";
++         case "bmp":
++            return "image/bmp";
++         case "wav":
++            return "audio/x-wav";
++         case "mid":
++         case "midi":
++            return "audio/midi";
++         case "zip":
++            return "application/zip";
++         default:
++            return null;
++      }
++   }
++
++   public static String guessContentTypeFromStream(InputStream is) throws IOException {
++      return null;
++   }
+ }
+diff --git a/runtime/src/java/net/URLDecoderPlain.java b/runtime/src/java/net/URLDecoderPlain.java
+new file mode 100644
+index 0000000..3744a99
+--- /dev/null
++++ b/runtime/src/java/net/URLDecoderPlain.java
+@@ -0,0 +1,32 @@
++package java.net;
++
++/** %xx sequences of a URL path as UTF-8 (a '+' stays '+', unlike form decoding). */
++final class URLDecoderPlain {
++   private URLDecoderPlain() {
++   }
++
++   static String decode(String s) {
++      if (s.indexOf('%') < 0)
++         return s;
++      java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
++      for (int i = 0; i < s.length(); i++) {
++         char c = s.charAt(i);
++         if (c == '%' && i + 2 < s.length()) {
++            int hi = Character.digit(s.charAt(i + 1), 16);
++            int lo = Character.digit(s.charAt(i + 2), 16);
++            if (hi >= 0 && lo >= 0) {
++               out.write(hi * 16 + lo);
++               i += 2;
++               continue;
++            }
++         }
++         byte[] b = String.valueOf(c).getBytes();
++         out.write(b, 0, b.length);
++      }
++      try {
++         return new String(out.toByteArray(), "UTF-8");
++      } catch (java.io.UnsupportedEncodingException e) {
++         return s;
++      }
++   }
++}
+diff --git a/runtime/src/java/net/UnknownServiceException.java b/runtime/src/java/net/UnknownServiceException.java
+new file mode 100644
+index 0000000..e610165
+--- /dev/null
++++ b/runtime/src/java/net/UnknownServiceException.java
+@@ -0,0 +1,11 @@
++package java.net;
++
++/** As java.net.UnknownServiceException. */
++public class UnknownServiceException extends java.io.IOException {
++   public UnknownServiceException() {
++   }
++
++   public UnknownServiceException(String msg) {
++      super(msg);
++   }
++}
+-- 
+2.43.0
+

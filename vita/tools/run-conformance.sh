@@ -12,7 +12,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 WORK="$REPO/build/vita/conformance"
 PROGRAMS="$*"
-[ -n "$PROGRAMS" ] || PROGRAMS="Conformance RuntimeConformance"
+[ -n "$PROGRAMS" ] || PROGRAMS="Conformance RuntimeConformance NetConformance"
 
 rm -rf "$WORK/classes"; mkdir -p "$WORK/classes"
 JAVA_TOOL_OPTIONS= javac -nowarn --release 8 -encoding UTF-8 -d "$WORK/classes" \
